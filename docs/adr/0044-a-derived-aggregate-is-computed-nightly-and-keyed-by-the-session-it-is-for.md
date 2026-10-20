@@ -228,3 +228,62 @@ control block. One laptop, warm store, blocks rather than alternating samples.
 the second time in two days. A nightly row read on the **batch's** cadence from a
 table is `lastCloses`' shape, not a second arrival. It fires only if such a
 figure is ever withheld and refreshed by the gateway on its own clock.
+
+## Amended 2026-10-20 by Task 5.5.3 — the shape's FOURTH and FIFTH tables, and the first where the TAPE is in the key
+
+**The decision is unchanged; this records its third application and the one way
+it had to be extended.** Story 5.5's volume factor needed a median volume for
+the same time of day, per security, **on the same tape as the numerator** — and
+`return_baselines` could not be widened to hold it, for three reasons worth
+stating because the hand-off that proposed widening got all three wrong. That
+table has **no `feed` column** (the tape is a serving-path constant,
+`BASELINE_FEED = "sip"`), so one row would hold a `sip` distribution and an
+`iex` distribution with nothing saying which; widening would **weaken the
+shipped `return_baselines_one_answer` check** and duplicate `sample_count` and
+`refusal`, because a security can be price-refused on a split and volume-fine,
+or the reverse; and **a second table does not imply a second pass** — adding
+`volume` to `windowQuery`'s `select` costs **no extra I/O**, the same 538 blocks
+and the same index scan, one more column deserialised.
+
+So `0015_volume_baselines.sql` adds `volume_baselines` and
+`volume_baseline_passes`, folded into **one** pass, and **both labelled derived
+and recomputable in three places** — the migration, `schema.ts` and here — with
+the recompute command stated, as this ADR requires.
+
+**The one extension: the TAPE is in the key.** `(security_id, observed_at,
+feed)` and `(observed_at, feed)`, where `0013` and `0014` key on the session
+alone. The reason is a property of the decision above it rather than of the
+data: Story 5.5's Gate 1 chose a **same-tape `iex`** baseline **with a reversal
+trigger**, so the tape is a decision that can flip — and a flip against a
+session-only key would **rewrite every row with nothing recording the change**.
+A cache may be rebuilt; it may not quietly change what it is a cache _of_.
+
+**The companion row is Story 5.4.5's generalisation, and this is the clearest
+case it has had.** On the real store the pass wrote
+`tracked_count 516, measured_count 0, absent_count 516` beside an **empty**
+`volume_baselines` — because this machine holds **zero `iex` rows**, so every
+security refuses `no-same-tape-baseline`. Without the pass row, _the pass ran
+and found nothing_ and _the pass never ran_ are _byte-identical_.
+
+**Costs, measured rather than projected.** The DDL is **4.96 / 4.97 / 5.74 ms**
+of catalogue work over three runs (`volume_baselines` 3.4–3.7 ms,
+`volume_baseline_passes` 1.5–2.1 ms), against `0014`'s 9–14 ms and
+`deploy.yml`'s `timeout 120`; `pnpm migrate` end to end **0.540 s**. Nothing
+touches `market_bars`, `securities`, `return_baselines` or `0014`'s tables. The
+nightly pass's **added** cost is again **below this machine's noise floor** —
+median **13.34 s** with the volume half (n = 5) against a **14.40 s** control
+(n = 3), the new-code arm faster than the control. **That caveat is not
+optional and is weaker than 5.4.5's**: this laptop holds no `iex` rows, so the
+516 extra index probes find and deserialise **nothing**. It bounds the
+**empty-tape** cost and says nothing about the deployed one.
+
+**And one finding about this repository's own guards rather than about the
+schema.** A first draft gave the precision target `double precision`, arguing
+this ADR's §5 — and **`pnpm test:database` refused it**, because
+`migrate.database.test.ts` carries _has no floating-point column anywhere_ with
+**no exemption mechanism**. It is now `numeric(18, 6)` (0.05 is exact). The part
+worth keeping: that check reads `information_schema.columns.data_type`, which is
+**`ARRAY`** for a `double precision[]` and `double precision` for a scalar — so
+`0013`'s `breakpoints` and `0015`'s three arrays **escape it by their type's
+shape rather than by anybody's leave**. Recorded in `0015` §6 and `schema.ts`
+too, because the next author will reach for the same argument.

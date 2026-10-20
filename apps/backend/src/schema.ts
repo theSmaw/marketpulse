@@ -69,6 +69,7 @@ import type {
 } from "@marketpulse/shared";
 
 import type { BarAttemptOutcome } from "./bar-attempts.js";
+import type { VolumeBaselineStoredRefusal } from "./volume-baseline.js";
 
 /**
  * `securities` — the tracked universe. See `../migrations/0002_securities.sql`,
@@ -947,6 +948,278 @@ export interface SessionReturnPercentilePassesTable {
   recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * `volume_baselines` — the 60-session median volume of one minute of each
+ * 5-minute time of day, per security, **on the IEX tape** (Task 5.5.3). See
+ * `../migrations/0015_volume_baselines.sql`, which is the source of truth this
+ * mirrors and which carries the decisions, and
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md).
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **fourth derived table in this schema** — {@link
+ * VolumeBaselinePassesTable} is the fifth — and the label is load-bearing
+ * rather than descriptive: the row is computed from `market_bars` and
+ * `return_baselines` by the nightly pass, as a second statement over the same
+ * 538-block index range the price pass already reads. Dropping every row loses
+ * nothing.
+ *
+ * Said in three places — here, in the migration's §1 and in the ADR — because a
+ * table nobody has labelled is a table the next reader treats as primary, and
+ * the named cost is a later story changing the bucket width, the tape, the
+ * lookback or the precision target and writing an expensive backfill against a
+ * cache.
+ *
+ * ## The tape is in the KEY, which is where this diverges from `0013`
+ *
+ * The migration's §4: the numerator is the live IEX socket's own volume, so the
+ * baseline is same-tape or the figure is refused (Gate 1 decision 1) — and that
+ * decision has a stated reversal trigger, so a flip would otherwise update
+ * every row in place with nothing recording that the distribution changed tape.
+ *
+ * ## Three parallel arrays rather than a row per bucket
+ *
+ * The migration's §6: 78 buckets × 516 securities is ~322 KB an array and
+ * ~966 KB for three, against 40,248 rows a session and ~10 M a year for the
+ * per-bucket shape — which would break the no-index argument `0013` §6 rests
+ * on. `volume_baselines_bucket_arity` holds all three to {@link bucket_count},
+ * because an array column has no arity of its own and three that can disagree
+ * is a bucket index meaning a different time of day in each.
+ */
+export interface VolumeBaselinesTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint`. `never` on update: a row does not change which security
+   * it describes.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * **The window's END** — the instant the last session it was computed over
+   * closed, and the coordinate a replay keys on. `README.md` §2's reserved
+   * name, so Epic 13's plugin covers this table with its generic predicate.
+   *
+   * `Date` on insert and **no default anywhere**: a `default now()` would turn
+   * *when the window ended* into *when a script ran*, invisibly.
+   *
+   * `never` on update, with `security_id` and `feed`: the three are the
+   * generation.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The tape, in the key** — `VOLUME_BASELINE_FEED` is `iex` today, and the
+   * migration's §4 is the argument. Invariant 6 in a column: a distribution
+   * whose tape nothing records is one the screen cannot attribute.
+   */
+  feed: ColumnType<MarketFeed, MarketFeed, never>;
+
+  /**
+   * How many trading sessions the window spanned — 60 today,
+   * `BASELINE_LOOKBACK_SESSIONS`, obtained through `baselineWindowEndingAt`
+   * rather than counted a second time.
+   */
+  lookback_sessions: ColumnType<number, number, number>;
+
+  /**
+   * The grid's stride in minutes — `SAMPLE_SPAN_MINUTES`, the same five the
+   * return baseline's anchors step by. **The sample inside a bucket is one
+   * MINUTE**, not the bucket's sum, which is Gate 1 decision 4 and is what
+   * puts `n` in the thousands.
+   */
+  bucket_minutes: ColumnType<number, number, number>;
+
+  /**
+   * The grid's size: the **maximum** over the window's sessions, so 78 for
+   * regular sessions and 42 for half days. It is the three arrays' arity.
+   *
+   * `string` on read because it is a `bigint` — `../migrations/README.md` §4's
+   * rule for a count.
+   */
+  bucket_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **`n` over the whole window, counted by the pass.** `60 × 5` is wrong three
+   * ways: an early close has 42 buckets, the `iex` tape's median per-symbol
+   * minute presence is 65.1%, and the window reaches back past the live
+   * writer's 2026-09-23. A refused row carries the count it reached.
+   */
+  sample_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The median volume of one minute of each time of day**, bucket 0 first —
+   * `null` element for a bucket holding no sample at all, and the whole array
+   * `null` exactly when {@link refusal} is set, which
+   * `volume_baselines_one_answer` enforces.
+   *
+   * `double precision[]`, and that is **not** a breach of
+   * `../migrations/README.md` §4: that rule exists because float addition is
+   * not associative, and nothing here is summed in SQL — the aggregation is a
+   * **sort**. The migration's §6 is the long version.
+   */
+  bucket_medians: ColumnType<
+    (number | null)[] | null,
+    (number | null)[] | null,
+    (number | null)[] | null
+  >;
+
+  /**
+   * Each bucket's counted `n`, aligned with the array above. A `bigint[]`
+   * because these are counts, so the elements arrive as **strings**; the
+   * mapping to numbers happens beside the query.
+   */
+  bucket_samples: ColumnType<string[] | null, string[] | null, string[] | null>;
+
+  /**
+   * Each bucket's achieved relative standard error — `√(π/2)·CV/√n` with the
+   * CV measured over that bucket's own samples. `null` element for a bucket
+   * with no measurable spread, which means **unknown** rather than *fine*: a
+   * CV of zero is a licence to print any figure from any sample.
+   *
+   * The error rather than the CV, because the error is what the printed
+   * precision is read against — and storing it is what lets the bound move in
+   * a deploy rather than in a recompute of 516 securities.
+   */
+  bucket_errors: ColumnType<
+    (number | null)[] | null,
+    (number | null)[] | null,
+    (number | null)[] | null
+  >;
+
+  /**
+   * Why there is no distribution, or `null`. One member, **read from the price
+   * pass rather than re-derived** — the migration's §5 — and
+   * `VOLUME_BASELINE_STORED_REFUSALS` in `volume-baseline.ts` is the vocabulary
+   * `volume_baselines_refusal_known` backstops.
+   */
+  refusal: ColumnType<
+    VolumeBaselineStoredRefusal | null,
+    VolumeBaselineStoredRefusal | null,
+    VolumeBaselineStoredRefusal | null
+  >;
+
+  /**
+   * When we wrote the row: `timestamptz not null default now()`. Optional on
+   * insert and **updatable**, as {@link ReturnBaselinesTable.recorded_at} is
+   * and for its reason — a re-run of a generation rewrites its rows, and the
+   * pair with `observed_at` is the only way to tell a recomputed row from an
+   * untouched one.
+   */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
+ * `volume_baseline_passes` — one row per window per tape recording **what the
+ * pass was over, how many securities and buckets got past the line, and why
+ * the rest did not** (Task 5.5.3).
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **fifth derived table in this schema**; see {@link VolumeBaselinesTable}
+ * for the label's cost and the migration's §1 for the command.
+ *
+ * ## Why it is a table, and why it bites harder here than it did at `0014`
+ *
+ * ADR 0044's own generalisation: *an aggregate keyed by its session needs a
+ * companion row for what the pass saw, because the absence of rows is
+ * indistinguishable from the absence of a pass.* A security with no `iex` bar
+ * in the window gets **no row** (the migration's §5) — and on the `iex` tape
+ * that is essentially every security for weeks, which Gate 1 decision 1
+ * accepted explicitly. So the ordinary state of the table beside this one is
+ * *empty*, and that is exactly the state the figure's depth sentence has to
+ * stay honest in.
+ *
+ * ## The populations PARTITION rather than nest
+ *
+ * The difference from `0014`'s three nesting counts. Every tracked security
+ * ends in exactly one of three: measured, refused for an inherited price
+ * break, or never heard on this tape. The database holds the partition,
+ * because a reader cannot subtract *how many securities can this figure be
+ * drawn for* out of three figures that overlap.
+ */
+export interface VolumeBaselinePassesTable {
+  id: GeneratedAlways<string>;
+
+  /**
+   * **The window's end**, and with {@link feed} the natural key: one pass per
+   * window per tape. No default, `never` on update — {@link
+   * VolumeBaselinesTable.observed_at}'s reasoning.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /** The tape the pass computed over. `never` on update, with `observed_at`. */
+  feed: ColumnType<MarketFeed, MarketFeed, never>;
+
+  /**
+   * **The three security populations, which partition** — and the fourth
+   * column is the total they sum to, checked in the database by
+   * `volume_baseline_passes_securities_partition`.
+   *
+   * `bigint`, so `string` on read: `../migrations/README.md` §4's rule for a
+   * count.
+   */
+  tracked_count: ColumnType<string, string | number, string | number>;
+  measured_count: ColumnType<string, string | number, string | number>;
+  split_discontinuity_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  absent_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The bucket populations**, over the sample-bearing buckets of the measured
+   * securities. A bucket is drawable, too thin to print to one decimal, or
+   * typically empty of shares; `empty_bucket_count` is counted outside the
+   * partition because a bucket with no sample at all is a fact about the
+   * **grid** — an early close's afternoon — rather than about the security.
+   */
+  bucket_count: ColumnType<string, string | number, string | number>;
+  measured_bucket_count: ColumnType<string, string | number, string | number>;
+  too_few_sessions_bucket_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  zero_volume_bucket_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  empty_bucket_count: ColumnType<string, string | number, string | number>;
+
+  /** What the pass applied, not what a later bundle believes — `0014` §5. */
+  lookback_sessions: ColumnType<number, number, number>;
+  bucket_minutes: ColumnType<number, number, number>;
+
+  /**
+   * **The precision target in force when the pass ran** —
+   * `TARGET_RELATIVE_STANDARD_ERROR`, the owner's 2026-10-20 decision that the
+   * figure keeps one decimal.
+   *
+   * The bound is applied when a row is **read**, so this is what the bucket
+   * tallies above were counted against rather than a verdict binding any
+   * reader — which is the one way to tell *the target moved* from *the depth
+   * moved* between two passes.
+   *
+   * **`numeric(18, 6)`, so `string` on read** — and the migration's §6 records
+   * why the array columns' `double precision` argument does not reach a
+   * scalar: `migrate.database.test.ts` refuses a floating-point column
+   * outright and the arrays escape it only because their `data_type` is
+   * `ARRAY`. 0.05 is exact at six decimal places.
+   */
+  target_relative_standard_error: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
@@ -956,4 +1229,6 @@ export interface Database {
   return_baselines: ReturnBaselinesTable;
   session_return_percentiles: SessionReturnPercentilesTable;
   session_return_percentile_passes: SessionReturnPercentilePassesTable;
+  volume_baselines: VolumeBaselinesTable;
+  volume_baseline_passes: VolumeBaselinePassesTable;
 }

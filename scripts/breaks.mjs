@@ -5326,4 +5326,34 @@ export const BREAKS = [
     ],
     expect: "rather than coercing it to 0",
   },
+  {
+    name: "a-volume-read-that-names-no-tape",
+    proves:
+      "The volume baseline's window read admits BOTH tapes, and the mapper " +
+      "keyed on the bar's instant then keeps whichever row the planner " +
+      "returned last. `market_bars` holds up to two rows a minute (ADR 0035) " +
+      "and the IEX numerator this baseline is divided into is a single " +
+      "venue's prints, so a distribution holding consolidated minutes too is " +
+      "wrong by the whole quantity rather than by a margin \u2014 against " +
+      "the two-tape fixture, a bucket median **30,000\u00d7** too large.",
+    // **The break is the tidy-looking edit, and it typechecks and lints
+    // clean.** Spelling both feeds reads as *be explicit about the tapes* and
+    // is the opposite: `readMinuteVolumes` one module over legitimately takes
+    // both, because it pairs them per minute and hands them back side by side.
+    // This read reduces a minute to one number, so admitting two rows means
+    // taking one arbitrarily.
+    //
+    // **Proved green on the defect first, 2026-10-20.** A draft of the check
+    // asserting that the store module still *names* `VOLUME_BASELINE_FEED`
+    // reported `65 invariants hold.` against this exact tree, because the
+    // constant is still named by the row's own `feed` column and by the
+    // `none` refusal's message \u2014 neither of which is a predicate. The
+    // database suite reported `4 failed | 11 passed` throughout, which is the
+    // half a browser-blind grep cannot see.
+    file: "apps/backend/src/volume-baseline-store.ts",
+    find: '.where("market_bars.feed", "=", VOLUME_BASELINE_FEED)',
+    replace: '.where("market_bars.feed", "in", ["iex", "sip"])',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-volume-baseline-reads-one-tape-by-name",
+  },
 ];

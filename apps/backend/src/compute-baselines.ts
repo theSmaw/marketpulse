@@ -35,6 +35,17 @@ import type {
 } from "./session-percentile-store.js";
 import { sessionClosingReturn } from "./session-percentile.js";
 import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
+import {
+  TARGET_RELATIVE_STANDARD_ERROR,
+  VOLUME_BASELINE_FEED,
+  comparableVolumeBaseline,
+  volumeBaselineOf,
+} from "./volume-baseline.js";
+import { createVolumeBaselineStore } from "./volume-baseline-store.js";
+import type {
+  VolumeBaselineStore,
+  VolumeBucketTally,
+} from "./volume-baseline-store.js";
 import { equityTickers } from "./universe.js";
 
 /**
@@ -94,6 +105,31 @@ interface PassTally {
   samples: number;
   /** The session ranking's own figures; see {@link SessionTally}. */
   session: SessionTally;
+  /** The volume baseline's own figures; see {@link VolumeTally}. */
+  volume: VolumeTally;
+}
+
+/**
+ * **The volume baseline's tally — three security populations that PARTITION,
+ * and four bucket populations** (Task 5.5.3).
+ *
+ * Not `0014`'s nesting three, and `0015` §5 is the argument: every tracked
+ * security ends in exactly one of *measured*, *refused for an inherited price
+ * break*, and *never heard on this tape* — and on the `iex` tape the third is
+ * essentially all of them for weeks, which Gate 1 decision 1 accepted
+ * explicitly. A reader cannot subtract *how many securities can this figure be
+ * drawn for* out of three figures that overlap, and
+ * `volume_baseline_passes_securities_partition` holds the arithmetic in the
+ * database.
+ */
+interface VolumeTally {
+  tracked: number;
+  measured: number;
+  splitDiscontinuity: number;
+  /** No bar of this tape anywhere in the window — **no row written**. */
+  absent: number;
+  samples: number;
+  buckets: VolumeBucketTally;
 }
 
 /**
@@ -134,6 +170,21 @@ const noSessionTally = (): SessionTally => ({
   },
 });
 
+const noVolumeTally = (): VolumeTally => ({
+  tracked: 0,
+  measured: 0,
+  splitDiscontinuity: 0,
+  absent: 0,
+  samples: 0,
+  buckets: {
+    total: 0,
+    measured: 0,
+    tooFewSessions: 0,
+    zeroVolume: 0,
+    empty: 0,
+  },
+});
+
 export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   loadEnvFile();
 
@@ -159,6 +210,11 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   // are of different things and at different scales; one pool because this is
   // one process doing one pass.
   const sessions = createSessionPercentileStore(pool);
+  // **The third store, on the same pool, for `session-percentile-store.ts`'
+  // recorded reason**: its reads are of a different thing at a different scale
+  // and it is the one place that spells `feed = 'iex'`. One pool, because this
+  // is one process doing one pass.
+  const volumes = createVolumeBaselineStore(pool);
 
   const lines: string[] = [];
   const errors: string[] = [];
@@ -195,7 +251,7 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
       `window ${window.range.start.toISOString()} … ${window.range.end.toISOString()}`,
     );
 
-    const tally = await runPass(store, sessions, subjects, window);
+    const tally = await runPass(store, sessions, volumes, subjects, window);
 
     lines.push(
       `measured ${String(tally.measured)}, ` +
@@ -209,6 +265,23 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
         `tracked ${String(tally.session.tracked)}, ` +
         `eligible ${String(tally.session.eligible)}, ` +
         `scored ${String(tally.session.scored)}`,
+      // **The volume baseline's own two lines, read off the tally.** The first
+      // is the security partition and the second is the bucket one — and the
+      // bucket line is the depth figure, because on the `iex` tape the ordinary
+      // answer for weeks is that nothing meets the precision target at all
+      // (Gate 1 decision 1's accepted outcome, not a fault).
+      `volume baselines on ${VOLUME_BASELINE_FEED} for ${window.asOfSession} — ` +
+        `measured ${String(tally.volume.measured)}, ` +
+        `split-refused ${String(tally.volume.splitDiscontinuity)}, ` +
+        `no same-tape history ${String(tally.volume.absent)} (no row written)`,
+      `volume buckets — ` +
+        `${String(tally.volume.buckets.measured)} drawable of ` +
+        `${String(tally.volume.buckets.total)} with samples, ` +
+        `${String(tally.volume.buckets.tooFewSessions)} too few sessions, ` +
+        `${String(tally.volume.buckets.zeroVolume)} zero volume, ` +
+        `${String(tally.volume.buckets.empty)} empty; ` +
+        `${String(tally.volume.samples)} minute samples, target ` +
+        `${String(TARGET_RELATIVE_STANDARD_ERROR * 100)}% relative SE`,
     );
 
     return { exitCode: 0, lines, errors };
@@ -225,6 +298,7 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
 async function runPass(
   store: ReturnBaselineStore,
   sessions: SessionPercentileStore,
+  volumes: VolumeBaselineStore,
   subjects: readonly BaselineSubject[],
   window: BaselineWindow,
 ): Promise<PassTally> {
@@ -234,6 +308,7 @@ async function runPass(
     absent: 0,
     samples: 0,
     session: noSessionTally(),
+    volume: noVolumeTally(),
   };
 
   // **The equities, by the same positive-membership selection breadth and the
@@ -280,7 +355,47 @@ async function runPass(
         tally: tally.session,
       });
     }
+
+    // **The volume baseline, in this same iteration** (Task 5.5.3). It is a
+    // second statement over the **same** index range rather than a second
+    // nightly pass over the same bars — `volume-baseline-store.ts`' header
+    // carries the cost argument — and it is issued here, immediately after the
+    // close read, so those 538 blocks are hot.
+    //
+    // **Over all 516 and not only the equities**, which is the opposite call
+    // from the session ranking above and is deliberate: that one feeds a ranked
+    // list where scoring `SPY` beside its own constituents would make two
+    // regions non-independent (AC 13), while this one answers *how unusual is
+    // this security's volume* on whatever security is on screen — and the
+    // fifteen proxies have security pages too.
+    await computeVolumeBaseline(
+      volumes,
+      subject,
+      window,
+      outcome,
+      tally.volume,
+    );
   }
+
+  // **Written last and outside a transaction**, which is the session pass
+  // row's own arrangement below. The difference worth knowing is that these
+  // populations **partition** rather than nest, so a pass that died mid-loop
+  // would write a row whose counts do not sum — and
+  // `volume_baseline_passes_securities_partition` refuses it. That is the
+  // intended behaviour rather than a hazard: no pass row at all is the
+  // readable state, exactly as it is one table over.
+  await volumes.writePass(window.observedAt, {
+    tracked: tally.volume.tracked,
+    measured: tally.volume.measured,
+    splitDiscontinuity: tally.volume.splitDiscontinuity,
+    absent: tally.volume.absent,
+    buckets: tally.volume.buckets,
+    parameters: {
+      lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+      bucketMinutes: SAMPLE_SPAN_MINUTES,
+    },
+    targetRelativeStandardError: TARGET_RELATIVE_STANDARD_ERROR,
+  });
 
   // **Written last, outside a transaction, and that is the recorded choice.**
   // A pass that dies has written every security it finished (this module's
@@ -308,6 +423,107 @@ async function runPass(
   }
 
   return tally;
+}
+
+/**
+ * **One security's volume baseline, on the tape its numerator will come from —
+ * or the reason there is not one** (Task 5.5.3).
+ *
+ * ## The split verdict is READ here rather than re-derived
+ *
+ * `outcome` is the price generation this pass computed for the **same**
+ * `(security, window end)` a line above, so the verdict travels by being in
+ * hand rather than by a second read of `return_baselines` — which is `0014`
+ * §5's *the generation is identified rather than copied*, and is the reason
+ * Gate 1's false premise 9 could be answered at all: the price guard is a ratio
+ * over two **closes** at a session boundary, and volume legitimately moves 10×
+ * day to day, so there is no analogous overnight ratio to threshold. A split
+ * breaks volume **harder** — the share count multiplies by exactly the factor
+ * the price divides by, so an unadjusted 10:1 split is a **+900%** figure.
+ *
+ * ## What it cannot see, said rather than left to be noticed
+ *
+ * The verdict is computed over the **consolidated** tape's closes. A security
+ * holding `iex` volume and no `sip` close in the window gets no verdict at all
+ * (`outcome.kind === "none"`), so a split inside such a window would go
+ * undetected. The window's end is derived from `sip` presence
+ * (`baselineTapeFrontier`), so this is a security whose own history is
+ * `iex`-only — which, until the backfill has run for it, is a state the store
+ * can be in. It is a bound on the guard rather than a hole in the pass, and
+ * nothing cheaper closes it.
+ *
+ * ## The bucket tally goes through the same narrowing the reader will
+ *
+ * `comparableVolumeBaseline` is the one function that turns a stored bucket
+ * into a denominator, and the pass counts with it rather than re-expressing the
+ * bound — so the depth figure the summary prints is the number of buckets a
+ * surface could actually draw, and a pass that counted its own way would be a
+ * second answer to *is this bucket printable*.
+ */
+async function computeVolumeBaseline(
+  volumes: VolumeBaselineStore,
+  subject: BaselineSubject,
+  window: BaselineWindow,
+  outcome: ReturnBaselineOutcome,
+  tally: VolumeTally,
+): Promise<void> {
+  tally.tracked += 1;
+
+  const minutes = await volumes.readWindowVolumes(subject, window.range);
+
+  const volume = volumeBaselineOf({
+    sessions: window.sessions,
+    volumes: minutes,
+    priceRefusal: outcome.kind === "refused" ? outcome.refusal : null,
+  });
+
+  if (volume.kind === "none") {
+    // **No row, deliberately** — `0015` §5. The reader is told
+    // `no-same-tape-baseline`, which is *we have never heard IEX for this
+    // security*, and is NOT the same sentence as *the history is too short*.
+    tally.absent += 1;
+    return;
+  }
+
+  await volumes.writeBaseline(
+    subject,
+    window.observedAt,
+    {
+      lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+      bucketMinutes: SAMPLE_SPAN_MINUTES,
+    },
+    volume,
+  );
+
+  tally.samples += volume.sampleCount;
+
+  if (volume.kind === "refused") {
+    tally.splitDiscontinuity += 1;
+    return;
+  }
+
+  tally.measured += 1;
+
+  for (let bucket = 0; bucket < volume.bucketCount; bucket += 1) {
+    const held = volume.buckets[bucket];
+
+    // A bucket with no sample at all is a fact about the **grid** rather than
+    // about the security — an early close has 42 buckets where a regular
+    // session has 78 — so it is counted outside the partition.
+    if (held === undefined || held.samples === 0) {
+      tally.buckets.empty += 1;
+      continue;
+    }
+
+    tally.buckets.total += 1;
+
+    const comparable = comparableVolumeBaseline(volume, bucket);
+
+    if (comparable.comparable) tally.buckets.measured += 1;
+    else if (comparable.refusal === "zero-volume-baseline") {
+      tally.buckets.zeroVolume += 1;
+    } else tally.buckets.tooFewSessions += 1;
+  }
 }
 
 /**

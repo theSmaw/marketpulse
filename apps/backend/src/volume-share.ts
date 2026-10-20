@@ -6,6 +6,13 @@ import {
 } from "@marketpulse/shared";
 
 import { breakpointsOf, SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
+import {
+  TARGET_RELATIVE_STANDARD_ERROR,
+  coefficientOfVariation,
+  medianRelativeStandardError,
+  samplesForRelativeStandardError,
+  volumeBucketOf,
+} from "./volume-baseline.js";
 
 /**
  * **IEX's share of volume, and the dispersion AC 7's floor is derived from**
@@ -112,9 +119,6 @@ import { breakpointsOf, SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
  * `minuteBars`, both of which `market-time.ts` produced.
  */
 
-/** 60,000. A module-local, which is `return-baseline.ts`' own idiom. */
-const MS_PER_MINUTE = 60_000;
-
 /**
  * **The first session an `iex` row can exist for, anywhere.**
  *
@@ -129,32 +133,13 @@ const MS_PER_MINUTE = 60_000;
  */
 export const LIVE_WRITER_FIRST_SESSION: MarketDate = toMarketDate("2026-09-23");
 
-/**
- * The precision a printed multiple has to support — the **one chosen input**
- * on this surface, stated so it can be argued with.
- *
- * At 5%, a figure printed `4.1× typical` is `4.1 ± 0.2`, so the first decimal
- * place carries information rather than noise. Every other number in the
- * dispersion block is measured; this one is a product judgement about how
- * precisely the figure is drawn, and the achieved
- * {@link BaselineVolumeDispersion.relativeStandardError} is reported beside the
- * floor it implies so a reader can re-derive the floor against a different
- * target without re-running anything.
- */
-export const TARGET_RELATIVE_STANDARD_ERROR = 0.05;
-
-/**
- * `√(π/2)` ≈ 1.2533 — the asymptotic ratio of a **median's** standard error to
- * a mean's, at the same `n` and spread.
- *
- * **Derived rather than typed as `1.253`**, which is the figure Gate 1 quotes;
- * a literal is a second, lower-precision home for a constant of mathematics.
- * It is exact for a normal sample and an **approximation** for minute volume,
- * which is heavy-tailed — so the floor it implies is an estimate of the right
- * order, and the measured CV beside it is what makes that estimate checkable
- * rather than a guess.
- */
-const MEDIAN_SE_FACTOR = Math.sqrt(Math.PI / 2);
+// **`TARGET_RELATIVE_STANDARD_ERROR`, `MEDIAN_SE_FACTOR` and
+// `coefficientOfVariation` moved to `volume-baseline.ts` at Task 5.5.3.**
+// The floor is the **baseline's** policy — the figure it governs is the
+// multiple that story draws — and this module is the instrument that
+// measured the dispersion it is derived from. So the dependency runs that
+// way round and the arithmetic has one home rather than two copies of
+// `(MEDIAN_SE_FACTOR * cv) / Math.sqrt(n)`.
 
 /** Why no share was measured. A fixed vocabulary; see the type. */
 export type VolumeShareRefusal =
@@ -352,9 +337,11 @@ interface Placed {
 /**
  * Places a minute on the grid.
  *
- * **A division and never a cutoff.** The bucket is `minuteOfSession` divided by
- * the grid's stride, so there is no minute-scaled quantity subtracted from an
- * instant anywhere in this module — which is why
+ * **The division itself is `volumeBucketOf`, in `volume-baseline.ts`, since
+ * Task 5.5.3** — one home for *which time of day is this minute*, because the
+ * baseline's buckets and this instrument's buckets have to be the same buckets
+ * or the dispersion is measured over a grid the pass does not sample on. It is
+ * a division and never a cutoff, which is why
  * `one-home-for-the-observation-window` is correctly silent about it, exactly
  * as it is about `sessionAnchors`.
  */
@@ -366,22 +353,7 @@ function place(
   const session = sessions.get(date);
   if (session === undefined) return undefined;
 
-  const minuteOfSession = Math.floor(
-    (startsAt.getTime() - session.open.getTime()) / MS_PER_MINUTE,
-  );
-
-  // `minuteBars` is derived from the session's own bounds, so an early close
-  // has 210 of them rather than 390 and this cannot disagree with the close
-  // instant the way a hard-coded pair would.
-  const inside = minuteOfSession >= 0 && minuteOfSession < session.minuteBars;
-
-  return {
-    session,
-    date,
-    bucket: inside
-      ? Math.floor(minuteOfSession / SAMPLE_SPAN_MINUTES)
-      : undefined,
-  };
+  return { session, date, bucket: volumeBucketOf(startsAt, session) };
 }
 
 function byDate(
@@ -703,18 +675,16 @@ function dispersionOf(
   const cvP90 = quantile(cvs, 90);
 
   // The achieved precision, and the floor that the measured p90 CV implies for
-  // the stated target. Both are `√(π/2)·CV/√n` rearranged; see the header.
-  const achieved =
-    cvMedian === undefined || samplesMedian === undefined || samplesMedian === 0
-      ? undefined
-      : (MEDIAN_SE_FACTOR * cvMedian) / Math.sqrt(samplesMedian);
+  // the stated target. Both are `√(π/2)·CV/√n` rearranged, and since Task
+  // 5.5.3 both come from `volume-baseline.ts` rather than being spelled here:
+  // the pass applies the same two functions per bucket, and two copies of the
+  // rearrangement is two answers to *how precise is this median*.
+  const achieved = medianRelativeStandardError(cvMedian, samplesMedian ?? 0);
 
-  const needed =
-    cvP90 === undefined
-      ? undefined
-      : Math.ceil(
-          ((MEDIAN_SE_FACTOR * cvP90) / TARGET_RELATIVE_STANDARD_ERROR) ** 2,
-        );
+  const needed = samplesForRelativeStandardError(
+    cvP90,
+    TARGET_RELATIVE_STANDARD_ERROR,
+  );
 
   return {
     ...shape,
@@ -736,26 +706,5 @@ function dispersionOf(
   };
 }
 
-/**
- * `sd / mean` over a bucket's samples, or `undefined`.
- *
- * **The sample standard deviation (`n − 1`)**, because these are samples of a
- * bucket's volume rather than its population — and `undefined` rather than `0`
- * for a single sample, a zero mean or a flat bucket, so a floor is never
- * derived from a bucket that has no spread to measure.
- */
-function coefficientOfVariation(
-  samples: readonly number[],
-): number | undefined {
-  if (samples.length < 2) return undefined;
-
-  const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
-  if (mean === 0) return undefined;
-
-  const variance =
-    samples.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
-    (samples.length - 1);
-
-  const cv = Math.sqrt(variance) / mean;
-  return cv > 0 && Number.isFinite(cv) ? cv : undefined;
-}
+// `coefficientOfVariation` moved to `volume-baseline.ts` at Task 5.5.3; see
+// the note where `TARGET_RELATIVE_STANDARD_ERROR` used to be declared.
