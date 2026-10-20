@@ -482,6 +482,39 @@ local figures must not be quoted as the answer: `sip` `cvMedian` **0.672**
 against 0.657, `cvP90` **0.978** against 0.881, so `sessionsForTargetError` is
 **121** rather than 98. Same direction, same conclusion, different number.
 
+### AC 1's "in aggregate", recorded as FIGURES rather than as a capability — 2026-10-20
+
+Verification at the close noted that only `NVDA`'s body was quoted, so _per
+security and in aggregate_ rested on the route's shape rather than on a recorded
+number. Taken across six securities against the deployment:
+
+| symbol | IEX share of volume | bias over all `sip` minutes | volume exposure | minute presence |
+| ------ | ------------------- | --------------------------- | --------------- | --------------- |
+| `NVDA` | **3.54%**           | 2.75%                       | 77.6%           | 81.6%           |
+| `AAPL` | 4.50%               | 3.76%                       | 83.6%           | 81.6%           |
+| `KO`   | 10.36%              | 8.32%                       | 80.3%           | 80.9%           |
+| `CCI`  | 6.47%               | 5.21%                       | 80.5%           | 61.0%           |
+| `NVR`  | **15.19%**          | 6.59%                       | 43.4%           | 26.6%           |
+| `ERIE` | 10.51%              | 2.20%                       | 20.9%           | **7.8%**        |
+
+**Three findings the single-security body could not show.**
+
+**The share runs 3.54% to 15.19% — a 4.3× spread — and it runs INVERSELY with
+liquidity.** The two largest names have the **lowest** IEX share, which is the
+right direction for a small venue: the mega-caps trade mostly elsewhere, while a
+thin name's few prints are a larger fraction of a smaller whole.
+
+**So the cross-tape bias is not a constant: it is 2.20% to 8.32%, i.e. a figure
+would be 12× to 45× too low depending on which security a reader opened.** That
+is a stronger argument for ADR 0045's refusal than the within-`NVDA` dispersion
+it was written from, and it is recorded in the ADR too.
+
+**And exposure and presence come apart at the thin end.** `ERIE` has **7.8%**
+minute presence but **20.9%** volume exposure — so on the few minutes IEX did
+print, it saw a fifth of the shares. `NVR` likewise, 26.6% against 43.4%. **A
+minute-presence figure is not a volume figure**, which is this story's founding
+claim, measured in both directions.
+
 ## For a stakeholder — a status report, 2026-10-19
 
 **Nothing changed on screen, and that is the whole task.** This was a

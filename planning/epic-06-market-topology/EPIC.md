@@ -273,3 +273,48 @@ one, which `MARKET-OVERVIEW.md` already records as one picture today.
 **The interim-layout condition is unchanged and still yours**: the landing grid
 reverts to the canvas's end state on **the first commit that renders a graph
 node**.
+
+## Handed here by Story 5.5's close — 2026-10-20: a new ADR governs any edge or node you weight by a market quantity
+
+**[ADR 0045](../../docs/adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)
+decision 1 applies to this epic before any graph is drawn**, and it is cheaper to
+apply than the measurement that forced it.
+
+**The test**: before comparing two market figures, ask whether the quantity is a
+**ratio within one tape** or a **level across tapes**.
+
+- A **ratio within** one tape — a correlation of returns, a percentage move, a
+  rank among one tape's own history — is **scale-free**, so it survives the two
+  tapes disagreeing about how much of the market they saw.
+- A **level across** tapes — a **traded value**, a **share volume**, a trade
+  count — is **proportional to how much of the market that tape saw**, so the
+  share _is_ the quantity. **ADR 0045 refuses it**, and not as a tolerance: it is
+  wrong by a factor nobody on screen can see.
+
+**The factor, measured against the deployment on 2026-10-20 and not estimated:
+IEX carries 3.54% of the volume** on minutes both tapes printed, and **2.75%**
+across all consolidated minutes, while **printing in 81.6% of them**. So an
+`iex`-over-`sip` level comparison is **~36× too low**. This product's own
+estimate before the measurement was 13×; it understated it threefold.
+
+**Why this reaches you specifically.** A topology that weights edges by **traded
+value**, sizes nodes by **volume**, or thresholds a relationship on **turnover**
+is comparing levels — and the live feed is `iex` while the stored history is
+consolidated `sip`. Two securities whose edge is computed from different tapes,
+or one edge computed live against a stored threshold, is the refused shape.
+**A correlation of returns is fine**; a weight in shares is not.
+
+**What to do instead**, in the order ADR 0045 prefers: use a **ratio within one
+tape**; or read **one** tape by name for both sides, as `volume_baselines` does
+with `feed = 'iex'` in the query's own `where`; or **refuse and say so**, which
+is this epic's inherited idiom. **What not to do**: measure the share and apply
+it as a multiplier — that is computing an adjustment whose error is invisible,
+which is the one place `PROVIDER.md` §3.5's objection actually reaches, and the
+measured dispersion (p10 **1.60%** against p90 **5.83%**, a **3.6×** spread)
+admits no single constant anyway.
+
+**And if you persist a derived graph, the tape belongs in its KEY** — ADR 0045
+decision 3. `volume_baselines` is keyed `(security_id, observed_at, feed)` where
+ADR 0044's earlier tables key on the session alone, because a tape choice that
+carries a reversal trigger can flip, and **a flip against a session-only key
+rewrites every row with nothing recording that the meaning changed.**

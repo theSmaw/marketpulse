@@ -747,6 +747,18 @@ For example:
 >
 > Extreme 5-minute price move
 > Volume 3.8× normal
+>
+> **Amended 2026-10-20 by Task 5.5.5 — this line is wrong TWICE and is left
+> standing because it is the example the model was written from.** The word is
+> **`typical`**, not `normal`: `normal` is also one of this section's own four
+> **band** names, so the composite example collided with the model it was
+> illustrating — Story 5.5's AC 3, swept in `VISUAL-LANGUAGE.md` the same day it
+> was found and here at the close. And the figure is a **rate**: the shipped
+> label is **`VOLUME PER MINUTE`**, because `Σvolume / (5 × median)` is the same
+> arithmetic as a rate but **not the same claim** — `5 × median` is _the typical
+> five-minute volume_, and the median of a sum is not five times the median of
+> its parts. [ADR 0045](../docs/adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)
+> decision 2 is the rule. **The shipped sentence is `4.1× typical`.**
 > Move substantially exceeds related securities
 
 > **Amended 2026-10-13 by Story 5.1 — four readings this section leaves

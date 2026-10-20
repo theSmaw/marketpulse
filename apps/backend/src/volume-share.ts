@@ -679,7 +679,17 @@ function dispersionOf(
   // 5.5.3 both come from `volume-baseline.ts` rather than being spelled here:
   // the pass applies the same two functions per bucket, and two copies of the
   // rearrangement is two answers to *how precise is this median*.
-  const achieved = medianRelativeStandardError(cvMedian, samplesMedian ?? 0);
+  // **`samplesMedian` is asked rather than defaulted.** `quantile` answers
+  // `undefined` only for an empty sample and `buckets.length === 0` returned
+  // four branches up, so this is unreachable — but a `?? 0` here would hand
+  // `medianRelativeStandardError` a sample count no bucket has, and the one
+  // thing that function exists to keep apart is *unknown precision* from
+  // *fine precision* (AC 8).
+  /* c8 ignore next -- unreachable: see above. */
+  const achieved =
+    samplesMedian === undefined
+      ? undefined
+      : medianRelativeStandardError(cvMedian, samplesMedian);
 
   const needed = samplesForRelativeStandardError(
     cvP90,
