@@ -1,4 +1,8 @@
-import type { MarketSession, ReturnBaselineRefusal } from "@marketpulse/shared";
+import type {
+  MarketSession,
+  ReturnBaselineRefusal,
+  VolumeRefusal,
+} from "@marketpulse/shared";
 
 import { breakpointsOf, SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
 
@@ -209,18 +213,16 @@ export const TARGET_RELATIVE_STANDARD_ERROR = 0.05;
  *   reader and differ for the operator: the first is a security whose history
  *   crosses an unadjusted price break and will stay refused for 60 sessions;
  *   the second is a security we have no rows for.
+ *
+ * **Amended 2026-10-20 by Task 5.5.4: the list itself is now
+ * `VOLUME_REFUSALS` in `packages/shared/src/volume-baseline.ts`**, which is
+ * where this module's own note said it would go the day the **wire** carried
+ * it. Everything above is unchanged and is the argument for the six members;
+ * what moved is the array, because a vocabulary a producer picks from and a
+ * browser prints a sentence for cannot have two homes. There is deliberately
+ * **no alias here** — a second name for one list is the duplication this move
+ * was made to avoid — so callers read `VolumeRefusal` by that name.
  */
-export const VOLUME_BASELINE_REFUSALS = [
-  "split-discontinuity",
-  "too-few-sessions",
-  "no-same-tape-baseline",
-  "zero-volume-baseline",
-  "no-bar-in-bucket",
-  "bucket-partially-observed",
-] as const;
-
-/** One of {@link VOLUME_BASELINE_REFUSALS}. */
-export type VolumeBaselineRefusal = (typeof VOLUME_BASELINE_REFUSALS)[number];
 
 /**
  * The subset a **stored row** can carry, backed by
@@ -245,7 +247,7 @@ export type VolumeBaselineStoredRefusal =
  * `tsc -b`.
  */
 export type VolumeStoredRefusalIsAMember =
-  VolumeBaselineStoredRefusal extends VolumeBaselineRefusal ? true : never;
+  VolumeBaselineStoredRefusal extends VolumeRefusal ? true : never;
 
 /** Satisfied only while the assertion above holds. */
 export const VOLUME_STORED_REFUSALS_ARE_READABLE: VolumeStoredRefusalIsAMember = true;
@@ -559,7 +561,7 @@ export interface ComparableVolumeBaseline {
 /** Why there is no bucket median to divide by. */
 export interface RefusedVolumeBaseline {
   readonly comparable: false;
-  readonly refusal: VolumeBaselineRefusal;
+  readonly refusal: VolumeRefusal;
   /** How much we had. The first question asked of a refusal. */
   readonly sampleCount: number;
 }

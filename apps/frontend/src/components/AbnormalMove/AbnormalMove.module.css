@@ -284,3 +284,72 @@
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
 }
+
+/*
+ * --- The second band: the volume multiple (Task 5.5.4) ---
+ *
+ * **A band rather than a third cell**, which is Gate 1 decision 3 and is a
+ * correctness decision rather than a layout one: `▲ +0.42%  99th percentile
+ * 4.1× typical` under one label reading `5-MINUTE RETURN` asserts that the
+ * **return** is 4.1× typical. The third cell was measured to fit — 0 px, with
+ * 23 px of slack at 390 — and is the wrong picture.
+ *
+ * The separator is the band's own top margin and nothing is drawn in it. A
+ * rule here would be the only horizontal line inside a `Region` in this
+ * product; the label's own uppercase micro ink is what says *a new subject
+ * starts here*, which is the idiom the rail already uses between its regions.
+ */
+.secondBand {
+  margin-top: var(--space-12);
+}
+
+/*
+ * The multiple itself — `4.1×`, `>999×`, `<0.1×`.
+ *
+ * ## It composes `dataCell` and declares nothing the target declares
+ *
+ * `.percentile`'s rule one band up, and the same narrow reason:
+ * `a-compose-never-carries-an-override` refuses a composing rule that
+ * re-declares a composed property, because `composes` concatenates class names
+ * and the winner is **stylesheet order**. The two declarations below are two
+ * `dataCell` does not make — and the **size is deliberately absent**, so the
+ * figure inherits `.figure`'s metric box exactly as `PriceChange.change` does.
+ * The `×` is therefore the same size, weight and ink as the digits it is glued
+ * to, which is the first of this figure's five channels and the one that
+ * cannot be a separate element.
+ *
+ * ## `--ink-primary`, and never the price palette
+ *
+ * *Volume does not encode direction* is settled in `VISUAL-LANGUAGE.md`, so a
+ * tint here would be the redundant channel standing where meaning normally is,
+ * on a figure that has no direction to be redundant about. What tells a reader
+ * this is not a price move is the `×`, the absent sign, the word `typical` and
+ * the one decimal: four channels, none of them colour.
+ */
+.multiple {
+  composes: dataCell from "../../styles/type.module.css";
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-primary);
+}
+
+/*
+ * `typical` — the **comparand**, not a unit, so it is a word in the figure's
+ * row rather than a suffix glued to the number.
+ *
+ * `.percentile`'s geometry exactly, for the measurement that rule records: a
+ * 13px glyph on the **dense** 18px leading fits inside the metric's ascent and
+ * descent, so the row's height is unchanged and the two baselines coincide. On
+ * the centred 26px leading the same cell hangs 1.1 px lower and grows the row
+ * to 29 px — photographed at 8× one band up, and inherited here rather than
+ * re-discovered.
+ *
+ * It is **not** `composes: percentile`: that class is named for another
+ * figure's second cell, and composing it would make a rename of the
+ * percentile's treatment silently re-style this one.
+ */
+.comparand {
+  margin-left: var(--space-12);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  color: var(--ink-secondary);
+}

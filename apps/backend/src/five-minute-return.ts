@@ -137,6 +137,32 @@ export interface MeasuredReturn {
   readonly observed: number;
   /** The denominator, so the surface states the span this figure was taken with. */
   readonly spanMinutes: number;
+  /**
+   * **The shares printed in exactly the minutes {@link observed} counted**
+   * (Task 5.5.4) — the volume factor's numerator, summed in the **same pass**
+   * that picked the endpoints.
+   *
+   * ## Why it is here rather than in a module of its own
+   *
+   * Two reasons, and the second is mechanical. A sum taken by a second
+   * traversal is a second measurement that can disagree with the first, which
+   * is this function's own argument for producing `observed` in the walk — and
+   * here the two travel together as a numerator and the count that says how
+   * much of it there is. And a second module would need a **second span
+   * cutoff**, which `one-home-for-the-observation-window` refuses by name:
+   * there is one measurement span in this product and it is spelled in this
+   * file.
+   *
+   * ## It is a sum of bars that EXIST, never a sum over five slots
+   *
+   * The minutes IEX did not print contribute nothing because they are not
+   * walked, not because a `0` was added for them. That distinction is the
+   * whole of AC 4 — `Number(null)` is `0` — and it is why the consumer is
+   * handed `observed` beside this and refuses rather than scaling: a partial
+   * span's volume is smaller for a **coverage** reason, and both `× 5/k` and
+   * `÷ k` read the minutes we heard as representative of the ones we did not.
+   */
+  readonly volume: number;
 }
 
 /**
@@ -178,6 +204,18 @@ export interface ObservedSpan {
   readonly observed: number;
   /** The denominator the surface states. */
   readonly spanMinutes: number;
+  /**
+   * The shares printed in those minutes — {@link MeasuredReturn.volume}, on a
+   * refusal that found a newer endpoint.
+   *
+   * **A refused return can still have a measurable volume rate**: a window
+   * with no bar exactly five minutes back has no pair to subtract and may hold
+   * all five of the span's minutes, and `no-basis` is a close of zero rather
+   * than an absence of trading. So the numerator travels on this arm too, and
+   * the volume comparison is a sibling of the return on the wire rather than a
+   * field inside its measured arm.
+   */
+  readonly volume: number;
 }
 
 /** No figure, which refusal it was, and what the window did hold. */
@@ -263,6 +301,10 @@ export function fiveMinuteReturn(
   let older: LiveObservation | undefined;
   let olderAt = 0;
   let observed = 0;
+  // **The numerator, summed as the same bars are counted** (Task 5.5.4). It
+  // moves in lockstep with `observed` — every `+= 1` below has a `+=
+  // bar.volume` beside it — so the pair cannot describe different minutes.
+  let volume = 0;
 
   for (let index = window.length - 1; index >= 0; index -= 1) {
     const candidate = window[index];
@@ -297,6 +339,7 @@ export function fiveMinuteReturn(
         candidate.bar.startsAt.getTime() - RETURN_SPAN_MINUTES * MS_PER_MINUTE;
       // The newer endpoint is the last of the span's minutes.
       observed = 1;
+      volume = candidate.bar.volume;
       continue;
     }
 
@@ -313,8 +356,11 @@ export function fiveMinuteReturn(
     if (at < olderAt) break;
 
     // A minute inside the span, counted as it is walked past rather than by a
-    // second traversal.
+    // second traversal. The older endpoint is **not** reached here — the
+    // `break` above takes it — so it anchors the figure without contributing
+    // its own shares, which is exactly the set `observed` describes.
     observed += 1;
+    volume += candidate.bar.volume;
   }
 
   // **Nothing was observed, so there is nothing to carry** — and that is the
@@ -331,6 +377,7 @@ export function fiveMinuteReturn(
     newest: endpointOf(newer),
     observed,
     spanMinutes: RETURN_SPAN_MINUTES,
+    volume,
   };
 
   if (older === undefined) {
@@ -354,5 +401,6 @@ export function fiveMinuteReturn(
     to: endpointOf(newer),
     observed,
     spanMinutes: RETURN_SPAN_MINUTES,
+    volume,
   };
 }

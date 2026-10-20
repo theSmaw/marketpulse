@@ -29,17 +29,19 @@ import {
   isTicker,
   marketDateAt,
 } from "@marketpulse/shared";
-import type { WireMarketOverview, WireSymbolReturn } from "@marketpulse/shared";
+import type { WireMarketOverview } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
+
+import type { SymbolFigures } from "./market-gateway.js";
 import type { MarketDataStream } from "./market-data-stream.js";
 import {
   createCurrentMarketState,
   snapshotOf,
 } from "./current-market-state.js";
 import { createTrailingWindow } from "./trailing-window.js";
-import { fiveMinuteReturn } from "./five-minute-return.js";
-import { toWireSymbolReturn } from "./five-minute-return-wire.js";
+import { RETURN_SPAN_MINUTES, fiveMinuteReturn } from "./five-minute-return.js";
+import { toWireSymbolReturn, toWireVolume } from "./five-minute-return-wire.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import {
   buildMarketOverview,
@@ -72,6 +74,9 @@ import {
   createReturnBaselineStore,
 } from "./return-baseline-store.js";
 import { createReturnBaselineCache } from "./return-baseline-cache.js";
+import { createVolumeBaselineCache } from "./volume-baseline-cache.js";
+import { createVolumeBaselineStore } from "./volume-baseline-store.js";
+import { volumeRateOf } from "./volume-ratio.js";
 import { createSessionPercentileCache } from "./session-percentile-cache.js";
 import { createSessionPercentileStore } from "./session-percentile-store.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
@@ -992,6 +997,40 @@ void baselines.load(marketDateAt(new Date())).then(
 );
 
 /**
+ * **The 60-session volume baseline, held in memory** (Task 5.5.4, ADR 0044).
+ *
+ * `baselines`' shape and `baselines`' reason, one row of this file up — and one
+ * thing of its own worth knowing: **on every machine without a provider this
+ * cache is empty for ever**, because the nightly pass writes no row for a
+ * security with no `iex` bar in the window. That is Gate 1 decision 1's
+ * accepted outcome, and it is why the volume band's shipped state everywhere
+ * today is `no-same-tape-baseline` rather than a figure.
+ */
+const volumeBaselines = createVolumeBaselineCache({
+  store: createVolumeBaselineStore(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+// **Loaded at startup, and it does not block the server** — `baselines`'
+// argument unchanged.
+void volumeBaselines.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      {
+        securities: volumeBaselines.size(),
+        through: volumeBaselines.heldThrough(),
+      },
+      "volume baselines loaded for the volume multiple",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn({ err: error }, "volume baselines could not be loaded");
+  },
+);
+
+/**
  * **The last completed session's ranking, held in memory** (Task 5.4.5, ADR
  * 0044).
  *
@@ -1057,22 +1096,44 @@ void sessionRankings.load(marketDateAt(new Date())).then(
  * the literally true answer: nothing has been observed for a symbol that
  * cannot exist.
  */
-const symbolReturn = (symbol: string): WireSymbolReturn => {
+const symbolReturn = (symbol: string): SymbolFigures => {
   if (!isTicker(symbol)) {
     // Nothing was observed, so there is nothing observed to carry beside the
-    // word (Task 5.2.4).
-    return { measured: false, refusal: "nothing-observed", seen: null };
+    // word (Task 5.2.4) — and nothing to divide, which the volume half says
+    // in its own vocabulary rather than borrowing this one's.
+    return {
+      return: { measured: false, refusal: "nothing-observed", seen: null },
+      volume: {
+        measured: false,
+        refusal: "no-bar-in-bucket",
+        sampleCount: 0,
+        observed: 0,
+        spanMinutes: RETURN_SPAN_MINUTES,
+      },
+    };
   }
 
   const asOf = new Date();
   const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });
+
+  // **The volume multiple, from the SAME walk** (Task 5.5.4). It is computed
+  // whatever the return did, because the two refuse independently: a window
+  // with no bar exactly five minutes back has no return and may hold all five
+  // minutes of volume. `volumeRateOf` is pure and takes the figure and the
+  // row, so this site assembles rather than decides.
+  const volume = toWireVolume(
+    volumeRateOf(
+      figure,
+      volumeBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+    ),
+  );
 
   // **The join of the two halves, and this is the one place that holds both**
   // (Task 5.3.3): the trailing window is the live tape's and the baseline is a
   // stored 60-session distribution, so neither producer can see the other and
   // the comparison is assembled here. A refusal has no magnitude, so there is
   // nothing to rank.
-  if (!figure.measured) return toWireSymbolReturn(figure);
+  if (!figure.measured) return { return: toWireSymbolReturn(figure), volume };
 
   // **The narrowing is ONE CALL and the type is what carries it** (Task
   // 5.3.4). `comparableBaseline` answers *may this move be ranked at all* —
@@ -1092,7 +1153,9 @@ const symbolReturn = (symbol: string): WireSymbolReturn => {
     { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
   );
 
-  if (!comparison.ranked) return toWireSymbolReturn(figure, comparison);
+  if (!comparison.ranked) {
+    return { return: toWireSymbolReturn(figure, comparison), volume };
+  }
 
   // A distribution that is not 101 points is refused by the arithmetic rather
   // than by a word — the database forbids it, so there is no honest sentence
@@ -1102,10 +1165,13 @@ const symbolReturn = (symbol: string): WireSymbolReturn => {
     comparison.distribution,
   );
 
-  return toWireSymbolReturn(
-    figure,
-    percentile === undefined ? undefined : { ranked: true, percentile },
-  );
+  return {
+    return: toWireSymbolReturn(
+      figure,
+      percentile === undefined ? undefined : { ranked: true, percentile },
+    ),
+    volume,
+  };
 };
 
 const gateway = registerMarketGateway(app, {

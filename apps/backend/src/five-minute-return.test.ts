@@ -94,6 +94,11 @@ describe("the 5-minute return (Task 5.2.2)", () => {
         },
         observed: 5,
         spanMinutes: 5,
+        // **The numerator the volume factor divides**, summed in this same
+        // pass (Task 5.5.4): five copies of the recorded bar's own volume,
+        // because `at()` moves one fixture bar to five minutes. The 14:00
+        // anchor is NOT in it — see the block at the foot of this file.
+        volume: 5 * recordedBar().bar.volume,
       });
     });
 
@@ -397,6 +402,78 @@ describe("the 5-minute return (Task 5.2.2)", () => {
       expect(
         fiveMinuteReturn(window, { asOf: instant("11:05") }),
       ).toMatchObject({ measured: true, observed: 5 });
+    });
+  });
+
+  describe("the volume numerator, from the SAME pass (Task 5.5.4)", () => {
+    /** The recorded bar at a minute, with a distinguishable volume. */
+    const atVolume = (minute: string, volume: number): LiveObservation => {
+      const recorded = recordedBar();
+      return {
+        ...recorded,
+        bar: { ...recorded.bar, startsAt: instant(minute), volume },
+      };
+    };
+
+    it("sums exactly the minutes `observed` counted, and not the anchor", () => {
+      // The anchor at 14:00 carries a volume nothing may include: it is the
+      // bar the move is measured FROM, and the five minutes the move covers
+      // are 14:01 … 14:05. A sum that included it would be six minutes of
+      // shares divided by five.
+      const window = windowOf([
+        atVolume("14:00", 1_000_000),
+        atVolume("14:01", 1),
+        atVolume("14:02", 2),
+        atVolume("14:03", 4),
+        atVolume("14:04", 8),
+        atVolume("14:05", 16),
+      ]);
+
+      expect(
+        fiveMinuteReturn(window, { asOf: instant("14:05") }),
+      ).toMatchObject({ measured: true, observed: 5, volume: 31 });
+    });
+
+    it("counts an absent minute as absent rather than as zero shares", () => {
+      // AC 4, at the one place a `?? 0` would be invisible: the sum of two
+      // bars and the count of two bars have to describe the same minutes, so
+      // the consumer can refuse. `Number(null)` is `0`, and a `0` here would
+      // be a claim about a stock exchange.
+      const window = windowOf([
+        atVolume("14:00", 1_000_000),
+        atVolume("14:02", 7),
+        atVolume("14:05", 11),
+      ]);
+
+      expect(
+        fiveMinuteReturn(window, { asOf: instant("14:05") }),
+      ).toMatchObject({ measured: true, observed: 2, volume: 18 });
+    });
+
+    it("travels on a refusal that found a newer endpoint", () => {
+      // `no-earlier-endpoint` says nothing about the five minutes themselves,
+      // so the numerator is on `seen` — which is why the volume comparison is
+      // a sibling of the return on the wire rather than a field inside its
+      // measured arm.
+      const window = windowOf([atVolume("14:03", 5), atVolume("14:05", 9)]);
+
+      expect(
+        fiveMinuteReturn(window, { asOf: instant("14:05") }),
+      ).toMatchObject({
+        measured: false,
+        refusal: "no-earlier-endpoint",
+        seen: { observed: 2, volume: 14 },
+      });
+    });
+
+    it("has nothing to carry where nothing was observed", () => {
+      // The one arm with no numerator, and it is an absence of a `seen`
+      // rather than a `volume: 0`.
+      expect(fiveMinuteReturn([], { asOf: instant("14:05") })).toStrictEqual({
+        measured: false,
+        refusal: "nothing-observed",
+        seen: undefined,
+      });
     });
   });
 

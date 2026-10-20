@@ -9,6 +9,13 @@ import type { MarketFeed } from "./market-provenance.js";
 import { PERCENTILE_REFUSALS } from "./return-baseline.js";
 
 import type { PercentileRefusal } from "./return-baseline.js";
+// The volume factor's refusal words (Task 5.5.4), imported for
+// `PERCENTILE_REFUSALS`' reason exactly: the decoder has to refuse a word this
+// bundle cannot draw a sentence for, and a list spelled twice is a browser
+// drawing blank room where a gateway sent a reason.
+import { VOLUME_REFUSALS } from "./volume-baseline.js";
+
+import type { VolumeRefusal } from "./volume-baseline.js";
 // The ladder's rungs, so this module can refuse a value that is not one of
 // them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
 // here — is **type-only** and is erased, so there is no runtime cycle.
@@ -1632,6 +1639,130 @@ export interface WireRefusedReturn {
 export type WireSymbolReturn = WireMeasuredReturn | WireRefusedReturn;
 
 /**
+ * **How this security's volume compares with a typical minute of this time of
+ * day** (Task 5.5.4) — the second figure on the `return` frame, and the first
+ * number in this product that is a **multiple** rather than a percentage.
+ *
+ * ## Why it rides this frame rather than a sixth type or the measured arm
+ *
+ * It is about the same security, over the same five minutes, produced by the
+ * same walk of the same trailing window — so a second frame type would be a
+ * second send per batch carrying a figure derived from the first one's own
+ * pass. And it is **beside** {@link WireSymbolReturn} rather than inside
+ * {@link WireMeasuredReturn} because the two refuse independently: a window
+ * with no bar exactly five minutes back has no return and may still have five
+ * minutes of volume, and a security whose close is zero has `no-basis` for a
+ * percentage and a perfectly good volume rate. Nesting it would delete those
+ * states from the wire.
+ *
+ * ## The quantity, stated once so nothing downstream has to guess
+ *
+ * **A per-minute RATE against a per-minute median.** The numerator is the
+ * shares printed in the five minutes the return covers, divided by
+ * {@link spanMinutes}; the denominator is the median volume of **one minute**
+ * of this time of day, pooled over the baseline's lookback. Both sides are
+ * shares-per-minute, so the ratio is dimensionless and no scaling happens
+ * anywhere.
+ *
+ * **The arithmetic is identical to `Σvolume / (5 × median)` and the CLAIM is
+ * not**, which is the distinction worth keeping: `5 × median` would be *the
+ * typical five-minute volume*, and the median of a sum is not the sum of
+ * medians. Nothing in this product computes that quantity or claims it.
+ */
+export interface WireVolumeRate {
+  readonly measured: true;
+  /**
+   * The multiple — `4.1` is drawn `4.1× typical`. Strictly above `0` and
+   * finite: a zero denominator is {@link WireRefusedVolume} rather than an
+   * `Infinity`, which is `directionOf`'s precedent.
+   *
+   * **Unrounded.** The printed precision is the surface's and is one decimal;
+   * the bound that decides whether one decimal may be printed at all was
+   * applied by the producer, per bucket, against the stored relative standard
+   * error.
+   */
+  readonly ratio: number;
+  /**
+   * **The counted `n` of the bucket this was divided by**, never a constant —
+   * `60 × 5` is wrong three ways over (an early close has 42 buckets, IEX
+   * prints in a median 65.1% of minutes, and the window reaches back past the
+   * live writer's first session). Measured on the deployment on 2026-10-20 the
+   * `iex` tape's median bucket holds **80**.
+   */
+  readonly sampleCount: number;
+  /** The baseline's depth in trading sessions, so the surface states it. */
+  readonly lookbackSessions: number;
+  /** The baseline's grid stride in minutes — *which* time of day a bucket is. */
+  readonly bucketMinutes: number;
+  /** The numerator's span in minutes, so the browser spells no `5` of its own. */
+  readonly spanMinutes: number;
+  /**
+   * **The tape both halves came from** — invariant 6, and the whole of Gate 1
+   * decision 1 in one field. The numerator is the live IEX socket's and the
+   * baseline is built from `feed = 'iex'` by name, so this is **one** field
+   * rather than the percentile's two: a cross-tape volume ratio is not refused
+   * here, it is **unrepresentable**, because the producer reads one tape.
+   */
+  readonly feed: MarketFeed;
+}
+
+/**
+ * **Why there is no multiple** — one of six words, and the two numbers the
+ * sentences need.
+ *
+ * `WireRefusedPercentile`'s shape and its argument: a `null` with no reason
+ * makes the surface pick a sentence, and *we have never heard IEX for this
+ * security*, *we have 80 minutes and need more*, *IEX printed in two of these
+ * five minutes* and *the history crosses a price break* are four different
+ * facts with four different repairs. **On every machine that exists today this
+ * is what the frame carries**, because the `iex` tape is empty everywhere a
+ * provider is not configured.
+ *
+ * **There is no `feed` on this arm** (ADR 0029): no figure was measured, so
+ * there is nothing whose provenance could be claimed, and a fully-formed
+ * source line about no figure is the false impression that rule exists for.
+ */
+export interface WireRefusedVolume {
+  readonly measured: false;
+  /** One of `VOLUME_REFUSALS`. */
+  readonly refusal: VolumeRefusal;
+  /**
+   * The baseline minutes we hold for this time of day — **`0` where there is
+   * no baseline at all**, which is a cold replica, a security with no stored
+   * `iex` history, and every gated run.
+   */
+  readonly sampleCount: number;
+  /**
+   * How many of the span's minutes the window held. `0` is a legal answer here
+   * and is `no-bar-in-bucket`; anything between `1` and `spanMinutes − 1` is
+   * `bucket-partially-observed`.
+   *
+   * **It is a count of bars, never a volume.** An absent bar is not a zero
+   * volume — on IEX it is ordinary — and `Number(null)` is `0`, which is the
+   * one arithmetic this whole figure is built to avoid.
+   */
+  readonly observed: number;
+  /** The denominator for the clause above, so the browser spells no `5`. */
+  readonly spanMinutes: number;
+}
+
+/**
+ * A multiple or the reason there is none — a discriminated union rather than a
+ * nullable ratio, for {@link WireReturnComparison}'s reason exactly: a refusal
+ * carries numbers an answer does not, and a shape that could hold both is a
+ * shape where one of them is always wrong.
+ *
+ * **It is also what makes a `0×` unrepresentable rather than guarded.** There
+ * is no `ratio` member on the refused arm, so a refusal cannot reach a browser
+ * carrying a figure — which is this wire's version of the `fast-json-stringify`
+ * coercion that turns a `null` under `"number"` into a plausible `0`. That
+ * coercion cannot happen here at all: the market stream is serialised by
+ * {@link encodeMarketStreamMessage}'s own `WireFields` maps and `JSON.stringify`,
+ * with no JSON schema anywhere on the socket.
+ */
+export type WireVolumeComparison = WireVolumeRate | WireRefusedVolume;
+
+/**
  * **One security's 5-minute return** (Task 5.2.3) — the fifth message type,
  * and the first on this wire that is about **one** security rather than about
  * the universe or the connection.
@@ -1673,6 +1804,18 @@ export interface ReturnMessage {
   /** Which security this figure is about. */
   readonly symbol: string;
   readonly return: WireSymbolReturn;
+  /**
+   * **How unusual this security's volume is, or why we will not say** (Task
+   * 5.5.4) — a sibling of {@link return} rather than a field inside it, for
+   * {@link WireVolumeRate}'s reason: the two refuse independently and nesting
+   * would delete states from the wire.
+   *
+   * `null` means **this gateway sent no volume comparison at all**, which is a
+   * browser holding a bundle across a deploy. It is explicitly not *we have no
+   * baseline* — that is a `measured: false` with a word on it, and the
+   * distinction is `WireMeasuredReturn.percentile`'s own.
+   */
+  readonly volume: WireVolumeComparison | null;
 }
 
 export type MarketStreamMessage =
@@ -2557,12 +2700,45 @@ const encodeSymbolReturn = (figure: WireSymbolReturn): JsonValue =>
     ? toWire(measuredReturnFields, figure)
     : toWire(refusedReturnFields, figure);
 
+/**
+ * One map per member of {@link WireVolumeComparison}, and the union is encoded
+ * by its discriminant — `encodeComparison`'s note above, unchanged: `keyof` a
+ * union is the **intersection** of its members' keys, so one map over this
+ * union would cover `measured` alone and wave both answers through unexamined.
+ */
+const volumeRateFields: WireFields<WireVolumeRate> = {
+  measured: asIs,
+  ratio: asIs,
+  sampleCount: asIs,
+  lookbackSessions: asIs,
+  bucketMinutes: asIs,
+  spanMinutes: asIs,
+  feed: asIs,
+};
+
+const refusedVolumeFields: WireFields<WireRefusedVolume> = {
+  measured: asIs,
+  refusal: asIs,
+  sampleCount: asIs,
+  observed: asIs,
+  spanMinutes: asIs,
+};
+
+const encodeVolume = (volume: WireVolumeComparison): JsonValue =>
+  volume.measured
+    ? toWire(volumeRateFields, volume)
+    : toWire(refusedVolumeFields, volume);
+
 const returnMessageFields: WireFields<ReturnMessage> = {
   type: asIs,
   version: asIs,
   sentAt: asIs,
   symbol: asIs,
   return: encodeSymbolReturn,
+  // `null` is written rather than the key dropped, for `measuredReturnFields`'
+  // reason: `WireFields`' totality forces an entry for every field, and an
+  // entry answering `undefined` would put a key with no JSON value on the wire.
+  volume: (volume) => (volume === null ? null : encodeVolume(volume)),
 };
 
 const overviewMessageFields: WireFields<OverviewMessage> = {
@@ -2645,6 +2821,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const finite = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
+
+/**
+ * A **count**: a finite non-negative integer.
+ *
+ * Its own predicate rather than three conditions spelled at each site, because
+ * the three are always written together and the one that gets dropped is
+ * `isInteger` — `readReturnPercentile` spells all three twice and this is that
+ * shape named (Task 5.5.4). `0` is legal: a baseline nobody has written and a
+ * span nothing was observed in are both counted, and both are true answers.
+ */
+const isCount = (value: unknown): value is number =>
+  finite(value) && Number.isInteger(value) && value >= 0;
 
 /**
  * `Number.isFinite`, not `typeof === "number"`, for `alpaca-stream-mapping`'s
@@ -3418,6 +3606,84 @@ const readReturnPercentile = (value: unknown): WireReturnComparison | null => {
   };
 };
 
+/**
+ * **The volume comparison, or `null` for anything that is not a readable one**
+ * (Task 5.5.4).
+ *
+ * `readReturnPercentile`'s shape and its reason, with one addition that is this
+ * figure's own: a multiple is **checkable against nothing on screen**. Its
+ * inputs are 60 sessions of a table no browser ever reads, so a `0×`, a
+ * negative multiple or a non-finite one would draw as a confident, well-formed
+ * claim with nothing beside it to contradict. The bounds are therefore applied
+ * here — strictly positive, finite, with a counted sample — and anything
+ * outside is read as *no comparison* rather than as a figure.
+ *
+ * **An unreadable volume never discards the frame.** The return beside it is
+ * true whatever this field carried.
+ */
+const readVolume = (value: unknown): WireVolumeComparison | null => {
+  if (!isRecord(value)) return null;
+
+  // **The refusal arm, read before the rate**, for `readReturnPercentile`'s
+  // reason: a refusal this bundle cannot name has no sentence here, so the
+  // honest answer is the one the region draws when it was told nothing.
+  if (value.measured === false) {
+    if (
+      typeof value.refusal !== "string" ||
+      !(VOLUME_REFUSALS as readonly string[]).includes(value.refusal)
+    ) {
+      return null;
+    }
+    // **`0` is legal on both of these and nowhere else on this frame.** No
+    // baseline at all is `0` samples — a cold replica, and every gated run —
+    // and `no-bar-in-bucket` is `0` observed. Neither is a volume.
+    if (!isCount(value.sampleCount) || !isCount(value.observed)) return null;
+    if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return null;
+
+    return {
+      measured: false,
+      refusal: value.refusal as VolumeRefusal,
+      sampleCount: value.sampleCount,
+      observed: value.observed,
+      spanMinutes: value.spanMinutes,
+    };
+  }
+
+  // **A comparison that does not say which it is, is not read as either** —
+  // `readReturnPercentile`'s rule, for its reason.
+  if (value.measured !== true) return null;
+  // **Strictly above zero.** A `0` here is the one value this whole figure
+  // exists to keep off a screen: it is what an absent bar read as a zero
+  // volume, or a `null` coerced by a serialiser, would produce — and
+  // `0.0× typical` is a plausible-looking claim that IEX traded nothing.
+  if (!finite(value.ratio) || value.ratio <= 0) return null;
+  if (!isCount(value.sampleCount) || value.sampleCount <= 0) return null;
+  if (!finite(value.lookbackSessions) || value.lookbackSessions <= 0) {
+    return null;
+  }
+  if (!finite(value.bucketMinutes) || value.bucketMinutes <= 0) return null;
+  if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return null;
+  if (
+    typeof value.feed !== "string" ||
+    !(MARKET_FEEDS as readonly string[]).includes(value.feed)
+  ) {
+    // As `readReturnEndpoint` checks its own tape: a multiple whose feed this
+    // bundle cannot name is a figure the region cannot attribute, and
+    // invariant 6 forbids drawing one.
+    return null;
+  }
+
+  return {
+    measured: true,
+    ratio: value.ratio,
+    sampleCount: value.sampleCount,
+    lookbackSessions: value.lookbackSessions,
+    bucketMinutes: value.bucketMinutes,
+    spanMinutes: value.spanMinutes,
+    feed: value.feed as MarketFeed,
+  };
+};
+
 /** A figure or a refusal, or `undefined` for a frame we cannot read. */
 const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
   if (!isRecord(value)) return undefined;
@@ -3592,6 +3858,11 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
           sentAt,
           symbol,
           return: figure,
+          // **An unreadable volume is read as no volume, and the frame
+          // survives** — the percentile's rule on the measured arm, and the
+          // arm a browser holding a bundle older or newer than the gateway
+          // takes.
+          volume: readVolume(parsed.volume),
         },
       };
     }

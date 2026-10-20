@@ -28,6 +28,11 @@ export type {
   PercentileRefusal,
   ReturnBaselineRefusal,
 } from "./return-baseline.js";
+// The volume factor's vocabulary (Task 5.5.4). Six words, one list, because a
+// producer picks one and a browser prints a sentence for it — and no two of
+// them are the same sentence.
+export { VOLUME_REFUSALS } from "./volume-baseline.js";
+export type { VolumeRefusal } from "./volume-baseline.js";
 export {
   DISCONNECTED_AFTER_MS,
   OBSERVATION_INTERVAL_MS,
@@ -98,6 +103,7 @@ export type {
   WireOverviewFigure,
   WireRefusedPercentile,
   WireRefusedReturn,
+  WireRefusedVolume,
   WireReturnComparison,
   WireReturnEndpoint,
   WireReturnPercentile,
@@ -113,6 +119,8 @@ export type {
   WireUnusualGeneration,
   WireUnusualRefusals,
   WireUnusualRow,
+  WireVolumeComparison,
+  WireVolumeRate,
 } from "./market-stream-protocol.js";
 // The order a list of price percentiles goes in (Task 5.4.2) — a SIBLING of
 // `sector-ranking.ts` rather than a widening of it, because an ordinal and a

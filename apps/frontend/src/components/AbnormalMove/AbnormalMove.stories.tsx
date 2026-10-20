@@ -4,6 +4,7 @@ import type {
   WireMeasuredReturn,
   WireReturnPercentile,
   WireSymbolReturn,
+  WireVolumeComparison,
 } from "@marketpulse/shared";
 
 import { Region } from "../Region/Region.js";
@@ -68,7 +69,37 @@ const PERCENTILE: WireReturnPercentile = {
   feed: "sip",
 };
 
-const held = (figure: WireSymbolReturn) => ({ symbol: "NVDA", figure });
+/**
+ * **The volume half of a frame about a security we hold no IEX history for**
+ * (Task 5.5.4) — which is **every machine that exists today**: the `iex` tape
+ * is empty wherever no provider is configured, so the pass writes no row and
+ * this is the shipped state of the second band everywhere.
+ */
+const NO_VOLUME_HISTORY: WireVolumeComparison = {
+  measured: false,
+  refusal: "no-same-tape-baseline",
+  sampleCount: 0,
+  observed: 5,
+  spanMinutes: 5,
+};
+
+/** A drawable multiple, which no machine has yet produced. */
+const VOLUME: WireVolumeComparison = {
+  measured: true,
+  ratio: 4.1,
+  sampleCount: 2500,
+  lookbackSessions: 60,
+  bucketMinutes: 5,
+  spanMinutes: 5,
+  // **The same tape as the numerator** — Gate 1 decision 1, which is why this
+  // band's tape line reads differently from the one above it.
+  feed: "iex",
+};
+
+const held = (
+  figure: WireSymbolReturn,
+  volume: WireVolumeComparison | null = NO_VOLUME_HISTORY,
+) => ({ symbol: "NVDA", figure, volume });
 
 /**
  * **What the window held beside a refusal** (Task 5.2.4) — one bar, at one
@@ -464,4 +495,181 @@ export const ZeroReturnRanked: Story = {
       percentile: { ...PERCENTILE, rank: 3 },
     }),
   },
+};
+
+/**
+ * **The second band drawn — `4.1× typical`, which no machine on earth has
+ * produced** (Task 5.5.4).
+ *
+ * The `iex` tape is empty wherever no provider is configured, so every other
+ * story in this file carries the `no-same-tape-baseline` refusal and this one
+ * is the only place the figure exists at all. **Review five things in it**, and
+ * four of them carry no colour:
+ *
+ * 1. the `×` is **U+00D7 glued to the digits**, at the same size, weight and
+ *    ink — never the letter `x`, never superscript, never a smaller suffix;
+ * 2. there is **no sign**, which is the strongest single discriminator on a
+ *    screen where every other figure carries a `+` or a `−`;
+ * 3. **one decimal, always**;
+ * 4. `typical` is the **comparand**, not a unit;
+ * 5. and the ink is `--ink-primary` rather than the price palette, because
+ *    volume does not encode direction.
+ *
+ * And review the **tape line against the band above it**: this baseline is the
+ * **same** tape as its numerator (Gate 1 decision 1), where the percentile's is
+ * the consolidated tape against a single-venue numerator.
+ */
+export const VolumeMultiple: Story = {
+  args: { symbolReturn: held({ ...MEASURED, percentile: PERCENTILE }, VOLUME) },
+};
+
+/**
+ * **Below 1, with no reciprocal and no word.**
+ *
+ * `0.3× typical` and not `3.3× quieter`: a reciprocal invents a second scale
+ * running the other way, and `quiet` / `heavy` collide with Story 5.6's band
+ * vocabulary. **The treatment is identical to the story above** — same ink,
+ * same weight, same decimal — which is the thing to check side by side.
+ */
+export const QuieterThanTypical: Story = {
+  args: { symbolReturn: held(MEASURED, { ...VOLUME, ratio: 0.34 }) },
+};
+
+/**
+ * **Exactly typical, which draws `1.0× typical` and never a dash.**
+ *
+ * `—` is `unchanged` in `PriceChange`, so a dash here would assert **zero
+ * volume** — AC 4's lesson in the glyph rather than in the arithmetic.
+ */
+export const ExactlyTypical: Story = {
+  args: { symbolReturn: held(MEASURED, { ...VOLUME, ratio: 1 }) },
+};
+
+/**
+ * **Above the digit cap**, drawn with the percentile's own `>` glyph.
+ *
+ * A multiple is unbounded above — a security printing its first shares of the
+ * day into a quiet bucket reaches four figures — and `1,482.3×` is a number
+ * nobody reads as a number.
+ */
+export const AboveTheCap: Story = {
+  args: { symbolReturn: held(MEASURED, { ...VOLUME, ratio: 1482.3 }) },
+};
+
+/**
+ * **Below the floor**, which exists because `toFixed(1)` would otherwise draw
+ * `0.0× typical`.
+ *
+ * That string reads as *nothing traded*, which is a claim about a stock
+ * exchange rather than about our arithmetic — AC 4 arriving at the last place
+ * anybody would look for it, the formatter.
+ */
+export const BelowTheFloor: Story = {
+  args: { symbolReturn: held(MEASURED, { ...VOLUME, ratio: 0.02 }) },
+};
+
+/**
+ * **Too little history at this time of day to print a decimal.**
+ *
+ * Measured on the deployment on 2026-10-20, the `iex` tape's median bucket
+ * holds **80** minutes and achieves a relative standard error of **10.65%** —
+ * so **NVDA, the best case in the universe, cannot draw this figure**, and
+ * needs 132 sessions to. **Review it beside `NoVolumeHistory`**: that pair is
+ * the one that must not collapse, because one is a wait that resolves itself
+ * and the other needs somebody to look at the live writer.
+ */
+export const VolumeBaselineTooShort: Story = {
+  args: {
+    symbolReturn: held(MEASURED, {
+      measured: false,
+      refusal: "too-few-sessions",
+      sampleCount: 80,
+      observed: 5,
+      spanMinutes: 5,
+    }),
+  },
+};
+
+/**
+ * **IEX printed in only some of the five minutes**, so the figure is refused
+ * rather than scaled.
+ *
+ * Three wrong answers and no right one: `× 5/2` imputes the minutes IEX did
+ * not print, `/ 2` is the same imputation rearranged, and `/ 5` reads them as
+ * zero shares. **Review it beside `NoVolumeBars`** — a venue fact and a reach
+ * fact, and only the second tempts a re-implementer.
+ */
+export const PartiallyObserved: Story = {
+  args: {
+    symbolReturn: held(MEASURED, {
+      measured: false,
+      refusal: "bucket-partially-observed",
+      sampleCount: 2500,
+      observed: 2,
+      spanMinutes: 5,
+    }),
+  },
+};
+
+/** **No IEX bar at all in the five minutes** — absent, never zero. */
+export const NoVolumeBars: Story = {
+  args: {
+    symbolReturn: held(MEASURED, {
+      measured: false,
+      refusal: "no-bar-in-bucket",
+      sampleCount: 2500,
+      observed: 0,
+      spanMinutes: 5,
+    }),
+  },
+};
+
+/**
+ * **A typical minute of this time of day printed nothing**, so the denominator
+ * is zero — a refusal, never an `Infinity`.
+ */
+export const ZeroVolumeBaseline: Story = {
+  args: {
+    symbolReturn: held(MEASURED, {
+      measured: false,
+      refusal: "zero-volume-baseline",
+      sampleCount: 2500,
+      observed: 5,
+      spanMinutes: 5,
+    }),
+  },
+};
+
+/**
+ * **The volume history crosses a price break**, read from the price pass's own
+ * verdict rather than re-derived.
+ *
+ * A split breaks volume **harder** than price: the share count multiplies by
+ * exactly the factor the price divides by, so an unadjusted 10:1 split is a
+ * +900% figure. **It must not read like the band above's split sentence** —
+ * that one says the ranking is not comparable, this one says the shares are.
+ */
+export const VolumeCrossesAPriceBreak: Story = {
+  args: {
+    symbolReturn: held(MEASURED, {
+      measured: false,
+      refusal: "split-discontinuity",
+      sampleCount: 4620,
+      observed: 5,
+      spanMinutes: 5,
+    }),
+  },
+};
+
+/**
+ * **The gateway sent no volume comparison at all** — a browser holding a bundle
+ * across a deploy.
+ *
+ * It draws the label and nothing else, which is ADR 0029's defer rule: we were
+ * not told there is an absence, so a sentence explaining one would be a claim
+ * of its own. **It is not the same state as a refusal**, which has a word and
+ * gets a sentence — review it beside `NoVolumeHistory`.
+ */
+export const NoVolumeComparison: Story = {
+  args: { symbolReturn: held(MEASURED, null) },
 };

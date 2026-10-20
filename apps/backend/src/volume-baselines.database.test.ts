@@ -571,3 +571,72 @@ describe("the companion pass row", () => {
     ).rejects.toThrow(/volume_baseline_passes_buckets_partition/u);
   });
 });
+
+describe("readNewestGeneration — the serving read (Task 5.5.4)", () => {
+  it("answers the newest generation for the tape, with its buckets zipped", async () => {
+    // The three parallel arrays become one entry per bucket here, which is the
+    // one place a `bigint[]` of counts becomes numbers and a `null` element
+    // stays a `null` rather than a `0`. `Number("")` is `0` and a zero sample
+    // count is a legal answer — a bucket nothing was found for — so an
+    // unreadable one must not become it.
+    const volumes = await baselines().readWindowVolumes(probe(), WINDOW);
+    const outcome = volumeBaselineOf({
+      sessions: [FIRST, SECOND],
+      volumes,
+      priceRefusal: null,
+    });
+    await baselines().writeBaseline(probe(), OBSERVED_AT, PARAMETERS, outcome);
+
+    const rows = await baselines().readNewestGeneration(OBSERVED_AT);
+    const row = rows.find((candidate) => candidate.symbol === probe().symbol);
+
+    expect(row).toMatchObject({
+      observedAt: OBSERVED_AT,
+      lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+      bucketMinutes: SAMPLE_SPAN_MINUTES,
+      bucketCount: 78,
+      sampleCount: 6,
+      refusal: null,
+    });
+    expect(row?.refusal === null && row.buckets).toHaveLength(78);
+    expect(row?.refusal === null && row.buckets[0]).toMatchObject({
+      median: 300,
+      samples: 5,
+    });
+    // A bucket with no sample at all survives the read as `null` beside a
+    // counted `0`, which is what tells it from a bucket holding too few.
+    expect(row?.refusal === null && row.buckets[2]).toMatchObject({
+      median: null,
+      samples: 0,
+      relativeStandardError: null,
+    });
+  });
+
+  it("answers nothing at all where no generation is stored at or before", async () => {
+    // **Every machine without a provider, permanently.** It is an empty answer
+    // rather than an error, and the reader is told `no-same-tape-baseline`.
+    expect(
+      await baselines().readNewestGeneration(new Date("2020-01-02T21:00:00Z")),
+    ).toStrictEqual([]);
+  });
+
+  it("carries a refused row with no buckets member at all", async () => {
+    // The refused outcome directly: `splitProbe` holds no `iex` bar, so
+    // `volumeBaselineOf` would answer `none` — which is a different fact and
+    // the writer refuses to store one (`0015` §5).
+    await baselines().writeBaseline(splitProbe(), OBSERVED_AT, PARAMETERS, {
+      kind: "refused",
+      bucketCount: 78,
+      sampleCount: 12,
+      refusal: "split-discontinuity",
+    });
+
+    const rows = await baselines().readNewestGeneration(OBSERVED_AT);
+    const row = rows.find(
+      (candidate) => candidate.symbol === splitProbe().symbol,
+    );
+
+    expect(row).toMatchObject({ refusal: "split-discontinuity" });
+    expect(row === undefined ? true : "buckets" in row).toBe(false);
+  });
+});

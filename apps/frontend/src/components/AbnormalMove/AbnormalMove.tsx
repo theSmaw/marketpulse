@@ -4,8 +4,10 @@ import { cx } from "../../cx.js";
 import {
   NO_RETURN,
   fiveMinuteReturnBand,
+  volumeRatioBand,
   type ReturnBand,
   type SymbolReturnView,
+  type VolumeBand as VolumeBandView,
 } from "../../market/index.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { useWaited } from "../MarketProxyStrip/use-waited.js";
@@ -122,12 +124,19 @@ export const AbnormalMove = memo(function AbnormalMove({
   symbolReturn,
 }: AbnormalMoveProps) {
   const band = fiveMinuteReturnBand(symbol, symbolReturn);
+  // **The second band is built unconditionally**, because the two refuse
+  // independently: a window with no bar exactly five minutes back has no
+  // return and may hold all five minutes of volume. What they share is the
+  // region-level absence below — *no frame about this security has arrived*
+  // is one fact about both.
+  const volume = volumeRatioBand(symbol, symbolReturn);
 
-  if (band.nothing) return <HeldRoom band={band} />;
+  if (band.nothing) return <HeldRoom band={band} volume={volume} />;
 
   return (
     <div className={cx(styles.region)}>
       <Band band={band} />
+      <VolumeBand band={volume} />
     </div>
   );
 });
@@ -148,7 +157,13 @@ export const AbnormalMove = memo(function AbnormalMove({
  * **On CI this is the permanent state** — 516 securities and zero bars, so the
  * window is empty and no `return` frame can carry a figure.
  */
-function HeldRoom({ band }: { readonly band: ReturnBand }) {
+function HeldRoom({
+  band,
+  volume,
+}: {
+  readonly band: ReturnBand;
+  readonly volume: VolumeBandView;
+}) {
   const waited = useWaited(true);
 
   return (
@@ -156,6 +171,14 @@ function HeldRoom({ band }: { readonly band: ReturnBand }) {
       <div className={cx(styles.reserved)} aria-hidden="true">
         <div className={cx(styles.region)}>
           <Band band={band} />
+          {/*
+           * **Both bands are reserved, not one** (Task 5.5.4). The room this
+           * box holds is what the region occupies before any frame arrives, so
+           * a reserve one band short would step the whole lower page the
+           * moment the first frame landed — which is `Movers`' 81 px, one
+           * region up, arriving by a different route.
+           */}
+          <VolumeBand band={volume} />
         </div>
       </div>
       {waited ? (
@@ -271,6 +294,86 @@ function Band({ band }: { readonly band: ReturnBand }) {
        * the region rather than a second copy of the chart's source note. The
        * room is kept and the ink is not drawn where there is no figure to
        * attribute.
+       */}
+      <p className={cx(styles.tape)}>{band.tape ?? NBSP}</p>
+    </div>
+  );
+}
+
+/**
+ * **The volume band — a multiple, what it was taken against, and the tape**
+ * (Task 5.5.4).
+ *
+ * ## A second BAND rather than a third cell on the figure's row
+ *
+ * Gate 1 decision 3, and the rejected shape is the one that fits: a third cell
+ * costs **0 px** and was measured to sit with 23 px of slack at 390. It is
+ * wrong anyway — `▲ +0.42%  99th percentile  4.1× typical` under one label
+ * reading `5-MINUTE RETURN` asserts that the **return** is 4.1× typical, which
+ * is the exact misreading this story exists to prevent. The separator above and
+ * the band's own label are what carry the subject change.
+ *
+ * ## It has no qualifier row, and that is the data rather than a choice
+ *
+ * The return band states two instants because a return is measured **between**
+ * them. This figure is a rate over the same five minutes, and the five minutes
+ * are named in the row beneath it — so a second pair of instants would be the
+ * same fact drawn twice. A refusal that is about coverage says `2 of 5` in its
+ * own sentence, which is the one place that count is informative.
+ *
+ * ## The multiple is NOT a `PriceChange`
+ *
+ * No sign, no glyph, no tint — a multiple has no direction, so the component
+ * whose whole job is to carry one redundantly would be carrying a direction
+ * this figure does not have. What it borrows instead is the size seam:
+ * `.multiple` composes `dataCell` and states no size, so the figure sits in
+ * `.figure`'s metric line box exactly as `PriceChange.change` does.
+ */
+function VolumeBand({ band }: { readonly band: VolumeBandView }) {
+  return (
+    <div className={cx(styles.band, styles.secondBand)}>
+      <p className={cx(styles.label)}>{band.label}</p>
+
+      {/*
+       * **The figure, or a stated sentence — never a dash.** `—` is
+       * `unchanged` in `PriceChange`, and here it would assert **zero
+       * volume**, which on IEX is a claim about a stock exchange rather than
+       * about our listening (AC 4).
+       */}
+      <p className={cx(styles.figure)}>
+        {band.multiple === undefined ? (
+          <span className={cx(styles.absent)}>{band.absent ?? NBSP}</span>
+        ) : (
+          <>
+            <span className={cx(styles.multiple)}>{band.multiple}</span>
+            {/*
+             * **A space, for the listener who gets no margin** — the
+             * percentile cell's own note one band up: `textContent` runs two
+             * sibling spans together, and the gap on screen is a `margin-left`
+             * a screen reader cannot see. It costs no layout, because an
+             * anonymous flex item holding only white space is not rendered
+             * (CSS Flexbox §4).
+             */}{" "}
+            <span className={cx(styles.comparand)}>{band.comparand}</span>
+          </>
+        )}
+      </p>
+
+      {/*
+       * **What the multiple was taken against** — the span, the median, the
+       * lookback, the bucket width and the exclusion of today, in one row.
+       *
+       * Two lines of room whether or not it draws, measured rather than
+       * argued: a region whose height depended on which state it was in would
+       * step the page under a reader.
+       */}
+      <p className={cx(styles.sample)}>{band.sample ?? NBSP}</p>
+
+      {/*
+       * **Which tapes the two halves came from** — and here they are the
+       * **same** tape, which is the whole of Gate 1 decision 1 on screen. The
+       * band above says `baseline on All US exchanges`; invariant 6 wants the
+       * difference displayed rather than implied.
        */}
       <p className={cx(styles.tape)}>{band.tape ?? NBSP}</p>
     </div>

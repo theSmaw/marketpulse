@@ -4933,7 +4933,7 @@ export const BREAKS = [
     // `build: true` for the recorded reason: `pnpm e2e` drives the dev pair,
     // which serves built output.
     file: "apps/backend/src/index.ts",
-    find: "  if (!figure.measured) return toWireSymbolReturn(figure);",
+    find: "  if (!figure.measured) return { return: toWireSymbolReturn(figure), volume };",
     replace:
       "  // pnpm break: reverted automatically\n" +
       "  if (!figure.measured) {\n" +
@@ -4942,7 +4942,7 @@ export const BREAKS = [
       "      price: 100,\n" +
       '      feed: "iex",\n' +
       "    } as const;\n" +
-      "    return {\n" +
+      "    const fabricated = {\n" +
       "      measured: true,\n" +
       "      percent: 0.42,\n" +
       "      from: invented,\n" +
@@ -4957,7 +4957,8 @@ export const BREAKS = [
       "        spanMinutes: SAMPLE_SPAN_MINUTES,\n" +
       "        feed: BASELINE_FEED,\n" +
       "      },\n" +
-      "    };\n" +
+      "    } as const;\n" +
+      "    return { return: fabricated, volume };\n" +
       "  }",
     command: ["pnpm", "e2e", "security-abnormal-move.spec.ts", "--anyway"],
     expect: "so a measured 5-minute return is fabricated",
@@ -5355,5 +5356,91 @@ export const BREAKS = [
     replace: '.where("market_bars.feed", "in", ["iex", "sip"])',
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-volume-baseline-reads-one-tape-by-name",
+  },
+  // ## Task 5.5.4's, on the glyph that makes a figure a multiple
+  //
+  // **The naive draft passed WRONGLY on the plant and the transcript is in
+  // the invariant's own docblock**: a check that `formatMultiple` is declared
+  // exactly once, in its home, reported `66 invariants hold.` against
+  // `apps/frontend/src/market/composite-score.ts` — the file Story 5.6
+  // plausibly writes — holding `` `${ratio.toFixed(1)}\u00d7 normal` ``
+  // and no import at all. It is about an **identifier**, and the defect is an
+  // author who never reaches for the identifier.
+  //
+  // **This entry's plant is the likelier later edit**: not a second module,
+  // but the RENDERER appending the glyph the formatter already returned. That
+  // is how a `<sup>`, a smaller suffix or a second ink gets written — each
+  // of which is correct-looking in isolation and invisible to every test, to
+  // every screenshot of one state, and to axe. The five channels that tell a
+  // multiple from a percentage are decided together or not at all.
+  {
+    name: "a-second-multiple-glyph",
+    proves:
+      "`one-home-for-the-multiple-glyph` goes red on a SECOND shipped file " +
+      "drawing the `\u00d7`. No other figure in this product ends in one, " +
+      "which is the whole of its value: it is the channel that says *this is " +
+      "a ratio and not a percentage*, twenty pixels under a tinted " +
+      "`+0.42%`. A second speller is where the superscript, the smaller " +
+      "suffix, the lowercase `x` and the `+4.1\u00d7` get written.",
+    // **The `find` text survives the substitution**, which is this registry's
+    // convention: `every-break-can-still-land` asserts the text is still
+    // there, and a replacement that removed the figure would trip a different
+    // clause than the one this entry is about.
+    file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.tsx",
+    find: "<span className={cx(styles.multiple)}>{band.multiple}</span>",
+    replace:
+      "<span className={cx(styles.multiple)}>{band.multiple}</span>\n" +
+      "            {/* pnpm break: reverted automatically */}\n" +
+      "            <sup className={cx(styles.comparand)}>\u00d7</sup>",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-multiple-glyph",
+  },
+  // ## Task 5.5.4's second, on the figure that is checkable against NOTHING
+  //
+  // The volume multiple is further out of a reader's reach than the percentile
+  // beside it: its inputs are 60 sessions of a table no browser ever reads, on
+  // a tape only the deployment has ever heard. So a producer that invents one
+  // is drawn faithfully by a pass-through and *the page agrees with the frame*
+  // is green either way \u2014 `MARKET-OVERVIEW.md` \u00a79's trap 8, which is
+  // why the assertion this break is pointed at is grounded OUTSIDE the frame.
+  {
+    name: "the-volume-multiple-is-fabricated-rather-than-refused",
+    proves:
+      "A gateway with no `iex` rows in the window answers with a confident " +
+      "`4.1\u00d7 typical` instead of saying why it cannot, and the browser " +
+      "draws it faithfully. The claim that catches it is " +
+      "`GET /diagnostics/baseline-cost`'s `iexRows`: the nightly pass writes " +
+      "no row at all for a security with no `iex` bar, so on every machine " +
+      "that is not Azure a same-tape baseline cannot exist and any multiple " +
+      "is fabricated by construction.",
+    // The edit is at the **join**, which is the one site holding both halves,
+    // and it is the edit somebody plausibly makes: not deleting the refusal,
+    // but answering the absent generation with a plausible figure.
+    // `comparableVolumeBaseline`'s refused arm has no `median` member, so the
+    // only way to reach a multiple here is to write one out.
+    file: "apps/backend/src/index.ts",
+    find: "  const volume = toWireVolume(",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const volume = {\n" +
+      "    measured: true,\n" +
+      "    ratio: 4.1,\n" +
+      "    sampleCount: 2500,\n" +
+      "    lookbackSessions: 60,\n" +
+      "    bucketMinutes: 5,\n" +
+      "    spanMinutes: 5,\n" +
+      '    feed: "iex",\n' +
+      "  } as const;\n" +
+      "  const refusedVolume = toWireVolume(",
+    command: [
+      "pnpm",
+      "e2e",
+      "security-abnormal-move.spec.ts",
+      "-g",
+      "multiple or refusal",
+      "--anyway",
+    ],
+    expect: "so a drawn IEX multiple is fabricated",
+    build: true,
   },
 ];

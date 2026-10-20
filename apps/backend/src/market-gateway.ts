@@ -14,6 +14,7 @@ import {
   type WireMarketOverview,
   type WireObservation,
   type WireSymbolReturn,
+  type WireVolumeComparison,
 } from "@marketpulse/shared";
 
 import type { LiveObservation } from "./market-data-stream.js";
@@ -162,6 +163,25 @@ export const MAX_BUFFERED_BYTES = 1_048_576;
 export const SLOW_CLIENT_CLOSE_CODE = MARKET_STREAM_CLOSE.slowClient;
 
 /** What the gateway needs. Functions rather than objects, for the usual reason. */
+/**
+ * **What the `return` frame carries about one security — both figures, from
+ * one walk** (Task 5.5.4).
+ *
+ * The two travel together rather than as two producers because the volume's
+ * numerator is summed inside `fiveMinuteReturn`'s own pass: separating them
+ * would walk the window twice and could hand a reader a `k of 5` from one walk
+ * beside a volume from another.
+ *
+ * `volume` is `null` only for *this gateway sent no comparison*, which is not a
+ * state the shipped producer reaches — it refuses with a word instead. It
+ * exists because the field crosses a socket and a browser holding a bundle
+ * across a deploy reads a frame without it.
+ */
+export interface SymbolFigures {
+  readonly return: WireSymbolReturn;
+  readonly volume: WireVolumeComparison | null;
+}
+
 export interface MarketGatewayOptions {
   /** The current state, as the snapshot. Story 3.5 owns where this lives. */
   readonly snapshot: () => ReadonlyMap<string, WireObservation>;
@@ -197,8 +217,15 @@ export interface MarketGatewayOptions {
    * **Required rather than optional**, for `overview`'s reason again: an
    * optional producer makes a wiring mistake a region that is silent for ever
    * on a deployment where nothing else would say so.
+   *
+   * **Amended 2026-10-20 (Task 5.5.4): it answers TWO figures.** The volume
+   * multiple is derived from the same walk of the same trailing window as the
+   * return — `fiveMinuteReturn` sums the numerator in the pass that counts
+   * `observed` — so two producers would be two walks and a pair of figures
+   * that can describe different minutes. One producer, one frame, one
+   * memoisation per focused symbol.
    */
-  readonly symbolReturn: (symbol: string) => WireSymbolReturn;
+  readonly symbolReturn: (symbol: string) => SymbolFigures;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
   /**
@@ -527,13 +554,13 @@ export function registerMarketGateway(
    * also not an `overview` region: it draws on `/securities/:symbol`. Evaluated
    * and unfired, 2026-10-14.
    */
-  const returnMessage = (symbol: string, figure: WireSymbolReturn): string =>
+  const returnMessage = (symbol: string, figures: SymbolFigures): string =>
     encodeMarketStreamMessage({
       type: "return",
       version: MARKET_STREAM_PROTOCOL_VERSION,
       sentAt: sentAt(),
       symbol,
-      return: figure,
+      ...figures,
     });
 
   const overviewMessage = (aggregate: WireMarketOverview): string =>
@@ -874,7 +901,7 @@ export function registerMarketGateway(
       // length of this batch is `overviewMessage`'s *one compute for
       // everybody* at the only grain this frame has. The payload itself is
       // still built per send, because `sentAt` is stamped per send.
-      const figures = new Map<string, WireSymbolReturn>();
+      const figures = new Map<string, SymbolFigures>();
 
       for (const [socket, { wanted, focus }] of clients) {
         const scoped = scopedTo(wanted, observations);

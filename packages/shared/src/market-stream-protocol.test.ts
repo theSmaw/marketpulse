@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { toTicker } from "./ticker.js";
+// The volume vocabulary's own home, imported rather than re-listed: the round
+// trip below is over **every** member, so a seventh word is covered by this
+// file the day it is written (Task 5.5.4).
+import { VOLUME_REFUSALS } from "./volume-baseline.js";
 import {
   MARKET_STREAM_PROTOCOL_VERSION,
   decodeMarketStreamClientMessage,
@@ -26,6 +30,8 @@ import {
   type WireReturnPercentile,
   type WireStoredFigure,
   type WireSymbolReturn,
+  type WireVolumeComparison,
+  type WireVolumeRate,
   type WireUnusualActivity,
   type WireUnusualBaseline,
   type WireUnusualRow,
@@ -1924,12 +1930,144 @@ describe("the fifth message type, which is about ONE security", () => {
     feed: "sip",
   };
 
-  const frame = (figure: WireSymbolReturn): ReturnMessage => ({
+  const frame = (
+    figure: WireSymbolReturn,
+    volume: WireVolumeComparison | null = null,
+  ): ReturnMessage => ({
     type: "return",
     version: MARKET_STREAM_PROTOCOL_VERSION,
     sentAt: "2026-10-14T18:06:00.500Z",
     symbol: "NVDA",
     return: figure,
+    // **`null` by default, which is the state every gated run is in** — the
+    // `iex` tape is empty wherever no provider is configured, so the producer
+    // refuses; a `null` here is the older state still, a gateway that sent no
+    // volume field at all (Task 5.5.4).
+    volume,
+  });
+
+  // --- The volume comparison (Task 5.5.4) ---
+
+  const RATE: WireVolumeRate = {
+    measured: true,
+    ratio: 4.123456789,
+    sampleCount: 2500,
+    lookbackSessions: 60,
+    bucketMinutes: 5,
+    spanMinutes: 5,
+    feed: "iex",
+  };
+
+  /** The decoded `volume` of a frame built from an injected body. */
+  const decodedVolume = (volume: unknown): unknown => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "return",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: "2026-10-14T18:06:00.500Z",
+        symbol: "NVDA",
+        return: { measured: false, refusal: "nothing-observed", seen: null },
+        volume,
+      }),
+    );
+
+    return decoded.kind === "message" && decoded.message.type === "return"
+      ? decoded.message.volume
+      : "the frame was not read at all";
+  };
+
+  it("round-trips the volume multiple with its sample, its grid and its tape", () => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame(MEASURED, RATE)),
+    );
+
+    expect(decoded.kind === "message" && decoded.message).toEqual(
+      frame(MEASURED, RATE),
+    );
+  });
+
+  it("round-trips all six volume refusals", () => {
+    for (const refusal of VOLUME_REFUSALS) {
+      const refused = {
+        measured: false,
+        refusal,
+        sampleCount: 80,
+        observed: 2,
+        spanMinutes: 5,
+      } as const;
+
+      const decoded = decodeMarketStreamMessage(
+        encodeMarketStreamMessage(frame(MEASURED, refused)),
+      );
+
+      expect(decoded.kind === "message" && decoded.message).toEqual(
+        frame(MEASURED, refused),
+      );
+    }
+  });
+
+  it("REFUSES to read a refusal as a figure — the `0×` that must not exist", () => {
+    // **The trap, at the only place this wire can hit it.** The market stream
+    // is serialised by `WireFields` maps and `JSON.stringify` — there is no
+    // JSON schema on this socket at all, so `fast-json-stringify`'s coercion
+    // of a `null` under `"number"` into a plausible `0` cannot happen here.
+    // What CAN reach a browser is a hand-built or older gateway's body, so the
+    // bounds are the decoder's: a ratio of `0`, a negative one and a
+    // non-finite one are read as *no comparison* rather than as a figure.
+    //
+    // **Asserted against an injected body** rather than through the encoder,
+    // because the encoder cannot express these shapes — which is the point.
+    expect(decodedVolume({ ...RATE, ratio: 0 })).toBeNull();
+    expect(decodedVolume({ ...RATE, ratio: -1 })).toBeNull();
+    expect(decodedVolume({ ...RATE, ratio: null })).toBeNull();
+    expect(decodedVolume({ ...RATE, ratio: "4.1" })).toBeNull();
+  });
+
+  it("refuses a multiple with no sample, no grid or a tape it cannot name", () => {
+    // A multiple is **checkable against nothing on screen** — its inputs are
+    // 60 sessions of a table no browser reads — so a well-formed figure with a
+    // broken sample behind it would draw as a confident claim.
+    expect(decodedVolume({ ...RATE, sampleCount: 0 })).toBeNull();
+    expect(decodedVolume({ ...RATE, sampleCount: 2.5 })).toBeNull();
+    expect(decodedVolume({ ...RATE, lookbackSessions: 0 })).toBeNull();
+    expect(decodedVolume({ ...RATE, bucketMinutes: 0 })).toBeNull();
+    expect(decodedVolume({ ...RATE, feed: "nyse" })).toBeNull();
+  });
+
+  it("reads a refusal word this bundle does not know as NO comparison", () => {
+    // A newer gateway's seventh word has no sentence here, so the honest
+    // answer is the one the region draws when it was told nothing — never a
+    // blank where a reason should be.
+    expect(
+      decodedVolume({
+        measured: false,
+        refusal: "the-seventh-word",
+        sampleCount: 0,
+        observed: 0,
+        spanMinutes: 5,
+      }),
+    ).toBeNull();
+    // And a comparison that does not say which it is, is read as neither.
+    expect(decodedVolume({ ratio: 4.1 })).toBeNull();
+  });
+
+  it("keeps the frame when the volume is unreadable", () => {
+    // The return beside it is true whatever this field carried; refusing the
+    // whole frame would put the region back on *no frame has arrived*, which
+    // is a different and false claim.
+    expect(decodedVolume("not an object")).toBeNull();
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "return",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: "2026-10-14T18:06:00.500Z",
+        symbol: "NVDA",
+        return: { measured: false, refusal: "nothing-observed", seen: null },
+        volume: 42,
+      }),
+    );
+
+    expect(decoded.kind).toBe("message");
   });
 
   it("round-trips a measured figure with both endpoints and both tapes", () => {
@@ -2236,7 +2374,7 @@ describe("the fifth message type, which is about ONE security", () => {
     ).toBeNull();
   });
 
-  it("measures 316 bytes for a figure, 405 with a percentile, 400–405 with a refused one, and 153 or 249 for a refused figure", () => {
+  it("measures 330 bytes for a figure, 419 with a percentile, 540 with both figures, and 167 or 263 for a refused one", () => {
     // **The number the Gate 1 decision is read against**, measured here rather
     // than quoted: the rejected alternative — a field on every observation —
     // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
@@ -2255,8 +2393,49 @@ describe("the fifth message type, which is about ONE security", () => {
     // **one** focused security, so the ratio Gate 1 decision 1 was taken on —
     // against +54,525 B a frame at 516 subscribed — is untouched: 405 B is a
     // factor of **135**.
-    expect(bytes(frame(MEASURED))).toBe(316);
-    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(405);
+    // **316 → 330 B on 2026-10-20** (Task 5.5.4): `,"volume":null` is 14 B on
+    // every frame, and a frame carrying both figures is **540 B** — the volume
+    // comparison costing **121 B** drawn and **93 B** refused. The frame is
+    // still sent once per subscribe and once per applied batch for the **one**
+    // focused security, so the ratio Gate 1 decision 1 was taken on — against
+    // +54,525 B a frame at 516 subscribed — is untouched: 540 B is a factor of
+    // **101**.
+    expect(bytes(frame(MEASURED))).toBe(330);
+    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(419);
+
+    // **Both figures, which is the frame a reader on a machine with an `iex`
+    // baseline would receive — and no machine has one yet.**
+    expect(
+      bytes(
+        frame(
+          { ...MEASURED, percentile: PERCENTILE },
+          {
+            measured: true,
+            ratio: 4.123456789,
+            sampleCount: 2500,
+            lookbackSessions: 60,
+            bucketMinutes: 5,
+            spanMinutes: 5,
+            feed: "iex",
+          },
+        ),
+      ),
+    ).toBe(540);
+
+    // **And the refusal every machine that exists today sends**, 93 B, which
+    // is the measured answer to *is it cheaper to send nothing*: it is not,
+    // by the same argument the percentile's refusal already carries.
+    expect(
+      bytes(
+        frame(MEASURED, {
+          measured: false,
+          refusal: "no-same-tape-baseline",
+          sampleCount: 0,
+          observed: 5,
+          spanMinutes: 5,
+        }),
+      ),
+    ).toBe(423);
 
     // **A REFUSED comparison costs what a ranked one costs** — 400 B for the
     // sample refusal and 405 B for the price-break one — which is the measured
@@ -2276,7 +2455,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(400);
+    ).toBe(414);
     expect(
       bytes(
         frame({
@@ -2289,7 +2468,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(405);
+    ).toBe(419);
     // **The refusal grew on 2026-10-14** (Task 5.2.4): 141 → **153 B** with
     // nothing observed (`"seen":null`) and **249 B** carrying the one instant
     // it has. The figure is unchanged at 298, and the frame is sent once per
@@ -2300,7 +2479,7 @@ describe("the fifth message type, which is about ONE security", () => {
       bytes(
         frame({ measured: false, refusal: "no-earlier-endpoint", seen: null }),
       ),
-    ).toBe(153);
+    ).toBe(167);
     expect(
       bytes(
         frame({
@@ -2317,7 +2496,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(249);
+    ).toBe(263);
   });
 
   it.each([

@@ -1,13 +1,17 @@
 import { Kysely, PostgresDialect, sql } from "kysely";
 import type pg from "pg";
 
-import type { TimeRange } from "@marketpulse/shared";
+import { toTicker } from "@marketpulse/shared";
+
+import type { Ticker, TimeRange } from "@marketpulse/shared";
 
 import type { Database } from "./schema.js";
 import type { BaselineSubject } from "./return-baseline-store.js";
 import {
   VOLUME_BASELINE_FEED,
   type VolumeBaselineOutcome,
+  type VolumeBaselineStoredRefusal,
+  type VolumeBucketBaseline,
 } from "./volume-baseline.js";
 
 /**
@@ -112,6 +116,57 @@ export interface VolumeBucketTally {
   empty: number;
 }
 
+/** What every stored volume generation carries, answer or refusal. */
+interface StoredVolumeBaselineFacts {
+  readonly symbol: Ticker;
+  /** The window's end — the session close instant the generation is FOR. */
+  readonly observedAt: Date;
+  readonly lookbackSessions: number;
+  /** The grid's stride — *which* time of day a bucket index means. */
+  readonly bucketMinutes: number;
+  /** The grid's size, and the three arrays' arity. */
+  readonly bucketCount: number;
+  /**
+   * The counted `n` over the whole window. **A refused row carries one too**,
+   * because *how much we had* is the first question asked of a refusal.
+   */
+  readonly sampleCount: number;
+}
+
+/** A stored generation with a median per bucket in it. */
+export interface MeasuredVolumeBaseline extends StoredVolumeBaselineFacts {
+  readonly refusal: null;
+  /** One entry per bucket, bucket 0 first, aligned with the grid. */
+  readonly buckets: readonly VolumeBucketBaseline[];
+}
+
+/**
+ * A stored generation the pass **declined** to compute, and the arm with **no
+ * `buckets` member at all** — `RefusedReturnBaseline`'s mechanism, for its
+ * reason: a caller holding a refusal cannot read a denominator off it, because
+ * the member does not exist on that arm.
+ */
+export interface RefusedVolumeBaselineRow extends StoredVolumeBaselineFacts {
+  readonly refusal: VolumeBaselineStoredRefusal;
+}
+
+/**
+ * **One stored generation, as the cache reads it — a union rather than two
+ * nullable columns** (Task 5.5.4).
+ *
+ * `0015_volume_baselines.sql`'s `volume_baselines_one_answer` makes *both* and
+ * *neither* unrepresentable in the database; this is the same constraint in the
+ * type system, which is `StoredReturnBaseline`'s own arrangement and
+ * `CLAUDE.md`'s rule about this seam — the mapping is exactly where a nullable
+ * column becomes an explicit domain answer.
+ *
+ * **The precision bound is NOT applied here**, deliberately:
+ * `comparableVolumeBaseline` owns it, so a generation computed before the bound
+ * existed is refused when it is **read** rather than recomputed.
+ */
+export type StoredVolumeBaseline =
+  MeasuredVolumeBaseline | RefusedVolumeBaselineRow;
+
 export interface VolumeBaselineStore {
   /**
    * **One security's `iex` minute volumes over the window**, keyed by the bar's
@@ -142,6 +197,28 @@ export interface VolumeBaselineStore {
 
   /** Write the pass row. An upsert on `(observed_at, feed)`. */
   writePass(observedAt: Date, pass: VolumeBaselinePassWrite): Promise<void>;
+
+  /**
+   * **The newest generation at or before an instant**, one row per security
+   * that has one — `readNewestGeneration`'s shape and its reasons, one table
+   * over (Task 5.5.4).
+   *
+   * Two statements rather than a correlated subquery: the frontier is one row
+   * and the generation is a few hundred, and a generation landing between them
+   * is simply not seen until the next refresh, which the cache's own
+   * fifteen-minute floor already tolerates.
+   *
+   * **It does not filter on `securities.status`** — `UNIVERSE.md` §12.2's two
+   * sides: this is a read of something we **stored**, and a security untracked
+   * last week still has a baseline that was true when it was computed.
+   *
+   * **On every machine without a provider this answers `[]` for ever**, and
+   * that is not a degraded state: the pass writes no row for a security with
+   * no `iex` bar in the window, which is all 516 of them there.
+   */
+  readNewestGeneration(
+    atOrBefore: Date,
+  ): Promise<readonly StoredVolumeBaseline[]>;
 }
 
 /** The timeframe a baseline is computed at. Minute bars, never daily. */
@@ -188,6 +265,61 @@ function errorsColumn(
   return outcome.kind === "measured"
     ? outcome.buckets.map((bucket) => bucket.relativeStandardError)
     : null;
+}
+
+/**
+ * One bucket array element as a number, or `null`.
+ *
+ * `bigint` columns arrive as **strings** and `double precision` ones as
+ * numbers, which is why the samples get their own parser: `Number("")` is `0`
+ * and a zero sample count is a legal, meaningful answer — a bucket nothing was
+ * found for — so an unreadable one must not become it.
+ */
+const toSamples = (raw: string): number | undefined => {
+  if (raw.trim() === "") return undefined;
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= 0 ? value : undefined;
+};
+
+/**
+ * The three parallel arrays, zipped into one entry per bucket — or `undefined`
+ * for a row this reader will not answer from.
+ *
+ * `volume_baselines_bucket_arity` makes a disagreement unreachable from any
+ * writer in this repository; it is checked anyway, because a bucket index
+ * meaning a different time of day in each array is a **wrong figure with no
+ * symptom**, and the three arrays are the one thing in this row that a
+ * constraint and a reader can disagree about.
+ */
+function toBuckets(
+  bucketCount: number,
+  medians: (number | null)[] | null,
+  samples: string[] | null,
+  errors: (number | null)[] | null,
+): readonly VolumeBucketBaseline[] | undefined {
+  if (medians === null || samples === null || errors === null) return undefined;
+  if (
+    medians.length !== bucketCount ||
+    samples.length !== bucketCount ||
+    errors.length !== bucketCount
+  ) {
+    return undefined;
+  }
+
+  const buckets: VolumeBucketBaseline[] = [];
+  for (let index = 0; index < bucketCount; index += 1) {
+    const raw = samples[index];
+    const counted = raw === undefined ? undefined : toSamples(raw);
+    if (counted === undefined) return undefined;
+
+    buckets.push({
+      median: medians[index] ?? null,
+      samples: counted,
+      relativeStandardError: errors[index] ?? null,
+    });
+  }
+
+  return buckets;
 }
 
 export function createVolumeBaselineStore(pool: pg.Pool): VolumeBaselineStore {
@@ -304,6 +436,89 @@ export function createVolumeBaselineStore(pool: pg.Pool): VolumeBaselineStore {
             .doUpdateSet({ ...values, recorded_at: sql<Date>`now()` }),
         )
         .execute();
+    },
+
+    async readNewestGeneration(atOrBefore) {
+      // **The tape is in the key, so the frontier is per tape.** A `sip`
+      // generation written by a later story must not answer *the newest
+      // generation* for a reader whose numerator is IEX — which is `0015`
+      // §4's whole argument for putting the feed in the key rather than
+      // leaving it an attribute.
+      const frontier = await db
+        .selectFrom("volume_baselines")
+        .select(({ fn }) => fn.max("observed_at").as("newest"))
+        .where("observed_at", "<=", atOrBefore)
+        .where("feed", "=", VOLUME_BASELINE_FEED)
+        .executeTakeFirst();
+
+      const newest = frontier?.newest ?? undefined;
+      if (newest === undefined) return [];
+
+      const rows = await db
+        .selectFrom("volume_baselines")
+        .innerJoin(
+          "securities",
+          "securities.id",
+          "volume_baselines.security_id",
+        )
+        .select([
+          "securities.symbol",
+          "volume_baselines.observed_at",
+          "volume_baselines.lookback_sessions",
+          "volume_baselines.bucket_minutes",
+          "volume_baselines.bucket_count",
+          "volume_baselines.sample_count",
+          "volume_baselines.bucket_medians",
+          "volume_baselines.bucket_samples",
+          "volume_baselines.bucket_errors",
+          "volume_baselines.refusal",
+        ])
+        // No filter on `securities.status`. See the interface.
+        .where("volume_baselines.observed_at", "=", newest)
+        .where("volume_baselines.feed", "=", VOLUME_BASELINE_FEED)
+        .orderBy("securities.symbol")
+        .execute();
+
+      // **One function per domain type, beside the query** — and here that is
+      // also where two nullable array columns become one explicit domain
+      // answer. `flatMap` for the row the database forbids and this mapper
+      // must still answer for.
+      return rows.flatMap<StoredVolumeBaseline>((row) => {
+        const facts = {
+          symbol: toTicker(row.symbol),
+          observedAt: row.observed_at,
+          lookbackSessions: row.lookback_sessions,
+          bucketMinutes: row.bucket_minutes,
+          // `bigint` on the wire, a `number` in the domain — `toCoverage`'s
+          // judgement for `bar_count`, taken beside the query as the
+          // repository's rule requires.
+          bucketCount: Number(row.bucket_count),
+          sampleCount: Number(row.sample_count),
+        };
+
+        if (row.refusal !== null) {
+          return [{ ...facts, refusal: row.refusal }];
+        }
+
+        const buckets = toBuckets(
+          facts.bucketCount,
+          row.bucket_medians,
+          row.bucket_samples,
+          row.bucket_errors,
+        );
+
+        // **A row that is neither an answer nor a refusal is DROPPED**, which
+        // `volume_baselines_one_answer` and `volume_baselines_bucket_arity`
+        // make unreachable from any writer here. It is dropped rather than
+        // refused because there is no honest word for it: every member of
+        // `VOLUME_REFUSALS` is a sentence about a baseline we have, and an
+        // absent row already means *the pass has not answered for this
+        // security*, which is the true thing to say about a row the schema
+        // says cannot exist.
+        if (buckets === undefined) return [];
+
+        return [{ ...facts, refusal: null, buckets }];
+      });
     },
   };
 }

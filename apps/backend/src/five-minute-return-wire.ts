@@ -5,6 +5,7 @@ import type {
   WireReturnComparison,
   WireReturnEndpoint,
   WireSymbolReturn,
+  WireVolumeComparison,
 } from "@marketpulse/shared";
 import type {
   FiveMinuteReturn,
@@ -12,6 +13,7 @@ import type {
   ReturnEndpoint,
 } from "./five-minute-return.js";
 import type { PercentileAnswer } from "./return-percentile.js";
+import type { VolumeRateAnswer } from "./volume-ratio.js";
 
 /**
  * **The 5-minute return, on the wire** (Task 5.2.3).
@@ -171,3 +173,43 @@ export function toWireSymbolReturn(
     percentile: toWirePercentile(comparison),
   };
 }
+
+/**
+ * **The volume multiple, as it travels** (Task 5.5.4).
+ *
+ * A field-for-field copy of both arms, for {@link toWirePercentile}'s reason
+ * exactly: the ratio, the counted `n`, the lookback, the grid stride, the span
+ * and the tape are answers {@link volumeRateOf} already gave, and a transport
+ * that recomputed any of them would be a second producer for a figure
+ * invariant 1 says has one.
+ *
+ * **It lives in this module rather than in one of its own** because this
+ * module is the `return` frame's mapper and the frame carries both figures —
+ * the volume is a sibling of the return on it, not a second frame. Nothing is
+ * derived here and nothing is nested: {@link toWireSymbolReturn} is untouched,
+ * so a reader comparing the two mappers can see that the two figures refuse
+ * independently.
+ */
+export const toWireVolume = (
+  answer: VolumeRateAnswer,
+): WireVolumeComparison => {
+  if (!answer.measured) {
+    return {
+      measured: false,
+      refusal: answer.refusal,
+      sampleCount: answer.sampleCount,
+      observed: answer.observed,
+      spanMinutes: answer.spanMinutes,
+    };
+  }
+
+  return {
+    measured: true,
+    ratio: answer.ratio,
+    sampleCount: answer.sampleCount,
+    lookbackSessions: answer.lookbackSessions,
+    bucketMinutes: answer.bucketMinutes,
+    spanMinutes: answer.spanMinutes,
+    feed: answer.feed,
+  };
+};

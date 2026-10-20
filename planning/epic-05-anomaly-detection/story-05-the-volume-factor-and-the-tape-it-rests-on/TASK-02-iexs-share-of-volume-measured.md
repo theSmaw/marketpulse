@@ -427,6 +427,61 @@ code path in common.
    reserved this question for AC 1's measurement, and the measurement now says
    the `iex` tape's depth is the binding constraint rather than its bias.
 
+### `Done when` item 2, DISCHARGED 2026-10-20 — the deployed body, and the story's founding fact
+
+Taken against the deployment the morning after this task merged, which is the
+**only machine on earth holding both tapes for the same minute**. Verbatim:
+
+```json
+"volumeShare": {
+  "measured": true, "refusal": null,
+  "exposureFrom": "2026-09-23",
+  "sessions": 60, "exposedSessions": 18, "sessionsHoldingIex": 15,
+  "firstExposedSession": "2026-09-23", "lastExposedSession": "2026-10-19",
+  "sipMinutes": 7020, "twoTapeMinutes": 5725, "minutePresence": 0.815527,
+  "sipVolume": 1454026886, "sipVolumeOnTwoTapeMinutes": 1128432567,
+  "iexVolume": 39944437,
+  "biasOverAllSipMinutes": 0.0274716,
+  "shareOnTwoTapeMinutes": 0.0353982,
+  "volumeExposure": 0.776074,
+  "perMinuteRatioP10": 0.0160346,
+  "perMinuteRatioMedian": 0.0316575,
+  "perMinuteRatioP90": 0.0582705
+}
+```
+
+**The identity holds to seven places**:
+`0.0353982 × 0.776074 = 0.0274716 = biasOverAllSipMinutes`.
+
+**IEX carries 3.54% of the volume** on minutes both tapes printed, and **2.75%**
+across every `sip` minute — while printing in **81.6%** of them. So this story's
+founding warning — _"a security present in 65% of minutes may carry 2% of the
+shares"_ — is **confirmed and sharpened**: present in **81.6%**, carrying
+**3.54%**.
+
+**And it understated the consequence by 3×.** The Description guessed that
+`4.1× typical` _"could honestly read `0.3× typical`"_. Measured, an IEX numerator
+over a SIP baseline renders `4.1×` as **`4.1 × 0.0275 = 0.11×`** — about **36×
+too low**, not 13×. **Gate 1's same-tape decision was not a marginal call.**
+
+**The `iex` tape's own dispersion, which sets Task 5.5.4's expectations**:
+`samplesMedian 80`, `cvMedian 0.760`, `cvP90 1.025`,
+`relativeStandardError 0.1065`, `sessionsForTargetError 132` — and
+`minutesOutsideSession: 43`, which is the live writer's extended hours confirmed
+in the data. **At 10.65% relative SE, NVDA — the best case in the universe —
+cannot draw one decimal, and needs 132 sessions to.**
+
+**One cost to carry forward**: this route is now **~15× slower**. `elapsedMs`
+59.86 → **922.34**, `sharedReadBlocks` 332 → **562**, `sharedHitBlocks` 248 →
+**21**, because the volume sums touch the heap where `tapeCounts` was index-only.
+Still an operator surface answering in under a second, but it is no longer the
+cheap read it was, and `check-deployed` does **not** call it.
+
+**And the deployed dispersion is worse than the local one**, which is why the
+local figures must not be quoted as the answer: `sip` `cvMedian` **0.672**
+against 0.657, `cvP90` **0.978** against 0.881, so `sessionsForTargetError` is
+**121** rather than 98. Same direction, same conclusion, different number.
+
 ## For a stakeholder — a status report, 2026-10-19
 
 **Nothing changed on screen, and that is the whole task.** This was a

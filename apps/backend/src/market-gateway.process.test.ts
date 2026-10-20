@@ -23,9 +23,10 @@ import type {
   WireMarketOverview,
   WireObservation,
   WireSymbolReturn,
+  WireVolumeComparison,
 } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
-import type { MarketGateway } from "./market-gateway.js";
+import type { MarketGateway, SymbolFigures } from "./market-gateway.js";
 
 // **The hole Task 3.5.2's sweep found, closed here** (Task 3.5.4).
 //
@@ -181,12 +182,31 @@ async function connectClient(port: number): Promise<Client> {
   return { socket, received, waitFor, waitForCount };
 }
 
+/**
+ * **The volume half of a frame about a security nothing is known about** (Task
+ * 5.5.4) — which is every gated run's permanent answer, because the `iex` tape
+ * is empty wherever no provider is configured.
+ */
+const NO_VOLUME: WireVolumeComparison = {
+  measured: false,
+  refusal: "no-same-tape-baseline",
+  sampleCount: 0,
+  observed: 0,
+  spanMinutes: 5,
+};
+
+/** Both figures, where a test cares about one. */
+const figures = (
+  figure: WireSymbolReturn,
+  volume: WireVolumeComparison = NO_VOLUME,
+): SymbolFigures => ({ return: figure, volume });
+
 /** A refusal, which is what a gateway with no trailing window behind it owes. */
-const NOTHING_OBSERVED: WireSymbolReturn = {
+const NOTHING_OBSERVED: SymbolFigures = figures({
   measured: false,
   refusal: "nothing-observed",
   seen: null,
-};
+});
 
 /**
  * The seams Task 4.7.7 needs and no earlier test did.
@@ -199,7 +219,7 @@ interface GatewaySeams {
   /** Read per send by the gateway, so a test can move it between publishes. */
   readonly feedState?: () => WireFeedState;
   /** One security's 5-minute return (Task 5.2.3). */
-  readonly symbolReturn?: (symbol: string) => WireSymbolReturn;
+  readonly symbolReturn?: (symbol: string) => SymbolFigures;
   /** Captures the keepalive callback so a test can fire it deliberately. */
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
 }
@@ -1419,7 +1439,7 @@ describe("the market gateway's 5-minute return frame", () => {
     const a = await attach(new Map(), undefined, undefined, {
       symbolReturn: (symbol) => {
         asked.push(symbol);
-        return MEASURED;
+        return figures(MEASURED);
       },
     });
     await a.waitFor("snapshot");
@@ -1445,7 +1465,7 @@ describe("the market gateway's 5-minute return frame", () => {
     // this wire nobody can eyeball, so what is asserted is every field rather
     // than the presence of one.
     const a = await attach(new Map(), undefined, undefined, {
-      symbolReturn: () => RANKED,
+      symbolReturn: () => figures(RANKED),
     });
     await a.waitFor("snapshot");
 
@@ -1480,7 +1500,7 @@ describe("the market gateway's 5-minute return frame", () => {
     const a = await attach(new Map(), undefined, undefined, {
       symbolReturn: () => {
         calls += 1;
-        return MEASURED;
+        return figures(MEASURED);
       },
     });
     await a.waitFor("snapshot");
@@ -1508,7 +1528,7 @@ describe("the market gateway's 5-minute return frame", () => {
     const a = await attach(new Map(), undefined, undefined, {
       symbolReturn: () => {
         calls += 1;
-        return MEASURED;
+        return figures(MEASURED);
       },
     });
     await a.waitFor("snapshot");
