@@ -168,6 +168,28 @@ interface ObservedVolume {
 }
 
 /**
+ * **What a window with nothing in it counted: zero minutes of the nominal
+ * span.**
+ *
+ * The one arm {@link observedVolumeOf} has no numerator for is
+ * `nothing-observed`, whose own count **is** zero — so these are the counted
+ * figures for that state rather than a fallback standing in for a missing one,
+ * and `spanMinutes` is the span the window would have been measured over had
+ * anything arrived.
+ *
+ * It is named here rather than written `?? 0` at the use site because AC 8's
+ * rule is about the **shape**: a default at the use site cannot say which of
+ * those two things it is, and the next edit that moves a guard would turn an
+ * absent numerator into a drawn figure. Today nothing draws it —
+ * `bucket-partially-observed` is the only refusal whose sentence states
+ * `observed`, and it is reached only with a span in hand.
+ */
+const NOTHING_OBSERVED: Pick<ObservedVolume, "observed" | "spanMinutes"> = {
+  observed: 0,
+  spanMinutes: RETURN_SPAN_MINUTES,
+};
+
+/**
  * **The numerator, off whichever arm the return took** — and a refused return
  * is not a refused volume.
  *
@@ -276,8 +298,12 @@ export function volumeRateOf(
   );
 
   const sampleCount = comparable.sampleCount;
-  const observed = span?.observed ?? 0;
-  const spanMinutes = span?.spanMinutes ?? RETURN_SPAN_MINUTES;
+  // **Which of the two states this is, asked once.** See
+  // {@link NOTHING_OBSERVED}: a window with no numerator counted zero minutes.
+  // The operator is `??` because `prefer-nullish-coalescing` refuses the
+  // ternary; what AC 8 is about is that the right-hand side is a **named,
+  // documented count** rather than a `0` spelled at the use site.
+  const { observed, spanMinutes } = span ?? NOTHING_OBSERVED;
 
   const refused = (refusal: VolumeRefusal): RefusedVolumeRate => ({
     measured: false,

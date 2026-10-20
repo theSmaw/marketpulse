@@ -1,3 +1,5 @@
+import { BASELINE_BREAKPOINT_COUNT } from "@marketpulse/shared";
+
 import type {
   MarketSession,
   ReturnBaselineRefusal,
@@ -385,6 +387,42 @@ export function samplesForRelativeStandardError(
   return Math.ceil(((MEDIAN_SE_FACTOR * cv) / target) ** 2);
 }
 
+/**
+ * The rank of the median in {@link breakpointsOf}'s array — **derived from the
+ * breakpoint count rather than spelled `50`**, because a shorter array would
+ * silently rename every rank, which is `return-percentile.ts`' reason for
+ * reading the constant too.
+ */
+const MEDIAN_BREAKPOINT_RANK = (BASELINE_BREAKPOINT_COUNT - 1) / 2;
+
+/**
+ * The median of a **non-empty** sample, through {@link breakpointsOf}.
+ *
+ * **It throws rather than defaulting, because AC 8's `no ?? 0` is at its
+ * sharpest on a median**: a `0` here is a plausible typical volume that
+ * `comparableVolumeBaseline` would divide by, and a wrong multiple reaching a
+ * reader is the one outcome this factor must not produce. The absence is
+ * unreachable by construction — `breakpointsOf` answers
+ * {@link BASELINE_BREAKPOINT_COUNT} breakpoints for any non-empty sample and
+ * throws on an empty one — so a throw here can only mean the breakpoint count
+ * changed, which is a repository defect and not a fact about the market.
+ */
+function medianOf(samples: readonly number[]): number {
+  const median = breakpointsOf(samples)[MEDIAN_BREAKPOINT_RANK];
+
+  /* c8 ignore next 9 -- unreachable: see the doc comment. */
+  if (median === undefined) {
+    throw new RangeError(
+      `A sample of ${String(samples.length)} has no breakpoint at rank ` +
+        `${String(MEDIAN_BREAKPOINT_RANK)}. \`breakpointsOf\` answers ` +
+        `${String(BASELINE_BREAKPOINT_COUNT)} breakpoints for any non-empty ` +
+        "sample, so the breakpoint count has changed under this module.",
+    );
+  }
+
+  return median;
+}
+
 /** What one bucket of the grid holds, answer or not. */
 export interface VolumeBucketBaseline {
   /**
@@ -526,7 +564,7 @@ export function volumeBaselineOf(
     // percentile here*. The 50th of an odd sample is the middle order
     // statistic and of an even one is the midpoint of the two — which is the
     // ordinary definition of a median, reached through the one function.
-    const median = breakpointsOf(samples)[50] ?? 0;
+    const median = medianOf(samples);
     const cv = coefficientOfVariation(samples);
 
     return {

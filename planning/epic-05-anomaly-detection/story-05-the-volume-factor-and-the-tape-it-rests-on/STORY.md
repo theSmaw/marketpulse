@@ -1,6 +1,13 @@
 # Story 5.5 — The Volume Factor, & the Tape It Rests On
 
-**Status:** **In progress — 2026-10-17.** Gate 1 taken; five tasks.
+**Status:** **Verification complete — 2026-10-20; awaiting Product Owner
+acceptance at Gate 2.** All five tasks merged (#602, #603, #605, #606 and this
+task's PR). Gate 1 taken 2026-10-17. **What the close found rather than what it
+shipped:** AC 3 was recorded met and was not — the same-day sweep reached the
+design document only, leaving the **epic's own exit criterion** carrying the
+wording AC 3 exists to fix; AC 8's `?? 0` rule was violated **three times by
+this story's own code**, once on a median and one of them reachable on the wire;
+and the sideways sweep was **3 of 3 missing**.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.3
 **Epic scope covered:** intraday volume baseline, volume-ratio calculation
@@ -40,6 +47,22 @@ bucket matches the window, a 30-minute bucket smooths the open away.
 **A volume figure in `Abnormal-move indicators`** — _"volume 4.1× typical for
 this time of day"_ — with **its baseline defined and its tape named**, beside
 the return and the percentile.
+
+**Corrected 2026-10-20 at the close, because the sentence above reads as though
+a figure draws and on every machine that exists it does not.** What a reader
+meets is the band, its label, its baseline's terms, its tape line, and **one of
+six refusal sentences** — most often `No IEX volume history for this security`.
+That is **correct delivery of the story and not delivery of the promise as
+written**: the promise was falsified by Gate 1 decision 1, which the owner took
+with this consequence in writing. The figure itself has been drawn **only in
+Storybook**, and becomes available on a **date nobody controls** — when the
+same-tape `iex` baseline's counted `n` crosses its floor. Measured against the
+deployment on 2026-10-20, `NVDA` — the best case in the universe — has **80
+samples** a bucket, **10.65%** relative standard error, and needs **132
+sessions**; on the _better_ tape at _full_ depth **38,448 of 40,248 buckets
+refuse (95.5%)**. `LIVE-REHEARSAL.md` row 5.5 and two `docs/GAPS.md` entries
+carry it, and that row's **first half — watching the refusals — is available
+today**.
 
 ## Gate 1 — decisions taken 2026-10-17, and five false premises corrected
 
@@ -173,6 +196,27 @@ the volume baseline on a time axis rather than as a figure.**
 The figure ships drawn on **no machine and by no person**, and becomes available
 on a **date nobody controls** — so `LIVE-REHEARSAL.md` row 5.5 is
 **unwatchable** rather than merely unwatched, which is new for that ledger.
+
+## The sideways sweep at the close — 2026-10-20, and it was 3 of 3 MISSING
+
+**Enumerated by grepping this story's documents for every `Story N.M`, `Epic N`
+and `Owner:` line, then checking each against that story's own file** — which is
+the procedure, because Story 5.3's close propagated a figure sideways and missed
+it upward, and Story 5.4's was 1 of 4 missing. **This one was worse: every
+obligation checked was absent.**
+
+| owed to       | carried it?                                                | what was written                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Story 5.6** | **no** — its only reference was its own `Depends on:` line | the fourth factor is **absent for most securities**, so §11's four-factor composite has **three and a stated absence**; the figure is a **rate** and its label is load-bearing; six refusal kinds that must survive into the explanation; `typical` against the band name `normal`; the shipped cap and floor and the guard whose **plant is `composite-score.ts`** — its own file; and the region is **256 px** now, with the 58-character line budget |
+| **Epic 14**   | **no** — no reference at all                               | the backend condition **did NOT re-fire** (O(clients) on the fifth frame type, not O(universe)), ADR 0038's grain trigger likewise, this story **does not owe** the `/` re-take because it is out of scope for `/`, and `baseline-cost` is now **~15× slower** (`elapsedMs` 59.86 → 922.34) because the volume sums touch the heap                                                                                                                      |
+| **Epic 6**    | **no** — nothing about ADR 0045                            | **ADR 0045 decision 1 governs its factors**: an edge weighted by **traded value**, a node sized by **volume**, a threshold on **turnover** are all **levels across tapes** and are refused; a **correlation of returns** is fine; and if a derived graph is persisted, **the tape belongs in its key**                                                                                                                                                  |
+
+**Why all three were missed, which is the part worth keeping**: this story's own
+documents are dense with figures, and a close that sweeps _its own_ records feels
+complete. **Nothing about writing a good record crosses into somebody else's
+file** — which is `CLAUDE.md`'s own note that a hand-off sweeps **sideways** and
+a close does not reach it. The count is recorded here so the next close expects
+to find obligations rather than to confirm there are none.
 
 ## Acceptance criteria
 

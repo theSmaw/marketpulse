@@ -4544,3 +4544,120 @@ correctness rests on the producer's own unit tests, the decoder's five
 cross-field checks, and **a person with a public five-minute chart**, which is
 `LIVE-REHEARSAL.md` row 5.4's sixth item and which **no sitting in that ledger
 has ever taken**.
+
+## The volume factor is drawn by no machine and no person, and that is arithmetic rather than access
+
+**Added 2026-10-20 at Story 5.5's close.** `Abnormal-move indicators` carries a
+second band — `4.1× typical` with its baseline's terms and its tape named — and
+**on every machine that exists it draws a refusal instead.**
+
+The reasons are three and they compound. **CI and every laptop hold zero `iex`
+rows**, so the pass writes no row at all and every security refuses
+`no-same-tape-baseline`. **The deployed `iex` tape begins 2026-09-23**, so its
+depth is weeks rather than years. And **one printed decimal needs a counted `n`
+the data does not hold**: measured against the deployment on 2026-10-20, `NVDA`
+— the best case in the universe — has **80 samples** a bucket, a relative
+standard error of **10.65%**, and needs **132 sessions**.
+
+**The scale, measured on the BETTER tape at FULL depth**, which is the figure
+that makes this a standing gap rather than a wait: **38,448 of 40,248 buckets
+refuse — 95.5%** — and **173 of 516 securities have no drawable bucket at all.**
+So the refusal remains the common case _after_ depth accrues.
+
+**What nothing mechanical can do about it.** No fixture buys the figure: a
+recorded body proves the renderer and nothing about the producer, and _a
+pass-through proves fidelity and never correctness_. `pnpm store:bare` proves
+the refusal, never the figure. `pnpm test:database` exercises the arithmetic
+against a hand-built two-tape store — which is real and is the highest-value
+instrument this story added — but a store somebody built is not a market. **The
+only machine on earth that can draw this is production**, and only after a date
+nobody controls.
+
+**The claims with teeth are therefore negative and out-of-frame, and this story's
+are stronger than Story 5.3's**: `GET /market-data` answering `{"feed":null}`
+means nothing was observed, and `baseline-cost`'s `iexRows` at `0`/`null` means
+no same-tape baseline exists — so **a drawn IEX multiple is fabricated by
+construction**. Both are asserted.
+
+**Re-measure:** `GET /diagnostics/baseline-cost?symbol=…` against the
+deployment, reading `volumeDispersion`'s `iex` entry. **Condition for this entry
+narrowing:** the first session on which any security's `iex` bucket `n` meets
+its floor — which is [ADR 0045](adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)'s
+own reversal trigger inverted. **Owner: a person, and
+`LIVE-REHEARSAL.md` row 5.5 splits the sitting in two** — the refusals are
+watchable **today** and are the shipped product; the figure waits.
+
+## A rule forbidding floating-point columns cannot see the same type as an ARRAY
+
+**Added 2026-10-20 by Task 5.5.3, found by walking into it.** A draft gave a new
+derived table's precision target `double precision`, and
+`migrate.database.test.ts` **refused it outright** — it carries _has no
+floating-point column anywhere_ and has **no exemption mechanism**, which is the
+check behaving exactly as intended. The column is now `numeric(18, 6)` and 0.05
+is exact.
+
+**The gap is what that check cannot see.** It reads
+`information_schema.columns.data_type`, which returns **`ARRAY`** for a
+`double precision[]` and `double precision` only for a scalar. So
+`0013_return_baselines.sql`'s `breakpoints` and `0015_volume_baselines.sql`'s
+three parallel arrays **sit inside the rule by their type's shape rather than by
+anybody's leave** — not an exemption anybody argued for, and not visible to the
+guard that would otherwise forbid them.
+
+**Why it is a gap rather than a defect**: an array of approximate values is a
+_distribution_, where exactness is meaningless and `numeric[]` would cost
+storage and arithmetic for nothing; the shipped columns are almost certainly
+right. What is wrong is that **the rule's silence is an accident**, so the next
+author reaching for `double precision[]` will believe the rule permits it.
+
+**Re-measure:** `select data_type from information_schema.columns where
+data_type like '%double%' or data_type = 'ARRAY'` against a migrated database.
+**Condition for making it mechanical:** the first scalar approximate column
+somebody wants — at which point the check needs a stated, argued exemption list
+rather than a blind spot. Recorded in `0015` §6, `schema.ts` and ADR 0044's
+amendment as well, because the argument is reached from three directions.
+
+## Nothing checks for `?? 0`, and backend factor purity is held by prose
+
+**Added 2026-10-20 at Story 5.5's close, by verification rather than by
+reading.** Two rules this product states repeatedly have **no mechanism at all**,
+and Story 5.5's AC 8 restated both as if they were enforced.
+
+**`?? 0` is forbidden and unchecked, repository-wide.** Every anomaly story since
+5.2 has written _no `?? 0`_ into its criteria, `CLAUDE.md` records why — a `null`
+under `"number"` reaches the wire as **`0`**, _"a plausible price rather than a
+visibly empty string"_ — and **no `pnpm invariants` conjunct, lint rule or test
+looks for it anywhere.** Verification at this close found **three live instances
+in code Story 5.5 itself shipped**, one of them **on a median**, where an absent
+breakpoint would have become a plausible _zero volume_. They were repaired in the
+same change; **what has not been repaired is the absence of a check**, so the
+fourth will land unnoticed.
+
+**And no backend factor has ever been mechanically pure.** The clock rules —
+`Date.now()` and a zero-argument `new Date()` — are `no-restricted-syntax`
+entries scoped to **`packages/shared/src/**` only** (`eslint.config.mjs`), by
+design, because that is the package both sides of the wire share. But every
+anomaly factor lives in **`apps/backend/src`**: `five-minute-return.ts`,
+`return-percentile.ts`, `return-baseline.ts`, `volume-baseline.ts`,
+`volume-ratio.ts`. Their purity is real — checked by reading, and each takes its
+instants as arguments — and it is held by **prose and unit tests**, not by the
+rule their stories cite.
+
+**Why this is one entry rather than two**: both are the same failure shape, which
+`CLAUDE.md` already names — _a stated invariant that nothing checks quietly stops
+being true_ — and both were found by somebody going to **verify** a criterion
+rather than by reading the criterion.
+
+**Why it was not made mechanical at the close**: a repository-wide `?? 0` grep
+would surface instances in code Story 5.5 did not write, and widening the clock
+rules to `apps/backend/src` would catch `index.ts` and the gateway, which read
+the clock **legitimately**. Both need an argued, stated exemption list rather
+than a blind widening — which is work, not a line.
+
+**Re-measure:** `grep -rn '?? 0' apps/backend/src packages/shared/src
+apps/frontend/src --include='*.ts' | grep -v '\.test\.'`, and
+`grep -n 'no-restricted-syntax' -A 40 eslint.config.mjs` for the clock rules'
+scope. **Condition for making it mechanical: the first `?? 0` that reaches a
+reader as a figure** — at which point the exemption list is cheaper to argue than
+the incident. **Owner: the next story that adds a factor**, because it will
+restate AC 8 and should either enforce it or stop claiming it.

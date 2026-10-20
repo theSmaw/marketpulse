@@ -489,6 +489,61 @@ top of the screen was a column of prose beside a void. That screen is `PRODUCT_S
 them, and that is on purpose.~~ — **false since 2026-10-13: four do, and the
 fourth is Epic 5's first figures on any screen.**
 
+**And since 2026-10-20 that region carries a SECOND band — and on every machine
+that exists it draws a refusal, which is Story 5.5 and is the point rather than a
+shortfall.** `Abnormal-move indicators` gained
+`VOLUME PER MINUTE · 4.1× typical · median minute of 60 sessions · same 5-minute
+bucket · today excluded · Measured on IEX · baseline on IEX` — and what a reader
+meets is one of **six** refusal sentences, most often
+`No IEX volume history for this security`. The figure has been drawn **only in
+Storybook**.
+
+**Why, measured rather than argued, and it is the most consequential measurement
+in this epic.** This repository's coverage figures had always been
+**minute-presence** shares; **nobody had ever measured IEX's share of VOLUME**.
+Taken against the deployment: **3.54% for `NVDA`, and 3.54%–15.19% across six
+securities — a 4.3× spread running INVERSELY with liquidity**, while minute
+presence is 81.6%. So an `iex` numerator over a `sip` baseline would render
+`4.1× typical` as **`0.11×`** — **12× to 45× too low depending on the security**.
+The story's own guess was `0.3×`; it understated it threefold.
+[ADR 0045](docs/adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)
+is the decision, and it governs **more than volume**: before comparing two market
+figures, ask whether the quantity is a **ratio within one tape** (scale-free, and
+why the live `iex` return may be ranked against a `sip` baseline — a comparison
+this product had shipped since 2026-10-14 **with no decision record**) or a
+**level across tapes** (volume, traded value, trade counts — refused, because the
+share _is_ the quantity). Epics 6 and 9 meet it first.
+
+**Four things from it are load-bearing.** **The figure is a RATE and its label
+says so** — `Σvolume / spanMinutes` against the median of **one** minute, drawn
+under `VOLUME PER MINUTE`, because `5 × median` is _the typical five-minute
+volume_ and **the median of a sum is not five times the median of its parts**; a
+partial span is **refused**, and `× 5/k`, `/ k` (the same imputation rearranged,
+**biased upward** because the minutes a single venue misses are the quiet ones)
+and `/ 5` are all wrong. **The absence is DATED rather than permanent, and
+arithmetic rather than access**: the same-tape `iex` baseline began 2026-09-23,
+and one printed decimal needs a counted `n` the data lacks — `NVDA`, the best
+case in the universe, has **80 samples** a bucket, **10.65%** relative standard
+error, and needs **132 sessions**; on the _better_ tape at _full_ depth
+**38,448 of 40,248 buckets still refuse (95.5%)** and 173 of 516 securities have
+**no** drawable bucket. **The tape is in the KEY** of
+`volume_baselines` — `(security_id, observed_at, feed)` where ADR 0044's earlier
+tables key on the session alone — because a tape choice carrying a reversal
+trigger can flip, and a flip against a session-only key would **rewrite every row
+with nothing recording that the meaning changed**. And **a live defect in Story
+5.3's shipped baseline was found by shaping this story and repaired first**: the
+nightly window ended on a **tape-blind** ledger the IEX writer advances, and it
+**fired in production on 2026-10-15 at 09:07 ET**, stamping a generation _for a
+session that had not opened_ and labelling 59 sessions of data 60 —
+`59 × 390 = 23,010` against the deployed `sipRows`, exactly.
+
+**What no gated machine and no person has ever seen is this figure at all**, and
+`LIVE-REHEARSAL.md` row **5.5** is the first row in that ledger that is
+**unwatchable rather than unwatched** — the figure arrives on a **date nobody
+controls**. Its **first half is watchable today**, though: the refusals are the
+shipped product, and whether six of them in one region read as careful or as
+broken is a question only a person answers.
+
 **And since 2026-10-14 that region says how UNUSUAL the move is, which is Story
 5.3 — the first figure in this product that compares something against its own
 history rather than reporting it.** Beside the return: `99th percentile`, the

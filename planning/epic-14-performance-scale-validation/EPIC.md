@@ -888,3 +888,38 @@ is worth recording so nobody re-prices it: out of hours the region reads a
 **nightly persisted row** — one map read and ≤10 rows built, **strictly less**
 per-batch work than the observed arm it replaces. That is **reasoned rather than
 measured**, and is recorded as the weaker claim.
+
+## Handed here by Story 5.5's close — 2026-10-20: your backend condition did NOT re-fire, and this story does not owe your `/` re-take
+
+**Said explicitly so the next reader does not assume it was skipped.** Story 5.5
+added a volume ratio derived **per security** — which looks like the condition
+that fired on Task 5.4.2 — and it **does not re-fire it**.
+
+**Why, and the distinction is the one your condition turns on.** The condition is
+_the first computation added to that callback that derives a figure per
+security_ **over the universe**. Story 5.5's figure is computed on the
+**fifth frame type**, `symbolReturn`, for **the one security a client has in
+focus** — synchronously, with no `await`, O(clients) rather than O(516). That is
+the same shape Stories 5.1, 5.2 and 5.3 were each evaluated against and found
+unfired, and it is why the volume sum rides the **existing** pass that already
+walks the trailing window rather than adding a second one.
+
+**ADR 0038's frame-grain trigger does not fire either**: no new frame type, no
+new arrival, and the baseline is a **cache map read keyed on the session** —
+`lastCloses`' shape, which is Story 5.4.5's precedent.
+
+**And Story 5.5 does NOT owe the re-take this file asks for.** That obligation is
+_the next story that changes the per-batch path on `/`_, and this story is
+**out of scope for `/`** entirely: it touches `Abnormal-move indicators` on
+`/securities/:symbol` and renders nothing on the landing page. **The re-take is
+still owed by whichever story next touches that path**, with a control, rather
+than by adding another term to an estimate.
+
+**One figure worth having when that re-take comes.** Story 5.5 extended
+`GET /diagnostics/baseline-cost`, and the extension is **not** cheap: `elapsedMs`
+went **59.86 → 922.34** and `sharedReadBlocks` **332 → 562** with
+`sharedHitBlocks` **248 → 21**, because the volume sums touch the **heap** where
+`tapeCounts` was index-only. It is an operator surface that answers in under a
+second and **`check-deployed.mjs` does not call it** — but it is no longer the
+cheap read it was, and anything that starts calling it per security at universe
+scale should price that first.

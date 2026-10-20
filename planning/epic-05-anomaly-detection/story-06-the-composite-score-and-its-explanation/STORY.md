@@ -272,3 +272,62 @@ builder — plus an **observed** basis in session and a **session** basis out of
 hours from a nightly persisted score. A composite adds the volume factor's own
 population, so check whether your figure makes a **fourth** before assuming the
 sentences still hold.
+
+## Handed here by Story 5.5's close — 2026-10-20: your fourth factor is ABSENT for most securities, and that is the composite's problem rather than 5.5's
+
+**1. The volume factor ships refused on every machine that exists, and will stay
+refused for most securities after that.** Measured against the deployment on
+2026-10-20: the same-tape `iex` baseline Gate 1 chose has **80 samples** a
+bucket for `NVDA` — **the best case in the universe** — a relative standard
+error of **10.65%**, and needs **132 sessions** to support one printed decimal.
+On the **better** tape at **full** depth, **38,448 of 40,248 buckets refuse
+(95.5%)** and **173 of 516 securities have no drawable bucket at all.**
+
+**So `PRODUCT_SPEC.md` §11's four-factor composite has three factors and a
+stated absence, for a long time.** Story 5.5's own AC 2 wrote the principle —
+_"a composite with three factors and a stated absence beats a fourth factor with
+an unmeasured bias"_ — and your story is where it has to be implemented. **Do
+not re-weight silently.** A composite that quietly redistributes a missing
+factor's weight across the other three is a different score wearing the same
+number, and nothing on screen would say so.
+
+**2. The volume figure is a RATE and its label is load-bearing.**
+`Σvolume / spanMinutes ÷ median(one minute)`, drawn under **`VOLUME PER
+MINUTE`** — because the arithmetic equals `Σvolume / (5 × median)` and **the
+claim does not**: `5 × median` is _the typical five-minute volume_, and the
+median of a sum is **not** five times the median of its parts. If the composite
+restates the volume input in its own words, restate it as a **rate** or the
+explanation is wrong about what was measured.
+[ADR 0045](../../../docs/adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)
+decision 2 is the rule.
+
+**3. Six refusal kinds, and they must survive into your explanation.**
+`no-same-tape-baseline`, `too-few-sessions`, `split-discontinuity`,
+`zero-volume-baseline`, `no-bar-in-bucket`, `bucket-partially-observed`. **Four
+pairs would read alike if collapsed** and one of them matters to you
+particularly: `too-few-sessions` against `no-same-tape-baseline` is **a wait**
+against **a gap in our listening**, and a composite that reports "volume
+unavailable" for both has thrown away the only information a reader could act
+on.
+
+**4. `typical` is the volume word and `normal` is a BAND name — and §11
+contradicts itself.** Story 5.5's AC 3 settled it and swept two live sentences
+in `VISUAL-LANGUAGE.md` the same day. **Your composite example is the other
+side of that collision**: §11's `Volume 3.8× normal` is the exit criterion's own
+wording and it is **wrong twice over** — the word is `typical`, and the figure
+is a rate. Expect to amend `PRODUCT_SPEC.md` §11 rather than implement it as
+written.
+
+**5. The multiple's cap and floor are shipped and are yours to reuse, not
+redecide.** `>999× typical` and `<0.1× typical`, both re-using the percentile's
+shipped `>` glyph. The floor exists because `toFixed(1)` renders anything below
+0.05 as **`0.0×`**, which reads as _nothing traded_ — AC 4's defect arriving at
+the formatter. `one-home-for-the-multiple-glyph` refuses a second speller, and
+**its break's plant is `composite-score.ts`** — your file, under its likely
+name. Import `formatMultiple`; do not write a second `×`.
+
+**6. And the region is 256 px now, not 142.** Story 5.5 measured `142 → 256`,
+**+114** uniform at four widths, firing `MARKET-OVERVIEW.md` §1.4's trigger a
+**third** time. Two states were **282 px** and the cause was **sentences rather
+than geometry**, so the budget is recorded: **58 characters fit at 308 px, 62 do
+not.** A band you add inherits that ceiling.
