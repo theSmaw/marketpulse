@@ -7961,6 +7961,200 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-volume-baseline-reads-one-tape-by-name",
+    claim:
+      "The volume baseline's window read spells `feed = 'iex'` in the " +
+      "query's OWN `where`, built from `VOLUME_BASELINE_FEED`, which is " +
+      "assigned exactly once. Every `market_bars` query in that module that " +
+      "selects a volume carries a `feed` predicate, and nothing that " +
+      "computes a volume baseline reaches `readBars` or `readSeries`.",
+    check() {
+      // **Task 5.5.3, and the defect it forbids is the one the two served
+      // reads invite.** The volume baseline's numerator is the live IEX
+      // socket's own volume, so Gate 1 decision 1 is same-tape or refusal —
+      // and `market_bars` holds up to two rows a minute (ADR 0035), so a read
+      // that does not restrict the tape produces a distribution holding both
+      // in whatever proportion the hour and the planner supplied.
+      //
+      // Neither `readSeries` nor `readBars` **takes a feed parameter**, so
+      // there is nothing to pass: the predicate has to be written where the
+      // query is. `readSeries`' `distinct on (observed_at)` is correct only
+      // because it is already filtered to one symbol — copied without that
+      // predicate it collapses across securities — and `readBars`' own
+      // docblock says it answers every row and does not answer the tape
+      // question for you. `SERVED_TAPE_RANK` is a **preference** for serving
+      // the best history available; this needs a **restriction**.
+      //
+      // ## Proved GREEN on the defect first, and the transcript is in the task
+      //
+      // The plant is the shape a re-implementer writes:
+      // `.where("market_bars.feed", "in", ["iex", "sip"])` over a mapper that
+      // keys a `Map` on the bar's instant with no tie-break, so whichever row
+      // the planner returned last wins. It **typechecks and lints clean**, and
+      // against the two-tape fixture it reads a bucket median 30,000× too
+      // large. A draft of this check asserting that the store module still
+      // *names* `VOLUME_BASELINE_FEED` reported `65 invariants hold.` against
+      // exactly that tree — because the constant is still named by the row's
+      // `feed` column and by the `none` refusal's message, neither of which is
+      // a predicate. That draft conjunct was **deleted rather than kept**:
+      // unlike Task 5.5.1's pair, there is no second behaviour for it to
+      // guard, and a conjunct satisfied by an insert's column value can never
+      // fail for the reason it was written.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Not a file name and not a method name: whoever builds this baseline
+      // has to get minute volumes out of `market_bars`, and the only question
+      // about that query is whether it says which tape. So the corpus is every
+      // shipped file, the anchor is the predicate's own shape, and **no match
+      // is a failure** — a grep whose subject has moved returns nothing and
+      // reads exactly like a pass.
+      const CONSTANT_HOME = "apps/backend/src/volume-baseline.ts";
+
+      /** The predicate, in the query's own `where`, built from the constant. */
+      const TAPE_PREDICATE =
+        /\.where\(\s*"market_bars\.feed"\s*,\s*"="\s*,\s*VOLUME_BASELINE_FEED\s*,?\s*\)/su;
+
+      /** Any `feed` predicate at all, for the second-query clause. */
+      const ANY_FEED_PREDICATE = /\.where\(\s*"market_bars\.feed"/u;
+
+      const SELECTS_VOLUME = /"market_bars\.volume"/u;
+      const ASSIGNS = /\bVOLUME_BASELINE_FEED\s*=[^=]/gu;
+
+      const COMPUTES = /\bvolumeBaselineOf\s*\(/u;
+      const DEFINES = /export function volumeBaselineOf\s*\(/u;
+      const SUPPLIES = /\breadWindowVolumes\s*\(/u;
+      const SERVED_READS = /\.(?:readBars|readSeries)\s*\(/u;
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      // **Conjunct 1: the tape is one constant, assigned once.**
+      //
+      // `asOf.getTime() - BREADTH_WINDOW_MINUTES * MS_PER_MINUTE`'s own
+      // lesson, one check over: a predicate naming a constant is equally
+      // satisfied by a second module exporting its own
+      // `VOLUME_BASELINE_FEED = "sip"` and shadowing the import — at which
+      // point the baseline and the row's `feed` column say different things
+      // and the stored distribution is attributed to a tape it did not come
+      // from, which is invariant 6 failing in a column.
+      const assignments = shipped
+        .flatMap((file) =>
+          [...file.text.matchAll(ASSIGNS)].map(() => file.path),
+        )
+        .toSorted();
+
+      if (assignments.length !== 1 || assignments[0] !== CONSTANT_HOME) {
+        throw new InvariantFailure(
+          `\`VOLUME_BASELINE_FEED\` is assigned in ` +
+            `[${assignments.join(", ") || "nowhere"}], expected exactly ` +
+            `${CONSTANT_HOME}.\n    Zero means the constant has been renamed ` +
+            "or inlined, and a tape spelled as a literal in a `where` is one " +
+            "the stored row's own `feed` column cannot be derived from. More " +
+            "than one is two answers to *which tape is this baseline over*, " +
+            "with Gate 1 decision 1's reversal trigger unable to move either.",
+        );
+      }
+
+      // **Conjunct 2: exactly one shipped query restricts the tape by name.**
+      const restrictors = shipped.filter((file) =>
+        TAPE_PREDICATE.test(file.text),
+      );
+
+      if (restrictors.length !== 1) {
+        throw new InvariantFailure(
+          `${String(restrictors.length)} shipped files restrict a ` +
+            "`market_bars` read to `VOLUME_BASELINE_FEED` in the query's own " +
+            "`where`, expected exactly 1:\n      " +
+            (restrictors.map((file) => file.path).join("\n      ") ||
+              "(none at all)") +
+            "\n    **Zero is the defect this check exists for.** `market_bars` " +
+            "holds up to two rows a minute (ADR 0035) and neither " +
+            "`readSeries` nor `readBars` takes a feed parameter, so a read " +
+            "with no tape predicate hands a mapper keyed on the instant two " +
+            "rows for one minute and it keeps whichever the planner returned " +
+            "last. Against a two-tape fixture that is a bucket median " +
+            "30,000× too large, from a query that typechecks, lints and runs. " +
+            "More than one is a second volume baseline read, and the two " +
+            "would answer the same question over different rows.",
+        );
+      }
+
+      const [restrictor] = restrictors;
+
+      // **Conjunct 3: in that module, EVERY volume read names a tape.**
+      //
+      // Conjunct 2 catches the predicate being removed; this catches a second
+      // query being added beside it without one. The corpus is one file
+      // deliberately: `market-bars.ts`' `readBars` and `readSeries` select a
+      // volume and carry no `feed` predicate **by design** — that module is
+      // the served-read seam and its docblock says it does not answer the tape
+      // question — so the clause is scoped to the module that has taken the
+      // restriction on, which is identified by conjunct 2 rather than named.
+      const queries = restrictor.text.split(/\.selectFrom\(/u).slice(1);
+
+      const blind = queries.filter(
+        (query) =>
+          SELECTS_VOLUME.test(query) && !ANY_FEED_PREDICATE.test(query),
+      );
+
+      if (queries.length === 0 || blind.length > 0) {
+        throw new InvariantFailure(
+          `${restrictor.path} holds ${String(queries.length)} ` +
+            `\`market_bars\` queries, ${String(blind.length)} of which ` +
+            "select a volume with no `feed` predicate in the same query.\n" +
+            "    A second volume read in the one module that has taken the " +
+            "tape restriction on is the restriction being quietly narrowed to " +
+            "one query, and the row it writes says `iex` either way.",
+        );
+      }
+
+      // **Conjunct 4: nothing that computes a baseline reaches a served read.**
+      const consumers = shipped.filter(
+        (file) => COMPUTES.test(file.text) && !DEFINES.test(file.text),
+      );
+
+      if (consumers.length === 0) {
+        throw new InvariantFailure(
+          "No shipped file calls `volumeBaselineOf`, so this check can no " +
+            "longer see a volume baseline being computed anywhere. Either the " +
+            "function was renamed — repoint this check — or it has been " +
+            "passing vacuously.",
+        );
+      }
+
+      for (const file of consumers) {
+        if (!SUPPLIES.test(file.text)) {
+          throw new InvariantFailure(
+            `${file.path} computes a volume baseline without taking its ` +
+              "minutes from `readWindowVolumes`. That is the one read that " +
+              "restricts the tape; anything else hands the sampler whatever " +
+              "rows a query returned, and a distribution mixing a single " +
+              "venue's prints with the consolidated tape's is wrong by the " +
+              "whole quantity rather than by a margin.",
+          );
+        }
+
+        if (SERVED_READS.test(file.text)) {
+          throw new InvariantFailure(
+            `${file.path} computes a volume baseline AND reaches ` +
+              "`readBars` or `readSeries`. `readBars` answers **every** row, " +
+              "both tapes included, and its own docblock says it does not " +
+              "answer the tape question for you; `readSeries` reduces a " +
+              "minute under `SERVED_TAPE_RANK`, which is a preference for " +
+              "serving the best history rather than a restriction to one " +
+              "tape — and its `distinct on (observed_at)` collapses across " +
+              "securities the moment it is copied without a symbol " +
+              "predicate. Neither takes a feed parameter, so neither can be " +
+              "told which tape to answer with.",
+          );
+        }
+      }
+    },
+  },
 ];
 
 const failures = [];
