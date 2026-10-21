@@ -1,6 +1,9 @@
 # Epic 5 — Anomaly Detection
 
-**Status:** **In progress — decomposed into seven stories on 2026-10-13, none started.** Eight decisions were taken at Gate 1 and five of them shape the stories that follow; the largest was not in this file at all until today — the store holds **raw** bars, and an unadjusted split is a −90% return at the 100th percentile of every distribution it touches.
+**Status:** **In progress — five of seven stories complete: 5.1, 5.2, 5.3, 5.4
+and 5.5 (the last accepted 2026-10-21). 5.6 and 5.7 remain.** _Corrected
+2026-10-21 at Story 5.5's close: this line still read `none started`, which had
+been false since 2026-10-13._ Decomposed into seven stories on 2026-10-13. Eight decisions were taken at Gate 1 and five of them shape the stories that follow; the largest was not in this file at all until today — the store holds **raw** bars, and an unadjusted split is a −90% return at the 100th percentile of every distribution it touches.
 **Sequence:** 5 of 15 — follows Epic 4 (Market Overview)
 **Spec references:** PRODUCT_SPEC.md §11 (unusual activity detection)
 
