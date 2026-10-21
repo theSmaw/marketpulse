@@ -109,3 +109,71 @@ nothing in this repository can grep the canvas.
 ## Out of scope
 
 Epic 6's topology, Epic 7's investigations, and `Anomaly history`.
+
+## Handed here by Story 5.5's close and its next-day sweep — 2026-10-21: FIVE unwatched rows, and the one figure you cannot find without writing a query first
+
+**This story owns the sitting, and this file had nothing in it about the sitting's
+contents.** Found by grepping for this story's own number at Story 5.5's sweep —
+the fourth consecutive hand-off this epic has had to write after the fact.
+
+**What is owed a person, and `pnpm invariants` prints the last of them on every
+run until somebody clears it.** `LIVE-REHEARSAL.md` carries rows **5.1, 5.2, 5.3,
+5.4 and 5.5 all unwatched** — the whole of Epic 5's visible output — plus **Epic
+4's waived 390 row**, whose `Owner:` is this epic. Five rows is not five sittings:
+5.1, 5.2 and 5.4 are watchable in one session on one deployed page, and the two
+that are not are below.
+
+**Row 5.3 (the percentile) is checkable against nothing on screen.** Its inputs
+are 60 sessions of a table no browser reads, so **the only external check that
+will ever exist is a person with a public five-minute chart and a calculator**.
+Budget for that rather than discovering it in the chair.
+
+**Row 5.5 (the volume multiple) is the hard one, and its status CHANGED on
+2026-10-21 — read this before planning around the word _unwatchable_.** The row
+was written as the ledger's first **unwatchable** row, on the reasoning that the
+figure needs `iex` depth that does not exist. The first deployed nightly pass
+then reported:
+
+```
+volume buckets — 4 drawable of 39928 with samples, 39924 too few sessions,
+  0 zero volume, 8 empty; 2164895 minute samples, target 5% relative SE
+```
+
+So **4 of 39,936 `(security, 5-minute bucket)` pairs draw the figure today —
+0.010%**. It is **improbable, not impossible**, and that changes what this story
+has to do:
+
+- **The pass prints the COUNTS and not the PAIRS.** So a sitting cannot find a
+  drawn figure by browsing — at 0.010% a reader would open thousands of pages.
+  **The cheap fix is a one-line change to the pass's summary: print the drawable
+  `(symbol, bucket)` pairs, not just how many there are.** It is this story's to
+  take or to decline, and declining means the figure stays unwatched until depth
+  broadens. Nothing else in the product can answer _which four_.
+- **The bucket is a TIME OF DAY**, so even knowing the pair, the sitting has to
+  happen in that five-minute window of the session. Two constraints multiply.
+- **Expect the refusal to be the sitting's real subject**, and know **which**
+  refusal: `no-same-tape-baseline` reaches **no reader of the deployed product**
+  (every security has `iex` history since 2026-09-23) — it is the permanent state
+  of **CI and every laptop**, which is why two documents wrongly called it the
+  common case for a day. The deployed refusal is **`too-few-sessions`**, at
+  **99.990%** of buckets: `Too little history — 80 IEX minutes at this time of
+day`.
+
+**Four questions only a person can answer, and three of them are about the
+refusals rather than the figure** — so they are answerable at the next sitting
+whatever the depth has done: whether `Too little history — 80 IEX minutes at this
+time of day` reads as _careful_ or as _broken_; whether **`Measured on IEX ·
+baseline on IEX` sitting directly beneath the return's `Measured on IEX · baseline
+on All US exchanges`** reads as two honest claims or as one contradiction — which
+Task 5.3.3 deliberately left to a person and a second band has now sharpened;
+whether **six refusal sentences in one region** read as thoroughness or as noise;
+and, if a drawable pair is found, whether `4.1× typical` reads as a **different
+kind of number** from the tinted `+0.42%` twenty pixels above it, for which five
+channels were designed and none has been seen.
+
+**And the rule that produced all of the above, because this story is the epic's
+sweep and will hit it again:** both wrong claims came from the local store and CI,
+which hold **zero `iex` rows** and can reach **exactly one** of six refusals. **A
+taxonomy cannot be ranked from a machine that can only produce one of its
+members** — so when this story sweeps Epic 5's claims, check which **store** each
+one was measured on before trusting it.
