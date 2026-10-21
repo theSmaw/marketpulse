@@ -1,6 +1,6 @@
 # Task 5.5.2 — IEX's share of volume, measured
 
-**Status:** Complete — 2026-10-19 — the route carries **both** ratios with `bias = share × exposure` checked on the body, and it produced **the finding AC 7 was waiting for, which reopens part of Gate 1**: at the shipped 60-session lookback, on the tape with **100% depth**, a median volume's relative standard error is **4.75% (NVDA) to 16.2% (ERIE)**, and 5% would need **98 to 727 sessions**. So **a one-decimal multiple implies a precision the data does not support for most securities** — the floor is a function, not a constant, and the lever is **printed precision rather than lookback**. Also: one break **could not be made to fail at all**, which merged two overlapping gates into one; and `baseline-cost.ts` had claimed since 5.3.2 that its schema was asserted in a test **that did not exist**. `Done when` item 2 — the deployed run — is **owed by the merge**.
+**Status:** Complete — 2026-10-19 — the route carries **both** ratios with `bias = share × exposure` checked on the body, and it produced **the finding AC 7 was waiting for, which reopens part of Gate 1**: at the shipped 60-session lookback, on the tape with **100% depth**, a median volume's relative standard error is **4.75% (NVDA) to 16.2% (ERIE)**, and 5% would need **98 to 727 sessions**. So **a one-decimal multiple implies a precision the data does not support for most securities** — the floor is a function, not a constant, and the lever is **printed precision rather than lookback**. Also: one break **could not be made to fail at all**, which merged two overlapping gates into one; and `baseline-cost.ts` had claimed since 5.3.2 that its schema was asserted in a test **that did not exist**. `Done when` item 2 — the deployed run — was **DISCHARGED 2026-10-20** (see the section below; this line said _owed by the merge_ until 2026-10-21, after the discharge was already written further down the same file).
 **Story:** [5.5 The Volume Factor, & the Tape It Rests On](STORY.md)
 **Depends on:** 5.5.1
 
@@ -548,6 +548,40 @@ have three months. That does not mean the feature cannot ship; it means the
 securities, and that is a product call rather than an engineering one. It is
 written up above with the numbers behind it.
 
-**What is still owed:** the same endpoint has to be run against the deployed
+~~**What is still owed:** the same endpoint has to be run against the deployed
 system, which is the only place in the world that holds both data feeds for the
-same minute. That happens when this change merges.
+same minute. That happens when this change merges.~~ — **discharged 2026-10-20,
+and the section above carries the bodies.**
+
+**And the nightly pass itself has now run on the deployment, 2026-10-21, which
+answers a question this task could not and corrects two claims the story close
+shipped.** The first generation for a real session:
+
+```
+volume baselines on iex for 2026-10-20 — measured 512, split-refused 4,
+  no same-tape history 0 (no row written)
+volume buckets — 4 drawable of 39928 with samples, 39924 too few sessions,
+  0 zero volume, 8 empty; 2164895 minute samples, target 5% relative SE
+```
+
+Three things in it that no laptop and no CI run could have produced:
+
+- **`no same-tape history 0`.** Every one of the 512 measured securities has
+  `iex` history — the live writer has stored every security the socket carries
+  since 2026-09-23 — so `no-same-tape-baseline`, which this task and the story
+  close both named as the refusal a reader meets, reaches **no** reader of the
+  deployed product. It is the permanent state of CI and of every laptop, which is
+  exactly why it got mistaken for the common case: **those are the only machines
+  anybody had looked at, and they can reach precisely one of the six refusals.**
+- **4 drawable buckets of 39,928.** The figure is reachable on the deployment
+  today, in **0.010%** of the time-of-day space — so _drawn only in Storybook_
+  was false within a day of being written. The pass prints the counts and **not
+  the pairs**, so meeting one needs a query rather than a visit.
+- **`split-refused 4` matches the price baseline's shape but not its count** —
+  Story 5.3 refused **5 of 516** on exact split factors and this refuses 4 of
+  516, which is the same detector reading the same session boundaries over a
+  different window, and the difference is worth a look before either number is
+  quoted as _the_ split-refusal rate.
+
+`512 × 78 = 39,936` confirms the bucket arithmetic — 78 five-minute buckets in a
+390-minute session — with 8 empty.
