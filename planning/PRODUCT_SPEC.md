@@ -761,6 +761,42 @@ For example:
 > decision 2 is the rule. **The shipped sentence is `4.1× typical`.**
 > Move substantially exceeds related securities
 
+> **Amended 2026-10-21 by Story 5.6's Gate 1 — the two surviving lines of this
+> example break the criteria of the story that implements it, and the example is
+> left standing because it is what the model was written from.**
+>
+> **`Extreme 5-minute price move` uses a BAND NAME as a factor adjective.**
+> `extreme` is one of this section's own four band words
+> (`normal · elevated · high · extreme`, `packages/shared/src/anomaly.ts`), so
+> the example collides with the model it illustrates: a factor clause reading
+> `Extreme` while the security's own band reads `high` is two verdicts about one
+> security, and a reader cannot tell which is the claim. Story 5.6's AC 7
+> forbids intensity adjectives in factor clauses for this reason. **The shipped
+> clause carries the figure instead** — `99th percentile of 4,620 5-minute
+returns` — and the direction lives in the glyph, as amendment 1 below already
+> requires.
+>
+> **`Move substantially exceeds related securities` is right about its verb and
+> wrong about its adverb.** `exceeds` is a measurement word and is the keeper —
+> Story 5.7's close already says so, correctly, in preferring it to the exit
+> criterion's `Underperforming`. But **`substantially` is an intensity adverb
+> standing where a figure belongs**, and `related securities` is a population
+> with no stated count, which §9's own dated amendment refuses on the ground
+> that a figure hiding its denominator is not a figure. The shipped clause is
+> `behind by 2.20 pts against XLK`, with the reference named and the units
+> stated in percentage points.
+>
+> **And this section's breadth example is the third of the three.**
+> `82% of semiconductor securities currently negative` is a **percentage**, which
+> §9 refuses for the reason recorded there: the denominator is _the part of the
+> group we heard from in the window_, which on IEX is a fact about our reach
+> rather than about the market. Story 5.6's composite is the first surface that
+> would draw this example, so it ships as **counts with a stated population**.
+>
+> **Three of this section's four example lines therefore differ from what
+> ships**, and in every case the shipped version states a figure where the
+> example stated a word.
+
 > **Amended 2026-10-13 by Story 5.1 — four readings this section leaves
 > ambiguous, taken at the epic's first gate rather than in the story that
 > builds each factor.** Nothing above is rewritten; each clause below says

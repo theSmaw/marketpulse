@@ -1,6 +1,6 @@
 # Story 5.6 — The Composite Score, & Its Explanation
 
-**Status:** Not started
+**Status:** **In progress — Gate 1 taken 2026-10-21; six tasks.** Four decisions and **five false premises corrected**, three of them in this story's own text.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.4, 5.5
 **Epic scope covered:** composite anomaly score, human-readable anomaly explanation
@@ -49,6 +49,111 @@ breadth clause as context.
 
 **And `/`'s `Unusual activity` upgrades from band-only to the composite**, so
 the two surfaces finally agree about what is ranked.
+
+## Gate 1 — decisions taken 2026-10-21, and five false premises corrected
+
+### The four decisions
+
+1. **Two scored factors: the price percentile and the relative move.** The
+   volume factor ships as a **stated absence**. Forced by a measurement, not a
+   preference — see premise 1 below. The excess-move baseline is a **task**
+   rather than a story because both legs are already in `market_bars` and
+   `return-baseline.ts`' machinery is reused wholesale.
+2. **Band boundaries on the RAW score, with `extreme` above what a
+   reduced-factor score can reach.** Less evidence means less claim, which is
+   AC 3's spirit. The rejected alternative — boundaries on `score ÷ max` — is
+   **renormalisation arriving at the band layer instead of the arithmetic
+   layer**, and is a violation of AC 3 rather than an option. Cut-points are
+   **derived from Task 5.6.2's measured distribution**, never chosen, and ship
+   with a condition: _the first session in which more than three of `/`'s ten
+   rows draw the same band_.
+3. **The score is the FIRST band of `Abnormal-move indicators`**, above the three
+   factor bands it summarises, so the region reads summary-then-evidence. Accepted
+   cost: 256 → ≈486 px, firing `MARKET-OVERVIEW.md` §1.4's trigger a **fourth**
+   time, and 5.2/5.3/5.5's probed heights re-taken.
+4. **ADR 0045's test is repaired as EXTENSIVE versus INTENSIVE**, decision
+   untouched — see premise 5.
+
+### The five false premises
+
+1. **The founding premise cannot be satisfied: only ONE factor can be a
+   percentile today.** The story argues every factor becomes _a percentile of its
+   own history_, the one unit needing no invented constant. Verified in the tree:
+   **price yes** (101 breakpoints, `n` 737–4,620); **volume no** — `0015` stores
+   `bucket_medians`, `bucket_samples`, `bucket_errors`, a median and a dispersion
+   and **not a distribution**, and the first deployed pass drew **4 drawable
+   buckets of 39,928**; **relative move no** — migrations stop at `0015`, there
+   is no table, no baseline, and **no backend figure at all**.
+   **So a composite shipped as written is the price percentile plus two stated
+   absences** — and a band chip over it would read `extreme` **on price alone**,
+   which is exactly what Story 5.4's Gate 1 refused a chip to avoid. Decision 1
+   exists so that refusal is not reversed.
+2. **There is no reserved region, and the sentence this story quotes was
+   DELETED.** _"How unusual this security's behaviour is right now, scored 0–100
+   with the reason beside it"_ was `Abnormal-move indicators`' own `filledBy`, and
+   Task 5.2.3 removed it because it promised 5.6's content over 5.2's figure. It
+   survives only in `RegionPlaceholder.stories.tsx`, whose own comment warns that
+   a workshop fixture saying what the product has stopped saying is _"a second,
+   quieter copy of the live claim."_
+3. **AC 3's `2-of-4` / `4-of-4` denominator is wrong.** `PRODUCT_SPEC.md` §11's
+   own amendment says _"the shipped score is **three** scored factors … with
+   breadth stated beside them"_, and breadth cannot be a weight because it is
+   **identical for every member of a group** — so weighting it correlates a whole
+   sector's scores and fills a ranked list with one industry on the day that
+   industry moved together. **The denominator is 3**, and with decision 1 the
+   shipped label reads `2 of 3`.
+4. **`anomaly.ts`'s reversal trigger has ALREADY FIRED, undetected.** It reads
+   _"the first surface that needs to say **high** about something other than an
+   anomaly score on the same screen."_ `return-percentile.ts:244` has shipped
+   `"the fattest-tailed bucket — pooled, this reads high"` since 2026-10-14 —
+   **in the region the chip goes in**. Latent only because no chip is drawn.
+   Task 5.6.1 repairs the clause and keeps the band word.
+5. **ADR 0045's taxonomy has a gap, and a figure this product ships everywhere
+   falls into it.** Its test is _ratio **within** one tape_ (permitted) against
+   _level **across** tapes_ (refused). `changeFromClose` is a **ratio across
+   tapes** — ADR 0038 decision 4: _"an IEX numerator and a consolidated-SIP
+   denominator"_ — which is in **neither** category, and it ships on every proxy,
+   sector and mover on `/`. The discriminant 0045 _means_ is whether the quantity
+   **scales with the tape's share of the market**: volume, share counts and trade
+   counts do, a price does not, and 0045's own `venue share × coverage` identity
+   factorises only for the former.
+
+### The finding that outranks all five
+
+**The composite is tape-safe ONLY because each factor is a percentile of its own
+same-tape history.** An invented curve — a log cap, a sigmoid, a chosen knee — is
+calibrated in one tape's units, so the mapped factor stops being scale-free: a
+knee at `3× typical` means a different thing at 3.54% venue share than at 15.19%.
+**So this story's _no invented constant_ rule and ADR 0045's invariance test are
+the same argument arriving from two directions**, which turns _interpretable_
+from a taste into a correctness constraint. Its operational corollary: **the
+volume factor, when it arrives, is scored as a PERCENTILE and never as the
+`4.1×` multiple** — the multiple stays what is drawn.
+
+### The tasks
+
+| #     | Task                                                    | Visible?                      |
+| ----- | ------------------------------------------------------- | ----------------------------- |
+| 5.6.1 | The vocabulary, the collision, and the ADR sweep        | one sentence changes          |
+| 5.6.2 | The excess-move baseline, and the factor in the backend | no                            |
+| 5.6.3 | The scorer, and its three layers                        | no                            |
+| 5.6.4 | **The score draws**                                     | **yes — the epic's headline** |
+| 5.6.5 | The landing page ranks the composite                    | yes                           |
+| 5.6.6 | The conjunction, the sweep, and the close               | no                            |
+
+**Three consecutive tasks with no visible change is the most this story accepts**,
+and it is said plainly because a run of invisible tasks is how a product stops
+being demonstrable. 5.6.4 pays them off.
+
+### Out of scope, with reasons rather than silence
+
+`Anomaly history` (deferred at the epic's Gate 1 with a condition); **any score
+in the universe table** (fires Epic 14's `/securities` condition and drags
+`SEARCH-AND-SELECTION.md` §10's repair into Epic 5, which this epic's own file
+says not to do); **the chart's anomaly marker lane** — it carries _occasions_,
+which is a score older than the process, and drawing it in the story that invents
+the thresholds would stamp every future mark with them silently; and the amber
+**repair**, which needs photographs first.
 
 ## Acceptance criteria
 

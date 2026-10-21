@@ -7688,7 +7688,7 @@ const INVARIANTS = [
       // Task 4.9.10's transcript of a draft that passed on its own defect.
       // It is the **sentence**: whoever draws this bias has to write its
       // words, and wherever they write them, that file is the one that must
-      // not reach for a clock. A later band moving the clause carries the
+      // not reach for a clock. A later indicator moving the clause carries the
       // check with it.
       //
       // **And the second conjunct is why the first cannot be routed around.**
@@ -7744,7 +7744,7 @@ const INVARIANTS = [
             "is true of a figure MEASURED at the open, which is a property " +
             "of the two bar instants on the frame — so a window that ended " +
             "at 09:43 and is read at 11:00 keeps it, a stale Friday figure " +
-            "read on Monday morning does not gain it, and the band stays " +
+            "read on Monday morning does not gain it, and the indicator stays " +
             "correct under a replay. `computedAt` and `sentAt` are readings " +
             "of the server's own clock and are the same mistake arriving " +
             "over the wire.",

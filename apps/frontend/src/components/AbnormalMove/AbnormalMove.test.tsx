@@ -62,7 +62,7 @@ const PERCENTILE: WireReturnPercentile = {
  * **The volume half of a frame about a security with no IEX history** (Task
  * 5.5.4), which is what every machine that exists today sends: the `iex` tape
  * is empty wherever no provider is configured, so the nightly pass writes no
- * row and the second band's shipped state everywhere is this refusal.
+ * row and the second indicator's shipped state everywhere is this refusal.
  */
 const NO_VOLUME_HISTORY: WireVolumeComparison = {
   measured: false,
@@ -79,10 +79,10 @@ const view = (
 ): SymbolReturnView => ({ symbol: "NVDA", figure, volume });
 
 /**
- * **The second band's spoken text, which every whole-region assertion below
+ * **The second indicator's spoken text, which every whole-region assertion below
  * ends with** (Task 5.5.4) — and it is a constant rather than a string spliced
  * into each one, because the thing those assertions are for is the
- * **concatenation a screen reader is handed**, and a band that silently
+ * **concatenation a screen reader is handed**, and an indicator that silently
  * stopped drawing would otherwise have to be noticed in nine places.
  */
 const NO_VOLUME_LINES =
@@ -114,7 +114,7 @@ const NBSP = "\u00a0";
 /**
  * **What a listener is handed, line by line.**
  *
- * `textContent` runs the band's four blocks together with no separator, and a
+ * `textContent` runs the indicator's four blocks together with no separator, and a
  * screen reader pauses between blocks — which is `CLAUDE.md`'s own rule for
  * what to assert on a component that splits its text: assert the
  * concatenation, with the block boundaries visible. So this walks the drawn
@@ -192,7 +192,7 @@ describe("AbnormalMove", () => {
         vi.useRealTimers();
       });
 
-      it("hold the band's room and say ONE thing, after the floor", () => {
+      it("hold the indicator's room and say ONE thing, after the floor", () => {
         // **They are one input and therefore one drawing.** The route maps
         // *the universe answer has not resolved this security* and *no
         // `return` frame has arrived* to the same `undefined` — the collapse
@@ -202,7 +202,7 @@ describe("AbnormalMove", () => {
         const { container } = draw({ symbolReturn: undefined });
 
         // Before the floor: room, and **nothing said at all** — the whole
-        // band, its label included, is inside the `aria-hidden` box, so a
+        // indicator, its label included, is inside the `aria-hidden` box, so a
         // listener is read nothing rather than a heading over a void. An
         // ordinary load's first frame lands at 174–277 ms, so a sentence here
         // would be a promise the next frame breaks.
@@ -216,9 +216,10 @@ describe("AbnormalMove", () => {
         // The region's own sentence takes the terminal stop the in-region
         // absences do not, and it is the **sixth** honest-nothing noun in this
         // product rather than the fifth this story's Design work section says.
-        // **And still one sentence with TWO bands reserved behind it** (Task
-        // 5.5.4): the second band's room is inside the same `aria-hidden` box,
-        // so what a listener is read does not grow when a band is added — the
+        // **And still one sentence with TWO indicators reserved behind it**
+        // (Task 5.5.4): the second indicator's room is inside the same
+        // `aria-hidden` box, so what a listener is read does not grow when
+        // an indicator is added — the
         // region says one thing or it says the figures.
         expect(readable(container)).toBe("No return yet.");
       });
@@ -382,8 +383,8 @@ describe("AbnormalMove", () => {
 
     expect(screen.getByText("No bar five minutes back")).toBeTruthy();
     // `—` is `unchanged` in `PriceChange`, so a dash in the figure slot would
-    // assert a zero return. The label still draws: the band is there and has
-    // no figure, which is a different thing from the band being absent.
+    // assert a zero return. The label still draws: the indicator is there and has
+    // no figure, which is a different thing from the indicator being absent.
     expect(screen.getByText("5-minute return")).toBeTruthy();
     expect(screen.queryByText("—")).toBeNull();
   });
@@ -398,7 +399,7 @@ describe("AbnormalMove", () => {
     expect(screen.queryByText(/Measured on/u)).toBeNull();
   });
 
-  it("holds the band's room before any frame arrives", () => {
+  it("holds the indicator's room before any frame arrives", () => {
     // The sentence itself is behind the proxy strip's 2,000 ms floor, so what
     // is asserted is that the region drew its own geometry hidden rather than
     // collapsing to nothing.
@@ -420,7 +421,7 @@ describe("AbnormalMove", () => {
 
     const absent = screen.getByText("No bars observed yet");
 
-    // And it is not inside the reserved box: in the held state the whole band
+    // And it is not inside the reserved box: in the held state the whole indicator
     // sits under one `aria-hidden` element, which is the assertion that tells
     // the two apart in a renderer with no layout.
     expect(absent.closest('[aria-hidden="true"]')).toBeNull();
@@ -481,7 +482,7 @@ describe("AbnormalMove", () => {
       expect(
         screen.getByText("of 737 5-minute returns · all times of day pooled"),
       ).toBeTruthy();
-      // AC 7, as a reader meets it: the only `%` on the band belongs to the
+      // AC 7, as a reader meets it: the only `%` on the indicator belongs to the
       // change.
       expect(screen.getByText("99th percentile").textContent).not.toContain(
         "%",
@@ -523,12 +524,12 @@ describe("AbnormalMove", () => {
       });
 
       expect(container.textContent).toContain(
-        "opening 30 minutes, the fattest-tailed bucket — pooled, this reads high",
+        "opening 30 minutes — the fattest-tailed bucket, pooled",
       );
     });
 
     it("draws the refusal where the sample clause would be, spoken as one line", () => {
-      // **The whole band, as a screen reader is handed it** (Task 5.3.4), and
+      // **The whole indicator, as a screen reader is handed it** (Task 5.3.4), and
       // the assertion is the concatenation rather than one element's text:
       // this repository's standing rule, and the rule that caught
       // `+0.42%99th percentile` in Task 5.3.3. What a reader gets is the
@@ -604,8 +605,8 @@ describe("AbnormalMove", () => {
     });
   });
 
-  // --- The second band: the volume multiple (Task 5.5.4) ---
-  describe("the volume band", () => {
+  // --- The second indicator: the volume multiple (Task 5.5.4) ---
+  describe("the volume indicator", () => {
     const RATE: WireVolumeRate = {
       measured: true,
       ratio: 4.1,
@@ -619,8 +620,8 @@ describe("AbnormalMove", () => {
     it("draws the multiple, the comparand, the baseline and its own tape", () => {
       // **The whole region as a screen reader is handed it**, which is what
       // catches the two defects jsdom can see: a missing space between the
-      // figure and its comparand (`4.1×typical`), and a band drawing the
-      // other band's sentence.
+      // figure and its comparand (`4.1×typical`), and an indicator drawing the
+      // other indicator's sentence.
       const { container } = draw({ symbolReturn: view(MEASURED, RATE) });
 
       expect(readable(container)).toBe(
@@ -652,8 +653,8 @@ describe("AbnormalMove", () => {
       expect(spoken).not.toContain("+4.1");
     });
 
-    it("says its own refusal, which does not read like the band above's", () => {
-      // The two bands refuse independently and for different reasons, so a
+    it("says its own refusal, which does not read like the indicator above's", () => {
+      // The two indicators refuse independently and for different reasons, so a
       // reader meets two sentences rather than one repeated. This pair is the
       // shipped state of every machine with a store and no provider.
       const { container } = draw({

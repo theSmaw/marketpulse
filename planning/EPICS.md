@@ -185,6 +185,17 @@ MarketPulse can surface securities such as:
 
 > NVDA — Anomaly 91
 > Extreme short-term move
+>
+> **Noted 2026-10-21 by Story 5.6's Gate 1, in the same place and for the same
+> reason Story 5.5 noted the line below it: `Extreme` is a BAND NAME.** The four
+> bands are `normal · elevated · high · extreme`, so this line uses a
+> classification as a factor adjective — a factor clause reading `Extreme` beside
+> a security whose own band reads `high` is two verdicts about one security.
+> Story 5.6's AC 7 requires factor clauses to carry **figures**, so the shipped
+> clause is `99th percentile of 4,620 5-minute returns` and the direction is the
+> glyph. `PRODUCT_SPEC.md` §11 carries the full amendment. **Rewriting this
+> criterion as a shape is Story 5.7's, not this story's** — recorded here so the
+> collision is visible before that rewrite rather than discovered during it.
 > Volume 3.8× normal
 > Underperforming semiconductor peers
 

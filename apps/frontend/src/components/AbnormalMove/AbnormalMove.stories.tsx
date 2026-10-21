@@ -30,8 +30,8 @@ import { AbnormalMove } from "./AbnormalMove.js";
 //
 // **And the third is what is NOT here.** No score, no band word, no 0–100
 // figure — Gate 1 decision 4: a band with no score is a verdict this figure
-// cannot license. Stories 5.3, 5.5 and 5.6 add their own bands to this region,
-// and nothing is reserved for them.
+// cannot license. Stories 5.3, 5.5 and 5.6 add their own indicators to this
+// region, and nothing is reserved for them.
 //
 // Every story is drawn **inside a `Region`**, which is how it appears on the
 // security page: the box is what decides whether the content fits the rail's
@@ -73,7 +73,7 @@ const PERCENTILE: WireReturnPercentile = {
  * **The volume half of a frame about a security we hold no IEX history for**
  * (Task 5.5.4) — which is **every machine that exists today**: the `iex` tape
  * is empty wherever no provider is configured, so the pass writes no row and
- * this is the shipped state of the second band everywhere.
+ * this is the shipped state of the second indicator everywhere.
  */
 const NO_VOLUME_HISTORY: WireVolumeComparison = {
   measured: false,
@@ -92,7 +92,7 @@ const VOLUME: WireVolumeComparison = {
   bucketMinutes: 5,
   spanMinutes: 5,
   // **The same tape as the numerator** — Gate 1 decision 1, which is why this
-  // band's tape line reads differently from the one above it.
+  // indicator's tape line reads differently from the one above it.
   feed: "iex",
 };
 
@@ -233,10 +233,11 @@ export const NoBasis: Story = {
 
 /**
  * **States 5 AND 1 — no frame about this security, and the security not
- * resolved.** The band's room is held and invisible with one sentence over it, and the sentence appears after a
- * **2,000 ms** floor — the proxy strip's own rather than a second one — because
- * an ordinary load's first frame lands at 174–277 ms and a sentence replaced by
- * a figure a quarter of a second later is a promise the next frame breaks.
+ * resolved.** The indicator's room is held and invisible with one sentence
+ * over it, and the sentence appears after a **2,000 ms** floor — the proxy
+ * strip's own rather than a second one — because an ordinary load's first
+ * frame lands at 174–277 ms and a sentence replaced by a figure a quarter of
+ * a second later is a promise the next frame breaks.
  *
  * In the workshop this means the box is empty for two seconds and then speaks,
  * which **is** the state.
@@ -308,12 +309,13 @@ export const FortyMinutesOld: Story = {
  *
  * - **the hierarchy**: the 20px change is still the figure a reader looks at
  *   first and the comparison is secondary, which is `BreadthLedger`'s rule —
- *   one metric figure a band, everything else dense or micro;
+ *   one metric figure per indicator, everything else dense or micro;
  * - **the ink**: `--ink-primary` and **never** the price palette. The figure
  *   beside it is already tinted, and that tint is the redundant channel behind
- *   `PriceChange`'s glyph and sign; a second tinted number in one band is where
- *   the palette's 1.04:1 greyscale difference becomes two numbers deep. What
- *   separates the two is the ordinal suffix, the absent `%` and the word;
+ *   `PriceChange`'s glyph and sign; a second tinted number in one indicator
+ *   is where the palette's 1.04:1 greyscale difference becomes two numbers
+ *   deep. What separates the two is the ordinal suffix, the absent `%` and
+ *   the word;
  * - **the height**, which is the whole review: every state below must be the
  *   same height as every state above, and the reserve is measured against
  *   `InTheOpeningBucket` — the longest string the footer row can hold.
@@ -375,7 +377,7 @@ export const AboveEverySample: Story = {
  * **The condition is the FIGURE'S own instants** — 13:38Z is 09:38 EDT — and
  * never a clock: a window that *ended* at 09:43 and is read at 11:00 still
  * carries it, and a 09:30–10:00 wall clock would drop it exactly then. That is
- * also what keeps the band correct under Epic 13's replay.
+ * also what keeps the indicator correct under Epic 13's replay.
  *
  * **This story is the one the reserve is measured from.** Every other state in
  * this file must match its height at all four widths.
@@ -498,7 +500,7 @@ export const ZeroReturnRanked: Story = {
 };
 
 /**
- * **The second band drawn — `4.1× typical`, which no machine on earth has
+ * **The second indicator drawn — `4.1× typical`, which no machine on earth has
  * produced** (Task 5.5.4).
  *
  * The `iex` tape is empty wherever no provider is configured, so every other
@@ -515,9 +517,9 @@ export const ZeroReturnRanked: Story = {
  * 5. and the ink is `--ink-primary` rather than the price palette, because
  *    volume does not encode direction.
  *
- * And review the **tape line against the band above it**: this baseline is the
- * **same** tape as its numerator (Gate 1 decision 1), where the percentile's is
- * the consolidated tape against a single-venue numerator.
+ * And review the **tape line against the indicator above it**: this baseline
+ * is the **same** tape as its numerator (Gate 1 decision 1), where the
+ * percentile's is the consolidated tape against a single-venue numerator.
  */
 export const VolumeMultiple: Story = {
   args: { symbolReturn: held({ ...MEASURED, percentile: PERCENTILE }, VOLUME) },
@@ -646,7 +648,7 @@ export const ZeroVolumeBaseline: Story = {
  *
  * A split breaks volume **harder** than price: the share count multiplies by
  * exactly the factor the price divides by, so an unadjusted 10:1 split is a
- * +900% figure. **It must not read like the band above's split sentence** —
+ * +900% figure. **It must not read like the indicator above's split sentence** —
  * that one says the ranking is not comparable, this one says the shares are.
  */
 export const VolumeCrossesAPriceBreak: Story = {

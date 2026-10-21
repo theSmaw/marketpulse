@@ -8,9 +8,12 @@ import type {
   WireSymbolReturn,
 } from "@marketpulse/shared";
 
-import { RESERVED_RETURN, fiveMinuteReturnBand } from "./five-minute-return.js";
+import {
+  RESERVED_RETURN,
+  fiveMinuteReturnIndicator,
+} from "./five-minute-return.js";
 
-// The band's read side. **What is asserted is the spelling and the refusals**;
+// The indicator's read side. **What is asserted is the spelling and the refusals**;
 // the arithmetic is the backend's and is asserted in
 // `apps/backend/src/five-minute-return.test.ts`, which is the point of the
 // split rather than an omission.
@@ -52,7 +55,7 @@ const held = (figure: WireSymbolReturn, symbol = "NVDA") => ({
   symbol,
   figure,
   // **The volume half, which this module does not read at all** (Task 5.5.4).
-  // It is on the view because the frame carries both figures; `volumeRatioBand`
+  // It is on the view because the frame carries both figures; `volumeRatioIndicator`
   // is the one that spells it, in `volume-ratio.test.ts`.
   volume: null,
 });
@@ -74,15 +77,15 @@ const SEEN_ONE: WireObservedSpan = {
   spanMinutes: 5,
 };
 
-describe("fiveMinuteReturnBand", () => {
+describe("fiveMinuteReturnIndicator", () => {
   it("spells the figure, both instants oldest first, and the observed count", () => {
-    const band = fiveMinuteReturnBand("NVDA", held(MEASURED));
+    const indicator = fiveMinuteReturnIndicator("NVDA", held(MEASURED));
 
-    expect(band.move).toEqual({ change: "+0.42%", direction: "positive" });
+    expect(indicator.move).toEqual({ change: "+0.42%", direction: "positive" });
     // 18:01Z is 14:01 EDT and 18:06Z is 14:06 EDT. **Oldest first**, which is
     // AC 4's instant and the only thing distinguishing a 5-minute return from
     // a 47-minute one.
-    expect(band.qualifier).toBe(
+    expect(indicator.qualifier).toBe(
       "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes",
     );
   });
@@ -92,25 +95,25 @@ describe("fiveMinuteReturnBand", () => {
     // *reach*; these two are the ends of a **span**, so a minute added to each
     // would print a five-minute return as **six** minutes apart and contradict
     // the definition the figure was measured under.
-    const band = fiveMinuteReturnBand("NVDA", held(MEASURED));
+    const indicator = fiveMinuteReturnIndicator("NVDA", held(MEASURED));
 
-    expect(band.qualifier).toContain("14:01");
-    expect(band.qualifier).toContain("14:06");
-    expect(band.qualifier).not.toContain("14:02");
-    expect(band.qualifier).not.toContain("14:07");
+    expect(indicator.qualifier).toContain("14:01");
+    expect(indicator.qualifier).toContain("14:06");
+    expect(indicator.qualifier).not.toContain("14:02");
+    expect(indicator.qualifier).not.toContain("14:07");
   });
 
   it("states the span the frame sent rather than a 5 of its own", () => {
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held({ ...MEASURED, observed: 2, spanMinutes: 9 }),
     );
 
-    expect(band.qualifier).toContain("observed 2 of 9 minutes");
+    expect(indicator.qualifier).toContain("observed 2 of 9 minutes");
   });
 
   it("uses one grammar for k, with no special case at the complete end", () => {
-    const complete = fiveMinuteReturnBand(
+    const complete = fiveMinuteReturnIndicator(
       "NVDA",
       held({ ...MEASURED, observed: 5 }),
     );
@@ -122,13 +125,13 @@ describe("fiveMinuteReturnBand", () => {
   });
 
   it("names the tape, and names it from the feed vocabulary", () => {
-    expect(fiveMinuteReturnBand("NVDA", held(MEASURED)).tape).toBe(
+    expect(fiveMinuteReturnIndicator("NVDA", held(MEASURED)).tape).toBe(
       "Measured on IEX",
     );
   });
 
   it("names both tapes across a stitch, in endpoint order", () => {
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held({
         ...MEASURED,
@@ -136,15 +139,18 @@ describe("fiveMinuteReturnBand", () => {
       }),
     );
 
-    expect(band.tape).toBe("Measured on All US exchanges and IEX");
+    expect(indicator.tape).toBe("Measured on All US exchanges and IEX");
   });
 
   it("states a word for each refusal and NEVER a dash", () => {
     const words = (
       ["nothing-observed", "no-earlier-endpoint", "no-basis"] as const
     ).map((refusal) => {
-      const band = fiveMinuteReturnBand("NVDA", held(refused(refusal)));
-      return band.absent;
+      const indicator = fiveMinuteReturnIndicator(
+        "NVDA",
+        held(refused(refusal)),
+      );
+      return indicator.absent;
     });
 
     expect(words).toEqual([
@@ -159,24 +165,26 @@ describe("fiveMinuteReturnBand", () => {
   });
 
   it("draws no figure and no tape on a refusal, and is not the nothing state", () => {
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held(refused("no-earlier-endpoint")),
     );
 
-    expect(band.move).toBeUndefined();
-    expect(band.qualifier).toBeUndefined();
+    expect(indicator.move).toBeUndefined();
+    expect(indicator.qualifier).toBeUndefined();
     // ADR 0029: there is no number, so there is nothing whose provenance could
     // be claimed.
-    expect(band.tape).toBeUndefined();
+    expect(indicator.tape).toBeUndefined();
     // **And it is not `nothing`.** *No frame has arrived* and *the frame
     // arrived and said there is no pair* are different facts, which is Task
     // 5.1.4's lesson one region down.
-    expect(band.nothing).toBe(false);
+    expect(indicator.nothing).toBe(false);
   });
 
   it("holds the room before any frame has arrived", () => {
-    expect(fiveMinuteReturnBand("NVDA", undefined)).toEqual(RESERVED_RETURN);
+    expect(fiveMinuteReturnIndicator("NVDA", undefined)).toEqual(
+      RESERVED_RETURN,
+    );
     expect(RESERVED_RETURN.nothing).toBe(true);
   });
 
@@ -184,13 +192,13 @@ describe("fiveMinuteReturnBand", () => {
     // The navigation window, one subscribe round trip wide: the gateway answers
     // the focus it was last told, so a surface reading the figure alone would
     // draw NVDA's return under AMD's name.
-    expect(fiveMinuteReturnBand("AMD", held(MEASURED, "NVDA"))).toEqual(
+    expect(fiveMinuteReturnIndicator("AMD", held(MEASURED, "NVDA"))).toEqual(
       RESERVED_RETURN,
     );
   });
 
   it("keeps the figure and drops the clause when an instant cannot be read", () => {
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held({ ...MEASURED, to: { ...MEASURED.to, at: "not an instant" } }),
     );
@@ -198,19 +206,19 @@ describe("fiveMinuteReturnBand", () => {
     // `new Date(NaN)` formats without complaining and reaches a screen as the
     // words `Invalid Date`. The percentage is true whatever the string carrying
     // its instant did.
-    expect(band.move?.change).toBe("+0.42%");
-    expect(band.qualifier).toBeUndefined();
+    expect(indicator.move?.change).toBe("+0.42%");
+    expect(indicator.qualifier).toBeUndefined();
   });
 
   it("reads the direction off the one classifier, on the DISPLAYED figure", () => {
     // +0.004% prints `0.00%`, so it is `unchanged` — a comparison on the raw
     // sign would draw an up arrow beside a figure saying nothing moved.
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held({ ...MEASURED, percent: 0.004 }),
     );
 
-    expect(band.move).toEqual({ change: "0.00%", direction: "unchanged" });
+    expect(indicator.move).toEqual({ change: "0.00%", direction: "unchanged" });
   });
 
   it("carries the ONE instant it has beside a refusal, and the count", () => {
@@ -219,25 +227,27 @@ describe("fiveMinuteReturnBand", () => {
     // nothing at all* differ by four words in one sentence with identical
     // blank room beneath — and the second is the state every gated run is
     // permanently in.
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held(refused("no-earlier-endpoint", SEEN_ONE)),
     );
 
-    expect(band.absent).toBe("No bar five minutes back");
-    expect(band.qualifier).toBe("Oct 14 · 14:06 EDT · observed 1 of 5 minutes");
+    expect(indicator.absent).toBe("No bar five minutes back");
+    expect(indicator.qualifier).toBe(
+      "Oct 14 · 14:06 EDT · observed 1 of 5 minutes",
+    );
     // **No arrow**, because an arrow with one end is a span whose other end
     // the reader has to guess — and the arrow is what a measured figure's
     // clause means.
-    expect(band.qualifier).not.toContain("→");
+    expect(indicator.qualifier).not.toContain("→");
   });
 
   it("draws NOTHING beside *nothing observed*, which is the structural half", () => {
-    const nothing = fiveMinuteReturnBand(
+    const nothing = fiveMinuteReturnIndicator(
       "NVDA",
       held(refused("nothing-observed")),
     );
-    const oneBar = fiveMinuteReturnBand(
+    const oneBar = fiveMinuteReturnIndicator(
       "NVDA",
       held(refused("no-earlier-endpoint", SEEN_ONE)),
     );
@@ -251,7 +261,7 @@ describe("fiveMinuteReturnBand", () => {
   });
 
   it("keeps the refusal and drops the clause when the one instant cannot be read", () => {
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held(
         refused("no-earlier-endpoint", {
@@ -263,8 +273,8 @@ describe("fiveMinuteReturnBand", () => {
 
     // `new Date(NaN)` formats without complaining and reaches a screen as the
     // words `Invalid Date`. The refusal is the fact and survives.
-    expect(band.absent).toBe("No bar five minutes back");
-    expect(band.qualifier).toBeUndefined();
+    expect(indicator.absent).toBe("No bar five minutes back");
+    expect(indicator.qualifier).toBeUndefined();
   });
 
   it("claims no tape beside the one instant either", () => {
@@ -272,12 +282,12 @@ describe("fiveMinuteReturnBand", () => {
     // claim about a **measurement**, and no measurement happened. The instant
     // is a fact about a bar we hold, which is a different claim with its own
     // words.
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held(refused("no-earlier-endpoint", SEEN_ONE)),
     );
 
-    expect(band.tape).toBeUndefined();
+    expect(indicator.tape).toBeUndefined();
   });
 
   it("gives a return of exactly zero the figure a zero is, never a refusal's words", () => {
@@ -285,17 +295,17 @@ describe("fiveMinuteReturnBand", () => {
     // five-minute span in which the price did not move is a **measured**
     // figure, and `—` in the figure slot is `PriceChange`'s `unchanged` — so
     // the dash a refusal must never draw is exactly the glyph this state owes.
-    const band = fiveMinuteReturnBand(
+    const indicator = fiveMinuteReturnIndicator(
       "NVDA",
       held({ ...MEASURED, percent: 0 }),
     );
 
-    expect(band.move).toEqual({ change: "0.00%", direction: "unchanged" });
-    expect(band.absent).toBeUndefined();
+    expect(indicator.move).toEqual({ change: "0.00%", direction: "unchanged" });
+    expect(indicator.absent).toBeUndefined();
     // And it keeps everything a measured figure has, which is what tells a
     // reader it is a reading rather than a refusal.
-    expect(band.qualifier).toContain("observed 3 of 5 minutes");
-    expect(band.tape).toBe("Measured on IEX");
+    expect(indicator.qualifier).toContain("observed 3 of 5 minutes");
+    expect(indicator.tape).toBe("Measured on IEX");
   });
 
   it("says the same thing about a window that ended forty minutes ago", () => {
@@ -303,7 +313,7 @@ describe("fiveMinuteReturnBand", () => {
     // instant IS the age: no threshold, no verdict, no connection word. The
     // 187-minute ordinary maximum gap between one security's bars is what any
     // threshold here would have had to spare.
-    const old = fiveMinuteReturnBand(
+    const old = fiveMinuteReturnIndicator(
       "NVDA",
       held({
         ...MEASURED,
@@ -311,7 +321,7 @@ describe("fiveMinuteReturnBand", () => {
         to: { ...MEASURED.to, at: "2026-10-14T17:26:00.000Z" },
       }),
     );
-    const fresh = fiveMinuteReturnBand("NVDA", held(MEASURED));
+    const fresh = fiveMinuteReturnIndicator("NVDA", held(MEASURED));
 
     expect(old.qualifier).toBe(
       "Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes",
@@ -326,21 +336,24 @@ describe("fiveMinuteReturnBand", () => {
   // --- The percentile, which is the first comparison in this product ---
   describe("the percentile and what it was taken against", () => {
     const ranked = (over: Partial<WireReturnPercentile> = {}) =>
-      fiveMinuteReturnBand(
+      fiveMinuteReturnIndicator(
         "NVDA",
         held({ ...MEASURED, percentile: { ...PERCENTILE, ...over } }),
       );
 
     it("spells the rank beside the figure and the sample under it", () => {
-      const band = ranked();
+      const indicator = ranked();
 
-      expect(band.percentile).toBe("99th percentile");
-      expect(band.sample).toBe(
+      expect(indicator.percentile).toBe("99th percentile");
+      expect(indicator.sample).toBe(
         "of 4,620 5-minute returns · all times of day pooled",
       );
       // The figure is untouched: two cells on one row, one of which is a
       // comparison.
-      expect(band.move).toEqual({ change: "+0.42%", direction: "positive" });
+      expect(indicator.move).toEqual({
+        change: "+0.42%",
+        direction: "positive",
+      });
     });
 
     it("names BOTH tapes, because one tape per comparison is not achievable", () => {
@@ -363,18 +376,18 @@ describe("fiveMinuteReturnBand", () => {
       // from a gateway that predates the comparison, or one whose shape this
       // bundle could not read. The absences that used to arrive here — no
       // generation, no row, too short, refused — each say which, below.
-      const band = fiveMinuteReturnBand("NVDA", held(MEASURED));
+      const indicator = fiveMinuteReturnIndicator("NVDA", held(MEASURED));
 
-      expect(band.percentile).toBeUndefined();
-      expect(band.sample).toBeUndefined();
-      expect(band.tape).toBe("Measured on IEX");
+      expect(indicator.percentile).toBeUndefined();
+      expect(indicator.sample).toBeUndefined();
+      expect(indicator.tape).toBe("Measured on IEX");
     });
 
     it("draws the refusal in the sample row, and no percentile cell", () => {
       // **Replacing a clause rather than adding a row** (Task 5.3.4), which is
       // what keeps the region one height: the footer row is reserved for the
       // bias clause at every width and the refusal sentence is shorter.
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -389,18 +402,18 @@ describe("fiveMinuteReturnBand", () => {
 
       // The figure is untouched — the return is true whatever the comparison
       // beside it was.
-      expect(band.move?.change).toBe("+0.42%");
-      expect(band.percentile).toBeUndefined();
-      expect(band.sample).toBe(
+      expect(indicator.move?.change).toBe("+0.42%");
+      expect(indicator.percentile).toBeUndefined();
+      expect(indicator.sample).toBe(
         "Baseline too short to rank — 737 of 2,500 returns",
       );
       // **And no baseline tape clause**, because no baseline was used: ADR
       // 0029 again, and the clause draws only where a comparison did.
-      expect(band.tape).toBe("Measured on IEX");
+      expect(indicator.tape).toBe("Measured on IEX");
     });
 
     it("draws the price-break refusal, which is a different sentence", () => {
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -413,10 +426,10 @@ describe("fiveMinuteReturnBand", () => {
         }),
       );
 
-      expect(band.sample).toBe(
+      expect(indicator.sample).toBe(
         "Baseline crosses an unadjusted price break — not comparable",
       );
-      expect(band.percentile).toBeUndefined();
+      expect(indicator.percentile).toBeUndefined();
     });
 
     it("keeps the refusal when an instant cannot be read", () => {
@@ -426,7 +439,7 @@ describe("fiveMinuteReturnBand", () => {
       // no such condition and is true whatever the strings did. Without this
       // the state would be a figure with blank room under it — which says *we
       // did not think to compare this* rather than *we will not*.
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -440,8 +453,8 @@ describe("fiveMinuteReturnBand", () => {
         }),
       );
 
-      expect(band.qualifier).toBeUndefined();
-      expect(band.sample).toBe(
+      expect(indicator.qualifier).toBeUndefined();
+      expect(indicator.sample).toBe(
         "Baseline too short to rank — 0 of 2,500 returns",
       );
     });
@@ -469,13 +482,13 @@ describe("fiveMinuteReturnBand", () => {
       ] as const;
 
       for (const percentile of comparisons) {
-        const band = fiveMinuteReturnBand(
+        const indicator = fiveMinuteReturnIndicator(
           "NVDA",
           held({ ...MEASURED, percentile }),
         );
 
-        expect(band.percentile ?? "").not.toContain("—");
-        expect(band.percentile ?? "").not.toContain("-");
+        expect(indicator.percentile ?? "").not.toContain("—");
+        expect(indicator.percentile ?? "").not.toContain("-");
       }
     });
 
@@ -486,7 +499,7 @@ describe("fiveMinuteReturnBand", () => {
       // absence. What tells it from a refusal is everything a refusal does not
       // have — a signed figure, both instants, the observed count, the tape,
       // and a rank.
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -495,10 +508,10 @@ describe("fiveMinuteReturnBand", () => {
         }),
       );
 
-      expect(band.move?.change).toBe("0.00%");
-      expect(band.move?.direction).toBe("unchanged");
-      expect(band.percentile).toBe("3rd percentile");
-      expect(band.absent).toBeUndefined();
+      expect(indicator.move?.change).toBe("0.00%");
+      expect(indicator.move?.direction).toBe("unchanged");
+      expect(indicator.percentile).toBe("3rd percentile");
+      expect(indicator.absent).toBeUndefined();
     });
 
     it("drops the comparison, and keeps the figure, when an instant cannot be read", () => {
@@ -507,7 +520,7 @@ describe("fiveMinuteReturnBand", () => {
       // that cannot evaluate its own condition would have to guess which of
       // its two grammars to draw. So the pair travels together (ADR 0029), and
       // the percentage survives without either.
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -516,10 +529,10 @@ describe("fiveMinuteReturnBand", () => {
         }),
       );
 
-      expect(band.move?.change).toBe("+0.42%");
-      expect(band.percentile).toBeUndefined();
-      expect(band.sample).toBeUndefined();
-      expect(band.tape).toBe("Measured on IEX");
+      expect(indicator.move?.change).toBe("+0.42%");
+      expect(indicator.percentile).toBeUndefined();
+      expect(indicator.sample).toBeUndefined();
+      expect(indicator.tape).toBe("Measured on IEX");
     });
 
     it("draws `>99th` at the ceiling and never a `100th`", () => {
@@ -529,7 +542,7 @@ describe("fiveMinuteReturnBand", () => {
     it("states the opening bias from the figure's own instants", () => {
       // AC 8, and the condition is the figure's rather than a clock's: 13:38Z
       // is 09:38 EDT, eight minutes after the bell.
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         held({
           ...MEASURED,
@@ -539,20 +552,20 @@ describe("fiveMinuteReturnBand", () => {
         }),
       );
 
-      expect(band.sample).toContain("fattest-tailed");
+      expect(indicator.sample).toContain("fattest-tailed");
       // The qualifier is unchanged — the bias is a fact about the **sample**,
       // not about this observation.
-      expect(band.qualifier).toContain("observed 3 of 5 minutes");
+      expect(indicator.qualifier).toContain("observed 3 of 5 minutes");
     });
 
     it("spells no `%` in either new line", () => {
       // AC 7. A percentile and a change formatted by the same decimals are
       // visually the same kind of number and are not.
       for (const over of [{}, { aboveSample: true }, { rank: 2 }]) {
-        const band = ranked(over);
+        const indicator = ranked(over);
 
-        expect(band.percentile).not.toContain("%");
-        expect(band.sample).not.toContain("%");
+        expect(indicator.percentile).not.toContain("%");
+        expect(indicator.sample).not.toContain("%");
       }
     });
   });
@@ -567,11 +580,16 @@ describe("fiveMinuteReturnBand", () => {
     ];
 
     for (const figure of states) {
-      const band = fiveMinuteReturnBand(
+      const indicator = fiveMinuteReturnIndicator(
         "NVDA",
         figure === undefined ? undefined : held(figure),
       );
-      const text = [band.absent, band.qualifier, band.tape, band.label]
+      const text = [
+        indicator.absent,
+        indicator.qualifier,
+        indicator.tape,
+        indicator.label,
+      ]
         .filter((part) => part !== undefined)
         .join(" ");
 

@@ -114,8 +114,8 @@ describe("percentileSample", () => {
     // the baseline pools every bucket, so a percentile taken there reads an
     // ordinary open as more unusual than it is.
     expect(percentileSample(PERCENTILE, at("13:38"), at("13:43"))).toBe(
-      "of 4,620 5-minute returns · opening 30 minutes, " +
-        "the fattest-tailed bucket — pooled, this reads high",
+      "of 4,620 5-minute returns · opening 30 minutes — " +
+        "the fattest-tailed bucket, pooled",
     );
   });
 
