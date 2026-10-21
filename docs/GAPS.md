@@ -4390,8 +4390,36 @@ midday bucket's, _reads high_ is an understatement a reader will act on; if it i
 The measurement is cheap and nobody has taken it: bucket the existing 2.19 M
 samples by minute-of-session and compare the 99th percentile of the first six
 buckets against the rest. **Re-measure:** that query against
-`return_baselines`' own inputs. **Owner: the first story that re-opens the bias
-clause, or Story 5.6 when it scores this factor.**
+`return_baselines`' own inputs. ~~**Owner: the first story that re-opens the bias
+clause, or Story 5.6 when it scores this factor.**~~
+
+**Amended 2026-10-21 by Task 5.6.1 — the owner condition FIRED (both halves of
+it at once), and the half of this entry that was a RISK is discharged while the
+half that is a MEASUREMENT is not.**
+
+The clause was re-opened for an unrelated reason: `high` is one of the four
+`ANOMALY_BANDS`, and this sentence draws in the region Story 5.6 puts the band
+chip in, so `anomaly.ts`'s own reversal trigger — _"the first surface that needs
+to say **high** about something other than an anomaly score on the same
+screen"_ — had already fired on it, undetected, since 2026-10-14.
+
+**The repair deletes the verdict rather than measuring it.** The clause now
+reads `· opening 30 minutes — the fattest-tailed bucket, pooled` and makes **no
+claim about magnitude at all**. So the risk this entry described — _"if it is
+1.1×, the sentence is noise occupying a line"_, and worse, _"if the opening
+bucket's 99th is 3× the midday bucket's, `reads high` is an understatement a
+reader will act on"_ — **is gone, because the sentence no longer tells a reader
+how to act.** A stated fact with no verdict cannot be an understatement.
+
+**What remains owed is the measurement itself, and it is now a smaller claim.**
+Nothing still measures how much fatter the opening bucket is; the difference is
+that nothing on screen depends on the answer. **Re-measure unchanged** (that
+query against `return_baselines`' own inputs — and note it was NOT taken by
+5.6.1, which had a dev server and a `verify` running and declined to start a
+second heavy job on a shared store). **Owner: a condition rather than a story —
+the first surface that states a magnitude for the opening bias, or the first
+reader who asks how much.** A story number here would never fire again, because
+the two stories this entry named have both now passed.
 
 ## The ranked list on `/` is COVERAGE-BIASED, and the denominator it states cannot say so
 

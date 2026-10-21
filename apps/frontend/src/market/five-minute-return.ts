@@ -8,7 +8,7 @@ import {
   percentileSample,
 } from "./return-percentile.js";
 // **The tape line's one grammar** (Task 5.5.4). It was `tapeOf` in this file
-// until the volume band needed the same sentence with a different pair of
+// until the volume indicator needed the same sentence with a different pair of
 // feeds; a second copy there would be a second answer to *how does this
 // product name the tapes behind a comparison*.
 import { measuredTape } from "./measured-tape.js";
@@ -41,8 +41,8 @@ import type { PriceDirection } from "./price-format.js";
 // about NVDA. A surface reading the figure alone would draw NVDA's return
 // under AMD's name — a well-formed, correctly-coloured figure about the wrong
 // security, which is the class of defect this region exists to avoid at the
-// arithmetic level. So the band is **about a symbol** and a figure for another
-// one is the same answer as no figure at all.
+// arithmetic level. So the indicator is **about a symbol** and a figure for
+// another one is the same answer as no figure at all.
 //
 // ## It says nothing about the feed, and that is AC 6
 //
@@ -141,8 +141,11 @@ export interface ReturnFigure {
   readonly direction: PriceDirection;
 }
 
-/** What the band draws. One band today; 5.3, 5.5 and 5.6 add their own. */
-export interface ReturnBand {
+/**
+ * What the indicator draws. One indicator today; 5.3, 5.5 and 5.6 add their
+ * own.
+ */
+export interface ReturnIndicator {
   /** The micro label. Spelled by the component, read from here. */
   readonly label: string;
   /** The figure, or `undefined` when there is none. */
@@ -193,14 +196,14 @@ export interface ReturnBand {
   readonly tape: string | undefined;
   /**
    * **No frame about this security has arrived.** The component holds the
-   * band's room and says {@link NO_RETURN} over it, which is not the same
+   * indicator's room and says {@link NO_RETURN} over it, which is not the same
    * state as a frame carrying a refusal.
    */
   readonly nothing: boolean;
 }
 
-/** The band's room with nothing in it — the paint before the first frame. */
-export const RESERVED_RETURN: ReturnBand = {
+/** The indicator's room with nothing in it — the paint before the first frame. */
+export const RESERVED_RETURN: ReturnIndicator = {
   label: RETURN_LABEL,
   move: undefined,
   absent: undefined,
@@ -377,15 +380,15 @@ function sampleOf(
 }
 
 /**
- * **The band, for the security this page is about.**
+ * **The indicator, for the security this page is about.**
  *
  * @param symbol The security on screen.
  * @param held What the feed is holding, or `undefined` before the first frame.
  */
-export function fiveMinuteReturnBand(
+export function fiveMinuteReturnIndicator(
   symbol: string,
   held: SymbolReturnView | undefined,
-): ReturnBand {
+): ReturnIndicator {
   // **A figure about another security is no figure at all** — see the module
   // comment. This is the navigation window, one subscribe round trip wide.
   if (held?.symbol !== symbol) return RESERVED_RETURN;

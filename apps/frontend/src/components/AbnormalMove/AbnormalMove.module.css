@@ -1,18 +1,18 @@
 /*
- * `Abnormal-move indicators` — **one band, reserved band by band** (Task
- * 5.2.3).
+ * `Abnormal-move indicators` — **one indicator, reserved indicator by
+ * indicator** (Task 5.2.3).
  *
  * The region sits in a column of three with `Relative performance` directly
- * below it, so a band that grows when a figure arrives moves that region under
- * the reader. `Movers` paid 81 px for discovering that the other way round, and
- * `MARKET-OVERVIEW.md` §1.4's trigger **fired** on the release that filled the
- * middle region.
+ * below it, so an indicator that grows when a figure arrives moves that
+ * region under the reader. `Movers` paid 81 px for discovering that the other
+ * way round, and `MARKET-OVERVIEW.md` §1.4's trigger **fired** on the release
+ * that filled the middle region.
  *
- * **Nothing here is reserved for the score.** Stories 5.3, 5.5 and 5.6 each add
- * their own band and each pays its own step; reserving for an unbuilt score is a
- * guess 5.6 both re-measures and steps, and an empty reserved band is the
- * picture Story 4.7 routed as a defect — *a gateway that is behind* and *this is
- * next year's* drawn the same way.
+ * **Nothing here is reserved for the score.** Stories 5.3, 5.5 and 5.6 each
+ * add their own indicator and each pays its own step; reserving for an unbuilt
+ * score is a guess 5.6 both re-measures and steps, and an empty reserved
+ * indicator is the picture Story 4.7 routed as a defect — *a gateway that is
+ * behind* and *this is next year's* drawn the same way.
  *
  * **No new geometry and no new colour.** Four rows of existing tokens: the micro
  * label, `--font-size-metric` for the one headline figure (`BreadthLedger`'s
@@ -27,14 +27,14 @@
 }
 
 /*
- * --- One band ---
+ * --- One indicator ---
  *
- * **No `min-height` on the band or on the region**, which is Story 5.1's
+ * **No `min-height` on the indicator or on the region**, which is Story 5.1's
  * hand-off item 3: a floor on the container makes the height depend on whichever
- * row happens to be tallest, so it is the rows that reserve and the band is
+ * row happens to be tallest, so it is the rows that reserve and the indicator is
  * their sum. Each row below states its own room.
  */
-.band {
+.indicator {
   display: flex;
   flex-direction: column;
 }
@@ -106,11 +106,11 @@
  *
  * The figure to its left is tinted by `PriceChange`, where the tint is the
  * **redundant** channel behind the glyph and the sign. A second tinted number
- * in one band is where the price palette's 1.04:1 greyscale difference becomes
- * two numbers deep — and a percentile has no direction to encode, so a tint
- * would be decoration standing where meaning normally is. What separates it
- * from a change is the ordinal suffix, the absent `%` and the word
- * `percentile`: three channels, none of them colour.
+ * in one indicator is where the price palette's 1.04:1 greyscale difference
+ * becomes two numbers deep — and a percentile has no direction to encode, so
+ * a tint would be decoration standing where meaning normally is. What
+ * separates it from a change is the ordinal suffix, the absent `%` and the
+ * word `percentile`: three channels, none of them colour.
  *
  * ## It composes `dataCell` and declares nothing the target declares
  *
@@ -204,8 +204,8 @@
  * ## The reserve is the BIAS CLAUSE's, measured rather than argued
  *
  * The row holds two strings and the longer one is the opening-bucket clause —
- * `of 4,620 5-minute returns · opening 30 minutes, the fattest-tailed
- * bucket — pooled, this reads high` — which is roughly twice the length of the
+ * `of 4,620 5-minute returns · opening 30 minutes — the fattest-tailed
+ * bucket, pooled` — which is roughly twice the length of the
  * ordinary `· all times of day pooled`. So the room is reserved for the long
  * one at every width, and the ordinary state leaves slack at the wide widths.
  *
@@ -270,7 +270,7 @@
 
 /*
  * `No return yet.` — the sixth honest-nothing noun in this product, centred in
- * the band's own room because it is about the region rather than about the
+ * the indicator's own room because it is about the region rather than about the
  * figure.
  */
 .nothingArrived {
@@ -286,20 +286,20 @@
 }
 
 /*
- * --- The second band: the volume multiple (Task 5.5.4) ---
+ * --- The second indicator: the volume multiple (Task 5.5.4) ---
  *
- * **A band rather than a third cell**, which is Gate 1 decision 3 and is a
+ * **An indicator rather than a third cell**, which is Gate 1 decision 3 and is a
  * correctness decision rather than a layout one: `▲ +0.42%  99th percentile
  * 4.1× typical` under one label reading `5-MINUTE RETURN` asserts that the
  * **return** is 4.1× typical. The third cell was measured to fit — 0 px, with
  * 23 px of slack at 390 — and is the wrong picture.
  *
- * The separator is the band's own top margin and nothing is drawn in it. A
+ * The separator is the indicator's own top margin and nothing is drawn in it. A
  * rule here would be the only horizontal line inside a `Region` in this
  * product; the label's own uppercase micro ink is what says *a new subject
  * starts here*, which is the idiom the rail already uses between its regions.
  */
-.secondBand {
+.secondIndicator {
   margin-top: var(--space-12);
 }
 
@@ -308,7 +308,7 @@
  *
  * ## It composes `dataCell` and declares nothing the target declares
  *
- * `.percentile`'s rule one band up, and the same narrow reason:
+ * `.percentile`'s rule one indicator up, and the same narrow reason:
  * `a-compose-never-carries-an-override` refuses a composing rule that
  * re-declares a composed property, because `composes` concatenates class names
  * and the winner is **stylesheet order**. The two declarations below are two
@@ -340,8 +340,8 @@
  * 13px glyph on the **dense** 18px leading fits inside the metric's ascent and
  * descent, so the row's height is unchanged and the two baselines coincide. On
  * the centred 26px leading the same cell hangs 1.1 px lower and grows the row
- * to 29 px — photographed at 8× one band up, and inherited here rather than
- * re-discovered.
+ * to 29 px — photographed at 8× one indicator up, and inherited here rather
+ * than re-discovered.
  *
  * It is **not** `composes: percentile`: that class is named for another
  * figure's second cell, and composing it would make a rename of the

@@ -7,7 +7,7 @@ import type {
 } from "@marketpulse/shared";
 import type { SymbolReturnView } from "./live-feed.js";
 
-// **The volume multiple's words** (Task 5.5.4) — the second band of
+// **The volume multiple's words** (Task 5.5.4) — the second indicator of
 // `Abnormal-move indicators`, and the first figure in this product that is a
 // **multiple** rather than a percentage.
 //
@@ -48,8 +48,8 @@ import type { SymbolReturnView } from "./live-feed.js";
 //
 // `computedAt`, `sentAt` and `Date.now()` appear nowhere in this module or in
 // the component that draws it, which is the region's rule since Task 5.2.3.
-// There is no instant on this band at all: the five minutes it is about are the
-// return's own, stated one band up.
+// There is no instant on this indicator at all: the five minutes it is about
+// are the return's own, stated one indicator up.
 
 /**
  * The micro label over the figure — **`VOLUME PER MINUTE` when drawn**, and
@@ -61,7 +61,7 @@ import type { SymbolReturnView } from "./live-feed.js";
  * five-minute volume* cannot be derived from a per-minute median. Both the
  * numerator and the denominator here are shares **per minute**, and the label
  * says so — which is Gate 1 decision 3's own argument (a figure under a label
- * is a claim about what that label names) applied to this band's own wording.
+ * is a claim about what that label names) applied to this indicator's own wording.
  */
 export const VOLUME_LABEL = "Volume per minute";
 
@@ -135,7 +135,7 @@ export function formatMultiple(ratio: number): string {
 
 /**
  * **What the multiple was taken against — the baseline's three facts in one
- * row**, in the register `.sample` already set one band up.
+ * row**, in the register `.sample` already set one indicator up.
  *
  * `last 5 minutes · median minute of 60 sessions · same 5-minute bucket ·
  * today excluded`, and every number in it is **read** rather than spelled: the
@@ -146,10 +146,10 @@ export function formatMultiple(ratio: number): string {
  * ## Four clauses rather than three, and the first is the numerator's
  *
  * AC 6 asks for the bucket width, the lookback and the exclusion of the scored
- * window. The fourth — *last 5 minutes* — is here because this band has no
- * qualifier row of its own: the return band states the two instants, and
- * without this clause nothing on the volume band would say **what** was
- * divided. It is the same five minutes, said once.
+ * window. The fourth — *last 5 minutes* — is here because this indicator has
+ * no qualifier row of its own: the return indicator states the two instants,
+ * and without this clause nothing on the volume indicator would say **what**
+ * was divided. It is the same five minutes, said once.
  *
  * ## `median minute`, because the robustness is the one choice §11 makes
  *
@@ -175,7 +175,7 @@ export const volumeSample = (rate: WireVolumeRate): string =>
  * The register is inherited — short, no connection word, no status word, no
  * terminal stop — and the strings are not. The two in `return-percentile.ts`
  * are about a **distribution of returns** and stand in this region's other
- * band; the four in `five-minute-return.ts` say *no figure* about a **price
+ * indicator; the four in `five-minute-return.ts` say *no figure* about a **price
  * move**; the eight in `relative-performance.ts` are about a comparison
  * between two securities. Every one of them would, reused here, tell a reader
  * that something other than the volume is missing.
@@ -245,8 +245,11 @@ const REFUSALS: Readonly<
     `${String(of.spanMinutes)} minutes`,
 };
 
-/** What the volume band draws. {@link ReturnBand}'s shape, one band down. */
-export interface VolumeBand {
+/**
+ * What the volume indicator draws. {@link ReturnIndicator}'s shape, one
+ * indicator down.
+ */
+export interface VolumeIndicator {
   /** The micro label. Spelled by the component, read from here. */
   readonly label: string;
   /** `4.1×`, or `undefined` where there is no multiple. */
@@ -264,8 +267,8 @@ export interface VolumeBand {
   readonly tape: string | undefined;
 }
 
-/** The band's room with nothing in it — the paint before the first frame. */
-export const RESERVED_VOLUME: VolumeBand = {
+/** The indicator's room with nothing in it — the paint before the first frame. */
+export const RESERVED_VOLUME: VolumeIndicator = {
   label: VOLUME_LABEL,
   multiple: undefined,
   comparand: undefined,
@@ -275,9 +278,9 @@ export const RESERVED_VOLUME: VolumeBand = {
 };
 
 /**
- * **The volume band, for the security this page is about.**
+ * **The volume indicator, for the security this page is about.**
  *
- * The symbol is compared rather than trusted, for `fiveMinuteReturnBand`'s
+ * The symbol is compared rather than trusted, for `fiveMinuteReturnIndicator`'s
  * reason exactly: the gateway answers the focus a browser last declared, and a
  * reader moving from NVDA to AMD has one subscribe round trip in which the last
  * answer is about NVDA.
@@ -291,10 +294,10 @@ export const RESERVED_VOLUME: VolumeBand = {
  * @param symbol The security on screen.
  * @param held What the feed is holding, or `undefined` before the first frame.
  */
-export function volumeRatioBand(
+export function volumeRatioIndicator(
   symbol: string,
   held: SymbolReturnView | undefined,
-): VolumeBand {
+): VolumeIndicator {
   if (held?.symbol !== symbol) return RESERVED_VOLUME;
 
   const { volume } = held;
@@ -323,7 +326,7 @@ export function volumeRatioBand(
     absent: undefined,
     sample: volumeSample(volume),
     // **Both tapes named, and they are the SAME tape** — Gate 1 decision 1,
-    // displayed rather than implied. The band above says `baseline on All US
+    // displayed rather than implied. The indicator above says `baseline on All US
     // exchanges`, so a reader comparing the two lines is reading the
     // difference between the two factors rather than being left to assume one.
     tape: measuredTape([volume.feed], volume.feed),

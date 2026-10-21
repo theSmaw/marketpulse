@@ -357,18 +357,18 @@ export {
   NO_RETURN,
   RESERVED_RETURN,
   RETURN_LABEL,
-  fiveMinuteReturnBand,
+  fiveMinuteReturnIndicator,
 } from "./five-minute-return.js";
-export type { ReturnBand, ReturnFigure } from "./five-minute-return.js";
+export type { ReturnIndicator, ReturnFigure } from "./five-minute-return.js";
 
-// **The volume multiple's read side** (Task 5.5.4) — the SECOND band of
-// `Abnormal-move indicators`, spelled from the same frame. Its band is built
+// **The volume multiple's read side** (Task 5.5.4) — the SECOND indicator of
+// `Abnormal-move indicators`, spelled from the same frame. Its indicator is built
 // whatever the return did, because the two figures refuse independently.
 export {
   RESERVED_VOLUME,
   VOLUME_LABEL,
   formatMultiple,
-  volumeRatioBand,
+  volumeRatioIndicator,
   volumeSample,
 } from "./volume-ratio.js";
-export type { VolumeBand } from "./volume-ratio.js";
+export type { VolumeIndicator } from "./volume-ratio.js";

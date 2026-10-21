@@ -33,6 +33,17 @@ be checked as written**, because of decisions this epic took deliberately:
   example says `Move substantially exceeds related securities` — a measurement
   word, and the one to keep.
 
+  **Refined 2026-10-21 by Story 5.6's Gate 1, and you are right about the verb
+  rather than the sentence.** `exceeds` **is** the measurement word and **is**
+  the keeper — that judgement stands and 5.6's AC 7 agrees with it. What 5.6's
+  AC 7 forbids is the **adverb**: `substantially` is an intensity word standing
+  where a figure belongs, and `related securities` is a population with no
+  stated count, which §9 refuses. So when you rewrite the exit criterion as a
+  shape, the shape for this line is **`exceeds` + a figure + a named
+  reference** — the shipped clause is `behind by 2.20 pts against XLK` — and
+  **not** the §11 sentence quoted verbatim. `PRODUCT_SPEC.md` §11 now carries a
+  dated amendment saying the same thing, so the two documents agree.
+
 **So this story rewrites the exit criterion as a shape rather than a number**,
 and verdicts the epic against the rewrite with the original left standing as
 the record of what was asked for.

@@ -949,9 +949,22 @@ export const BREAKS = [
     // the clock conjunct rather than the one-home conjunct; the other half
     // was proved by hand in Task 5.3.3's record, by moving the condition into
     // a file of its own.
+    //
+    // **Repaired 2026-10-21 by Task 5.6.1: the substitution used to DELETE its
+    // own `find`.** It replaced the whole line, so `every-break-can-still-land`
+    // went red beside the clause under test and the run reported TWO failures
+    // from neither the check nor the plant — `CLAUDE.md`'s own 2026-10-16
+    // amendment, met on the entry next door in the same session. It now
+    // **appends** the clock read beside the kept line, so the `find` survives
+    // its own break. The plant is also the truer defect this way: a developer
+    // adding *and is it the open now?* as an extra condition writes a second
+    // reader, they do not delete the first.
     file: "apps/frontend/src/market/return-percentile.ts",
     find: "const state = marketSessionStateAt(from);",
-    replace: "const state = marketSessionStateAt(new Date());",
+    replace:
+      "const state = marketSessionStateAt(from);\n" +
+      "  const alsoNow = marketSessionStateAt(new Date());\n" +
+      "  void alsoNow;",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-opening-bias-is-read-off-the-figure",
   },
@@ -4860,7 +4873,7 @@ export const BREAKS = [
       "outside the frame to `GET /market-data`.",
     // **The defect a pass-through is blind to by construction**, which is why
     // this break exists rather than one that edits a renderer. The spec's main
-    // claim — *the band draws what the server sent* — is green either way,
+    // claim — *the indicator draws what the server sent* — is green either way,
     // because the browser draws the fabricated figure exactly as faithfully as
     // it drew the refusal. What goes red is the one assertion reaching an
     // independent source: with no market-data provider configured nothing has
@@ -5002,13 +5015,32 @@ export const BREAKS = [
     // `apps/frontend/src/components/Unusual/UnusualTrend.tsx`, a file that
     // did not exist, and `shippedSourceFiles()` saw it by walking the tree.
     file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.tsx",
+    // **The `find` is the three-line form Prettier produces** (Task 5.6.1).
+    // It was one line until the local `band` became `indicator` and the span
+    // crossed 80 columns, which is the quiet half of a rename: the registry
+    // keys on the parameter's NAME, so `every-break-can-still-land` is the
+    // only thing standing between a rename and an unprovable check.
     find:
-      "            <span className={cx(styles.percentile)}>" +
-      "{band.percentile}</span>",
+      "            <span className={cx(styles.percentile)}>\n" +
+      "              {indicator.percentile}\n" +
+      "            </span>",
+    // **The `find` text SURVIVES the substitution**, which is this registry's
+    // convention and which this entry did not honour until Task 5.6.1. It
+    // replaced the figure outright, so the found text matched 0 times with the
+    // plant on disk and `every-break-can-still-land` went red **about the
+    // break** beside the clause under test — two reds, one of them from
+    // neither the check being proved nor the defect being planted, which is
+    // `CLAUDE.md`'s 2026-10-16 trap and reads exactly like a thorough proof.
+    // The plant is now a **second** speller beside the correct one, which is
+    // also the truer defect: a reader adding the short form on this page does
+    // not delete the long one.
     replace:
+      "            <span className={cx(styles.percentile)}>\n" +
+      "              {indicator.percentile}\n" +
+      "            </span>\n" +
       "            {/* pnpm break: reverted automatically */}\n" +
       "            <span className={cx(styles.percentile)}>\n" +
-      "              {`${String(band.rank ?? 0)}th percentile`}\n" +
+      "              {`${String(indicator.rank ?? 0)}th percentile`}\n" +
       "            </span>",
     command: ["pnpm", "invariants"],
     expect: "spell an ordinal suffix",
@@ -5387,9 +5419,9 @@ export const BREAKS = [
     // there, and a replacement that removed the figure would trip a different
     // clause than the one this entry is about.
     file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.tsx",
-    find: "<span className={cx(styles.multiple)}>{band.multiple}</span>",
+    find: "<span className={cx(styles.multiple)}>{indicator.multiple}</span>",
     replace:
-      "<span className={cx(styles.multiple)}>{band.multiple}</span>\n" +
+      "<span className={cx(styles.multiple)}>{indicator.multiple}</span>\n" +
       "            {/* pnpm break: reverted automatically */}\n" +
       "            <sup className={cx(styles.comparand)}>\u00d7</sup>",
     command: ["node", "scripts/check-invariants.mjs"],

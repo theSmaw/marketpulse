@@ -37,15 +37,15 @@ import type {
 // the component that draws it, which is the region's rule since Task 5.2.3.
 // The opening-30-minutes condition is read off the figure's own `from`/`to`,
 // which are bars' own `startsAt` — so a window that **ended** at 09:45 and is
-// read at 11:00 still carries the clause, and the whole band stays correct
+// read at 11:00 still carries the clause, and the whole indicator stays correct
 // under Epic 13's replay. A wall-clock version would drop the clause at
 // exactly 10:00 for a figure that still needs it, and would be the second
 // surface in this product to date a fact by when the page was opened (Task
 // 4.8.12's defect).
 
 /**
- * **How long after the bell the pooled distribution reads high: thirty
- * minutes.**
+ * **How long after the bell the opening bucket over-represents the pooled
+ * distribution: thirty minutes.**
  *
  * ## Why a threshold at all, and why this is not a second observation window
  *
@@ -224,9 +224,28 @@ export const percentileOrdinal = (percentile: PercentileFigure): string =>
  *
  * Then, when **the figure's own window** reaches the opening bucket, the three
  * words are replaced by the thing a reader needs at that moment: the open is
- * the fattest-tailed part of the day, so this reading is high for a structural
- * reason and not because the market is unusual. It replaces rather than
+ * the fattest-tailed part of the day, so an ordinary open is ranked against a
+ * sample whose typical member came from a quieter one. It replaces rather than
  * appends, because *pooled* is the subject of both.
+ *
+ * ## It carries no intensity adjective, and that is a RESERVED WORD rather
+ * ## than a style preference (Task 5.6.1)
+ *
+ * The clause read `the fattest-tailed bucket — pooled, this reads high` from
+ * Task 5.3.3 until this one. `high` is one of the four `ANOMALY_BANDS`,
+ * and `anomaly.ts` carries a reversal trigger naming exactly this: *the first
+ * surface that needs to say `high` about something other than an anomaly score
+ * on the same screen*. That surface is **this one** — the composite's band chip
+ * draws in `Abnormal-move indicators`, two rows above this very sentence — so
+ * the collision was latent from 2026-10-14 only because no chip was drawn yet,
+ * and Story 5.6 is the change that draws it.
+ *
+ * The clause's job is to say *the open over-represents this bucket*, which
+ * needs no adjective at all: the em dash does the work the comma and the
+ * verb phrase were doing, and what the reader is told is unchanged. The
+ * **band word is kept** and the sentence gave way, because one of them is a
+ * four-member domain vocabulary shared across the wire and the other is a
+ * footnote.
  */
 export function percentileSample(
   percentile: WireReturnPercentile,
@@ -240,8 +259,8 @@ export function percentileSample(
   if (!reachesTheOpen(from, to)) return `${of} · all times of day pooled`;
 
   return (
-    `${of} · opening ${String(OPENING_BIAS_MINUTES)} minutes, ` +
-    "the fattest-tailed bucket — pooled, this reads high"
+    `${of} · opening ${String(OPENING_BIAS_MINUTES)} minutes — ` +
+    "the fattest-tailed bucket, pooled"
   );
 }
 

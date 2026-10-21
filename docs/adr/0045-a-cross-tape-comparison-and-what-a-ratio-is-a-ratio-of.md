@@ -70,6 +70,77 @@ _computing an adjustment_, which is the one thing
 §3.5's objection actually reaches — and because the dispersion makes a single
 constant indefensible anyway (p10 1.60% against p90 5.83%, a 3.6× spread).
 
+#### Amended 2026-10-21 by Story 5.6's Gate 1 — the TEST is restated, the decision is unchanged, and a figure this product ships everywhere was accidentally refused by the wording above
+
+**The taxonomy has a gap, and `changeFromClose` falls into it.** The test above
+offers two categories — _ratio **within** one tape_ and _level **across**
+tapes_ — and names _a percentage change_ as an example of the first. But the
+percentage change this product actually ships is **neither**: ADR 0038's
+decision 4 states it in terms, _"a change percentage here has an **IEX
+numerator and a consolidated-SIP denominator**"_, so it is a **ratio ACROSS
+tapes**. Read literally, the sentence _"a level across tapes is refused"_ plus
+the absence of a third category refuses every figure on `/` — every proxy,
+every ranked sector, every mover, since Epic 4. They are not refused, and they
+should not be.
+
+**The discriminant this decision MEANS is whether the quantity scales with the
+tape's share of the market.** Call it **extensive** against **intensive**:
+
+- **Extensive** — a volume, a share count, a trade count, a traded value. Its
+  magnitude is proportional to how much of the market the tape saw, so **the
+  share _is_ the quantity**. Refused across tapes. This is the volume factor,
+  and nothing above it changes.
+- **Intensive** — a price, a return, a percentage change, a rank. Its magnitude
+  carries **no venue-share factor at all**: IEX's last print and the
+  consolidated last print are the same quantity to within a spread. **Permitted
+  across tapes**, which is why `changeFromClose` and the live `iex` return
+  ranked against a `sip` baseline are both legitimate.
+
+**This decision's own arithmetic is the evidence.** The identity recorded above
+— `0.0353982 × 0.776074 = 0.0274716`, _"the bias factors exactly into venue
+share × coverage"_ — **factorises only for an extensive quantity**. For a price
+there is no share term to factor out, so the identity is not merely small, it is
+**meaningless**, and that is the test stated as arithmetic rather than as a
+category.
+
+The restatement makes the test **stronger**, not weaker: it now says why volume
+is refused in a sentence that **cannot be misapplied to a price**, and it hands
+Epics 6 and 9 — which this ADR names as meeting the test first — a discriminant
+they can apply to a traded-value edge weight without re-deriving it. _Is a
+traded-value edge weight extensive?_ Yes, obviously, and refused. _Is a
+correlation of returns?_ Intensive, and permitted.
+
+#### And the composite's permission is CONDITIONAL, which is the same argument arriving from the other direction
+
+Story 5.6 combines factors measured on different tapes — an `iex` return ranked
+against a `sip` baseline, an `iex` volume rate against an `iex` baseline, an
+excess move intensive on both legs. **The weighted sum creates no new cross-tape
+comparison, and it is worth being precise about why:** every factor is mapped to
+a **percentile of its own same-tape history** before combining, and a percentile
+is a dimensionless ordinal rank. **After the mapping the tape has been
+quotiented out**, so a sum of ranks compares no levels at all.
+
+**That permission survives only while the mapping is a percentile.** The moment
+a factor is mapped by an **invented curve** instead — a log cap at 10×, a
+sigmoid, a chosen knee — the constant is calibrated in the units of **one** tape
+and the mapped factor stops being scale-free. **A knee at `3× typical` means a
+different thing at 3.54% venue share than at 15.19%**, and the measured spread
+across six securities is exactly that wide.
+
+So Story 5.6's rule that _exactly one unit needs no invented constant_ and this
+ADR's invariance test are **the same argument arriving from two directions**,
+which turns _interpretable_ from a matter of taste into a **correctness
+constraint**. Its operational corollary, recorded here because it is easy to get
+backwards: **the volume factor is scored as a PERCENTILE of its own bucket
+distribution and never as the `4.1×` multiple.** The multiple stays what is
+**drawn**; the rank is what is **summed**. Scoring the multiple directly would
+make the sum tape-dependent — this decision's own failure, arriving one layer up.
+
+**Reversal trigger for the restated test**: the first quantity this product must
+compare across tapes that is neither cleanly extensive nor cleanly intensive —
+a spread, a depth-weighted mid, or anything whose units carry a partial share
+term.
+
 ### 2. What a ratio is a ratio OF, and it must match its label
 
 **A sum over `n` minutes divided by a median of ONE minute is a rate, and may

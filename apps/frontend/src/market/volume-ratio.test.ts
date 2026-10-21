@@ -6,7 +6,7 @@ import {
   RESERVED_VOLUME,
   VOLUME_LABEL,
   formatMultiple,
-  volumeRatioBand,
+  volumeRatioIndicator,
   volumeSample,
 } from "./volume-ratio.js";
 
@@ -86,11 +86,11 @@ describe("drawing a multiple", () => {
   });
 });
 
-describe("the band", () => {
+describe("the indicator", () => {
   it("draws the figure, the comparand, the baseline's facts and both tapes", () => {
-    const band = volumeRatioBand("NVDA", held(RATE));
+    const indicator = volumeRatioIndicator("NVDA", held(RATE));
 
-    expect(band).toStrictEqual({
+    expect(indicator).toStrictEqual({
       label: VOLUME_LABEL,
       multiple: "4.1×",
       comparand: "typical",
@@ -99,13 +99,13 @@ describe("the band", () => {
         "last 5 minutes · median minute of 60 sessions · " +
         "same 5-minute bucket · today excluded",
       // **The same tape on both sides**, which is Gate 1 decision 1 on screen
-      // and is what makes this line different from the band above's.
+      // and is what makes this line different from the indicator above's.
       tape: "Measured on IEX · baseline on IEX",
     });
   });
 
   it("reads every number off the frame rather than spelling one", () => {
-    const band = volumeRatioBand(
+    const indicator = volumeRatioIndicator(
       "NVDA",
       held({
         ...RATE,
@@ -115,7 +115,7 @@ describe("the band", () => {
       }),
     );
 
-    expect(band.sample).toBe(
+    expect(indicator.sample).toBe(
       "last 7 minutes · median minute of 40 sessions · " +
         "same 15-minute bucket · today excluded",
     );
@@ -133,14 +133,18 @@ describe("the band", () => {
     // The gateway answers the focus a browser last declared, so a reader
     // moving from NVDA to AMD has one subscribe round trip in which the last
     // answer is about NVDA.
-    expect(volumeRatioBand("AMD", held(RATE))).toStrictEqual(RESERVED_VOLUME);
+    expect(volumeRatioIndicator("AMD", held(RATE))).toStrictEqual(
+      RESERVED_VOLUME,
+    );
   });
 
   it("draws the label and nothing else where the gateway sent no comparison", () => {
     // ADR 0029's defer rule: we were not told there is an absence, so a
     // sentence explaining one would be a claim of its own. It is NOT the same
     // state as a refusal.
-    expect(volumeRatioBand("NVDA", held(null))).toStrictEqual(RESERVED_VOLUME);
+    expect(volumeRatioIndicator("NVDA", held(null))).toStrictEqual(
+      RESERVED_VOLUME,
+    );
   });
 });
 
@@ -149,7 +153,7 @@ describe("the six refusals", () => {
     refusal: (typeof VOLUME_REFUSALS)[number],
     over: { sampleCount?: number; observed?: number } = {},
   ) =>
-    volumeRatioBand(
+    volumeRatioIndicator(
       "NVDA",
       held({
         measured: false,
@@ -215,20 +219,20 @@ describe("the six refusals", () => {
     // except the counts the sentences state, because a refusal that draws a
     // number is a figure.
     for (const word of VOLUME_REFUSALS) {
-      const band = refused(word);
+      const indicator = refused(word);
 
-      expect(band.multiple).toBeUndefined();
-      expect(band.comparand).toBeUndefined();
-      expect(band.sample).toBeUndefined();
-      expect(band.tape).toBeUndefined();
-      expect(band.absent).not.toContain("×");
+      expect(indicator.multiple).toBeUndefined();
+      expect(indicator.comparand).toBeUndefined();
+      expect(indicator.sample).toBeUndefined();
+      expect(indicator.tape).toBeUndefined();
+      expect(indicator.absent).not.toContain("×");
       // **Not *no dash anywhere*** — the percentile's own refusals use one as
       // punctuation and so does this set. What is forbidden is a dash
       // STANDING where a figure would be, which is the `unchanged` glyph
       // asserting a zero; so what is asserted is that the slot holds a
       // sentence rather than a glyph.
-      expect(band.absent).not.toBe("—");
-      expect(band.absent).toMatch(/[a-z]/u);
+      expect(indicator.absent).not.toBe("—");
+      expect(indicator.absent).toMatch(/[a-z]/u);
     }
   });
 

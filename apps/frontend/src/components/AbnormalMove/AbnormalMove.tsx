@@ -3,40 +3,40 @@ import { memo } from "react";
 import { cx } from "../../cx.js";
 import {
   NO_RETURN,
-  fiveMinuteReturnBand,
-  volumeRatioBand,
-  type ReturnBand,
+  fiveMinuteReturnIndicator,
+  volumeRatioIndicator,
+  type ReturnIndicator,
   type SymbolReturnView,
-  type VolumeBand as VolumeBandView,
+  type VolumeIndicator as VolumeIndicatorView,
 } from "../../market/index.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { useWaited } from "../MarketProxyStrip/use-waited.js";
 import styles from "./AbnormalMove.module.css";
 
-// `Abnormal-move indicators` — **one band, and the region is named for what
-// Epic 5 fills it with progressively** (Task 5.2.3).
+// `Abnormal-move indicators` — **one indicator, and the region is named for
+// what Epic 5 fills it with progressively** (Task 5.2.3).
 //
-// Story 5.1's hand-off, item 6: this region is filled band by band and this is
-// the **first** figure in it, not the story that finishes it. Stories 5.3, 5.5
-// and 5.6 each add their own band.
+// Story 5.1's hand-off, item 6: this region is filled indicator by indicator
+// and this is the **first** figure in it, not the story that finishes it.
+// Stories 5.3, 5.5 and 5.6 each add their own indicator.
 //
-// ## It reserves THIS band and not one pixel for the score
+// ## It reserves THIS indicator and not one pixel for the score
 //
 // The owner's decision, and the arithmetic is why. 5.6's score is unbuilt, so
 // reserving for it is a guess that story both **re-measures and steps** —
-// paying twice — and an empty reserved band is the picture Story 4.7 routed as
-// a defect, where *a gateway that is behind* and *this is next year's* are one
-// picture. **The accepted cost is one step per story that adds a band**,
-// recorded as a probed figure per width in this task's record so 5.3/5.5/5.6
-// amend a measurement rather than inherit a guess.
+// paying twice — and an empty reserved indicator is the picture Story 4.7
+// routed as a defect, where *a gateway that is behind* and *this is next
+// year's* are one picture. **The accepted cost is one step per story that
+// adds an indicator**, recorded as a probed figure per width in this task's
+// record so 5.3/5.5/5.6 amend a measurement rather than inherit a guess.
 //
-// ## The band is one height in every state, at a width
+// ## The indicator is one height in every state, at a width
 //
 // The region sits in a column of three with `Relative performance` below it, so
-// a band that grows when a figure arrives moves that region under the reader —
-// `Movers` paid 81 px for discovering it the other way round. Every row
-// reserves its own room in `AbnormalMove.module.css`, band by band, which is
-// the neighbour's idiom exactly.
+// an indicator that grows when a figure arrives moves that region under the
+// reader — `Movers` paid 81 px for discovering it the other way round. Every
+// row reserves its own room in `AbnormalMove.module.css`, indicator by
+// indicator, which is the neighbour's idiom exactly.
 //
 // ## And it says nothing about the feed
 //
@@ -79,10 +79,10 @@ import styles from "./AbnormalMove.module.css";
 //
 // 1. **It is present on first paint rather than arriving.** The gateway
 //    answers a browser's `subscribe` with a `return` frame, so the sentence is
-//    in the band's first render — there is nothing for a listener to be told
+//    in the indicator's first render — there is nothing for a listener to be told
 //    about, only something to go and read. A live region exists for a change
 //    a reader did not cause and would not revisit.
-// 2. **The band is one group and cannot be announced in part.** Scoping a
+// 2. **The indicator is one group and cannot be announced in part.** Scoping a
 //    region to the sample row alone would still re-announce on every batch,
 //    because the row is re-rendered with the other four; the arithmetic above
 //    — a twenty-word sentence against a 1,500 ms pacing floor, four to sixteen
@@ -95,7 +95,7 @@ import styles from "./AbnormalMove.module.css";
 // **cold replica** in the seconds before `baselines.load` resolves sees
 // `0 of 2,500 returns` replaced by a rank, unprompted. That is a transition
 // from less information to more, inside the first seconds of a process, in a
-// band that rewrites sixteen times a minute — so it does not change the
+// indicator that rewrites sixteen times a minute — so it does not change the
 // answer, and it is the shape the trigger should have been written against.
 //
 // **So the clause is sharpened rather than re-dated**, which is the honest
@@ -123,26 +123,27 @@ export const AbnormalMove = memo(function AbnormalMove({
   symbol,
   symbolReturn,
 }: AbnormalMoveProps) {
-  const band = fiveMinuteReturnBand(symbol, symbolReturn);
-  // **The second band is built unconditionally**, because the two refuse
+  const indicator = fiveMinuteReturnIndicator(symbol, symbolReturn);
+  // **The second indicator is built unconditionally**, because the two refuse
   // independently: a window with no bar exactly five minutes back has no
   // return and may hold all five minutes of volume. What they share is the
   // region-level absence below — *no frame about this security has arrived*
   // is one fact about both.
-  const volume = volumeRatioBand(symbol, symbolReturn);
+  const volume = volumeRatioIndicator(symbol, symbolReturn);
 
-  if (band.nothing) return <HeldRoom band={band} volume={volume} />;
+  if (indicator.nothing)
+    return <HeldRoom indicator={indicator} volume={volume} />;
 
   return (
     <div className={cx(styles.region)}>
-      <Band band={band} />
-      <VolumeBand band={volume} />
+      <Indicator indicator={indicator} />
+      <VolumeIndicator indicator={volume} />
     </div>
   );
 });
 
 /**
- * **The band's room, held and invisible, with one sentence over it.**
+ * **The indicator's room, held and invisible, with one sentence over it.**
  *
  * `RelativePerformance`'s `HeldRoom` exactly, including the two-box
  * arrangement: a one-box version — `visibility: hidden` with a `visible`
@@ -158,11 +159,11 @@ export const AbnormalMove = memo(function AbnormalMove({
  * window is empty and no `return` frame can carry a figure.
  */
 function HeldRoom({
-  band,
+  indicator,
   volume,
 }: {
-  readonly band: ReturnBand;
-  readonly volume: VolumeBandView;
+  readonly indicator: ReturnIndicator;
+  readonly volume: VolumeIndicatorView;
 }) {
   const waited = useWaited(true);
 
@@ -170,15 +171,15 @@ function HeldRoom({
     <div className={cx(styles.room)}>
       <div className={cx(styles.reserved)} aria-hidden="true">
         <div className={cx(styles.region)}>
-          <Band band={band} />
+          <Indicator indicator={indicator} />
           {/*
-           * **Both bands are reserved, not one** (Task 5.5.4). The room this
+           * **Both indicators are reserved, not one** (Task 5.5.4). The room this
            * box holds is what the region occupies before any frame arrives, so
-           * a reserve one band short would step the whole lower page the
+           * a reserve one indicator short would step the whole lower page the
            * moment the first frame landed — which is `Movers`' 81 px, one
            * region up, arriving by a different route.
            */}
-          <VolumeBand band={volume} />
+          <VolumeIndicator indicator={volume} />
         </div>
       </div>
       {waited ? (
@@ -189,7 +190,7 @@ function HeldRoom({
 }
 
 /**
- * One band: a micro label, the figure and its percentile, the qualifier, the
+ * One indicator: a micro label, the figure and its percentile, the qualifier, the
  * sample the percentile was taken against, and the tape.
  *
  * **The label's micro properties are SPELLED rather than composed**, which is
@@ -200,10 +201,10 @@ function HeldRoom({
  * figure, which is exactly the content that makes the failure visible — and
  * `a-compose-never-carries-an-override` refuses the shape by name.
  */
-function Band({ band }: { readonly band: ReturnBand }) {
+function Indicator({ indicator }: { readonly indicator: ReturnIndicator }) {
   return (
-    <div className={cx(styles.band)}>
-      <p className={cx(styles.label)}>{band.label}</p>
+    <div className={cx(styles.indicator)}>
+      <p className={cx(styles.label)}>{indicator.label}</p>
 
       {/*
        * **The figure, or a stated word — never a dash.** `—` is `unchanged` in
@@ -213,12 +214,12 @@ function Band({ band }: { readonly band: ReturnBand }) {
        * price palette differs by 1.04:1 in greyscale.
        */}
       <p className={cx(styles.figure)}>
-        {band.move === undefined ? (
-          <span className={cx(styles.absent)}>{band.absent ?? NBSP}</span>
+        {indicator.move === undefined ? (
+          <span className={cx(styles.absent)}>{indicator.absent ?? NBSP}</span>
         ) : (
           <PriceChange
-            change={band.move.change}
-            direction={band.move.direction}
+            change={indicator.move.change}
+            direction={indicator.move.direction}
           />
         )}
 
@@ -234,11 +235,11 @@ function Band({ band }: { readonly band: ReturnBand }) {
          *
          * **`--ink-primary`, never the price palette.** The figure beside it is
          * already tinted and that tint is `PriceChange`'s redundant channel;
-         * a second tinted number in one band is where the 1.04:1 greyscale
+         * a second tinted number in one indicator is where the 1.04:1 greyscale
          * difference becomes two numbers deep. What tells a reader this is not
          * a change is the ordinal suffix, the absent `%` and the word itself.
          */}
-        {band.percentile === undefined ? undefined : (
+        {indicator.percentile === undefined ? undefined : (
           <>
             {/*
              * **A space, for the listener who gets no margin** (Task 5.3.3).
@@ -257,7 +258,9 @@ function Band({ band }: { readonly band: ReturnBand }) {
              * drawn `·`: the region's separator vocabulary is for clauses
              * inside one sentence, and these are two figures.
              */}{" "}
-            <span className={cx(styles.percentile)}>{band.percentile}</span>
+            <span className={cx(styles.percentile)}>
+              {indicator.percentile}
+            </span>
           </>
         )}
       </p>
@@ -274,7 +277,7 @@ function Band({ band }: { readonly band: ReturnBand }) {
        * it: the probe had corrected the reserve to two and the comment was left
        * behind. The CSS was right throughout.)*
        */}
-      <p className={cx(styles.qualifier)}>{band.qualifier ?? NBSP}</p>
+      <p className={cx(styles.qualifier)}>{indicator.qualifier ?? NBSP}</p>
 
       {/*
        * **What the percentile was taken against** — the counted `n`, the span
@@ -287,7 +290,7 @@ function Band({ band }: { readonly band: ReturnBand }) {
        * the bias clause — so a figure read at 09:40 does not step the page
        * under a reader who was looking at one read at 11:00.
        */}
-      <p className={cx(styles.sample)}>{band.sample ?? NBSP}</p>
+      <p className={cx(styles.sample)}>{indicator.sample ?? NBSP}</p>
 
       {/*
        * **Which tape the figure came from** — invariant 6, one short line for
@@ -295,27 +298,27 @@ function Band({ band }: { readonly band: ReturnBand }) {
        * room is kept and the ink is not drawn where there is no figure to
        * attribute.
        */}
-      <p className={cx(styles.tape)}>{band.tape ?? NBSP}</p>
+      <p className={cx(styles.tape)}>{indicator.tape ?? NBSP}</p>
     </div>
   );
 }
 
 /**
- * **The volume band — a multiple, what it was taken against, and the tape**
+ * **The volume indicator — a multiple, what it was taken against, and the tape**
  * (Task 5.5.4).
  *
- * ## A second BAND rather than a third cell on the figure's row
+ * ## A second INDICATOR rather than a third cell on the figure's row
  *
  * Gate 1 decision 3, and the rejected shape is the one that fits: a third cell
  * costs **0 px** and was measured to sit with 23 px of slack at 390. It is
  * wrong anyway — `▲ +0.42%  99th percentile  4.1× typical` under one label
  * reading `5-MINUTE RETURN` asserts that the **return** is 4.1× typical, which
  * is the exact misreading this story exists to prevent. The separator above and
- * the band's own label are what carry the subject change.
+ * the indicator's own label are what carry the subject change.
  *
  * ## It has no qualifier row, and that is the data rather than a choice
  *
- * The return band states two instants because a return is measured **between**
+ * The return indicator states two instants because a return is measured **between**
  * them. This figure is a rate over the same five minutes, and the five minutes
  * are named in the row beneath it — so a second pair of instants would be the
  * same fact drawn twice. A refusal that is about coverage says `2 of 5` in its
@@ -329,10 +332,14 @@ function Band({ band }: { readonly band: ReturnBand }) {
  * `.multiple` composes `dataCell` and states no size, so the figure sits in
  * `.figure`'s metric line box exactly as `PriceChange.change` does.
  */
-function VolumeBand({ band }: { readonly band: VolumeBandView }) {
+function VolumeIndicator({
+  indicator,
+}: {
+  readonly indicator: VolumeIndicatorView;
+}) {
   return (
-    <div className={cx(styles.band, styles.secondBand)}>
-      <p className={cx(styles.label)}>{band.label}</p>
+    <div className={cx(styles.indicator, styles.secondIndicator)}>
+      <p className={cx(styles.label)}>{indicator.label}</p>
 
       {/*
        * **The figure, or a stated sentence — never a dash.** `—` is
@@ -341,20 +348,20 @@ function VolumeBand({ band }: { readonly band: VolumeBandView }) {
        * about our listening (AC 4).
        */}
       <p className={cx(styles.figure)}>
-        {band.multiple === undefined ? (
-          <span className={cx(styles.absent)}>{band.absent ?? NBSP}</span>
+        {indicator.multiple === undefined ? (
+          <span className={cx(styles.absent)}>{indicator.absent ?? NBSP}</span>
         ) : (
           <>
-            <span className={cx(styles.multiple)}>{band.multiple}</span>
+            <span className={cx(styles.multiple)}>{indicator.multiple}</span>
             {/*
              * **A space, for the listener who gets no margin** — the
-             * percentile cell's own note one band up: `textContent` runs two
+             * percentile cell's own note one indicator up: `textContent` runs two
              * sibling spans together, and the gap on screen is a `margin-left`
              * a screen reader cannot see. It costs no layout, because an
              * anonymous flex item holding only white space is not rendered
              * (CSS Flexbox §4).
              */}{" "}
-            <span className={cx(styles.comparand)}>{band.comparand}</span>
+            <span className={cx(styles.comparand)}>{indicator.comparand}</span>
           </>
         )}
       </p>
@@ -367,15 +374,15 @@ function VolumeBand({ band }: { readonly band: VolumeBandView }) {
        * argued: a region whose height depended on which state it was in would
        * step the page under a reader.
        */}
-      <p className={cx(styles.sample)}>{band.sample ?? NBSP}</p>
+      <p className={cx(styles.sample)}>{indicator.sample ?? NBSP}</p>
 
       {/*
        * **Which tapes the two halves came from** — and here they are the
        * **same** tape, which is the whole of Gate 1 decision 1 on screen. The
-       * band above says `baseline on All US exchanges`; invariant 6 wants the
+       * indicator above says `baseline on All US exchanges`; invariant 6 wants the
        * difference displayed rather than implied.
        */}
-      <p className={cx(styles.tape)}>{band.tape ?? NBSP}</p>
+      <p className={cx(styles.tape)}>{indicator.tape ?? NBSP}</p>
     </div>
   );
 }
