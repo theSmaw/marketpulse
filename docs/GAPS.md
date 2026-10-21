@@ -4551,6 +4551,27 @@ has ever taken**.
 second band — `4.1× typical` with its baseline's terms and its tape named — and
 **on every machine that exists it draws a refusal instead.**
 
+**Amended 2026-10-21 by the first deployed nightly pass, and this heading is now
+HALF false — kept, because which half is the useful part.** _Drawn by no
+machine_ still holds for every **gated** machine and will hold permanently: CI
+has zero bars, no provider and no pass. _Drawn by no person_ does **not** hold as
+an impossibility any more. The pass for session 2026-10-20 reports `volume
+buckets — 4 drawable of 39928 with samples, 39924 too few sessions, 0 zero
+volume, 8 empty`, so **4 of 39,936 `(security, 5-minute bucket)` pairs draw the
+figure on the deployment today — 0.010%**, and the pass prints the counts without
+the pairs, so a person meeting one needs a query first. The heading's claim is
+therefore **true of the gates and false of the product**, which is the distinction
+this whole list exists to make.
+
+**And the same pass falsified the sentence below about which refusal dominates**
+— `no same-tape history 0`, because the live writer has stored every security the
+socket carries since 2026-09-23. On the deployment the refusal is
+`too-few-sessions` at **39,924 of 39,928 buckets (99.990%)**;
+`no-same-tape-baseline` is the permanent state of **CI and every laptop only**.
+Both wrong claims were written from the two stores that can reach exactly **one**
+of the six refusals, which is the generalisable error: **a taxonomy cannot be
+ranked from a machine that can only produce one of its members.**
+
 The reasons are three and they compound. **CI and every laptop hold zero `iex`
 rows**, so the pass writes no row at all and every security refuses
 `no-same-tape-baseline`. **The deployed `iex` tape begins 2026-09-23**, so its

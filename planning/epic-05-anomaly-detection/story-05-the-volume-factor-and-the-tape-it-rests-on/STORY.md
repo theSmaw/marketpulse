@@ -52,12 +52,42 @@ the return and the percentile.
 **Corrected 2026-10-20 at the close, because the sentence above reads as though
 a figure draws and on every machine that exists it does not.** What a reader
 meets is the band, its label, its baseline's terms, its tape line, and **one of
-six refusal sentences** — most often `No IEX volume history for this security`.
-That is **correct delivery of the story and not delivery of the promise as
-written**: the promise was falsified by Gate 1 decision 1, which the owner took
-with this consequence in writing. The figure itself has been drawn **only in
-Storybook**, and becomes available on a **date nobody controls** — when the
-same-tape `iex` baseline's counted `n` crosses its floor. Measured against the
+six refusal sentences**. That is **correct delivery of the story and not
+delivery of the promise as written**: the promise was falsified by Gate 1
+decision 1, which the owner took with this consequence in writing.
+
+**Corrected again 2026-10-21, from the first DEPLOYED nightly pass, and it moves
+two claims in opposite directions.** This paragraph said the refusal was _most
+often `No IEX volume history for this security`_ and the figure _drawn only in
+Storybook_. The pass for session 2026-10-20 says:
+
+```
+volume baselines on iex for 2026-10-20 — measured 512, split-refused 4,
+  no same-tape history 0 (no row written)
+volume buckets — 4 drawable of 39928 with samples, 39924 too few sessions,
+  0 zero volume, 8 empty; 2164895 minute samples, target 5% relative SE
+```
+
+**`no-same-tape-baseline` is 0.** Every tracked security has `iex` history,
+because the live writer has been storing every security the socket carries since
+2026-09-23 — so that refusal is the permanent state of **CI and every laptop**
+and reaches **no** reader of the deployed product. The refusal they meet is
+**`too-few-sessions`**, at **39,924 of 39,928 buckets — 99.990%**. And **4
+buckets are drawable**, so the figure is reachable on the deployment today rather
+than only in Storybook: **0.010%** of the time-of-day space, meetable only by
+opening one of four `(security, 5-minute bucket)` pairs. **Nobody has seen one —
+but it is no longer true that nobody can**, which is a different claim and the
+one `LIVE-REHEARSAL.md` row 5.5 now has to make.
+
+`512 × 78 = 39,936` confirms the shape, 78 being the five-minute buckets in a
+390-minute session, with 8 of them empty.
+
+**Why both were wrong is worth more than either figure**: they were written from
+the local and CI stores, which hold **no `iex` tape at all** and can therefore
+reach exactly one of the six refusals. A refusal taxonomy cannot be ranked from a
+machine that can only produce one member of it. The figure still becomes _fully_
+available on a **date nobody controls** — when `n` crosses the floor broadly
+rather than in four buckets. Measured against the
 deployment on 2026-10-20, `NVDA` — the best case in the universe — has **80
 samples** a bucket, **10.65%** relative standard error, and needs **132
 sessions**; on the _better_ tape at _full_ depth **38,448 of 40,248 buckets

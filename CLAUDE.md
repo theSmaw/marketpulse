@@ -494,9 +494,40 @@ that exists it draws a refusal, which is Story 5.5 and is the point rather than 
 shortfall.** `Abnormal-move indicators` gained
 `VOLUME PER MINUTE · 4.1× typical · median minute of 60 sessions · same 5-minute
 bucket · today excluded · Measured on IEX · baseline on IEX` — and what a reader
-meets is one of **six** refusal sentences, most often
-`No IEX volume history for this security`. The figure has been drawn **only in
-Storybook**.
+meets is one of **six** refusal sentences.
+
+**Which refusal, and whether the figure draws at all, were both WRONG here for a
+day — corrected 2026-10-21 from the first deployed nightly pass, which is the
+only machine that can answer either.** This file said _most often `No IEX volume
+history for this security`_ and _drawn only in Storybook_; the pass for session
+2026-10-20 says both are false, in **opposite directions**:
+
+```
+volume baselines on iex for 2026-10-20 — measured 512, split-refused 4,
+  no same-tape history 0 (no row written)
+volume buckets — 4 drawable of 39928 with samples, 39924 too few sessions,
+  0 zero volume, 8 empty; 2164895 minute samples, target 5% relative SE
+```
+
+**`no-same-tape-baseline` is ZERO on the deployment** — every tracked security
+has _some_ `iex` history, because `live-bar-writer.ts` has been running since
+2026-09-23 and writes every security the socket carries. That refusal is the
+permanent state of **CI and every laptop**, where the tape is empty entirely, and
+it is **not** what a reader of the deployed product meets. The refusal they meet
+is **`too-few-sessions`** — `Too little history — 80 IEX minutes at this time of
+day` — at **39,924 of 39,928 buckets (99.990%)**. And **4 buckets ARE drawable**,
+so the figure is reachable on the deployed product rather than only in Storybook:
+0.010% of the time-of-day space, which means a reader meets it only by opening
+one of four `(security, 5-minute bucket)` pairs, so **nobody has seen one yet and
+it is no longer true that nobody can**. The arithmetic confirms the shape:
+**512 × 78 = 39,936** buckets, 78 being the five-minute buckets in a 390-minute
+session, with 8 empty.
+
+**The lesson is this file's own rule arriving on its own content.** Both false
+claims were _predictions_ dressed as descriptions — written from what the local
+and CI stores do, where there is no `iex` tape at all, and the deployment is the
+one store whose `iex` tape is nine days deep. A refusal taxonomy cannot be ranked
+from a machine that can only reach one of its members.
 
 **Why, measured rather than argued, and it is the most consequential measurement
 in this epic.** This repository's coverage figures had always been
