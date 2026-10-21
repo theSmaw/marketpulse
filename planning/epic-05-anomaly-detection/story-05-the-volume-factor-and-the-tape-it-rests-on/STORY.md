@@ -1,13 +1,14 @@
 # Story 5.5 — The Volume Factor, & the Tape It Rests On
 
-**Status:** **Verification complete — 2026-10-20; awaiting Product Owner
-acceptance at Gate 2.** All five tasks merged (#602, #603, #605, #606 and this
-task's PR). Gate 1 taken 2026-10-17. **What the close found rather than what it
-shipped:** AC 3 was recorded met and was not — the same-day sweep reached the
-design document only, leaving the **epic's own exit criterion** carrying the
-wording AC 3 exists to fix; AC 8's `?? 0` rule was violated **three times by
-this story's own code**, once on a median and one of them reachable on the wire;
-and the sideways sweep was **3 of 3 missing**.
+**Status:** **Complete — 2026-10-21.** Accepted by the Product Owner at Gate 2.
+All five tasks merged (#602, #603, #605, #606, #607). Gate 1 taken 2026-10-17.
+**What the close found rather than what it shipped:** AC 3 was recorded met and
+was not — the same-day sweep reached the design document only, leaving the
+**epic's own exit criterion** carrying the wording AC 3 exists to fix; AC 8's
+`?? 0` rule was violated **three times by this story's own code**, once on a
+median and one of them reachable on the wire; and the sideways sweep was **3 of
+3 missing**.
+
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.3
 **Epic scope covered:** intraday volume baseline, volume-ratio calculation
@@ -244,6 +245,19 @@ to find obligations rather than to confirm there are none.
    window** are stated on screen in the figure's own terms, and the baseline is
    a **median** rather than a mean — the one robust choice §11 does make.
 7. A bucket with fewer than a stated floor of sessions is **refused**.
+
+   **Amended 2026-10-21 at the close, on the UNIT rather than the criterion.**
+   The shipped floor is in **samples per bucket**, not sessions:
+   `n ≥ (√(π/2)·CV / target)²`, with `CV` **measured** per bucket and `√(π/2)`
+   computed. The two are not interchangeable — a session contributes one sample
+   to a bucket **only if the venue printed in it**, so on `iex` a 60-session
+   lookback yields 80 samples for `NVDA` and fewer for everything else, and a
+   floor counted in sessions would pass buckets the data cannot support. The
+   refusal sentence states the sample count for the same reason:
+   `Too little history — 80 IEX minutes at this time of day`. The criterion's
+   intent is met; its unit was loose, and this is the correction rather than a
+   change of substance.
+
 8. The same purity, window-on-`startsAt`, and no-`?? 0` rules as every other
    factor.
 
