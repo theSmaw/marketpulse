@@ -33,6 +33,28 @@ export type {
 // them are the same sentence.
 export { VOLUME_REFUSALS } from "./volume-baseline.js";
 export type { VolumeRefusal } from "./volume-baseline.js";
+// The excess-move factor's vocabulary, and the one home for *which fund this
+// security is compared against* (Task 5.6.2). Three lists rather than two,
+// because `inapplicable` is a third kind beside *refused* and *absent* — see
+// the module for why the word is that one.
+export {
+  EXCESS_BASELINE_REFUSALS,
+  EXCESS_FACTOR_REFUSALS,
+  EXCESS_FACTOR_REFUSALS_COVER_THE_STORED_ONES,
+  EXCESS_MOVE_INAPPLICABILITIES,
+  excessMoveReference,
+} from "./excess-move.js";
+export type {
+  ExcessBaselineRefusal,
+  ExcessFactorRefusal,
+  ExcessMoveInapplicability,
+  ExcessMoveReference,
+} from "./excess-move.js";
+// What a move was measured FROM, and whether two of them may be subtracted
+// (Task 5.6.2). **Moved out of `apps/frontend/src/market/` rather than
+// copied** — ADR 0038 decision 2's *one implementation, two processes*, because
+// a scored factor cannot inherit a refusal that lives in a browser.
+export { basisOf, sharedBasis } from "./move-basis.js";
 export {
   DISCONNECTED_AFTER_MS,
   OBSERVATION_INTERVAL_MS,

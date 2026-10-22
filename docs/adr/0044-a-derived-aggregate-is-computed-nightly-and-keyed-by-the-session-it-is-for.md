@@ -287,3 +287,72 @@ worth keeping: that check reads `information_schema.columns.data_type`, which is
 `0013`'s `breakpoints` and `0015`'s three arrays **escape it by their type's
 shape rather than by anybody's leave**. Recorded in `0015` §6 and `schema.ts`
 too, because the next author will reach for the same argument.
+
+## Amended 2026-10-21 by Task 5.6.2 — the SIXTH and SEVENTH tables, and the first where the REFERENCE is in the key
+
+**The decision is unchanged and this one is instantiated rather than extended
+— which is the first time that sentence has been true of it.** Story 5.6's
+composite needs a percentile of the **excess move** (a security's five-minute
+return minus its sector benchmark's), and
+`0016_excess_move_baselines.sql` adds `excess_move_baselines` and
+`excess_move_baseline_passes`, folded into the **same** nightly pass. Nothing
+about the shape is new: derived and recomputable, labelled in three places,
+`observed_at` is the window's end with no default, the companion pass row is
+Task 5.4.5's generalisation in its **third** application.
+
+**One table and not two, and the architect's Gate 1 question is what settled
+it.** That question — _is the session relative move derivable from stored
+closes_ — was answered by reading `last-closes-cache.ts`: `closesAsOf(session)`
+takes the session as an **explicit argument**, reads the `1d` timeframe, and
+both legs are ordinary rows in `market_bars`. So the 60-session distribution is
+the only thing with nowhere to live, and the session-basis excess is computed on
+read. `0014` exists because a **ranking** needs every security's figure at once;
+nothing in Story 5.6.2 ranks.
+
+**The extension is the shape of §3 of
+[0045](0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md) pointed
+at a new target: the REFERENCE is in the key.** `(security_id, observed_at,
+reference_kind, reference_symbol)`, where `0015` put the **tape** there and
+`0013`/`0014` key on the session alone. The argument transfers exactly: Story
+5.6's AC 9 left the reference open between the **capitalisation-weighted sector
+SPDR** and an unweighted **industry peer median**, the owner took the ETF at
+Gate 1 **with the bias stated on screen and nothing having measured it**, so
+the reference is a decision that can flip — and a flip against a
+reference-blind key would rewrite 501 rows' meaning as a silent
+`on conflict do update`. **Two columns rather than one**, both `not null`: the
+_form_ carries the meaning and the _identity within the form_ is a fund's
+ticker today and would be an industry's name under a peer median, which
+`securities.industry` already names.
+
+**A FOURTH kind of answer, and it is deliberately not a row.** This ADR's
+tables have carried three — measured, refused, absent. Fifteen of 516
+securities have **no reference at all**: four market proxies with no sector,
+and eleven sector ETFs that **are** the benchmark. That is `inapplicable`, the
+word `packages/shared/src/excess-move.ts` argues for at length, and it is **not
+stored**: it is a property of the **universe** rather than of a window,
+`securities.kind` and `securities.sector` already carry it, a reader resolves
+it with the one shared `excessMoveReference`, and a stored copy would go stale
+the day a curation changes a security's kind. What the pass records is the
+**count**, so `excess_move_baseline_passes_securities_partition` still
+partitions over four populations.
+
+**Costs, measured rather than projected.** `pnpm migrate` applied `0016` in
+**0.47 / 0.34 / 0.36 s** end to end over three runs on the populated local
+store (48,797,343 bars, 8,442 MB heap) — catalogue writes only, nothing
+touching `market_bars`, `securities` or any earlier derived table, against
+`deploy.yml`'s `timeout 120`. The nightly pass's own cost is in
+`planning/epic-05-anomaly-detection/story-06-the-composite-score-and-its-explanation/TASK-02-the-excess-move-baseline-and-the-factor-in-the-backend.md`,
+measured against a control arm with the leg removed.
+
+**And one finding about this repository's own guards, which closes the one
+`0015`'s amendment left open.** That amendment recorded that
+`migrate.database.test.ts`' _has no floating-point column anywhere_ reads
+`information_schema.columns.data_type` — `ARRAY` for a `double precision[]` —
+so four approximate array columns now sit inside the rule **by their type's
+shape rather than by anybody's leave**. `docs/GAPS.md` set the condition for
+making it mechanical as _the first scalar approximate column somebody wants_.
+What arrived instead was a **fourth array**, and four is enough that the rule's
+silence stops being an oversight and becomes a convention nobody wrote down. The
+check now reads `udt_name`, sees every array, and holds a **named allowlist**
+with a reason beside each column and a non-vacuity guard; the break
+`an-approximate-array-escapes-the-allowlist` proves it.

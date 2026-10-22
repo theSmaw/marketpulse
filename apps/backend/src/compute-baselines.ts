@@ -1,9 +1,15 @@
 import {
   BASELINE_LOOKBACK_SESSIONS,
   BASELINE_MINIMUM_SAMPLE,
+  excessMoveReference,
 } from "@marketpulse/shared";
 
-import type { MarketSession, PercentileRefusal } from "@marketpulse/shared";
+import type {
+  ExcessBaselineRefusal,
+  ExcessMoveReference,
+  MarketSession,
+  PercentileRefusal,
+} from "@marketpulse/shared";
 import { RETURN_SPAN_MINUTES } from "./five-minute-return.js";
 import type { ReturnRefusal } from "./five-minute-return.js";
 
@@ -14,6 +20,7 @@ import {
   SAMPLE_SPAN_MINUTES,
   baselineWindowEndingAt,
   returnBaselineOf,
+  seriesIsDiscontinuous,
 } from "./return-baseline.js";
 import type {
   BaselineWindow,
@@ -46,7 +53,16 @@ import type {
   VolumeBaselineStore,
   VolumeBucketTally,
 } from "./volume-baseline-store.js";
-import { equityTickers } from "./universe.js";
+import { UNIVERSE, equityTickers } from "./universe.js";
+import {
+  EXCESS_REFERENCE_KIND,
+  excessBaselineOf,
+} from "./excess-move-baseline.js";
+import { createExcessBaselineStore } from "./excess-move-baseline-store.js";
+import type {
+  ExcessBaselineStore,
+  ExcessRefusalTally,
+} from "./excess-move-baseline-store.js";
 
 /**
  * **The nightly pass — the one thing in this product that no request path can
@@ -107,6 +123,38 @@ interface PassTally {
   session: SessionTally;
   /** The volume baseline's own figures; see {@link VolumeTally}. */
   volume: VolumeTally;
+  /** The excess-move baseline's own figures; see {@link ExcessTally}. */
+  excess: ExcessTally;
+}
+
+/**
+ * **The excess-move baseline's tally — FOUR security populations that
+ * partition, and the refused one's breakdown** (Task 5.6.2).
+ *
+ * `VolumeTally`'s three-way partition with a fourth member, and the fourth is
+ * the one worth a note: `inapplicable` is not a refusal and not an absence.
+ * Fifteen of 516 securities have no sector benchmark at all — four market
+ * proxies with no sector and eleven sector ETFs that **are** the benchmark —
+ * and no amount of backfilling will ever produce a figure for them.
+ * `excess_move_baseline_passes_securities_partition` holds the arithmetic in
+ * the database.
+ *
+ * `smallestSample` and `largestSample` are **measurement** rather than
+ * product: Task 5.6.3's band boundaries are derived from the distribution this
+ * pass reports rather than guessed, and the thing that bounds it is `n`.
+ * Neither is stored — the per-security `n` is, in every row.
+ */
+interface ExcessTally {
+  tracked: number;
+  measured: number;
+  inapplicable: number;
+  /** No grid pair present on both legs — **no row written**. */
+  absent: number;
+  refusals: ExcessRefusalTally;
+  samples: number;
+  /** The least and the greatest `n` a measured security reached. */
+  smallestSample: number;
+  largestSample: number;
 }
 
 /**
@@ -170,6 +218,17 @@ const noSessionTally = (): SessionTally => ({
   },
 });
 
+const noExcessTally = (): ExcessTally => ({
+  tracked: 0,
+  measured: 0,
+  inapplicable: 0,
+  absent: 0,
+  refusals: { splitDiscontinuity: 0, referenceSplitDiscontinuity: 0 },
+  samples: 0,
+  smallestSample: Number.POSITIVE_INFINITY,
+  largestSample: 0,
+});
+
 const noVolumeTally = (): VolumeTally => ({
   tracked: 0,
   measured: 0,
@@ -215,6 +274,12 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   // and it is the one place that spells `feed = 'iex'`. One pool, because this
   // is one process doing one pass.
   const volumes = createVolumeBaselineStore(pool);
+  // **The fourth store, on the same pool**, for the same recorded reason: its
+  // writes are of a different thing, and this is one process doing one pass.
+  // Note what it does NOT have — a read of `market_bars`. Both legs of the
+  // excess go through `ReturnBaselineStore.readWindowCloses`, the one query
+  // object `EXPLAIN` has been taken of; see that module's header.
+  const excess = createExcessBaselineStore(pool);
 
   const lines: string[] = [];
   const errors: string[] = [];
@@ -251,7 +316,14 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
       `window ${window.range.start.toISOString()} … ${window.range.end.toISOString()}`,
     );
 
-    const tally = await runPass(store, sessions, volumes, subjects, window);
+    const tally = await runPass(
+      store,
+      sessions,
+      volumes,
+      excess,
+      subjects,
+      window,
+    );
 
     lines.push(
       `measured ${String(tally.measured)}, ` +
@@ -282,6 +354,29 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
         `${String(tally.volume.buckets.empty)} empty; ` +
         `${String(tally.volume.samples)} minute samples, target ` +
         `${String(TARGET_RELATIVE_STANDARD_ERROR * 100)}% relative SE`,
+      // **The excess-move baseline's two lines.** The first is the security
+      // partition — four populations that sum to `tracked`, which the database
+      // refuses a row that violates — and the second is the depth, because
+      // Task 5.6.3's band boundaries are derived from this distribution rather
+      // than guessed and `n` is what bounds it.
+      `excess-move baselines vs ${EXCESS_REFERENCE_KIND} for ` +
+        `${window.asOfSession} — measured ${String(tally.excess.measured)}, ` +
+        `refused ${String(tally.excess.refusals.splitDiscontinuity)} own + ` +
+        `${String(tally.excess.refusals.referenceSplitDiscontinuity)} reference, ` +
+        `inapplicable ${String(tally.excess.inapplicable)} (no reference at all), ` +
+        `no pairs ${String(tally.excess.absent)} (no row written)`,
+      `excess samples — ${String(tally.excess.samples)} total, ` +
+        `${
+          tally.excess.measured === 0
+            ? "—"
+            : String(Math.round(tally.excess.samples / tally.excess.measured))
+        } mean n, ` +
+        `${
+          tally.excess.measured === 0
+            ? "—"
+            : String(tally.excess.smallestSample)
+        } min, ` +
+        `${String(tally.excess.largestSample)} max, against a minimum of ${String(BASELINE_MINIMUM_SAMPLE)}`,
     );
 
     return { exitCode: 0, lines, errors };
@@ -299,6 +394,7 @@ async function runPass(
   store: ReturnBaselineStore,
   sessions: SessionPercentileStore,
   volumes: VolumeBaselineStore,
+  excess: ExcessBaselineStore,
   subjects: readonly BaselineSubject[],
   window: BaselineWindow,
 ): Promise<PassTally> {
@@ -309,6 +405,7 @@ async function runPass(
     samples: 0,
     session: noSessionTally(),
     volume: noVolumeTally(),
+    excess: noExcessTally(),
   };
 
   // **The equities, by the same positive-membership selection breadth and the
@@ -318,6 +415,69 @@ async function runPass(
   // `Sector performance` non-independent, which is AC 13 and is the same
   // argument `index.ts` makes for the live path.
   const isEquity = new Set<string>(equityTickers());
+
+  // **Which fund each security is compared against, asked once per security
+  // through the one shared resolver** — `excessMoveReference`, which the drawn
+  // region's `figuresOf` reads as well, so the two processes cannot disagree
+  // about the benchmark.
+  //
+  // It is keyed off the **curated universe** rather than off a second database
+  // read, which is `isEquity`'s own precedent two lines above: `kind` and
+  // `sector` are curated facts, `pnpm universe` converges the store on this
+  // file, and `deploy.yml` loads it before either half of the code rolls. A
+  // symbol the store holds and this file does not describe therefore has no
+  // resolvable reference at all and is counted **absent** rather than
+  // inapplicable — *we could not reach it*, which a universe load repairs,
+  // against *the question does not arise*, which nothing repairs.
+  const referenceOf = new Map(
+    UNIVERSE.map((security) => [
+      security.symbol,
+      excessMoveReference(security),
+    ]),
+  );
+
+  // **The eleven benchmarks' windows, read ONCE.**
+  //
+  // 501 equities are differenced against 11 funds, so reading the reference
+  // inside the loop would be 501 reads of eleven windows — `538 correlated
+  // blocks` apiece (`return-baseline-store.ts`' measurement) for an answer
+  // already in hand. Read up front it is **527 series reads** for the whole
+  // pass rather than 1,032, which is 2% more I/O than the price pass alone
+  // rather than 96% more.
+  //
+  // The resident set is the stated cost: eleven windows of ~24,000 closes, a
+  // few tens of megabytes, held for the pass's duration. It runs on a GitHub
+  // runner and not in the 0.25 vCPU container — this module's header — and
+  // eleven is a constant rather than a fraction of the universe, so it does
+  // not grow with the roster.
+  //
+  // **Each fund's split verdict is computed here too**, once, for the same
+  // reason: `seriesIsDiscontinuous` over eleven series rather than over 501
+  // copies of eleven answers. A benchmark that crosses a price break refuses
+  // every one of its constituents, which is the honest answer and is a
+  // different sentence from the constituent's own break.
+  const benchmarks = new Map<
+    string,
+    { closes: ReadonlyMap<number, number>; discontinuous: boolean }
+  >();
+
+  for (const reference of referenceOf.values()) {
+    if (!reference.applies) continue;
+    if (benchmarks.has(reference.symbol)) continue;
+
+    const fund = await store.subjectFor(reference.symbol);
+    if (fund === undefined) {
+      // The store has never heard of this fund. Its constituents are counted
+      // absent below, which is the truth: no row, and a universe load fixes it.
+      continue;
+    }
+
+    const closes = await store.readWindowCloses(fund, window.range);
+    benchmarks.set(reference.symbol, {
+      closes,
+      discontinuous: seriesIsDiscontinuous(window.sessions, closes),
+    });
+  }
 
   // The last session of the window **is** the session being scored, and
   // `window.observedAt` is its close — `baselineWindowEndingAt` derives both
@@ -375,6 +535,25 @@ async function runPass(
       outcome,
       tally.volume,
     );
+
+    // **The excess-move baseline, in this same iteration** (Task 5.6.2), and
+    // for the same reason as the volume one: `closes` is already in hand and
+    // the benchmark's window is already resident, so this costs **no I/O at
+    // all** — it is a second walk over bars that have already been read.
+    //
+    // **Over all 516 and not only the equities**, which is the volume
+    // baseline's call rather than the session ranking's: the fifteen proxies
+    // have security pages too, and the four of them with no sector and the
+    // eleven that are their own benchmark are `inapplicable` rather than
+    // excluded — a security the pass skipped silently and a security the
+    // question does not arise for are different facts, and only the second is
+    // something a surface can say.
+    await computeExcessBaseline(excess, subject, window, outcome, {
+      closes,
+      reference: referenceOf.get(subject.symbol),
+      benchmarks,
+      tally: tally.excess,
+    });
   }
 
   // **Written last and outside a transaction**, which is the session pass
@@ -384,6 +563,29 @@ async function runPass(
   // `volume_baseline_passes_securities_partition` refuses it. That is the
   // intended behaviour rather than a hazard: no pass row at all is the
   // readable state, exactly as it is one table over.
+  // **Written last and outside a transaction**, which is the arrangement both
+  // pass rows beside it already have, and the four populations **partition** —
+  // so a pass that died mid-loop writes a row whose counts do not sum and
+  // `excess_move_baseline_passes_securities_partition` refuses it. No pass row
+  // at all is the readable state.
+  await excess.writePass(window.observedAt, {
+    tracked: tally.excess.tracked,
+    measured: tally.excess.measured,
+    inapplicable: tally.excess.inapplicable,
+    absent: tally.excess.absent,
+    refusals: tally.excess.refusals,
+    parameters: {
+      referenceKind: EXCESS_REFERENCE_KIND,
+      lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+      // Read from the producers that own them rather than spelled — the stride
+      // is the sampler's, the tape is the store's own `where`, and the bound is
+      // the one the reader applies. What is stored is what this pass applied.
+      spanMinutes: SAMPLE_SPAN_MINUTES,
+      feed: BASELINE_FEED,
+      minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+    },
+  });
+
   await volumes.writePass(window.observedAt, {
     tracked: tally.volume.tracked,
     measured: tally.volume.measured,
@@ -525,6 +727,138 @@ async function computeVolumeBaseline(
     } else tally.buckets.tooFewSessions += 1;
   }
 }
+
+/**
+ * **One security's excess-move baseline, against its sector benchmark — or the
+ * reason there is not one** (Task 5.6.2).
+ *
+ * ## The split verdict is READ on one leg and COMPUTED on the other
+ *
+ * `outcome` is the price generation this pass computed for the **same**
+ * `(security, window end)` a few lines above, so the subject's verdict travels
+ * by being in hand — `computeVolumeBaseline`'s arrangement and `0014` §5's
+ * *the generation is identified rather than copied*. It is the same guard over
+ * the same closes, so a second evaluation would be a second answer rather than
+ * a corroboration.
+ *
+ * The **benchmark's** verdict cannot arrive that way: the loop is ordered by
+ * symbol, so `XLK` is reached after `AAPL` and before `ZTS`, and a constituent
+ * cannot read a verdict the pass has not computed yet. It is computed up front,
+ * once per fund, in the prologue above.
+ *
+ * ## What it cannot see, said rather than left to be noticed
+ *
+ * A benchmark the **store** has never heard of leaves its constituents counted
+ * `absent`, which is the same bound `computeVolumeBaseline` states for its own
+ * verdict: it is a bound on the guard rather than a hole in the pass, and
+ * nothing cheaper closes it. On CI's store — 516 securities and **zero bars** —
+ * every fund resolves and every window is empty, so every security is `absent`
+ * for ever and no row is written at all.
+ */
+async function computeExcessBaseline(
+  excess: ExcessBaselineStore,
+  subject: BaselineSubject,
+  window: BaselineWindow,
+  outcome: ReturnBaselineOutcome,
+  pass: {
+    closes: ReadonlyMap<number, number>;
+    reference: ExcessMoveReference | undefined;
+    benchmarks: ReadonlyMap<
+      string,
+      { closes: ReadonlyMap<number, number>; discontinuous: boolean }
+    >;
+    tally: ExcessTally;
+  },
+): Promise<void> {
+  const { closes, reference, benchmarks, tally } = pass;
+
+  tally.tracked += 1;
+
+  // **A security the curated file does not describe is ABSENT, not
+  // inapplicable** — see the prologue's note. The two are different facts and
+  // only one of them is repaired by `pnpm universe`.
+  if (reference === undefined) {
+    tally.absent += 1;
+    return;
+  }
+
+  if (!reference.applies) {
+    // **No row, and it is not the absence of one either** — `0016` §4. The
+    // fact lives in `securities.kind` and `securities.sector`, which a reader
+    // resolves with the same `excessMoveReference` this pass used; a stored
+    // copy would be a second home for it and would go stale the day a
+    // curation changes a security's kind.
+    tally.inapplicable += 1;
+    return;
+  }
+
+  const benchmark = benchmarks.get(reference.symbol);
+  if (benchmark === undefined) {
+    tally.absent += 1;
+    return;
+  }
+
+  const excessOutcome = excessBaselineOf({
+    sessions: window.sessions,
+    closes,
+    referenceCloses: benchmark.closes,
+    priceRefusal: outcome.kind === "refused" ? outcome.refusal : null,
+    referenceDiscontinuous: benchmark.discontinuous,
+  });
+
+  if (excessOutcome.kind === "none") {
+    tally.absent += 1;
+    return;
+  }
+
+  await excess.writeBaseline(
+    subject,
+    window.observedAt,
+    { kind: EXCESS_REFERENCE_KIND, symbol: reference.symbol },
+    {
+      referenceKind: EXCESS_REFERENCE_KIND,
+      lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+      spanMinutes: SAMPLE_SPAN_MINUTES,
+      feed: BASELINE_FEED,
+      minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+    },
+    excessOutcome,
+  );
+
+  tally.samples += excessOutcome.sampleCount;
+
+  if (excessOutcome.kind === "refused") {
+    tally.refusals[EXCESS_REFUSAL_FIELD[excessOutcome.refusal]] += 1;
+    return;
+  }
+
+  tally.measured += 1;
+  tally.smallestSample = Math.min(
+    tally.smallestSample,
+    excessOutcome.sampleCount,
+  );
+  tally.largestSample = Math.max(
+    tally.largestSample,
+    excessOutcome.sampleCount,
+  );
+}
+
+/**
+ * **The two stored refusal words, mapped to the columns that count them** — a
+ * `Record` over the closed union, so a third member of
+ * `EXCESS_BASELINE_REFUSALS` is a **compile error here** rather than a refusal
+ * that silently stops being counted and quietly breaks the partition
+ * `excess_move_baseline_passes_securities_partition` holds.
+ *
+ * `FIGURE_REFUSAL_FIELD`'s mechanism, two tables over.
+ */
+const EXCESS_REFUSAL_FIELD: Record<
+  ExcessBaselineRefusal,
+  keyof ExcessRefusalTally
+> = {
+  "split-discontinuity": "splitDiscontinuity",
+  "reference-split-discontinuity": "referenceSplitDiscontinuity",
+};
 
 /**
  * **One security's closing move, ranked against the generation this pass just

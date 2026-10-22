@@ -22,6 +22,20 @@
  * condition — *the first consumer of the move half that is in neither the
  * sector region nor the movers region.*
  *
+ * **The trigger FIRED on 2026-10-21 and the file was not split, deliberately**
+ * (Task 5.6.2). `apps/backend/src/excess-move-factor.ts` reads
+ * {@link moveRankingKey} from the **backend**, which is as far outside both
+ * regions as a consumer can get. Two things were done instead of a split.
+ * `basisOf` and `sharedBasis` — which were in `apps/frontend/src/market/` and
+ * had to move for the same reason — went to `move-basis.ts` rather than being
+ * added here, so this file did not grow a fifth member while its own trigger
+ * was pending. And it is recorded that the trigger was arguably already past:
+ * `fitSectorLadder` in `sector-ladder.ts` has consumed `moveRankingKey` from
+ * outside both regions since Story 4.3 and nobody noticed. **The condition is
+ * therefore replaced rather than kept**, because one written against something
+ * that has already happened will never fire again: *the first change that needs
+ * a new export in this file, at which point split it.*
+ *
  * ## Why it is here and not in the browser that draws the list
  *
  * Story 4.5 ranks a top-N over 518 securities **server-side**, because a
