@@ -155,6 +155,42 @@ export {
   selectByPercentile,
 } from "./percentile-ranking.js";
 export type { PercentileRanked } from "./percentile-ranking.js";
+// The composite score, its explanation and the band floors (Task 5.6.3). It is
+// in this package because `eslint.config.mjs` scopes the four clock rules to
+// `packages/shared/src/**`, which makes AC 12's *reads no clock, socket or
+// handle* a lint error rather than a reading. The brand is NOT exported and
+// there is no constructor: a clause is mintable only in `composite-score.ts`.
+export {
+  ANOMALY_BAND_FLOORS,
+  BAND_FLOORS_COVER_THE_BANDS,
+  COMPOSITE_FACTORS,
+  FACTOR_WEIGHTS,
+  bandOf,
+  readAnomalyScore,
+  scoreAnomaly,
+  toWireAnomalyScore,
+} from "./composite-score.js";
+export type {
+  AbsentClause,
+  AnomalyOutcome,
+  AnomalyScore,
+  CompositeFactor,
+  FactorAnswer,
+  FactorClause,
+  FactorRefusal,
+  UnscoredAnomaly,
+  WireAbsentClause,
+  WireAnomalyOutcome,
+  WireAnomalyScore,
+  WireFactorClause,
+  WireUnscoredAnomaly,
+} from "./composite-score.js";
+// The composite score's order — a THIRD sibling of `sector-ranking.ts` and
+// `percentile-ranking.ts` rather than a widening of either, because neither
+// existing guard's pattern can see `a.score - b.score`.
+// `one-comparator-for-the-order-of-a-composite-score` holds it to one home.
+export { compareByScore, isRankedByScore } from "./score-ranking.js";
+export type { ScoreRanked } from "./score-ranking.js";
 export { asInstant, asIs, toWire } from "./wire-serialiser.js";
 export type { JsonValue, WireFields } from "./wire-serialiser.js";
 // What a security IS in this product, and every vocabulary that describes one

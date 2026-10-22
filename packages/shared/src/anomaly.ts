@@ -14,10 +14,27 @@
  * not opportunity, and not direction. `extreme` says the behaviour is far from
  * this security's own history; it says nothing about whether that is good.
  *
- * Deliberately **not** here: the score-to-band boundaries. Where `elevated`
+ * ~~Deliberately **not** here: the score-to-band boundaries. Where `elevated`
  * ends and `high` begins is detection policy, it belongs to Epic 5 with the
  * rest of the scoring model, and inventing thresholds now would be a number
- * that outlives the guess that produced it.
+ * that outlives the guess that produced it.~~
+ *
+ * **Amended 2026-10-22 by Task 5.6.3 — the deferral held, and it was right.**
+ * The boundaries exist now, in `composite-score.ts`' `ANOMALY_BAND_FLOORS`, and
+ * they are **not** a guess: each is a measured quantile of this product's own
+ * score distribution — `elevated` the p50, `high` the p90, `extreme` the p99 of
+ * **34,318 two-factor scores** taken over the local store, every S&P-500
+ * constituent with both baselines at every one of the 77 five-minute grid pairs
+ * of one session. The clause above was worth four stories of waiting: the
+ * obvious set, chosen by argument, would have put `extreme` where the
+ * measurement puts the 65th percentile of an ordinary session.
+ *
+ * **They are not here, and the split is the same one `BASELINE_MINIMUM_SAMPLE`
+ * made.** This module holds the band **words**, which are domain vocabulary
+ * both sides of the wire share; the floors are **presentation policy over a
+ * score** and they live beside the arithmetic that produces it, so changing one
+ * is a deploy rather than a change to the vocabulary. A reader holding a band
+ * word needs no floor to draw it.
  *
  * **The third band was `unusual` until 2026-10-13 (Story 5.1, decision 6).**
  * Two reasons, and the second is the one that forced it. `Unusual activity` is

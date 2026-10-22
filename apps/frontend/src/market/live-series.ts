@@ -121,7 +121,20 @@ export function withLiveBars(
     .sort(([a], [b]) => a - b)
     .map(([, bar]) => bar);
 
-  const lastAt = bars[bars.length - 1]?.startsAt.getTime() ?? 0;
+  const newest = bars[bars.length - 1];
+  if (newest === undefined) {
+    // **`?? 0` was here until 2026-10-22 (Task 5.6.3).** `bars` is non-empty on
+    // this path — `changed` is only true once an entry has been written — so
+    // this is unreachable. What the `?? 0` did if it ever fired was hand
+    // `coveredThrough` an instant in **1970**, which is a coverage edge drawn
+    // from the epoch: a wrong figure with no symptom, which is why
+    // `no-imputed-zero-in-a-figure` forbids the shape rather than only the
+    // reachable cases. Returning the series unchanged is the honest answer:
+    // nothing was added that this function can date.
+    return series;
+  }
+
+  const lastAt = newest.startsAt.getTime();
   const interval = series.timeframe === "1m" ? MINUTE_MS : 0;
 
   return toBarSeries({

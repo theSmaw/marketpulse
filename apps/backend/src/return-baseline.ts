@@ -486,8 +486,23 @@ export function breakpointsOf(samples: readonly number[]): readonly number[] {
     const position = (rank / (BASELINE_BREAKPOINT_COUNT - 1)) * last;
     const lower = Math.floor(position);
     const upper = Math.min(lower + 1, last);
-    const low = sorted[lower] ?? 0;
-    const high = sorted[upper] ?? low;
+    const low = sorted[lower];
+    const high = sorted[upper];
+    if (low === undefined || high === undefined) {
+      // **`?? 0` was here until 2026-10-22 (Task 5.6.3) and it was the exact
+      // shape `no-imputed-zero-in-a-figure` now forbids.** Both indices are in
+      // range by the three lines above — `sorted` is non-empty, `position` is
+      // in `[0, last]` and `upper` is clamped — so this arm is unreachable.
+      // What a `?? 0` did if it ever fired was put a magnitude of **zero**
+      // into a breakpoint, which is a drawn percentile pulled far too low with
+      // no symptom anywhere: Story 5.5's own `?? 0` defect, on a median, one
+      // factor over. A throw is loud; a zero is a wrong number nobody sees.
+      throw new RangeError(
+        `breakpointsOf reached index ${String(lower)}/${String(upper)} of a ` +
+          `${String(sorted.length)}-sample array, which its own bounds make ` +
+          "impossible.",
+      );
+    }
 
     breakpoints.push(low + (high - low) * (position - lower));
   }
