@@ -4,7 +4,10 @@ import {
   SECTOR_LABELS,
   changeFromClose,
   changePercent,
+  excessMoveReference,
+  sharedBasis,
   type Bar,
+  type ExcessMoveInapplicability,
   type Security,
   type SecurityLastClose,
   type WireMarketOverview,
@@ -35,8 +38,10 @@ import {
 //
 // ## Which field a move lives in is asked, never spelled
 //
-// `moveOf` and `basisOf` are `sector-performance.ts`'s, through
-// `moveRankingKey` in `packages/shared`. **The subject is read as a wire figure
+// `moveOf` is `sector-performance.ts`'s, through `moveRankingKey` in
+// `packages/shared`; `basisOf` is `packages/shared`'s own since Task 5.6.2 and
+// is re-exported from that file, because the backend's scored factor had to
+// inherit the same answer. **The subject is read as a wire figure
 // for exactly that reason**: a local shape would have needed its own answer to
 // *which field this state's move lives in* and its own answer to *what was it
 // measured from*, which is two second homes for one question each. The subject
@@ -228,6 +233,18 @@ const NO_SECTOR = "A broad-market fund has no sector";
 /** A `sector_etf` **is** the benchmark, so the comparison is with itself. */
 const IS_BENCHMARK = "This security is its sector’s benchmark";
 
+/**
+ * The two shipped sentences, keyed on the shared vocabulary.
+ *
+ * **A `Record` over the closed union rather than two `if`s**, so a third
+ * `ExcessMoveInapplicability` is a compile error here rather than a region that
+ * silently draws nothing where it used to say why.
+ */
+const INAPPLICABLE_BECAUSE: Record<ExcessMoveInapplicability, string> = {
+  "no-sector": NO_SECTOR,
+  "is-benchmark": IS_BENCHMARK,
+};
+
 /** What the subject's row is called. The ticker is beside it. */
 const SUBJECT_LABEL = "This security";
 
@@ -347,66 +364,60 @@ function figuresOf(
   const market = figureFor(overview?.figures, BROAD_MARKET);
   const { security } = subject;
 
-  if (security.kind === "index_etf") {
+  // **Which fund this security is compared against is ASKED, never branched on
+  // here** — `excessMoveReference` in `packages/shared`, since Task 5.6.2. The
+  // branch used to live in this function and had to be read by the backend's
+  // scorer as well; two copies of it would be a security measured against the
+  // wrong fund on one surface only. What stays here is the **sentences**, which
+  // are this region's prose and nothing else's.
+  const reference = excessMoveReference(security);
+
+  if (!reference.applies) {
     return {
       subject: subjectFigure(subject),
       sector: undefined,
       market,
-      benchmark: undefined,
-      withoutSector: NO_SECTOR,
-    };
-  }
-
-  const benchmark = {
-    symbol: SECTOR_ETFS[security.sector],
-    label: SECTOR_LABELS[security.sector],
-  };
-
-  if (security.kind === "sector_etf") {
-    return {
-      subject: subjectFigure(subject),
-      sector: undefined,
-      market,
-      benchmark,
-      withoutSector: IS_BENCHMARK,
+      // A `sector_etf` names the benchmark it IS; an `index_etf` has none to
+      // name, and the held row's label falls back to the generic noun. **The
+      // discriminant is read rather than inferred from `because`** — the two
+      // agree, but only `security.kind` narrows `sector` away from `null`, and
+      // a cast here would be the compiler being told something instead of
+      // shown it.
+      benchmark:
+        security.kind === "sector_etf"
+          ? {
+              symbol: SECTOR_ETFS[security.sector],
+              label: SECTOR_LABELS[security.sector],
+            }
+          : undefined,
+      withoutSector: INAPPLICABLE_BECAUSE[reference.because],
     };
   }
 
   return {
     subject: subjectFigure(subject),
-    sector: figureFor(overview?.sectors, benchmark.symbol),
+    sector: figureFor(overview?.sectors, reference.symbol),
     market,
-    benchmark,
+    benchmark: {
+      symbol: reference.symbol,
+      label: SECTOR_LABELS[reference.sector],
+    },
     withoutSector: undefined,
   };
 }
 
 /**
- * **Whether two moves may be subtracted** — the predicate this task exists for.
+ * **Whether two moves may be subtracted** — the predicate Story 5.1 exists for.
  *
- * Two moves are comparable iff they are the **same kind of move measured from
- * the same close**, which `basisOf` already encodes as one identity string:
- * `observed:<the named close, or empty>` and `stored:<session>`. So there are
- * exactly four outcomes and three of them are refusals:
- *
- *   - both `observed` and the basis agrees — comparable;
- *   - both `observed` and the basis disagrees — refused, two different closes;
- *   - both `stored` and the session agrees — comparable; disagrees — refused;
- *   - **one of each — refused.** The prefix is what carries this, and it is why
- *     the identity is a string with a kind in it rather than a bare date.
- *
- * `undefined` on either side is a figure with no move at all, which is refused
- * for a different reason and is not a basis disagreement — hence the explicit
- * guard rather than `a === b`, which would read two keyless figures as a
- * comparable pair.
+ * **Re-exported rather than declared, since Task 5.6.2.** The implementation
+ * and the whole of its argument moved to `packages/shared/src/move-basis.ts`
+ * the day the **scored** factor had to inherit this refusal rather than
+ * re-derive it: a factor that silently scored a mixed-basis difference would
+ * produce a well-formed, correctly-coloured number that is wrong in exactly the
+ * way this region declined to be. ADR 0038 decision 2 — one implementation, two
+ * processes — and `src/market/index.ts` goes on exporting it from here.
  */
-export function sharedBasis(
-  left: string | undefined,
-  right: string | undefined,
-): boolean {
-  if (left === undefined || right === undefined) return false;
-  return left === right;
-}
+export { sharedBasis };
 
 /** Where a move's mark sits across the track, `0` to `100`. */
 function positionOf(move: SectorMove, step: RelativeRung): number {

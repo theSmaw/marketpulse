@@ -83,6 +83,46 @@ pays for most of the chip.
   and the fourth consecutive non-firing is evidence the wording works. Say so in
   writing.
 
+## Amended by Task 5.6.2 — 2026-10-22: Epic 14's per-batch re-take is YOURS, deferred here deliberately
+
+**Epic 14's backend condition fired once already** (Task 5.4.2: **0.474–0.509 ms
+p50 a batch**, **946–1,015 ns a security**, 2.8× the breadth-plus-movers work),
+and `planning/epic-14-performance-scale-validation/EPIC.md` asks the next story
+that changes the per-batch path on `/` to **"re-take the whole arm with a control
+rather than add another term to an estimate."**
+
+**Task 5.6.2 changed that path and did NOT take the arm.** That is a decision, not
+an omission: 5.6.2 added the excess-move factor to the producer, and **this** task
+re-ranks the region on top of it, so measuring at 5.6.2 would have priced an
+intermediate state that never ships and would have had to be re-taken here
+anyway. **Take it once, here, over the whole arm.**
+
+Rules that are not optional, each of them somebody's measured defect:
+
+- **the calibrator in its OWN loop** — an in-loop calibrator read 1.07–1.25 ms
+  standing alone and **8.1–8.3 ms** sampled inside the subject's loop, a
+  reproducible **7.2×** artefact that discarded 321–400 of 400 samples and cost
+  two complete runs;
+- **arms rotated and interleaved**, not blocked — blocked arms drifted 0.2 ms;
+- **the load average read BEFORE the run, never during** — a full `pnpm e2e`
+  begun at 5.31 left the machine at 31.04, so **the suite is its own plant**.
+  Task 5.6.2 lost an hour to a machine at load **244** driven by unrelated
+  applications, and every figure it reports was taken after it settled;
+- **report the total, never a subtraction** — the 1.521 ms reference has not been
+  re-taken since Task 4.8.11's repair and three downstream products are still
+  pre-repair;
+- **the _tight-loop upper bound_ caveat on every Node figure and NOT on browser
+  ones** — the calibrator reads ×1.00 in a browser and does not divide out in
+  Node.
+
+**And one caveat that is new to this epic and points both ways at once.** Every
+previous backend arm was an **upper** bound, because a tight loop inflates. Here
+the **volume factor refuses on every machine that exists** — `no same-tape
+history 516` on this store, measured by 5.6.2's own pass run — so a composite
+measured locally is a **two-of-three** composite and the figure is simultaneously
+a **lower** bound on the deployed cost. State both; do not let a reader take it
+as either alone.
+
 ## Done when
 
 1. The row draws the score and a compact chip that keeps the written name; probed

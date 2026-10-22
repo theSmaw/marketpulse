@@ -1,6 +1,7 @@
 import {
   SECTORS,
   SECTOR_LABELS,
+  basisOf,
   sectorOfEtf,
   moveRankingKey,
   type Bar,
@@ -610,21 +611,15 @@ export function moveOf(figure: WireOverviewFigure): SectorMove | undefined {
  * sector row's, so the hold at two lists (Task 4.5.7) inherits the rule rather
  * than re-deciding it.
  *
- * **It is derived from the same two members `moveOf` reads**, which is what
- * makes it unable to disagree with the figure: the state decides which field
- * carries the move, and the session decides what the move is measured from. A
- * third thing to keep in step would be a third thing to get wrong.
+ * **Re-exported rather than declared, since Task 5.6.2.** The implementation
+ * moved to `packages/shared/src/move-basis.ts` the day a **scored** factor had
+ * to inherit the same rule — ADR 0038 decision 2's *one implementation, two
+ * processes*, which is also why this line is a re-export and not a second
+ * function: every reader in `src/market/` goes on importing it from here, and
+ * the backend and the browser cannot end up with two answers to *what was this
+ * measured from*.
  */
-export function basisOf(figure: WireOverviewFigure): string | undefined {
-  if (figure.state === "observed") {
-    // `changeBasis` is **omitted** on the same-session case, which is a real
-    // value rather than a gap (`LiveChange.basis`) — so the empty string here
-    // stands for *the previous close, unnamed* and is still a basis this row
-    // shares with every other row measuring from it.
-    return `observed:${figure.changeBasis ?? ""}`;
-  }
-  return figure.state === "stored" ? `stored:${figure.session}` : undefined;
-}
+export { basisOf };
 
 /**
  * The rows in a **held** order: the one the list already had, with the figures

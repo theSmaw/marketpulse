@@ -5475,4 +5475,42 @@ export const BREAKS = [
     expect: "so a drawn IEX multiple is fabricated",
     build: true,
   },
+  // ## Task 5.6.2's, on a rule that had no exemption mechanism and no eyes
+  //
+  // `docs/GAPS.md` recorded this one as a blind spot found by walking into it:
+  // *has no floating-point column anywhere* reads
+  // `information_schema.columns.data_type`, which returns **`ARRAY`** for a
+  // `double precision[]`, so three approximate array columns sat inside the
+  // rule **by their type's shape rather than by anybody's leave**. The fourth
+  // arriving is what made it worth closing.
+  //
+  // The plant is the defect the next author writes rather than the one this
+  // task wrote: not deleting the allowlist, but adding a column and not the
+  // line. It **keeps the found line and appends beside it**, so the registry's
+  // own `find` survives its own break — the repair `CLAUDE.md` records
+  // after two entries went red twice from neither the check nor the plant.
+  {
+    name: "an-approximate-array-escapes-the-allowlist",
+    proves:
+      "A migration gains a `double precision[]` column and nobody adds it to " +
+      "the stated exemption list. Before 2026-10-21 the rule forbidding " +
+      "floating-point columns could not see it at all — `data_type` says " +
+      "`ARRAY` whatever the element type — so the column shipped past a " +
+      "check that would have refused the same type as a scalar, and the next " +
+      "author would reasonably believe the rule permits it.",
+    file: "apps/backend/migrations/0016_excess_move_baselines.sql",
+    find: "    breakpoints double precision[],",
+    replace:
+      "    breakpoints double precision[],\n" +
+      "    -- pnpm break: reverted automatically\n" +
+      "    breakpoints_smoothed double precision[],",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test:database",
+      "src/migrate.database.test.ts",
+    ],
+    expect: "APPROXIMATE ARRAY column outside the stated allowlist",
+  },
 ];

@@ -378,6 +378,62 @@ export function returnBaselineOf(
 }
 
 /**
+ * **Does this series cross a session boundary beyond the split ceiling?** —
+ * the same guard {@link baselineSamples} runs, asked of a series on its own
+ * (Task 5.6.2).
+ *
+ * It is here rather than in the module that needed it, because
+ * {@link isDiscontinuous} and the ceiling's two-ended arithmetic are **this
+ * file's one home** for the split rule and a second walk over there would have
+ * been a second copy of them.
+ *
+ * ## Why a second entry point exists at all
+ *
+ * The excess-move baseline differences a security against its sector
+ * benchmark, so a split on **either** leg poisons the figure identically — a
+ * −50% overnight "return" on `XLK` is a +50% "excess" for every one of its
+ * constituents. The subject's verdict travels by being in hand (the price pass
+ * computes it a line earlier), but the benchmark's has to be computed from the
+ * benchmark's own closes, and it is computed **once per fund** rather than once
+ * per constituent: eleven funds carry 501 comparisons.
+ *
+ * It takes the **window** rather than two closes, which is the property
+ * `baselineSamples` has and `five-minute-return.ts` records the reason for: a
+ * pair is something a caller can get wrong, and this function picks its own
+ * boundary endpoints.
+ */
+export function seriesIsDiscontinuous(
+  sessions: readonly MarketSession[],
+  closes: ReadonlyMap<number, number>,
+): boolean {
+  let previousSessionLast: number | undefined;
+
+  for (const session of sessions) {
+    let sessionFirst: number | undefined;
+    let sessionLast: number | undefined;
+
+    for (const anchor of sessionAnchors(session)) {
+      const close = closes.get(anchor.getTime());
+      if (close === undefined) continue;
+      sessionFirst ??= close;
+      sessionLast = close;
+    }
+
+    if (
+      previousSessionLast !== undefined &&
+      sessionFirst !== undefined &&
+      isDiscontinuous(previousSessionLast, sessionFirst)
+    ) {
+      return true;
+    }
+
+    if (sessionLast !== undefined) previousSessionLast = sessionLast;
+  }
+
+  return false;
+}
+
+/**
  * Is a session-boundary ratio outside the band {@link
  * SPLIT_DISCONTINUITY_RATIO} describes?
  *

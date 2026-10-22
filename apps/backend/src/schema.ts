@@ -61,6 +61,7 @@ import type { ColumnType, Generated, GeneratedAlways } from "kysely";
 import type {
   MarketFeed,
   ProviderId,
+  ExcessBaselineRefusal,
   ReturnBaselineRefusal,
   Sector,
   SecurityKind,
@@ -70,6 +71,7 @@ import type {
 
 import type { BarAttemptOutcome } from "./bar-attempts.js";
 import type { VolumeBaselineStoredRefusal } from "./volume-baseline.js";
+import type { ExcessReferenceKind } from "./excess-move-baseline.js";
 
 /**
  * `securities` — the tracked universe. See `../migrations/0002_securities.sql`,
@@ -1220,6 +1222,163 @@ export interface VolumeBaselinePassesTable {
   recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * `excess_move_baselines` — the 60-session distribution of **|excess move|**,
+ * per security, **per reference**, keyed by the session it is FOR (Task 5.6.2).
+ * See `../migrations/0016_excess_move_baselines.sql`, which is the source of
+ * truth this mirrors and which carries the decisions, and
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md),
+ * which this **instantiates rather than extends**.
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * {@link ReturnBaselinesTable}'s label, for its reason, and it now applies to
+ * four tables rather than one. Changing the breakpoint grid, the lookback, the
+ * split ceiling, the sample rule **or the reference** is a delete and a re-run.
+ *
+ * ## Where it differs from `return_baselines`, which is in three places
+ *
+ * **The reference is in the key** (migration §3), so a change from the
+ * capitalisation-weighted sector ETF to an unweighted industry peer median
+ * writes a new row beside the old rather than rewriting the meaning of 501 of
+ * them. **There are two refusal words** (§5), because there are two legs and
+ * *our history has a price break* is a different sentence from *the sector
+ * benchmark's does*. And **there is a fourth kind of answer** (§4):
+ * `inapplicable`, which is no row and is **not** the same fact as absent — 4
+ * market proxies have no sector and 11 sector ETFs are their own benchmark, and
+ * no amount of backfilling will ever produce a figure for either.
+ */
+export interface ExcessMoveBaselinesTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint`. `never` on update: a row does not change which security
+   * it describes.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * **The window's END** — {@link ReturnBaselinesTable.observed_at}'s note
+   * applies unchanged, including why the reserved name is taken deliberately so
+   * Epic 13's plugin covers this table generically.
+   *
+   * `never` on update: with `security_id` and the two reference columns, this
+   * is the generation.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The FORM of the comparison** — `'sector_etf'` today, and the column the
+   * reversal trigger fires on. Migration §3 and
+   * `excess_move_baselines_reference_kind_known`.
+   *
+   * `never` on update, because changing it in place is exactly the silent
+   * rewrite the key exists to prevent.
+   */
+  reference_kind: ColumnType<ExcessReferenceKind, ExcessReferenceKind, never>;
+
+  /**
+   * **The identity within that form** — `'XLK'` under `'sector_etf'`. `text`
+   * rather than a foreign key to `securities`, because the day the form is a
+   * peer median the identity is an **industry** and not a row in that table.
+   *
+   * `never` on update, with `reference_kind`.
+   */
+  reference_symbol: ColumnType<string, string, never>;
+
+  /**
+   * How many trading sessions the window spanned — `BASELINE_LOOKBACK_SESSIONS`.
+   * {@link ReturnBaselinesTable.lookback_sessions}'s note.
+   */
+  lookback_sessions: ColumnType<number, number, number>;
+
+  /**
+   * **`n`, counted by the pass** — grid pairs present on **both** legs, which
+   * is strictly fewer than the price baseline's `n` for the same security and
+   * is why no constant can produce it. `bigint`, so `string` on read.
+   */
+  sample_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * The 101 breakpoints of |excess|, in **percentage points**, ascending —
+   * `null` exactly when {@link refusal} is set.
+   *
+   * `double precision[]`, and since Task 5.6.2 that is an **argued exemption
+   * rather than a blind spot**: {@link ReturnBaselinesTable.breakpoints}' note
+   * carries the float argument, and `migrate.database.test.ts` now reads
+   * `udt_name` so it can see array columns at all and holds a named allowlist.
+   */
+  breakpoints: ColumnType<number[] | null, number[] | null, number[] | null>;
+
+  /**
+   * Why there is no distribution, or `null`. The vocabulary is
+   * `EXCESS_BASELINE_REFUSALS` in `packages/shared` and
+   * `excess_move_baselines_refusal_known` is the database's backstop.
+   */
+  refusal: ColumnType<
+    ExcessBaselineRefusal | null,
+    ExcessBaselineRefusal | null,
+    ExcessBaselineRefusal | null
+  >;
+
+  /** {@link ReturnBaselinesTable.recorded_at}'s note, unchanged. */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
+ * `excess_move_baseline_passes` — one row per pass, so the populations a
+ * surface states are **counted by the pass** rather than by counting the rows
+ * that survived it (Task 5.6.2). ADR 0044's 2026-10-16 amendment, third
+ * application.
+ *
+ * **The four security populations PARTITION rather than nest**, which is
+ * `volume_baseline_passes`' shape and not `session_return_percentile_passes`':
+ * every tracked security ends in exactly one of measured, refused,
+ * inapplicable and absent, and
+ * `excess_move_baseline_passes_securities_partition` holds that in the
+ * database. The two refusal counts are a **breakdown of one** of those
+ * populations and are constrained to sum to it.
+ */
+export interface ExcessMoveBaselinePassesTable {
+  id: GeneratedAlways<string>;
+
+  /** The window's end, as the baselines carry it. No default. */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /** The form the whole pass used. */
+  reference_kind: ColumnType<ExcessReferenceKind, ExcessReferenceKind, never>;
+
+  /** Every tracked security the pass was over — `status = 'active'`. */
+  tracked_count: ColumnType<string, string | number, string | number>;
+  measured_count: ColumnType<string, string | number, string | number>;
+  refused_count: ColumnType<string, string | number, string | number>;
+  /** No reference exists for this security at all. Migration §4. */
+  inapplicable_count: ColumnType<string, string | number, string | number>;
+  absent_count: ColumnType<string, string | number, string | number>;
+
+  /** The breakdown of `refused_count`. Migration §5. */
+  split_discontinuity_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  reference_split_discontinuity_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+
+  /** The parameters the pass applied, read from their producers. */
+  lookback_sessions: ColumnType<number, number, number>;
+  span_minutes: ColumnType<number, number, number>;
+  baseline_feed: ColumnType<MarketFeed, MarketFeed, never>;
+  minimum_sample_count: ColumnType<string, string | number, string | number>;
+
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
@@ -1231,4 +1390,6 @@ export interface Database {
   session_return_percentile_passes: SessionReturnPercentilePassesTable;
   volume_baselines: VolumeBaselinesTable;
   volume_baseline_passes: VolumeBaselinePassesTable;
+  excess_move_baselines: ExcessMoveBaselinesTable;
+  excess_move_baseline_passes: ExcessMoveBaselinePassesTable;
 }

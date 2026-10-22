@@ -4636,7 +4636,43 @@ own reversal trigger inverted. **Owner: a person, and
 `LIVE-REHEARSAL.md` row 5.5 splits the sitting in two** — the refusals are
 watchable **today** and are the shipped product; the figure waits.
 
-## A rule forbidding floating-point columns cannot see the same type as an ARRAY
+## ~~A rule forbidding floating-point columns cannot see the same type as an ARRAY~~ — MECHANICAL since 2026-10-21
+
+**Discharged 2026-10-21 by Task 5.6.2, and by the entry's own condition arriving
+sideways.** The condition below was _the first scalar approximate column
+somebody wants_. What arrived was a **fourth array** — `0016`'s
+`excess_move_baselines.breakpoints`, 101 order statistics of `|excess move|` —
+and four is enough that the rule's silence stops being an oversight and becomes
+**a convention nobody wrote down**.
+
+`migrate.database.test.ts` now carries two assertions where it carried one: _has
+no **SCALAR** floating-point column anywhere_, unchanged, and _has no
+**APPROXIMATE ARRAY** column outside the stated allowlist_, which reads
+`udt_name` (`_float8`, `_float4`) rather than `data_type`, holds the four columns
+by name with a reason beside each, and **fails on a sweep that finds no array at
+all** — the blind-green state the original could not rule out. The break is
+`an-approximate-array-escapes-the-allowlist`; it adds a fifth column to `0016`
+and leaves the allowlist alone, which is the defect the **next** author writes
+rather than the one this task wrote. Proved 2026-10-21 against the plant: the
+scalar clause passed (`1 passed | 39 skipped`) while the array clause failed with
+`expected [ …(5) ] to deeply equal [ …(4) ]` and 39 tests still collecting — so
+the red is an assertion failure in the clause the plant was written for.
+
+**The exemption's own argument is unchanged and is now stated rather than
+accidental**: an array of approximate values is a _distribution_, where
+exactness is meaningless and `numeric[]` would cost storage and arithmetic for
+nothing, and nothing in any of these is summed so `migrations/README.md` §4's
+non-associativity argument does not reach them. What was wrong was that the next
+author reaching for `double precision[]` would have believed the rule permits
+it. Now they get a list and have to add a line to it.
+
+**What this does NOT close:** a `numeric[]`, a `jsonb` holding floats, or a
+scalar `double precision` arriving through an extension's type. The scalar clause
+covers the third; the first two are not forbidden by anything and nobody has
+wanted either.
+
+The original entry follows, left standing because its diagnosis is the part that
+generalises.
 
 **Added 2026-10-20 by Task 5.5.3, found by walking into it.** A draft gave a new
 derived table's precision target `double precision`, and
@@ -4710,3 +4746,68 @@ scope. **Condition for making it mechanical: the first `?? 0` that reaches a
 reader as a figure** — at which point the exemption list is cheaper to argue than
 the incident. **Owner: the next story that adds a factor**, because it will
 restate AC 8 and should either enforce it or stop claiming it.
+
+## The excess-move factor is produced by nothing a reader can reach
+
+**Added 2026-10-21 by Task 5.6.2, said plainly because the task's own done-when
+reads _"the scored factor is produced in the backend"_ and that sentence is true
+of a MODULE rather than of a surface.** `excessMoveFactor` and
+`comparableExcessBaseline` are exercised by 24 unit tests and by nothing else:
+no route builds one, no frame carries one, no component draws one, and
+`pnpm e2e` cannot produce a figure from it at all. The nightly pass writes the
+distribution; the thing that reads it does not exist yet.
+
+**So three claims this task makes are held by unit tests alone**, and all three
+are the kind a wire assertion would otherwise catch: that the factor inherits
+`mixed-basis` rather than re-deriving it, that an absent reference close is
+refused rather than read as `0`, and that the two structural absences are
+`inapplicable` rather than refusals. **A pass-through spec could not have
+corroborated any of them** — that is `MARKET-OVERVIEW.md` §9's trap 8, and it is
+the reason the assertions are grounded in the producer rather than in a frame.
+
+**Re-measure:** `grep -rn "excessMoveFactor" apps/ packages/ e2e/` — today it
+matches one declaration and one test file. **Owner: Task 5.6.3** (the scorer)
+and **5.6.4** (the figure on screen), which are the two tasks that make it
+reachable. This entry is discharged the day a frame carries it.
+
+## No gated machine and no person has seen an excess-move percentile, drawn or refused
+
+**Added 2026-10-21 by Task 5.6.2.** CI's store is 516 securities and **zero
+bars**, so the nightly pass writes **no row at all** there — every security is
+`absent` — and the factor would refuse `too-few-samples` for every security for
+ever. The local store that produced this task's figures has 48.8 M bars and no
+provider, so the **session** basis is the only one any machine has exercised, and
+the live basis has never been computed from a real feed.
+
+**The one thing a person could check is not checkable here either.** The
+figure's inputs are 60 sessions of two securities' minute bars, differenced — so
+there is no public screen that shows an excess-move percentile, and the only
+external corroboration that will ever exist is a person recomputing one
+five-minute pair by hand from two public charts. `LIVE-REHEARSAL.md` carries no
+row for this task because it draws nothing; **row 5.6 is owed by Task 5.6.4.**
+
+**Re-measure:** `pnpm store:bare`, then `pnpm baselines` — the pass reports
+`no pairs 516 (no row written)`. **Owner: Task 5.6.4, and then a person.**
+
+## A security the store holds and the curated universe does not describe is counted ABSENT, silently
+
+**Added 2026-10-21 by Task 5.6.2.** The nightly pass resolves each security's
+benchmark from `UNIVERSE` — the curated, typechecked file — rather than from a
+second read of `securities.kind` and `securities.sector`. That is `isEquity`'s
+own precedent two lines above it in the same function, and it is correct while
+the two agree: `pnpm universe` converges the store on the file and `deploy.yml`
+loads it before either half of the code rolls.
+
+**What is unguarded is the disagreement.** A row with `status = 'active'` whose
+symbol the file does not describe has no resolvable reference, and the pass
+counts it `absent` — _we could not reach it_, which a universe load repairs —
+rather than `inapplicable`. That is the right classification and it is
+**silent**: the pass's summary says `no pairs N` and does not say that any of
+them were a vocabulary gap rather than a coverage gap. The deployed store has
+been in a version of this state since 2026-10-12, when two symbols became
+`untracked` (they are filtered out by `status`, so they do not reach this path).
+
+**Re-measure:** `select symbol from securities where status = 'active'` against
+`UNIVERSE`'s symbols. **Condition for repair:** the first pass whose `absent`
+count is not explained by missing bars — at which point the summary needs to
+separate the two, which is one more counter rather than a design question.

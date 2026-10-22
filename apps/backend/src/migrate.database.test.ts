@@ -97,6 +97,16 @@ interface ColumnRow {
   readonly table_name: string;
   readonly column_name: string;
   readonly data_type: string;
+  /**
+   * The underlying type's own name — `float8`, `_float8`, `numeric`.
+   *
+   * **Added 2026-10-21 by Task 5.6.2, because `data_type` cannot see an
+   * array.** It returns `ARRAY` for every array column whatever the element
+   * type, which is why *has no floating-point column anywhere* was silent
+   * about three `double precision[]`s for a fortnight. `udt_name` prefixes an
+   * array's element type with `_`.
+   */
+  readonly udt_name: string;
   readonly is_nullable: "YES" | "NO";
   readonly is_identity: "YES" | "NO";
   readonly column_default: string | null;
@@ -225,8 +235,8 @@ async function insertProbe(
 
 async function readColumns(pool: pg.Pool): Promise<readonly ColumnRow[]> {
   const result = await pool.query<ColumnRow>(
-    `select table_name, column_name, data_type, is_nullable, is_identity,
-            column_default, numeric_precision, numeric_scale
+    `select table_name, column_name, data_type, udt_name, is_nullable,
+            is_identity, column_default, numeric_precision, numeric_scale
        from information_schema.columns
       where table_schema = 'public'
       order by table_name, ordinal_position`,
@@ -677,12 +687,60 @@ describe("the conventions in migrations/README.md that a database can check", ()
     ).toBeGreaterThan(0);
   });
 
-  it("has no floating-point column anywhere", async () => {
+  it("has no SCALAR floating-point column anywhere", async () => {
     const floats = (await projectColumns()).filter((column) =>
       ["double precision", "real"].includes(column.data_type),
     );
 
     expect(floats).toEqual([]);
+  });
+
+  it("has no APPROXIMATE ARRAY column outside the stated allowlist", async () => {
+    // **The blind spot this rule had, closed 2026-10-21 by Task 5.6.2** —
+    // `docs/GAPS.md`, *A rule forbidding floating-point columns cannot see the
+    // same type as an ARRAY*. The assertion above reads
+    // `information_schema.columns.data_type`, which returns **`ARRAY`** for a
+    // `double precision[]` and `double precision` only for a scalar, so three
+    // approximate array columns sat **inside** the rule by their type's shape
+    // rather than by anybody's leave. That entry's condition for making it
+    // mechanical was *the first scalar approximate column somebody wants*;
+    // what arrived instead was a **fourth array**, and four is enough that the
+    // rule's silence stops being an oversight and becomes a convention nobody
+    // wrote down.
+    //
+    // **The cure is an allowlist and not a widening.** The columns are almost
+    // certainly right — an array of approximate values is a *distribution*,
+    // where exactness is meaningless and `numeric[]` would cost storage and
+    // arithmetic for nothing, and nothing in any of these is summed so
+    // README §4's non-associativity argument does not reach them. What was
+    // wrong is that a new author reaching for `double precision[]` would have
+    // believed the rule permits it. Now they get this list and have to add a
+    // line to it with a reason.
+    const ALLOWED = [
+      // 101 order statistics of |5-minute return|. `0013` §5.
+      "return_baselines.breakpoints",
+      // One median minute of volume per time-of-day bucket. `0015` §6.
+      "volume_baselines.bucket_medians",
+      // Each bucket's relative standard error. `0015` §6.
+      "volume_baselines.bucket_errors",
+      // 101 order statistics of |excess move|, in points. `0016` §6.
+      "excess_move_baselines.breakpoints",
+    ];
+
+    const approximate = (await projectColumns())
+      .filter((column) => ["_float8", "_float4"].includes(column.udt_name))
+      .map((column) => `${column.table_name}.${column.column_name}`);
+
+    // **Non-vacuous, which is the half the original rule could not be.** A
+    // sweep that finds no array column at all is the blind-green state this
+    // assertion exists to leave: it would pass by having nothing to look at,
+    // and the `udt_name` read would be untested.
+    expect(
+      approximate.length,
+      "no approximate array column exists, so this check is vacuous",
+    ).toBeGreaterThan(0);
+
+    expect([...approximate].sort()).toEqual([...ALLOWED].sort());
   });
 
   it("uses none of the banned column names", async () => {
