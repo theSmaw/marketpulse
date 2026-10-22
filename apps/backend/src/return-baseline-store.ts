@@ -515,9 +515,18 @@ export function createReturnBaselineStore(pool: pg.Pool): ReturnBaselineStore {
       .where("market_bars.observed_at", "<", window.end)
       .executeTakeFirst();
 
+    // **A branch rather than `?? 0`** (Task 5.6.3), which is
+    // `excess-move-factor.ts`' shipped idiom and the same argument: the `0` is
+    // the **true** figure for a window with no rows at all, and writing it as a
+    // branch says so, where `?? 0` is the shape `no-imputed-zero-in-a-figure`
+    // forbids because the one place it reads as correct is the one place a
+    // grep stops being usable. A bare aggregate always returns a row; Kysely
+    // types it optional.
+    if (row === undefined) return { sip: 0, iex: 0 };
+
     return {
-      sip: Number(row?.sip ?? 0),
-      iex: Number(row?.iex ?? 0),
+      sip: Number(row.sip),
+      iex: Number(row.iex),
     };
   };
 

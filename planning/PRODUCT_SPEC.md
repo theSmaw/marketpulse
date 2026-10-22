@@ -870,6 +870,39 @@ returns` — and the direction lives in the glyph, as amendment 1 below already
 > highest score in the universe may be 40, and that is the correct answer.
 > Epic 5's exit criterion is rewritten as a **shape** rather than a number for
 > this reason.
+>
+> **Amended 2026-10-22 by Task 5.6.3 — the DECISION above is unchanged and one
+> PREDICTION inside it is falsified by measurement.** _"On a quiet day the
+> highest score in the universe may be 40"_ is **structurally false of any
+> composite whose factors are percentiles of each security's own history**, and
+> the reason is arithmetic rather than empirical: **a percentile is uniform on
+> its own sample.** So at every instant of every session, calm or violent,
+> **about 1% of securities sit at their own 99th** — not because the market is
+> doing anything, but because that is what a percentile means. A universe of 501
+> therefore always contains roughly five securities near the top of their own
+> distributions.
+>
+> **Measured** over the 2026-09-11 session, every constituent holding both
+> generations, at all 77 five-minute grid pairs — **34,318 two-factor scores**:
+> median **32**, p90 **63**, p99 **73**, max **75**. Per instant over 484 scored
+> securities: `normal` 219.2, `elevated` 179.4, `high` 39.3, **`extreme` 7.74**.
+> The highest score in the universe was never near 40; **40 is the ceiling of a
+> ONE-factor score**, which is a different quantity and is where the 40 in the
+> sentence above came from.
+>
+> **What survives, and it is the load-bearing half.** `Anomaly 91` is still not
+> producible **for a named security on demand**, scores are still comparable
+> between days, and the cross-sectional alternative is still refused for the two
+> reasons given above. What does not survive is the idea that absolute
+> calibration makes the **top of the universe** quiet when the market is quiet.
+> It does not, and it cannot: making it true would require a cross-sectional
+> reference, **which decision 4 refuses in terms**.
+>
+> **So this is a sentence to amend rather than a boundary to move** — the band
+> floors were derived from the distribution above (`elevated` 32, `high` 63,
+> `extreme` 73) and a reader seeing `extreme` on a calm day is seeing a correct
+> answer to _how unusual is this for this security_, which is the only question
+> this section asks.
 
 > **Amended 2026-10-14 by Task 5.3.3 — the printed percentile is an INTEGER,
 > and `99.1%` above is a precision the sample cannot resolve.** The example

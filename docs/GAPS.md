@@ -4702,7 +4702,7 @@ somebody wants — at which point the check needs a stated, argued exemption lis
 rather than a blind spot. Recorded in `0015` §6, `schema.ts` and ADR 0044's
 amendment as well, because the argument is reached from three directions.
 
-## Nothing checks for `?? 0`, and backend factor purity is held by prose
+## ~~Nothing checks for `?? 0`~~, and backend factor purity is held by prose
 
 **Added 2026-10-20 at Story 5.5's close, by verification rather than by
 reading.** Two rules this product states repeatedly have **no mechanism at all**,
@@ -4738,6 +4738,42 @@ would surface instances in code Story 5.5 did not write, and widening the clock
 rules to `apps/backend/src` would catch `index.ts` and the gateway, which read
 the clock **legitimately**. Both need an argued, stated exemption list rather
 than a blind widening — which is work, not a line.
+
+**HALF DISCHARGED 2026-10-22 by Task 5.6.3, and the half that is NOT discharged
+is named rather than left to be noticed.** The `?? 0` half is now
+`no-imputed-zero-in-a-figure` in `pnpm invariants`, over **every shipped source
+file in the three trees**, with the break `an-imputed-zero-reaches-a-figure`
+behind it. The work this entry said was owed is the **exemption list**, and it
+is three argued **shapes** rather than a file list — nine sites, zero residue:
+a **cardinality** (`.length ?? 0`, where _no collection_ and _an empty
+collection_ have the same size, so nothing is imputed); a **tally
+accumulation** (`(map.get(k) ?? 0) + 1`, where the zero is addition's
+identity); and a **third party's own JSON read by a diagnostic** (an optional
+bracket access with a **string-literal** key — `explainWindowRead` reading
+PostgreSQL's `EXPLAIN`, whose absent field is the planner's rather than ours).
+The string literal is what keeps the third narrow: **an array index is never
+one**, so `breakpoints[rank] ?? 0` — Story 5.5's own defect class — is not
+exempt.
+
+**Writing the check found three more live instances**, which is this entry's
+own prediction (_the fourth will land unnoticed_) met three times over, and all
+three were repaired in the same change: `breakpointsOf`' `sorted[lower] ?? 0`,
+which would have put a **magnitude of zero** into a drawn percentile;
+`heldRowCounts`' `Number(row?.sip ?? 0)`; and `live-series.ts`' coverage edge,
+which would have dated a chart's coverage **from 1970**. All three are
+unreachable today and all three are now a branch or a throw.
+
+**The purity half stays open, unchanged, and is the whole of this entry now.**
+Widening `eslint.config.mjs`' four clock rules from `packages/shared/src/**` to
+`apps/backend/src` still catches `index.ts` and `market-gateway.ts`, which read
+the clock legitimately, and still needs its own argued exemption list. What
+Task 5.6.3 did instead was **site the new factor where the rules already
+reach**: `packages/shared/src/composite-score.ts`, which makes Story 5.6's AC
+12 _reads no clock, socket or handle_ a lint error rather than a reading — for
+**one** factor, with the five in `apps/backend/src` still held by prose and
+unit tests. **Owner: unchanged — the next story that adds a factor**, and the
+cheapest discharge is now _put it in `packages/shared/src` too_, which is a
+precedent rather than a widening.
 
 **Re-measure:** `grep -rn '?? 0' apps/backend/src packages/shared/src
 apps/frontend/src --include='*.ts' | grep -v '\.test\.'`, and

@@ -65,8 +65,31 @@ the two surfaces finally agree about what is ranked.
    **renormalisation arriving at the band layer instead of the arithmetic
    layer**, and is a violation of AC 3 rather than an option. Cut-points are
    **derived from Task 5.6.2's measured distribution**, never chosen, and ship
-   with a condition: _the first session in which more than three of `/`'s ten
-   rows draw the same band_.
+   with a condition: ~~_the first session in which more than three of `/`'s ten
+   rows draw the same band_~~.
+
+   **The trigger above was MINE, it was wrong, and Task 5.6.3 measured it dead
+   on arrival — recorded here rather than quietly swapped, because the owner
+   approved it on my recommendation.** It is **already met and unsatisfiable in
+   principle**: measured at **77 of 77 instants under all six candidate floor
+   sets**, with **all ten rows sharing one band in 35 of 77**. The reason is
+   obvious in hindsight and is the whole point of the region — **ten rows
+   selected as the ten most unusual come from the extreme top of the
+   distribution, so they concentrate in the top bands by construction.** A
+   trigger that fires on the region doing its job is not a trigger. It is the
+   failure mode `CLAUDE.md` names — _a trigger written against something that
+   has already happened will never fire_ — reached from the other side: written
+   against something that happens **always**.
+
+   **The two that replace it, both conditions:** _the first score computed over
+   a factor set this derivation did not measure_ — every quantile behind the
+   floors is a **two-factor, max-75** scale, so the day volume contributes the
+   floors are describing a different quantity — and _the first session whose
+   median instant draws `extreme` for more than a fifth of the universe_,
+   against **1.6% today**, a 12× margin. The weaker form of the second (_a fifth
+   in `high` or above_) was **rejected because it already fires in 11 of 77
+   instants**, which is the same mistake one notch down.
+
 3. **The score is the FIRST band of `Abnormal-move indicators`**, above the three
    factor bands it summarises, so the region reads summary-then-evidence. Accepted
    cost: 256 → ≈486 px, firing `MARKET-OVERVIEW.md` §1.4's trigger a **fourth**

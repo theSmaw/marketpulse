@@ -5513,4 +5513,92 @@ export const BREAKS = [
     ],
     expect: "APPROXIMATE ARRAY column outside the stated allowlist",
   },
+  // ## Task 5.6.3's three, on the composite score
+  //
+  // All three plants are the **file the next story writes** rather than an
+  // edit to the file the check was written around: `apps/backend/src/market-
+  // composite.ts`, a producer that scores the universe and ranks it. Each
+  // plant was run against the naive draft of its own check first and the
+  // transcript is in that invariant's own docblock — **the clause was green
+  // while the two beside it were red on the same plant**, every time. The
+  // plant file is created by the substitution and removed with it, which is
+  // why the `find`/`replace` pair below hangs off a file that already exists:
+  // `pnpm break` restores one file, so a break that created a second would
+  // leave it behind.
+  {
+    name: "an-imputed-zero-reaches-a-figure",
+    proves:
+      "`no-imputed-zero-in-a-figure` goes red on a `?? 0` that defaults an " +
+      "absent measurement to zero. Four consecutive anomaly stories wrote " +
+      "*no `?? 0`* into their criteria and nothing looked for one anywhere; " +
+      "Story 5.5's close found three live instances in code that story " +
+      "itself shipped, one of them on a median, and Task 5.6.3 found three " +
+      "more by writing this check — a breakpoint of zero, a tape count, and " +
+      "a chart coverage edge dated from 1970.",
+    // **The found line survives the substitution and the defect is appended
+    // beside it** — this registry's convention, and the repair `CLAUDE.md`
+    // records after two entries went red twice from neither the check nor the
+    // plant.
+    // **The plant is in a FACTOR module rather than in the scorer**, and that
+    // is where the measurement says the next one will be: every factor in this
+    // product lives in `apps/backend/src`, and the naive draft that scoped this
+    // check to `packages/shared/src` was green on exactly this shape — the
+    // transcript is in the invariant's own docblock.
+    file: "apps/backend/src/return-percentile.ts",
+    find: "  const minimumSampleCount = BASELINE_MINIMUM_SAMPLE;",
+    replace:
+      "  const minimumSampleCount = BASELINE_MINIMUM_SAMPLE;\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const held = stored?.sampleCount ?? 0;\n" +
+      "  void held;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no-imputed-zero-in-a-figure",
+  },
+  {
+    name: "a-third-mint-site-for-an-anomaly-score",
+    proves:
+      "`two-mint-sites-for-an-anomaly-score` goes red on a third route into " +
+      "the branded type. The brand's symbol is not exported, so a forged " +
+      "clause is impossible and the only way in is a type assertion — which " +
+      "the compiler permits and which checks none of the fields beside it. " +
+      "AC 5's *cannot be constructed without its explanation* is a compile " +
+      "error about which module minted the value; this is what keeps that " +
+      "true when a producer reaches for a cast instead of the scorer.",
+    file: "apps/backend/src/excess-move-factor.ts",
+    find: "export function excessMoveFactor(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function brandedScoreFor(parts: unknown): AnomalyScore {\n" +
+      "  return parts as unknown as AnomalyScore;\n" +
+      "}\n" +
+      "\n" +
+      "export function excessMoveFactor(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "two-mint-sites-for-an-anomaly-score",
+  },
+  {
+    name: "a-second-order-for-a-composite-score",
+    proves:
+      "`one-comparator-for-the-order-of-a-composite-score` goes red on a " +
+      "second ranking of two scores. Neither existing comparator guard can " +
+      "see one: the percentile guard keys on " +
+      "`.(?:rank|ordinal|percentile)` and the move guard on " +
+      "`(?:percent|change|move)`, and `a.score - b.score` matches neither. " +
+      "A second order silently un-holds the declared tie-break — score " +
+      "descending, then ticker ascending — and the shipped two-factor scale " +
+      "holds 76 values for ~484 scored securities, so a comparator " +
+      "answering `0` for a tie re-orders the region under a reader up to " +
+      "~16 times a minute, which ADR 0041 forbids.",
+    file: "apps/backend/src/market-unusual.ts",
+    find: "import {\n  BASELINE_MINIMUM_SAMPLE,",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const byScore = (a: { score: number }, b: { score: number }) =>\n" +
+      "  b.score - a.score;\n" +
+      "void byScore;\n" +
+      "\n" +
+      "import {\n  BASELINE_MINIMUM_SAMPLE,",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-comparator-for-the-order-of-a-composite-score",
+  },
 ];

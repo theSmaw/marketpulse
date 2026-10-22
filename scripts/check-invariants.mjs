@@ -8229,6 +8229,422 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "no-imputed-zero-in-a-figure",
+    claim:
+      "No shipped source file defaults an absent measurement to zero with " +
+      "`?? 0`, outside three stated shapes — a cardinality, a tally " +
+      "accumulation, and a third party's own JSON read by a diagnostic.",
+    check() {
+      // **Task 5.6.3, and it closes HALF of `docs/GAPS.md`'s *Nothing checks
+      // for `?? 0`, and backend factor purity is held by prose*.** That entry
+      // names *"the next story that adds a factor"* as its owner and this is
+      // it. Its condition for becoming mechanical was *the first `?? 0` that
+      // reaches a reader as a figure*; Story 5.5's close found **three live
+      // instances in code that story itself shipped, one of them on a
+      // median**, and this task found **three more** by writing the check:
+      // `breakpointsOf`'s `sorted[lower] ?? 0`, which would have put a
+      // magnitude of zero into a drawn percentile; `heldRowCounts`'
+      // `Number(row?.sip ?? 0)`; and `live-series.ts`' coverage edge, which
+      // would have dated a chart's coverage from **1970**. All three are
+      // repaired in the same change as this check.
+      //
+      // **The other half of that entry stays open and is named as open**:
+      // widening `eslint.config.mjs`' four clock rules from
+      // `packages/shared/src/**` to `apps/backend/src` catches `index.ts` and
+      // `market-gateway.ts`, which read the clock **legitimately**, so it
+      // needs its own argued exemption list. The scorer being in
+      // `packages/shared/src` is the part of that entry this story could
+      // discharge without one.
+      //
+      // ## The three exempt shapes, each argued rather than listed
+      //
+      // Shapes rather than a file list, for
+      // `one-comparator-for-the-order-of-a-percentile`'s recorded reason: a
+      // new factor is a new file by this repository's convention, so a list is
+      // a corpus that cannot see the next one. Measured on the day this
+      // landed: **nine** exempt sites and **zero** residue.
+      //
+      // 1. **A cardinality — `.length ?? 0`.** *No collection* and *an empty
+      //    collection* have the same size, so nothing is imputed: the zero is
+      //    the true answer rather than a measurement substituted for an absent
+      //    one. Three sites — `trailing-window.ts`' `size`, and
+      //    `session-percentile-cache.ts`' two.
+      // 2. **A tally accumulation — `(… .get(…) ?? 0) + …`.** The count of a
+      //    key not yet seen is zero, and the zero is the identity of addition
+      //    rather than a figure. One site, `load-universe.ts`' sector tally.
+      // 3. **A third party's own JSON, read by a diagnostic — an optional
+      //    bracket access with a STRING-LITERAL key.** Five sites, all
+      //    `explainWindowRead` reading PostgreSQL's `EXPLAIN` output: the
+      //    absent key is the planner's rather than ours, and a diagnostic that
+      //    threw on a field a major upgrade renamed would break on the thing it
+      //    exists to observe. **A string literal is what keeps this narrow** —
+      //    an array index is never one, so `breakpoints[rank] ?? 0`, which is
+      //    Story 5.5's own defect class, is **not** exempt.
+      //
+      // ## The clause a re-implementer cannot avoid, and the plant
+      //
+      // The operator itself. There is no way to default an absent figure to
+      // zero without writing `?? 0`, `|| 0` or a ternary against `undefined` —
+      // and the first is the shape four consecutive stories have written into
+      // their criteria, so it is the one the next author reaches for.
+      //
+      // **The draft that passed wrongly, with its transcript.** The obvious
+      // draft scopes to `packages/shared/src/**`, where this story's own
+      // decision puts the scorer. Run against the file the next story writes —
+      // `apps/backend/src/market-composite.ts`, a producer holding
+      // `stored?.sampleCount ?? 0` and `clause?.contribution ?? 0` — **this
+      // clause was green while the two checks beside it were red on the same
+      // plant**, with two imputed figures on disk: *"2 of 69 invariants
+      // failed"*, naming the other two. The reason is the measurement: **every
+      // factor in this product lives in `apps/backend/src`** —
+      // `five-minute-return.ts`, `return-percentile.ts`, `volume-ratio.ts`,
+      // `excess-move-factor.ts` — and the scorer's siting in `shared` is the
+      // exception rather than the rule. The corpus is all three trees for that
+      // reason.
+      //
+      // **A second draft failed for the WRONG reason, which reads exactly like
+      // proof and is worth the line.** The same narrowed scope *with this
+      // check's anchor still in place* goes red — but on the anchor, saying
+      // *no line matches one of the three exempt shapes*, because all nine
+      // exempt sites are in `apps/backend`. A reader seeing red there would
+      // record the check as proved and the scope as fine. `CLAUDE.md`'s rule:
+      // read **which** assertion failed, not only that one did.
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      // `?? 0` with the zero on its own — `?? 0.5` and `?? 01` are not this.
+      const IMPUTED_ZERO = /\?\?\s*0\b(?!\s*\.\d)/u;
+
+      // Shape 1: the left operand's last member access is `length`.
+      const A_CARDINALITY = /\.length\s*\?\?\s*0\b/u;
+      // Shape 2: a tally, where the zero is addition's identity.
+      const A_TALLY = /\?\?\s*0\s*\)\s*\+/u;
+      // Shape 3: an optional bracket access with a string-literal key.
+      const A_FOREIGN_FIELD = /\?\.\[\s*(["'])[^"'\n]+\1\s*\]\s*\?\?\s*0\b/u;
+
+      const offenders = [];
+      let exempt = 0;
+
+      for (const file of shipped) {
+        for (const line of file.text.split("\n")) {
+          if (!IMPUTED_ZERO.test(line)) continue;
+          if (
+            A_CARDINALITY.test(line) ||
+            A_TALLY.test(line) ||
+            A_FOREIGN_FIELD.test(line)
+          ) {
+            exempt += 1;
+            continue;
+          }
+          offenders.push(`${file.path}: ${line.trim()}`);
+        }
+      }
+
+      // **The anchor, for `one-comparator-for-the-order-of-a-percentile`'s
+      // reason**: if the exempt shapes stop matching anything the clause
+      // passes vacuously and nobody notices, which is how four breaks rotted
+      // in silence once.
+      if (exempt === 0) {
+        throw new InvariantFailure(
+          "No line in any shipped file matches one of this check's three " +
+            "exempt `?? 0` shapes, and they are its anchor. Either the nine " +
+            "sites the exemptions were argued for have gone — delete the " +
+            "exemptions and this anchor in the same change — or the patterns " +
+            "that recognise them have rotted, in which case this clause has " +
+            "been passing vacuously.",
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} shipped line(s) default an absent ` +
+            `measurement to zero (against ${String(exempt)} exempt by a ` +
+            "stated shape):\n      " +
+            offenders.join("\n      ") +
+            "\n    `?? 0` on a figure is ADR 0029's false impression as " +
+            'arithmetic: a `null` under a `"number"` reaches the wire as ' +
+            "**`0`**, *a plausible price rather than a visibly empty " +
+            "string*, and a zero magnitude, a zero volume or a zero close is " +
+            "a wrong number with no symptom anywhere on screen. Write the " +
+            "branch instead — `const held = stored === undefined ? 0 : " +
+            "stored.sampleCount`, which is `excess-move-factor.ts`' shipped " +
+            "idiom and says that the `0` is the TRUE figure — or throw, " +
+            "which is `volume-baseline.ts`' answer where the absence is " +
+            "structurally impossible. If the quantity genuinely is a " +
+            "cardinality, a tally or a third party's field, it falls in one " +
+            "of the three shapes above and this clause is already silent " +
+            "about it; a fourth shape is an argument to add here, not an " +
+            "exemption by file.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "two-mint-sites-for-an-anomaly-score",
+    claim:
+      "The composite score's brand is minted in exactly two places — " +
+      "`scoreAnomaly` and `readAnomalyScore`, both in " +
+      "`packages/shared/src/composite-score.ts` — and no other shipped file " +
+      "asserts its way into one of its branded types.",
+    check() {
+      // **Task 5.6.3.** AC 5 asks that *`AnomalyScore` cannot be constructed
+      // without its explanation*, and the brand is what makes that a compile
+      // error. Its whole strength is that the symbol is not exported — so the
+      // failure mode is not a forged clause, which is impossible, but a
+      // **second route in**: an `as unknown as AnomalyScore` somewhere else,
+      // which is a cast the compiler permits and which checks none of the
+      // fields beside it.
+      //
+      // Two sites rather than one, deliberately. The scorer mints from factor
+      // answers; the reader mints from a wire body **after** re-adding the
+      // published contributions and re-deriving each one from the published
+      // weight — because `JSON.stringify` drops symbol keys, so a score that
+      // crossed a socket has no brand and the type cannot be restored without
+      // a claim about the **value**. That second check is stronger than the
+      // brand it replaces, and the two mint sites are the two ends of it.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // A **type assertion naming one of the branded types**. A new producer
+      // cannot put a score into `AnomalyScore` any other way: the brand is not
+      // exported, so the only routes are a call to one of the two minters or a
+      // cast. The pattern therefore keys on the cast rather than on the symbol,
+      // which is invisible outside its module by construction.
+      //
+      // **The draft that passed wrongly, with its transcript.** The obvious
+      // draft counts declarations of `scoreAnomaly` and `readAnomalyScore` and
+      // asserts there is one of each in the home — the shape
+      // `one-comparator-for-the-order-of-a-percentile`'s clause one takes. Run
+      // against the file the next story writes,
+      // `apps/backend/src/market-composite.ts`, holding
+      // `return { … } as unknown as AnomalyScore;` and importing neither
+      // minter, **this clause was green while the two checks beside it were
+      // red on the same plant** — *"2 of 69 invariants failed"*, naming the
+      // other two — with a third mint site on disk. Nothing in that draft is
+      // about minting; it is about two identifiers.
+      //
+      // **And the first real draft went red on five innocent files**, which is
+      // the other way to get this wrong: it scanned the whole corpus for the
+      // brand KEY, and `ticker.ts`, `market-time.ts`, `time-range.ts`,
+      // `bar-series.ts` and `market-provenance.ts` each declare a brand of
+      // their own. The key is this check's **anchor on the home** and nothing
+      // else.
+      const HOME = "packages/shared/src/composite-score.ts";
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      const BRANDED = [
+        "AnomalyScore",
+        "UnscoredAnomaly",
+        "FactorClause",
+        "AbsentClause",
+      ];
+
+      // `as AnomalyScore`, `as unknown as AnomalyScore`, `<AnomalyScore>`-style
+      // assertions and a `satisfies` are all one shape: the type's name
+      // preceded by an assertion keyword. A generic parameter — `Map<string,
+      // AnomalyScore>` — is not, which is why the keyword is required.
+      const ASSERTION = new RegExp(
+        String.raw`\b(?:as|satisfies)\s+(?:unknown\s+as\s+)?(?:readonly\s+)?(?:${BRANDED.join("|")})\b`,
+        "u",
+      );
+
+      // And the key itself, which is the mint when the symbol is in scope. It
+      // is used **only as the home's anchor** and deliberately not scanned
+      // across the corpus: five other modules declare brands of their own —
+      // `Ticker`, `MarketDate`, `TimeRange`, `BarSeries`, `SeriesProvenance` —
+      // and each writes `[brand]` as a type member of its own symbol, which is
+      // none of this check's business. The first draft scanned for it
+      // everywhere and went red on all five, which is the check being wrong
+      // rather than the tree.
+      const WRITES_THE_BRAND = /\[brand\]\s*:/u;
+
+      const home = shipped.find((file) => file.path === HOME);
+      if (home === undefined) {
+        throw new InvariantFailure(
+          `${HOME} is not in the shipped corpus, and it is this check's ` +
+            "anchor. The scorer moved; repoint this check in the same change.",
+        );
+      }
+
+      // The anchor: the home must still mint, or the clause below is vacuous.
+      const mints = home.text
+        .split("\n")
+        .filter((line) => WRITES_THE_BRAND.test(line)).length;
+
+      if (mints === 0) {
+        throw new InvariantFailure(
+          `${HOME} no longer writes the brand key anywhere, and it is this ` +
+            "check's anchor. Either the brand was replaced by a type " +
+            "assertion — which is the thing this check forbids, and the home " +
+            "is now its own first offender — or the mint moved. Note that a " +
+            "`declare const brand: unique symbol` cannot be written as a key " +
+            "at all (it has no runtime value), so a module that switched to " +
+            "one has switched to casts.",
+        );
+      }
+
+      const elsewhere = [];
+      for (const file of shipped) {
+        if (file.path === HOME) continue;
+        for (const line of file.text.split("\n")) {
+          if (ASSERTION.test(line)) {
+            elsewhere.push(`${file.path}: ${line.trim()}`);
+          }
+        }
+      }
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} shipped line(s) assert their way into ` +
+            `a branded composite-score type outside ${HOME}:\n      ` +
+            elsewhere.join("\n      ") +
+            "\n    A score reaches that type through `scoreAnomaly` or " +
+            "`readAnomalyScore` and through nothing else. Those are the two " +
+            "places that have checked the arithmetic — the scorer because it " +
+            "performed it, the reader because it re-added the published " +
+            "contributions and re-derived each from the published weight — " +
+            "and a cast checks none of the fields beside it, so a third mint " +
+            "site is a score whose explanation does not add up to it, wearing " +
+            "the type that was supposed to make that impossible. AC 5 is a " +
+            "compile error about which module minted the value and a TEST " +
+            "about the value; this is the half that keeps the first one true.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-comparator-for-the-order-of-a-composite-score",
+    claim:
+      "The order two composite scores put a list in is decided in exactly " +
+      "one place — `compareByScore` in `packages/shared/src/score-ranking.ts` " +
+      "— and no other shipped file compares or subtracts one score against " +
+      "another.",
+    check() {
+      // **Task 5.6.3, and a THIRD sibling rather than a widening of either of
+      // the first two.** `one-comparator-for-the-order-of-a-percentile` keys
+      // on `\.(?:rank|ordinal|percentile)` either side of an operator and
+      // `one-comparator-for-the-order-of-a-move` on
+      // `(?:percent|change|move)` — so `a.score - b.score` matches **neither**
+      // and slips straight past both. ADR 0043's lesson a third quantity over.
+      //
+      // The rule the one home carries, and the reason a second one is
+      // dangerous: **score descending, then ticker ascending**. An integer
+      // score makes ties routine — the shipped two-factor scale holds 76
+      // values for ~484 scored securities, so by the pigeonhole principle some
+      // score is shared on every frame — and a comparator answering `0` for a
+      // tie delegates the answer to the array's arrival order, which is the
+      // join's and re-orders up to ~16 times a minute. ADR 0041 forbids a
+      // ranked surface re-ordering under a reader with nothing having changed.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // Two scores either side of one operator. A second ranking needs neither
+      // `compareByScore` nor `.sort(` — `toSorted`, a heap, a `reduce` and a
+      // bounded insertion all qualify, and `selectMovers` already shows that a
+      // top-N here is an insertion rather than a sort — and every one of them
+      // contains that comparison.
+      //
+      // **Each side must be a member access ending in `score`**, which is a
+      // measurement rather than a preference: the bare word appears in
+      // `scoreAnomaly`, `scored`, `sessionScores` and `session-percentile`'s
+      // stored rows, and a clause over it is red on all of them.
+      //
+      // **The draft that passed wrongly, with its transcript.** The obvious
+      // draft is one declaration of `compareByScore` in the home. Run against
+      // `apps/backend/src/market-composite.ts` — the file the next story
+      // writes, a second top-N with `candidates.toSorted((a, b) => b.score -
+      // a.score)` in it, no `.sort(` and no import from the home — **this
+      // clause was green while the two checks beside it were red on the same
+      // plant** (*"2 of 69 invariants failed"*, naming the other two), with a
+      // second order on disk, one that answers `0` for every tie.
+      const HOME = "packages/shared/src/score-ranking.ts";
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      for (const name of ["compareByScore", "isRankedByScore"]) {
+        const declarations = shipped.filter((file) =>
+          new RegExp(String.raw`\bfunction\s+${name}\b`, "u").test(file.text),
+        );
+
+        if (declarations.length !== 1 || declarations[0].path !== HOME) {
+          throw new InvariantFailure(
+            `\`${name}\` is declared in ${String(declarations.length)} ` +
+              `shipped file(s) and the one home is ${HOME}:\n      ` +
+              (declarations.map((file) => file.path).join("\n      ") ||
+                "(nowhere)") +
+              "\n    A second declaration is a second rule, read as the " +
+              "first one at every call site. A re-export is fine.",
+          );
+        }
+      }
+
+      // Two composite scores either side of one operator.
+      const SCORE = String.raw`\.score\b`;
+      const SIDE = String.raw`[A-Za-z_$][\w$]*(?:\[[^\]\n]*\]|\.[\w$]+)*${SCORE}`;
+      const ORDER_BY_SCORE = new RegExp(
+        `${SIDE}[^,;&|\\n]{0,12}?\\s(?:-|<=?|>=?)\\s[^,;&|\\n]{0,4}?${SIDE}`,
+        "u",
+      );
+
+      // Line by line, so the bounded window either side of the operator cannot
+      // straddle two statements. The whitespace around the operator is
+      // Prettier's, which is a `pnpm verify` step, so `b.score-a.score` cannot
+      // survive a formatted tree — and requiring it is what keeps `=>` out of
+      // the `>` alternative.
+      const matchingLines = (file) =>
+        file.text.split("\n").filter((line) => ORDER_BY_SCORE.test(line));
+
+      const home = shipped.find((file) => file.path === HOME);
+
+      if (home === undefined || matchingLines(home).length === 0) {
+        throw new InvariantFailure(
+          `${HOME} no longer puts two composite scores either side of one ` +
+            "operator, and it is this check's anchor. Either the comparator " +
+            "moved or the pattern that recognises one has rotted — note that " +
+            "binding the two scores to locals first is enough to rot it, " +
+            "which is why the home spells them as property reads. Repoint it " +
+            "in the same change.",
+        );
+      }
+
+      const comparators = shipped
+        .filter((file) => file.path !== HOME && matchingLines(file).length > 0)
+        .flatMap((file) =>
+          matchingLines(file).map((line) => `${file.path}: ${line.trim()}`),
+        );
+
+      if (comparators.length > 0) {
+        throw new InvariantFailure(
+          `${String(comparators.length)} shipped line(s) order one composite ` +
+            "score against another outside the one comparator:\n      " +
+            comparators.join("\n      ") +
+            `\n    That order is \`compareByScore\`'s, in ${HOME}, and a ` +
+            "second one silently un-holds the rule it carries: **score " +
+            "descending, then ticker ascending**. Rank through " +
+            "`compareByScore`. And note the order that is NOT permitted " +
+            "anywhere: `score / max`. A reduced-factor score lives on a lower " +
+            "scale deliberately (Story 5.6's Gate 1 decision 2), and ranking " +
+            "on the ratio is AC 3's renormalisation arriving at the " +
+            "comparator — it lifts the **worst-covered** securities into the " +
+            "top ten, because a score computed from one factor has the higher " +
+            "variance. `ScoreRanked` has no `max` member for that reason: a " +
+            "comparator that wanted the ratio has nothing to divide by.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
