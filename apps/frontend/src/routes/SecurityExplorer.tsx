@@ -587,6 +587,19 @@ export function SecurityExplorer({
               symbolReturn={
                 found === undefined ? undefined : liveFeed.symbolReturn
               }
+              /*
+               * **The aggregate, for the breadth clause and nothing else**
+               * (Task 5.6.5) — the same frame `Relative performance` below
+               * takes whole, and read by this region for the one group-level
+               * figure the score states as context rather than scoring.
+               *
+               * It is **not** collapsed through `found` the way the return
+               * is: breadth is a fact about the market rather than about this
+               * security, so it is true whether or not the universe answer has
+               * resolved this page's ticker — and the band it sits in holds its
+               * own room either way.
+               */
+              overview={liveFeed.overview}
             />
           </Region>
 

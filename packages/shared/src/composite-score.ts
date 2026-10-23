@@ -470,9 +470,27 @@ export type FactorAnswer =
        * home already, on the `return` frame's `volume` half; this arm must not
        * grow a second.
        *
-       * **The sentence a reader meets is the owner's, verbatim:**
-       * `Measured, but no history to rank it against.` It is drawn by Task
-       * 5.6.5 and spelled in exactly one place there.
+       * **What a reader meets, corrected 2026-10-23 at Task 5.6.5's close,
+       * because the sentence above this correction claimed a drawing that does
+       * not exist.** This docblock said the owner's sentence
+       * `Measured, but no history to rank it against.` *"is drawn by Task 5.6.5
+       * and spelled in exactly one place there"*. **It is drawn nowhere.** The
+       * ledger's reason cell measures ~34 characters at the rail's narrowest box
+       * and that sentence is 43, so Task 5.6.5 drew `no history to rank it` (21)
+       * instead — correct for the cell, and not the sentence this claimed.
+       *
+       * A claim about a mechanism reads identically whether the mechanism is
+       * there or not, which is this repository's most-recorded failure mode, so
+       * the claim is corrected here rather than left to be discovered by
+       * somebody going to use it.
+       *
+       * **What is true:** `no history to rank it` is the drawn reason and has
+       * one home in `apps/frontend/src/market/anomaly-score.ts`. **What is
+       * owed:** the owner's full sentence has no home, and the honest one is the
+       * volume band beside a *drawn* multiple — the only place a reader can ask
+       * why a figure they can see is not scored. That state needs `iex` depth no
+       * machine here has, so it is owed to Gate 2 as a product question rather
+       * than guessed at.
        *
        * ## Reversal trigger, a condition
        *

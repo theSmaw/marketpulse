@@ -372,3 +372,18 @@ export {
   volumeSample,
 } from "./volume-ratio.js";
 export type { VolumeIndicator } from "./volume-ratio.js";
+
+// **The composite score's read side** (Task 5.6.5) — the FIRST band of
+// `Abnormal-move indicators` and the first 0–100 figure this product draws,
+// spelled from the explanation the frame carries. Nothing here adds: the score
+// is the sum of the published contributions and `readAnomalyScore` has already
+// refused any frame where it is not.
+export {
+  NO_SCORE,
+  RESERVED_SCORE,
+  SCORE_DISCLAIMER,
+  SCORE_LABEL,
+  SCORE_SCALE,
+  anomalyScoreBand,
+} from "./anomaly-score.js";
+export type { AnomalyScoreBand, ScoreLedgerRow } from "./anomaly-score.js";

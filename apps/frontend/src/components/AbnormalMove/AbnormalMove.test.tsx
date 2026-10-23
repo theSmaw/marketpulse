@@ -2,6 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  FactorAnswer,
+  WireAnomalyOutcome,
   WireMeasuredReturn,
   WireObservedSpan,
   WireReturnPercentile,
@@ -11,7 +13,15 @@ import type {
   WireVolumeRate,
 } from "@marketpulse/shared";
 
-import type { SymbolReturnView } from "../../market/index.js";
+import { scoreAnomaly, toWireAnomalyScore } from "@marketpulse/shared";
+
+import {
+  NO_SCORE,
+  SCORE_DISCLAIMER,
+  SCORE_LABEL,
+  SCORE_SCALE,
+  type SymbolReturnView,
+} from "../../market/index.js";
 
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 
@@ -76,7 +86,7 @@ const NO_VOLUME_HISTORY: WireVolumeComparison = {
 const view = (
   figure: WireSymbolReturn,
   volume: WireVolumeComparison | null = NO_VOLUME_HISTORY,
-): SymbolReturnView => ({ symbol: "NVDA", figure, volume });
+): SymbolReturnView => ({ symbol: "NVDA", figure, volume, score: null });
 
 /**
  * **The second indicator's spoken text, which every whole-region assertion below
@@ -91,7 +101,23 @@ const NO_VOLUME_LINES =
 const DEFAULTS: AbnormalMoveProps = {
   symbol: "NVDA",
   symbolReturn: view(MEASURED),
+  // **No aggregate, so the breadth clause holds its room and says nothing**
+  // (Task 5.6.5). The score band's own states are at the foot of this file.
+  overview: undefined,
 };
+
+/**
+ * **What the score band speaks when this gateway sent no score at all** —
+ * the label and nothing else, which is ADR 0029's defer rule: we were not told
+ * there is an absence, so a sentence explaining one would be a claim of its
+ * own (`volumeRatioIndicator`'s `null` arm, one band down).
+ *
+ * It is a constant rather than a string spliced into each assertion, for
+ * {@link NO_VOLUME_LINES}' reason exactly: what those assertions are for is
+ * the **concatenation a screen reader is handed**, and a band that silently
+ * stopped drawing would otherwise have to be noticed in nine places.
+ */
+const SCORE_BAND_RESERVED = `${SCORE_LABEL} / `;
 
 const draw = (over: Partial<AbnormalMoveProps> = {}) =>
   render(<AbnormalMove {...DEFAULTS} {...over} />);
@@ -234,7 +260,9 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / No bars observed yet" + NO_VOLUME_LINES,
+        SCORE_BAND_RESERVED +
+          "5-minute return / No bars observed yet" +
+          NO_VOLUME_LINES,
       );
       // And it is NOT state 1: the sentence is the frame's, drawn in the
       // figure's own slot, rather than the region's over held room.
@@ -251,7 +279,8 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / No bar five minutes back / Oct 14 · 14:06 EDT · observed 1 of 5 minutes" +
+        SCORE_BAND_RESERVED +
+          "5-minute return / No bar five minutes back / Oct 14 · 14:06 EDT · observed 1 of 5 minutes" +
           NO_VOLUME_LINES,
       );
     });
@@ -282,7 +311,8 @@ describe("AbnormalMove", () => {
       const { container } = draw();
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
+        SCORE_BAND_RESERVED +
+          "5-minute return / up +0.42% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
           NO_VOLUME_LINES,
       );
     });
@@ -311,7 +341,8 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / unchanged 0.00% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
+        SCORE_BAND_RESERVED +
+          "5-minute return / unchanged 0.00% / Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / Measured on IEX" +
           NO_VOLUME_LINES,
       );
       for (const refusal of [
@@ -339,7 +370,8 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes / Measured on IEX" +
+        SCORE_BAND_RESERVED +
+          "5-minute return / up +0.42% / Oct 14 · 13:21 EDT → Oct 14 · 13:26 EDT · observed 3 of 5 minutes / Measured on IEX" +
           NO_VOLUME_LINES,
       );
       expect(readable(container)).not.toMatch(
@@ -464,7 +496,8 @@ describe("AbnormalMove", () => {
       // percentile is in the figure's own block, which is why it joins that
       // line rather than making a fifth.
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% 99th percentile / " +
+        SCORE_BAND_RESERVED +
+          "5-minute return / up +0.42% 99th percentile / " +
           "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
           "of 4,620 5-minute returns · all times of day pooled / " +
           "Measured on IEX · baseline on All US exchanges" +
@@ -548,7 +581,8 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / " +
+        SCORE_BAND_RESERVED +
+          "5-minute return / up +0.42% / " +
           "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
           "Baseline too short to rank — 1,240 of 2,500 returns / " +
           "Measured on IEX" +
@@ -625,7 +659,8 @@ describe("AbnormalMove", () => {
       const { container } = draw({ symbolReturn: view(MEASURED, RATE) });
 
       expect(readable(container)).toBe(
-        "5-minute return / up +0.42% / " +
+        SCORE_BAND_RESERVED +
+          "5-minute return / up +0.42% / " +
           "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes / " +
           "Measured on IEX / " +
           "Volume per minute / 4.1× typical / " +
@@ -668,7 +703,8 @@ describe("AbnormalMove", () => {
       });
 
       expect(readable(container)).toBe(
-        "5-minute return / No bars observed yet / " +
+        SCORE_BAND_RESERVED +
+          "5-minute return / No bars observed yet / " +
           "Volume per minute / No IEX volume history for this security",
       );
     });
@@ -680,6 +716,120 @@ describe("AbnormalMove", () => {
 
       expect(readable(container)).toContain("Volume per minute");
       expect(readable(container)).not.toMatch(/IEX volume|typical|×/u);
+    });
+  });
+
+  describe("the score band (Task 5.6.5)", () => {
+    // **Every score below is produced by the SHIPPED SCORER.** A hand-written
+    // `contribution: 38` beside `rank: 95` would make the addition close in
+    // the fixture and prove nothing about the arithmetic.
+    const ranked = (rank: number): FactorAnswer => ({
+      state: "ranked",
+      rank,
+      aboveSample: false,
+      sampleCount: 4620,
+    });
+
+    const refusedFactor: FactorAnswer = {
+      state: "refused",
+      refusal: "no-subject-move",
+      sampleCount: 0,
+      minimumSampleCount: 2500,
+    };
+
+    const scored = (price: FactorAnswer, excess: FactorAnswer) =>
+      toWireAnomalyScore(
+        scoreAnomaly({ price, excess, volume: { state: "no-distribution" } }),
+      );
+
+    const withScore = (score: WireAnomalyOutcome) =>
+      draw({
+        symbolReturn: { ...view(MEASURED), score },
+      });
+
+    it("draws the figure, its scale and its band on one row", () => {
+      withScore(scored(ranked(95), ranked(66)));
+
+      expect(screen.getByText("61")).toBeTruthy();
+      expect(screen.getByText(SCORE_SCALE)).toBeTruthy();
+      expect(screen.getByText("elevated")).toBeTruthy();
+    });
+
+    it("sums the drawn contributions to the drawn score", () => {
+      // **The addition closes ON SCREEN** — read off the cells a reader sees
+      // rather than off the frame, which is the one check a reader can make
+      // and the whole reason the combination rule is a weighted sum.
+      const { container } = withScore(scored(ranked(95), ranked(66)));
+
+      const contributed = [...container.querySelectorAll("tbody tr")]
+        .map((row) => row.querySelectorAll("td")[1]?.textContent ?? "")
+        .filter((cell) => /^\d+$/u.test(cell))
+        .map(Number);
+
+      expect(contributed).toStrictEqual([38, 23]);
+      expect(contributed.reduce((a, b) => a + b, 0)).toBe(
+        Number(screen.getByText("61").textContent),
+      );
+    });
+
+    it("publishes every weight and one row per factor, in every state", () => {
+      const { container } = withScore(scored(refusedFactor, refusedFactor));
+
+      const rows = [...container.querySelectorAll("tbody tr")].map((row) =>
+        [...row.querySelectorAll("th, td")].map((cell) => cell.textContent),
+      );
+
+      expect(rows).toStrictEqual([
+        ["Price", "40", "no move for this name"],
+        ["Relative move", "35", "no move for this name"],
+        ["Volume", "25", "no history to rank it"],
+        ["Breadth", "", "stated as context"],
+      ]);
+    });
+
+    it("draws words rather than a zero where no factor could be scored", () => {
+      // `0` claims *we measured, and nothing is unusual*. And never a dash:
+      // `—` is `unchanged` in `PriceChange`, so a dash in the figure slot
+      // asserts a zero score.
+      const { container } = withScore(scored(refusedFactor, refusedFactor));
+
+      expect(screen.getByText(NO_SCORE)).toBeTruthy();
+      expect(screen.queryByText("0")).toBeNull();
+      expect(
+        container.querySelector("p")?.nextElementSibling?.textContent,
+      ).not.toContain("—");
+    });
+
+    it("adds no tab stop and no new interaction", () => {
+      // **No popover, no disclosure, no `Why this band?`, no tooltip.** §11
+      // requires every score to CARRY its explanation rather than to be able
+      // to be asked for one, and AC 6's elements cannot be audited by walking
+      // a DOM that does not contain them until a click.
+      const { container } = withScore(scored(ranked(95), ranked(66)));
+
+      expect(
+        container.querySelectorAll(
+          'button, a, [tabindex], [role="button"], summary',
+        ),
+      ).toHaveLength(0);
+    });
+
+    it("draws the band's room and no ink where the gateway sent no score", () => {
+      const { container } = draw({ symbolReturn: view(MEASURED) });
+
+      expect(container.querySelector("table")).toBeNull();
+      expect(readable(container)).toContain(SCORE_LABEL);
+      expect(readable(container)).not.toContain("factors contributing");
+    });
+
+    it("says what the figure is not, above it and beneath it", () => {
+      // AC 11, two channels: a reader meets the denial in the same glance as
+      // the figure, and again as a sentence at the foot of the band.
+      const { container } = withScore(scored(ranked(95), ranked(66)));
+      const spoken = readable(container);
+
+      expect(spoken).toContain(SCORE_LABEL);
+      expect(spoken).toContain(SCORE_DISCLAIMER);
     });
   });
 });

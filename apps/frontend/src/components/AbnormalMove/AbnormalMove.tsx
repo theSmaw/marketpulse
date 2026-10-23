@@ -1,14 +1,19 @@
 import { memo } from "react";
 
+import type { WireMarketOverview } from "@marketpulse/shared";
+
 import { cx } from "../../cx.js";
 import {
   NO_RETURN,
+  anomalyScoreBand,
   fiveMinuteReturnIndicator,
   volumeRatioIndicator,
+  type AnomalyScoreBand as ScoreBandView,
   type ReturnIndicator,
   type SymbolReturnView,
   type VolumeIndicator as VolumeIndicatorView,
 } from "../../market/index.js";
+import { AnomalyBadge } from "../AnomalyBadge/AnomalyBadge.js";
 import { PriceChange } from "../PriceChange/PriceChange.js";
 import { useWaited } from "../MarketProxyStrip/use-waited.js";
 import styles from "./AbnormalMove.module.css";
@@ -21,6 +26,12 @@ import styles from "./AbnormalMove.module.css";
 // Stories 5.3, 5.5 and 5.6 each add their own indicator.
 //
 // ## It reserves THIS indicator and not one pixel for the score
+//
+// **False since 2026-10-23 (Task 5.6.5), and the sentence below is left
+// standing because the accepted cost it names is exactly what was paid.** The
+// score is the region's FIRST band now, above the three bands it summarises,
+// and this story paid the step the paragraph predicted — recorded per width in
+// `TASK-05-the-score-draws.md` rather than argued.
 //
 // The owner's decision, and the arithmetic is why. 5.6's score is unbuilt, so
 // reserving for it is a guess that story both **re-measures and steps** —
@@ -104,6 +115,44 @@ import styles from "./AbnormalMove.module.css";
 // that is terminal **and arrives unprompted after the reader has had time to
 // read the region** — Story 5.6's band word, if it lands after the figure
 // does, and not a sentence the first frame already carried.
+//
+// ## The sharpened trigger FIRED on 2026-10-23 (Task 5.6.5). The verdict is
+// ## STILL no, and the reasoning is the opposite of the last one's
+//
+// The clause names this story's band word **by name**, so it fires by its own
+// wording: a band word is as terminal as a refusal sentence, and it does
+// arrive on the frame that carries the figure rather than before it.
+//
+// **It is refused on the second conjunct, which the clause's own author did
+// not notice is false of a band.** *Arrives unprompted after the reader has
+// had time to read the region* is a claim about **one** arrival; a band is a
+// **threshold crossing** on a figure that is replaced 6.8–16.1 times a minute,
+// and `ANOMALY_BAND_FLOORS` are three floors on a continuous score. A score
+// oscillating one point either side of 32 — which the measured distribution
+// puts the **median** of this universe at — crosses `normal`/`elevated` on
+// every batch, so the announcement a live region would make is not *the
+// product has decided something* but *the score is near a floor*, repeated
+// four to sixteen times a minute with **nothing having happened**. That is
+// strictly worse than the figure's own churn the three reasons above refuse,
+// because a word reads as a verdict where a number reads as a reading.
+//
+// **The second refusal is the measurement.** Task 5.6.3's distribution over
+// 34,318 scores puts 219.2 of 484 securities in `normal` and 179.4 in
+// `elevated` at a median instant — the two bands either side of the floor hold
+// **82%** of the universe — so the oscillating case is the ordinary case
+// rather than an edge.
+//
+// **And the band is present on first paint**, which is reason 1 unchanged: the
+// gateway answers a browser's `subscribe` with a `return` frame carrying the
+// score, so the word is in this band's first render. What a reader meets is
+// something to go and read.
+//
+// **The clause is sharpened a second time rather than re-dated**, and the
+// sharpening is the part a future author needs: the condition is the first
+// state here that is terminal, arrives unprompted after the reader has had
+// time to read the region, **and cannot recur under an unchanged subject** —
+// a threshold crossing can, and a monotone arrival cannot. A `CONFIRMED`
+// finding (§5.3) is the shape it was always reaching for.
 
 export interface AbnormalMoveProps {
   /** The security this page is about. */
@@ -117,13 +166,34 @@ export interface AbnormalMoveProps {
    * own argument for taking the resolved row rather than the view.
    */
   readonly symbolReturn: SymbolReturnView | undefined;
+  /**
+   * **The aggregate, read for ONE clause: breadth** (Task 5.6.5).
+   *
+   * Breadth is a stated clause beside the score and never a weight in it
+   * (Story 5.1's decision 4) — it is identical for every member of a group, so
+   * weighting it correlates a whole sector's scores. It is the same frame
+   * `RelativePerformance` one region down already takes whole, and this
+   * component reads the `breadth` section's own counts rather than deriving
+   * anything from it.
+   *
+   * `undefined` before the first aggregate, which draws the clause's reserved
+   * room and no ink.
+   */
+  readonly overview: WireMarketOverview | undefined;
 }
 
 export const AbnormalMove = memo(function AbnormalMove({
   symbol,
   symbolReturn,
+  overview,
 }: AbnormalMoveProps) {
   const indicator = fiveMinuteReturnIndicator(symbol, symbolReturn);
+  // **The score band is built unconditionally**, for the volume indicator's
+  // reason one line down and one stronger: the score refuses *independently*
+  // of the return, and on this laptop it draws while the return does not —
+  // nothing observed means the price factor refuses with `no-subject-move`
+  // while the excess factor ranks off stored closes.
+  const score = anomalyScoreBand(symbol, symbolReturn, overview);
   // **The second indicator is built unconditionally**, because the two refuse
   // independently: a window with no bar exactly five minutes back has no
   // return and may hold all five minutes of volume. What they share is the
@@ -132,10 +202,11 @@ export const AbnormalMove = memo(function AbnormalMove({
   const volume = volumeRatioIndicator(symbol, symbolReturn);
 
   if (indicator.nothing)
-    return <HeldRoom indicator={indicator} volume={volume} />;
+    return <HeldRoom indicator={indicator} volume={volume} score={score} />;
 
   return (
     <div className={cx(styles.region)}>
+      <ScoreBand band={score} />
       <Indicator indicator={indicator} />
       <VolumeIndicator indicator={volume} />
     </div>
@@ -161,9 +232,11 @@ export const AbnormalMove = memo(function AbnormalMove({
 function HeldRoom({
   indicator,
   volume,
+  score,
 }: {
   readonly indicator: ReturnIndicator;
   readonly volume: VolumeIndicatorView;
+  readonly score: ScoreBandView;
 }) {
   const waited = useWaited(true);
 
@@ -171,6 +244,13 @@ function HeldRoom({
     <div className={cx(styles.room)}>
       <div className={cx(styles.reserved)} aria-hidden="true">
         <div className={cx(styles.region)}>
+          {/*
+           * **The score band is reserved too** (Task 5.6.5) — Task 5.5.4's
+           * note one band down, and the arithmetic is the same: a reserve one
+           * band short steps the whole lower page the moment the first frame
+           * lands, which is `Movers`' 81 px arriving by a different route.
+           */}
+          <ScoreBand band={score} />
           <Indicator indicator={indicator} />
           {/*
            * **Both indicators are reserved, not one** (Task 5.5.4). The room this
@@ -185,6 +265,208 @@ function HeldRoom({
       {waited ? (
         <p className={cx(styles.nothingArrived)}>{NO_RETURN}</p>
       ) : undefined}
+    </div>
+  );
+}
+
+/**
+ * **The composite score, its band and the account beneath it** (Task 5.6.5) —
+ * the first 0–100 figure this product has drawn, and the first band of this
+ * region because the region reads summary-then-evidence (Gate 1 decision 3).
+ *
+ * ## The account is a LEDGER, and the addition closes on screen
+ *
+ * `38 + 23 = 61` with every addend and the sum drawn. It closes **by
+ * construction** rather than by a test: each contribution is
+ * `round(weight × rank / 100)` and the score **is** the sum of the rounded
+ * contributions, so there is no rounding residue to hide and no second
+ * arithmetic to disagree. Nothing in this component or in `anomaly-score.ts`
+ * adds anything — `readAnomalyScore` has already refused any frame whose
+ * published contributions do not re-add to the score beside them.
+ *
+ * ## Fixed arity, so a variable account has a constant height
+ *
+ * AC 6 wants one clause per contributing factor **and** one per absent factor,
+ * which is a clause set **total over the factors** — so the ledger is a row
+ * per factor in every presence vector, plus the breadth row, and **`3 of 3`
+ * and `0 of 3` are the same height.** `Movers`' held-row lesson generalised
+ * from rows to clauses.
+ *
+ * ## No new interaction and no new motion
+ *
+ * **No popover, no disclosure, no `Why this band?`, no tooltip, zero new tab
+ * stops.** `SecurityRow` wraps `AnomalyBadge` in a `Popover` and `Popover.tsx`
+ * says *"the first thing this seam carries is an anomaly score's
+ * explanation"* — right for a dense table row and wrong here, because §11
+ * requires every score to **carry** its explanation rather than to be able to
+ * be asked for one, and AC 6's elements cannot be audited by walking a DOM
+ * that does not contain them until a click. `SecurityRow`'s own disposition
+ * is Task 5.6.6's and is deliberately untouched.
+ *
+ * And a score is a **state**, so it persists: the shipped arrival disc means
+ * *a bar arrived for this security* and already fires 200 px above, because a
+ * revision **is** a bar arrival. A second mark here would be a fourth meaning
+ * for one disc.
+ *
+ * ## The figure is a metric and never the display size
+ *
+ * That size is spent once per screen and `SecurityIdentity` already spends it
+ * twice. `.score` composes `dataCell` and declares **no size**, so it sits in
+ * `.figure`'s metric line box exactly as `PriceChange.change` and
+ * `.multiple` do — the size seam `MarketProxyStrip` established.
+ */
+function ScoreBand({ band }: { readonly band: ScoreBandView }) {
+  return (
+    <div className={cx(styles.indicator)}>
+      <p className={cx(styles.label)}>{band.label}</p>
+
+      {/*
+       * **The figure, the scale and the chip, on one row.**
+       *
+       * `0 of 3` draws **words** rather than a `0`: a zero claims *we
+       * measured, and nothing is unusual*, which is a statement about the
+       * security, where this state is a statement about us. And never a dash —
+       * `—` is `unchanged` in `PriceChange`, so a dash in this slot asserts a
+       * zero score.
+       */}
+      <p className={cx(styles.figure, styles.scoreFigure)}>
+        {band.score === undefined ? (
+          <span className={cx(styles.absent)}>{band.absent ?? NBSP}</span>
+        ) : (
+          <>
+            <span className={cx(styles.score)}>{band.score}</span>
+            {/*
+             * **A space, for the listener who gets no margin** — the
+             * percentile cell's own note two bands down. `textContent` runs
+             * two sibling spans together and the gap on screen is a
+             * `margin-left` a screen reader cannot see. It costs no layout: an
+             * anonymous flex item holding only white space is not rendered
+             * (CSS Flexbox §4).
+             */}{" "}
+            <span className={cx(styles.scale)}>{band.scale}</span>
+          </>
+        )}
+
+        {/*
+         * **The band chip, baseline-aligned on the figure's own row.**
+         *
+         * `AnomalyBadge` is **adopted rather than re-written** (AC 8): it is
+         * four named bands with the name written inside the fill, which is the
+         * decision that must not be thrown away silently — an intensity ramp
+         * with no label reads as a mood, and its four amber steps are
+         * separated by 1.12, 1.43 and 1.59 in greyscale.
+         *
+         * **This is the one amber position in the rail.** Not the score, not a
+         * contribution, not a weight — `amber-appears-once-in-the-rail` fails
+         * the build on a second one, because the tempting edit is to tint the
+         * figure to match the chip.
+         */}
+        {band.band === undefined ? undefined : (
+          <>
+            {" "}
+            <span className={cx(styles.chip)}>
+              <AnomalyBadge band={band.band} />
+            </span>
+          </>
+        )}
+      </p>
+
+      {/*
+       * **How many factors are in the sum, and the most they could have
+       * produced.** Both halves, because AC 3's own amendment says the count
+       * loses its discriminating power while the volume factor is permanently
+       * unrankable — `2 of 3` has three different maxima depending on *which*
+       * two.
+       */}
+      <p className={cx(styles.summary)}>{band.summary ?? NBSP}</p>
+
+      {/*
+       * **The ledger's room, held whether or not the ledger draws.**
+       *
+       * The deferred state — this gateway sent no score at all — draws **no
+       * ink at all**, headings included, which is ADR 0029's defer rule: we
+       * were not told there is an absence. So the room is a `min-height` on
+       * this box rather than a set of blank rows, and the region's height is
+       * the same in every state.
+       */}
+      <div className={cx(styles.ledgerRoom)}>
+        {band.rows.length === 0 ? undefined : (
+          <table className={cx(styles.ledger)}>
+            <thead>
+              <tr>
+                <th
+                  className={cx(styles.heading, styles.nameColumn)}
+                  scope="col"
+                >
+                  Factor
+                </th>
+                <th
+                  className={cx(styles.heading, styles.figureColumn)}
+                  scope="col"
+                >
+                  Weight
+                </th>
+                <th
+                  className={cx(styles.heading, styles.contributed)}
+                  scope="col"
+                >
+                  Contributed
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {band.rows.map((row) => (
+                <tr key={row.factor}>
+                  <th
+                    className={cx(styles.rowName, styles.nameColumn)}
+                    scope="row"
+                  >
+                    {row.factor}
+                  </th>
+                  <td className={cx(styles.weight)}>{row.weight}</td>
+                  {/*
+                   * **The reason REPLACES the figure rather than sitting
+                   * beside it** — `return-percentile.ts`' own idiom two bands
+                   * down, and forced by a measurement as well: a fourth column
+                   * left the reason 97 px at 390, against a 22-character
+                   * vocabulary, so every refused row wrapped and the ledger's
+                   * height became a function of the viewport.
+                   *
+                   * It is also why there is **no em dash anywhere in this
+                   * band**: a `—` where a figure would go asserts a zero
+                   * contribution, which is `unchanged` in `PriceChange`.
+                   */}
+                  <td className={cx(styles.contributed)}>
+                    {row.contributed === undefined ? (
+                      <span className={cx(styles.reason)}>{row.reason}</span>
+                    ) : (
+                      <span className={cx(styles.contribution)}>
+                        {row.contributed}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/*
+       * **Breadth as context, never as a term** — Story 5.1's decision 4. It
+       * is identical for every member of a group, so weighting it correlates a
+       * whole sector's scores and fills a ranked list with one industry on the
+       * day that industry moved together.
+       */}
+      <p className={cx(styles.context)}>{band.context ?? NBSP}</p>
+
+      {/*
+       * **AC 11's sentence, and its room is reserved in every state.** There
+       * is nothing to disclaim over a refusal, so the line is blank where
+       * there is no figure — and the reserve is what keeps `0 of 3` the same
+       * height as `3 of 3`.
+       */}
+      <p className={cx(styles.disclaimer)}>{band.disclaimer ?? NBSP}</p>
     </div>
   );
 }
@@ -338,7 +620,7 @@ function VolumeIndicator({
   readonly indicator: VolumeIndicatorView;
 }) {
   return (
-    <div className={cx(styles.indicator, styles.secondIndicator)}>
+    <div className={cx(styles.indicator)}>
       <p className={cx(styles.label)}>{indicator.label}</p>
 
       {/*

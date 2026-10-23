@@ -40,7 +40,7 @@ const RATE: WireVolumeRate = {
 const held = (
   volume: SymbolReturnView["volume"],
   symbol = "NVDA",
-): SymbolReturnView => ({ symbol, figure: MEASURED, volume });
+): SymbolReturnView => ({ symbol, figure: MEASURED, volume, score: null });
 
 describe("drawing a multiple", () => {
   it("glues U+00D7 to the digits, with one decimal and no sign", () => {

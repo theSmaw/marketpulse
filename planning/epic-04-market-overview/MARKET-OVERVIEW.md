@@ -395,6 +395,40 @@ an unadjusted price break — shares not comparable` (65) each wrapped to a
 > per story that adds a band_, and this is the second of the three (5.3 added a
 > cell rather than a band; 5.6's score is the last).
 
+> **Fired a FOURTH time on 2026-10-23 by Task 5.6.5, on the same rail, and it
+> is the largest step any band has taken — the last one the owner's
+> one-step-per-story rule has to pay.**
+>
+> `Abnormal-move indicators` gained the composite score as its **first** band,
+> above the three it summarises, which is Story 5.6's Gate 1 decision 3: the
+> region reads summary-then-evidence.
+>
+> **Measured per width, never derived.** The task file predicted the band at
+> **≈230 px** and the region at **256 → ≈486**; the probed figures are
+> **band 232 px, region 256 → 500 px, +244, uniform at all four widths**
+> (`pnpm probe /securities/NVDA --within "Abnormal-move indicators"`,
+> 2026-10-23) — the band itself 232 plus a 12 px separator. The prediction was
+> right about the mechanism and **wrong by 14 px**, which is this section's
+> **fifth** such entry after 383 → 433 → 461, the +127 and the +114's 4 px.
+> The 14 px nobody modelled is two measurements: the chip costs **2 px** rather
+> than the 0 px the brief derived from `.percentile` and `.comparand` (those
+> two cells have no padding and `AnomalyBadge` has `var(--space-4)` top and
+> bottom, so baseline-aligned in a 26 px metric row it hangs 2 px below the
+> descender), and the ledger's heading row carries its own `padding-bottom`.
+>
+> **One height in every state, at every width, measured across thirteen
+> states** — nine of the score band's own plus four of the bands below it — at
+> the rail's 419 px and 308 px content boxes (`pnpm probe --story … --viewports
+485x900` and `374x900`). **500 px in every one.** The reserve that makes it so
+> was wrong by exactly the heading's 4 px when first written: the deferred
+> state measured **496** against the drawn state's **500**, found by probing
+> two stories side by side and invisible to every test.
+>
+> **What moved below it**: `Relative performance` is unchanged at
+> **240 / 240 / 240 / 302** and moves down 244 px once, at the release, with
+> `Anomaly history` behind it. Nothing moves under a reader mid-session —
+> which is the claim the thirteen-state probe above is for.
+
 ### 1.5 A region is a tab stop unconditionally
 
 [ADR 0039](../../docs/adr/0039-a-region-is-a-tab-stop-unconditionally.md), Task

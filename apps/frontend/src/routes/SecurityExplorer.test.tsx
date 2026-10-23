@@ -862,7 +862,12 @@ describe("the 5-minute return and the security it is about", () => {
     // **`volume: null`** — this route draws the band and does not read the
     // figure, and `null` is the one state that asks the volume band to draw
     // nothing at all (Task 5.5.4).
-    symbolReturn: { symbol: "NVDA", figure: MEASURED, volume: null },
+    symbolReturn: {
+      symbol: "NVDA",
+      figure: MEASURED,
+      volume: null,
+      score: null,
+    },
   } as const;
 
   const drawAt = (path: string) =>
