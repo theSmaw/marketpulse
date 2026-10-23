@@ -392,6 +392,9 @@ function ScoreBand({ band }: { readonly band: ScoreBandView }) {
       <div className={cx(styles.ledgerRoom)}>
         {band.rows.length === 0 ? undefined : (
           <table className={cx(styles.ledger)}>
+            <caption className={cx(styles.ledgerCaption)}>
+              How this score was reached
+            </caption>
             <thead>
               <tr>
                 <th

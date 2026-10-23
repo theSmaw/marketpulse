@@ -427,6 +427,77 @@ The chip's own file is **allowed** to spend the ramp, so without a second `color
 clause a chip tinting its **ink** — under 2.2:1 — prints `72 invariants hold.`
 Both substitutions keep the found line and append beside it.
 
+## The browser suite found two real consequences, and both were MINE
+
+The developer did not run `pnpm e2e` — I did, and it was red. **Neither failure
+was a flake and neither was a test being precious.** Both are genuine
+consequences of drawing a score, and both are repaired at the cause rather than
+at the assertion.
+
+### 1. The page now holds TWO tables, and neither had a name
+
+`getByRole("table")` became a **strict-mode violation**: the ledger is a real
+`<table>` — correct markup for a factor/weight/contribution grid with column
+headers — so `security-price-motion.spec.ts` resolved two elements where it
+expected one.
+
+**The spec was right and the markup was incomplete.** Two tables on one page
+sharing no accessible name between them is a defect **for a listener** before it
+is one for a spec: a screen reader announces _table_ twice and distinguishes them
+by nothing. `UniverseTable` had already solved this with a **visually-hidden
+`<caption>`**, so the ledger follows that idiom rather than inventing an
+`aria-label`:
+
+```
+<caption className={cx(styles.ledgerCaption)}>How this score was reached</caption>
+```
+
+The spec then names which table it means. **Both halves were owed** — fixing only
+the spec would have left the listener's defect shipped and the suite green, which
+is the worse outcome of the two.
+
+### 2. The score band pushes the two plots apart FROM THE OTHER COLUMN
+
+`the two plots hang on one axis and stop at the same pixel` breached its ceiling:
+**225 against `< 220`**. Its comment states the ceiling's purpose precisely —
+_"what the ceiling refuses is a **third block arriving in the gap**"_ — and
+**nothing arrived in the gap**.
+
+The band made this region **244 px taller**, and at 1440 it is the **opposite
+column's sibling**, so the grid row stretches, the Price panel grows to **511**,
+and the plots are pushed apart **from outside the gap entirely**. The developer
+measured the rail and `Relative performance` and did not measure this; it is the
+consequence nobody predicted.
+
+**Measured at four widths rather than argued**, with a throwaway spec deleted
+after the run:
+
+| width | gap                                          |
+| ----- | -------------------------------------------- |
+| 1440  | **225**                                      |
+| 1024  | 195                                          |
+| 768   | 195                                          |
+| 390   | 752 (one column; the assertion does not run) |
+
+**Only 1440 moved**, because only there is the rail a sibling column — 1024 and
+768 sit on the stated 190 floor untouched.
+
+**The ceiling is re-measured to 235, not raised to admit the change.** The floor
+is still 190, the stretch accounts for 35, and the third block the ceiling exists
+to refuse — the Volume region's deleted two-line paragraph, ~32 px — would read
+**257** and still breach. The headroom narrows from 30 px to 10 px, which is the
+honest cost of the step and is recorded as such. **A ceiling moved to admit
+today's change without measuring what it now permits has stopped guarding
+anything.**
+
+### And a process note against myself
+
+I started that first suite at a load average of **8.72**, above the threshold of
+7 this repository's own amendment sets and which I have quoted at three agents in
+this story. It did not cause either failure — both reproduce on a settled machine
+and both are real — but the run was not one I could have trusted if it had been
+green, and a measurement taken above the threshold is worth nothing either way.
+
 ## For a stakeholder — a status report, 2026-10-23
 
 **MarketPulse now puts a number on how unusual a security's behaviour is, and

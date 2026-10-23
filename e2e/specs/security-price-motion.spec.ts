@@ -377,16 +377,27 @@ test("a page fed only by the store marks nothing, on the block or in the table",
       SECURITIES_ROUTE_PATTERN(new URL(response.url())),
     );
 
+  // **Named rather than bare since 2026-10-23 (Task 5.6.5), and the rename is
+  // the POINT rather than a workaround.** This page now holds TWO tables — the
+  // tracked universe's and the anomaly score's ledger — so a bare
+  // `getByRole("table")` is a strict-mode violation rather than an assertion.
+  // The ledger gained a visually-hidden caption in the same change, following
+  // `UniverseTable`'s own idiom, because two tables sharing no name between
+  // them is a defect for a listener before it is one for a spec.
   const first = universeAnswered();
   await page.goto(EXPLORER);
   await first;
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 
   const second = universeAnswered();
   await page.reload();
   await second;
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 
   await expectNothingFailedToRender(page);

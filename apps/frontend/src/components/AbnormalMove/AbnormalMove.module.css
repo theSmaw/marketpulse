@@ -696,3 +696,17 @@
   line-height: var(--line-height-micro);
   color: var(--ink-secondary);
 }
+
+/*
+ * **The ledger's own name, for a listener** (Task 5.6.5).
+ *
+ * This page now holds **two** tables — the tracked universe's and this one —
+ * and before this caption neither the spec nor a screen reader could tell them
+ * apart: `getByRole("table")` resolved to two elements with one name between
+ * them. `UniverseTable` solved the same problem the same way, with a
+ * visually-hidden `<caption>` rather than an `aria-label`, so this follows its
+ * precedent rather than inventing a second idiom.
+ */
+.ledgerCaption {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
