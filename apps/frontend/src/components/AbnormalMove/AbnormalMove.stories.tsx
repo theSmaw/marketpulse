@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import { scoreAnomaly, toWireAnomalyScore } from "@marketpulse/shared";
+
 import type {
+  FactorAnswer,
+  FactorRefusal,
+  WireAnomalyOutcome,
+  WireMarketOverview,
   WireMeasuredReturn,
   WireReturnPercentile,
   WireSymbolReturn,
@@ -99,7 +105,12 @@ const VOLUME: WireVolumeComparison = {
 const held = (
   figure: WireSymbolReturn,
   volume: WireVolumeComparison | null = NO_VOLUME_HISTORY,
-) => ({ symbol: "NVDA", figure, volume });
+  // **`null` by default — this gateway sent no score at all** (Task 5.6.5),
+  // which draws the score band's room and no ink. Every story written before
+  // 5.6 therefore keeps the state it was written for, with the band reserved
+  // above it; the score's own states are at the foot of this file.
+  score: WireAnomalyOutcome | null = null,
+) => ({ symbol: "NVDA", figure, volume, score });
 
 /**
  * **What the window held beside a refusal** (Task 5.2.4) — one bar, at one
@@ -120,7 +131,7 @@ const meta = {
   title: "Market/AbnormalMove",
   component: AbnormalMove,
   parameters: { layout: "padded" },
-  args: { symbol: "NVDA", symbolReturn: held(MEASURED) },
+  args: { symbol: "NVDA", symbolReturn: held(MEASURED), overview: undefined },
   render: (args) => (
     <Region name="Abnormal-move indicators">
       <AbnormalMove {...args} />
@@ -674,4 +685,313 @@ export const VolumeCrossesAPriceBreak: Story = {
  */
 export const NoVolumeComparison: Story = {
   args: { symbolReturn: held(MEASURED, null) },
+};
+
+/*
+ * --- The score band (Task 5.6.5) ---
+ *
+ * **Every payload below is produced by the SHIPPED SCORER**, `scoreAnomaly`
+ * over a set of factor answers, and serialised by `toWireAnomalyScore` — the
+ * two functions the gateway itself calls. So each story holds a state the
+ * producer can reach, the published contributions are the ones the arithmetic
+ * produced, and **the addition on screen closes because it is the same
+ * addition**. A story that typed `contribution: 38` beside `rank: 95` would be
+ * a picture of a ledger rather than a ledger.
+ *
+ * **What to review, in order.** The height first: every story in this file
+ * must be the same height, and the score band's own states — a figure, a
+ * refusal, a gateway that sent nothing — must not differ by a pixel. Then the
+ * chip, which is **the one amber position in the rail** and sits behind its
+ * own written name. Then the addition: the contributed column sums to the
+ * figure above it, on screen, in every scored state.
+ */
+
+/** A ranked factor, as the backend's own factor modules answer. */
+const ranked = (rank: number, sampleCount = 4620): FactorAnswer => ({
+  state: "ranked",
+  rank,
+  aboveSample: false,
+  sampleCount,
+});
+
+/** The volume factor's permanent answer on every machine that exists. */
+const NO_DISTRIBUTION: FactorAnswer = { state: "no-distribution" };
+
+/** A refusal, in the vocabulary the factor that refused owns. */
+const refusedFactor = (refusal: FactorRefusal): FactorAnswer => ({
+  state: "refused",
+  refusal,
+  sampleCount: 0,
+  minimumSampleCount: 2500,
+});
+
+/**
+ * **A score, through the shipped scorer and the shipped serialiser.**
+ *
+ * `toWireAnomalyScore` is the mapping the gateway applies before the frame
+ * leaves the process, field by field and never a spread — so what a story
+ * hands the component is byte-for-byte what a browser decodes.
+ */
+const scored = (
+  price: FactorAnswer,
+  excess: FactorAnswer,
+  volume: FactorAnswer = NO_DISTRIBUTION,
+): WireAnomalyOutcome =>
+  toWireAnomalyScore(scoreAnomaly({ price, excess, volume }));
+
+/**
+ * **An aggregate carrying breadth over the last session**, which is what a
+ * store with no live feed holds — and is the state the local pair draws.
+ */
+const BREADTH: WireMarketOverview = {
+  computedAt: "2026-10-13T18:01:00.000Z",
+  feeds: ["iex"],
+  figures: [],
+  sectors: [],
+  breadth: {
+    basis: "session",
+    session: "2026-09-11",
+    advancing: 334,
+    declining: 160,
+    unchanged: 7,
+    measured: 501,
+    tracked: 501,
+  },
+};
+
+/**
+ * **The headline: a composite score, its band and the account beneath it** —
+ * the first 0–100 figure this product has drawn.
+ *
+ * `round(40 × 95 / 100) = 38` and `round(35 × 66 / 100) = 23`, and
+ * `38 + 23 = 61` **on screen**. The addition closes by construction rather
+ * than by a test: the score **is** the sum of the rounded contributions, so
+ * there is no rounding residue for the column to hide.
+ *
+ * **This is the deployed common case and not the local one** — `2 of 3`, with
+ * the volume factor permanently unrankable because migration `0015` stores a
+ * median and a dispersion rather than a distribution. On this laptop the state
+ * is `1 of 3 · max 35`: nothing is observed, so the price factor refuses with
+ * `no-subject-move` while the excess factor ranks off stored closes.
+ *
+ * **Review `max 75` beside `/ 100`.** They are different facts and both are
+ * needed: the scale is 0–100 for every security, and this security's evidence
+ * could have produced at most 75. Renormalising the second onto the first is
+ * what AC 3 refuses, and it would invalidate all three band floors — measured
+ * quantiles of a max-75 distribution — on the day it shipped.
+ */
+export const Score: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: PERCENTILE },
+      NO_VOLUME_HISTORY,
+      scored(ranked(95), ranked(66)),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **`normal` carries no fill at all**, which is `AnomalyBadge`'s own decision
+ * adopted rather than re-taken: it is the absence of unusualness and does not
+ * need marking, and its step to `elevated` is the ramp's weakest at **1.12** —
+ * so the two states hardest to tell apart by colour are the two not
+ * distinguished by colour at all. The `calc()` in its rule keeps the bordered
+ * chip the same box as the filled ones.
+ *
+ * **Review it beside `Score`.** That pair is the one a reader meets most
+ * often — the measured distribution puts 219.2 of 484 securities in `normal`
+ * and 179.4 in `elevated` at a median instant, so 82% of the universe is one
+ * of these two.
+ */
+export const ScoreNormal: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: PERCENTILE },
+      NO_VOLUME_HISTORY,
+      scored(ranked(41), ranked(18)),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **`high` — the third band, and the first a two-factor score can reach.**
+ *
+ * The floors are **measured quantiles** of this product's own distribution
+ * (Task 5.6.3): `elevated` at p50 = 32, `high` at p90 = 63, `extreme` at
+ * p99 = 73, over 34,318 two-factor scores. They are on the **raw** score, with
+ * `elevated ≤ 40 < high`, so a price-only score may say `elevated` and may
+ * never say `high` — less evidence, less claim, graduated rather than
+ * absolute.
+ */
+export const ScoreHigh: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: { ...PERCENTILE, rank: 97 } },
+      NO_VOLUME_HISTORY,
+      scored(ranked(97), ranked(88)),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **`extreme`, which 1.6% of the scored universe reads at a median instant.**
+ *
+ * The strongest fill in the ramp, and the name is still written inside it —
+ * because four amber steps separated by 1.12, 1.43 and 1.59 in greyscale are
+ * enough to see a change and nowhere near enough to name one.
+ *
+ * **Review the amber.** It appears **once** in this rail and this is it: not
+ * the score, not a contribution, not a weight. The tempting edit is to tint
+ * the figure to match the chip, and `amber-appears-once-in-the-rail` fails the
+ * build on it.
+ */
+export const ScoreExtreme: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: { ...PERCENTILE, rank: 99 } },
+      NO_VOLUME_HISTORY,
+      scored(ranked(99), ranked(99)),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **`1 of 3`, which is this laptop's own state and the one a probe can
+ * photograph against a real frame** (Task 5.6.4's finding).
+ *
+ * Nothing is observed, so the price factor refuses with `no-subject-move` —
+ * but the subject's and its benchmark's **stored close-to-close moves share a
+ * basis**, so the excess factor ranks. The composite is reachable on the
+ * session basis with no live feed at all, which no other figure in Epic 5 is.
+ *
+ * **`max 35` is the part to read.** One factor contributed and it was the
+ * 35-point one, so this score could not have exceeded 35 — which is why the
+ * count alone is not the label.
+ */
+export const ScoreOneFactor: Story = {
+  args: {
+    symbolReturn: held(
+      { measured: false, refusal: "nothing-observed", seen: null },
+      NO_VOLUME_HISTORY,
+      scored(refusedFactor("no-subject-move"), ranked(99)),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **`0 of 3` — and it is NOT a score of `0`** (CI's permanent state, 516
+ * securities and zero bars).
+ *
+ * A `0` claims *we measured, and nothing is unusual*, which is a statement
+ * about the security; this is a statement about **us**. So the figure slot
+ * draws **words**, and never an em dash — `—` is `unchanged` in `PriceChange`,
+ * so a dash here would assert a zero score.
+ *
+ * **Review its height against `Score` above.** They must be byte-identical:
+ * the ledger is a row per factor in every presence vector, and the
+ * disclaimer's line is reserved and blank here because there is nothing to
+ * disclaim over a refusal.
+ */
+export const NoScore: Story = {
+  args: {
+    symbolReturn: held(
+      { measured: false, refusal: "nothing-observed", seen: null },
+      NO_VOLUME_HISTORY,
+      scored(
+        refusedFactor("no-subject-move"),
+        refusedFactor("too-few-samples"),
+      ),
+    ),
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **A factor whose question does not arise, which must not read like a
+ * refusal.**
+ *
+ * A sector SPDR **is** the fund its own sector is measured against, so the
+ * comparison would be with itself and the excess would be exactly `0` for
+ * ever — 11 of 516 securities, plus the four market proxies with no sector at
+ * all. No waiting, backfilling or repairing will ever produce this figure,
+ * which is exactly what separates it from `baseline still filling` one row up.
+ */
+export const ScoreInapplicableFactor: Story = {
+  args: {
+    symbol: "XLK",
+    symbolReturn: {
+      symbol: "XLK",
+      figure: { ...MEASURED, percentile: PERCENTILE },
+      volume: NO_VOLUME_HISTORY,
+      score: scored(ranked(95), {
+        state: "inapplicable",
+        because: "is-benchmark",
+      }),
+    },
+    overview: BREADTH,
+  },
+};
+
+/**
+ * **The breadth clause over a live window rather than a session** — the state
+ * during market hours.
+ *
+ * It is **context and never a term**: breadth is identical for every member of
+ * a group, so weighting it correlates a whole sector's scores and fills a
+ * ranked list with one industry on the day that industry moved together
+ * (Story 5.1's decision 4, this story's Gate 1 false premise 3). **The
+ * denominator is 3**, and the ledger says so by giving breadth a row with no
+ * weight.
+ *
+ * **The denominator in the sentence is `measured`, not `tracked`**, which is
+ * a correction to the canvas specimen: 312 is counted over the securities we
+ * heard from, and stating it against the 501 we track would be a count over
+ * one set wearing another's denominator.
+ */
+export const ScoreWithObservedBreadth: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: PERCENTILE },
+      NO_VOLUME_HISTORY,
+      scored(ranked(95), ranked(66)),
+    ),
+    overview: {
+      ...BREADTH,
+      breadth: {
+        basis: "observed",
+        windowMinutes: 5,
+        advancing: 312,
+        declining: 140,
+        unchanged: 14,
+        measured: 466,
+        tracked: 501,
+      },
+    },
+  },
+};
+
+/**
+ * **No aggregate at all, so the breadth clause holds its room and says
+ * nothing** — the first seconds of any page, and a browser whose gateway sends
+ * no breadth section.
+ *
+ * ADR 0029's defer rule: we were not told there is an absence, so a sentence
+ * explaining one would be a claim of its own. **Review it beside `Score`** —
+ * the heights must match, because the clause's two lines are reserved whether
+ * or not they draw.
+ */
+export const ScoreWithoutBreadth: Story = {
+  args: {
+    symbolReturn: held(
+      { ...MEASURED, percentile: PERCENTILE },
+      NO_VOLUME_HISTORY,
+      scored(ranked(95), ranked(66)),
+    ),
+    overview: undefined,
+  },
 };

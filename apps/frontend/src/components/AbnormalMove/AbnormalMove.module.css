@@ -14,6 +14,11 @@
  * indicator is the picture Story 4.7 routed as a defect — *a gateway that is
  * behind* and *this is next year's* drawn the same way.
  *
+ * **False since 2026-10-23 (Task 5.6.5) and left standing, because the step it
+ * predicted is exactly what was paid.** The score is this region's FIRST band
+ * now and its rules are at the foot of this file; the before and after is a
+ * probed figure per width in `TASK-05-the-score-draws.md`.
+ *
  * **No new geometry and no new colour.** Four rows of existing tokens: the micro
  * label, `--font-size-metric` for the one headline figure (`BreadthLedger`'s
  * hierarchy — one metric figure, everything else dense or micro), and
@@ -24,6 +29,20 @@
 .region {
   display: flex;
   flex-direction: column;
+  /*
+   * **The separator between bands is this gap and nothing is drawn in it.**
+   *
+   * A rule here would be the only horizontal line inside a `Region` in this
+   * product; each band's own uppercase micro label is what says *a new subject
+   * starts here*, which is the idiom the rail already uses between its regions.
+   *
+   * It was `.secondIndicator`'s own `margin-top` until Task 5.6.5 added a
+   * third band, at which point a margin on *the one that is not first* needed
+   * either a second class with the same declaration or a rename. **The gap is
+   * the same 12 px** the measured two-band arrangement had between them, so no
+   * probed figure moves because of this line.
+   */
+  gap: var(--space-12);
 }
 
 /*
@@ -294,14 +313,11 @@
  * **return** is 4.1× typical. The third cell was measured to fit — 0 px, with
  * 23 px of slack at 390 — and is the wrong picture.
  *
- * The separator is the indicator's own top margin and nothing is drawn in it. A
- * rule here would be the only horizontal line inside a `Region` in this
- * product; the label's own uppercase micro ink is what says *a new subject
- * starts here*, which is the idiom the rail already uses between its regions.
+ * **Its separator moved to `.region`'s `gap` on 2026-10-23 (Task 5.6.5)** —
+ * same 12 px, one home, because a third band made *a margin on the one that is
+ * not first* need either a second identical class or a rename. The argument for
+ * drawing nothing in it is at that rule.
  */
-.secondIndicator {
-  margin-top: var(--space-12);
-}
 
 /*
  * The multiple itself — `4.1×`, `>999×`, `<0.1×`.
@@ -352,4 +368,345 @@
   font-size: var(--font-size-dense);
   line-height: var(--line-height-dense);
   color: var(--ink-secondary);
+}
+
+/*
+ * --- The score band: the composite, its chip and the ledger (Task 5.6.5) ---
+ *
+ * **The FIRST band of the region**, above the three it summarises, so the
+ * region reads summary-then-evidence (Gate 1 decision 3). It pays the step this
+ * file's own header predicted and `MARKET-OVERVIEW.md` §1.4's trigger fires a
+ * fourth time on this rail; the before and after are a probed figure per width
+ * in `TASK-05-the-score-draws.md` rather than an argument.
+ *
+ * **No new geometry and no new colour.** The figure is `--font-size-metric`,
+ * the scale and every ledger cell is micro, and the one tinted thing on the
+ * band is the chip's fill — which is the one amber position in the rail,
+ * behind its written name, held by `amber-appears-once-in-the-rail`.
+ */
+
+/*
+ * The score itself — `61`.
+ *
+ * ## It composes `dataCell` and declares nothing the target declares
+ *
+ * `.percentile`'s and `.multiple`'s rule, and the same narrow reason:
+ * `a-compose-never-carries-an-override` refuses a composing rule that
+ * re-declares a composed property, because `composes` concatenates class names
+ * and the winner is **stylesheet order**. The two declarations below are two
+ * `dataCell` does not make, and the **size is deliberately absent** so the
+ * figure inherits `.figure`'s metric box exactly as `PriceChange.change` does.
+ *
+ * ## `--font-weight-strong` rather than `medium`, and `--ink-primary`
+ *
+ * This is the one figure on the page a reader is meant to look at before they
+ * have decided what they are looking for, and it is the only one in this region
+ * at the strong weight. **Never tinted** — the amber is the chip's and the
+ * price palette is `PriceChange`'s; a tinted score is the risk-meter reading
+ * this band's label and footer exist to refuse, delivered in the one channel
+ * that cannot be read as anything else.
+ */
+.score {
+  composes: dataCell from "../../styles/type.module.css";
+  font-weight: var(--font-weight-strong);
+  color: var(--ink-primary);
+}
+
+/*
+ * `/ 100` — **the scale, and it does three jobs.**
+ *
+ * It says the figure is bounded, it says this is neither a price nor a
+ * percentage, and it is the cheapest defence against the risk-meter misread: a
+ * needle on an arc says *risk*, and `61 / 100` says *a count on a stated
+ * scale*. The arc is refused for exactly that reason and is drawn on the canvas
+ * so the next author meets the rejection rather than inventing it in good
+ * faith.
+ *
+ * Micro on **micro** leading rather than on the metric line, which is
+ * `.percentile`'s measurement inherited rather than re-discovered: a small
+ * glyph centred in a 26 px box hangs below the metric's descender and grows the
+ * row, while on its own leading the whole box fits inside the metric's ascent
+ * and descent and the two baselines coincide.
+ */
+.scale {
+  margin-left: var(--space-8);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The band chip's cell on the figure's own row.
+ *
+ * The canvas's §07 specimen stacks the chip above the figure and costs two line
+ * boxes; that arrangement is **superseded with a dated correction** rather than
+ * silently redrawn. The chip is `AnomalyBadge`, adopted whole (AC 8), and this
+ * rule declares only where it sits — its ink, its fill and its padding are its
+ * own, which is what keeps one home for the band's appearance.
+ */
+.chip {
+  margin-left: var(--space-12);
+}
+
+/*
+ * `2 of 3 factors contributing · max 75`.
+ *
+ * **One line of room at every width, and the string is built to fit one.** The
+ * longest it can hold is `3 of 3 factors contributing · max 100` at 37
+ * characters, against the 58 Story 5.5 measured as fitting the rail's 308 px
+ * box — so there is no state in which this row wraps, and no second line to
+ * reserve.
+ */
+.summary {
+  margin: var(--space-8) 0 0;
+  min-height: var(--line-height-micro);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **The ledger's room, held whether or not the ledger draws.**
+ *
+ * The deferred state — this gateway sent no score at all — draws no ink at all,
+ * headings included, which is ADR 0029's defer rule. So the room is reserved
+ * here rather than by four blank rows: five rows of micro leading, one heading
+ * and one per factor plus breadth, with the table's own top margin outside it.
+ *
+ * `3 of 3` and `0 of 3` are therefore byte-identical in height by
+ * construction — the row count is fixed by the factor set and the reason cell
+ * is one line in every arm.
+ */
+.ledgerRoom {
+  /*
+   * Five rows of micro leading — one heading and one per factor plus breadth —
+   * **plus the heading's own `padding-bottom`**, which is the 4 px the first
+   * draft left out: the reserved state measured **496** against the drawn
+   * state's **500**, a step of exactly that padding, found by probing the two
+   * stories side by side and invisible to every test.
+   */
+  min-height: calc(5 * var(--line-height-micro) + var(--space-4));
+  margin-top: var(--space-12);
+}
+
+/*
+ * The ledger.
+ *
+ * **A real table**, because it is a real one: three columns with headings a
+ * listener is handed per cell, which is the whole of AC 6's *auditable by
+ * walking the DOM*. `table-layout: fixed` is what makes the two figure columns
+ * the same width in every state — an `auto` layout sizes them from the content,
+ * so a `—` column and a `38` column would be different widths and the ledger
+ * would step sideways as factors arrived.
+ *
+ * It is **four rows and cannot grow**: the factor set is a closed union of
+ * three plus the breadth row, so this is nowhere near Epic 14's per-row
+ * condition, which is written against a surface rendering one element per
+ * tracked security.
+ */
+.ledger {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * The column headings — **the weights published on screen** (AC 2), whose whole
+ * point is that their arbitrariness is visible rather than hidden.
+ *
+ * The four micro properties are SPELLED rather than composed, which is
+ * `.label`'s rule in this file and `MarketProxyStrip`'s 2026-09-26 defect:
+ * `composes: microLabel` concatenates class names, so a declaration here that
+ * disagrees with `type.module.css` loses on stylesheet order however much it
+ * reads like an override.
+ */
+.heading {
+  padding: 0 0 var(--space-4);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  letter-spacing: var(--letter-spacing-micro);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-secondary);
+  text-align: left;
+}
+
+/*
+ * The weight column — **right-aligned and the same width in every state.**
+ *
+ * `table-layout: fixed` plus a stated width is what keeps it so: an `auto`
+ * layout sizes a column from its content, so a ledger whose weights were `40`
+ * one minute and blank the next would step sideways under a reader.
+ */
+.figureColumn {
+  width: 3.5rem;
+  text-align: right;
+}
+
+/*
+ * The factor's column — **stated rather than left to the content**, for
+ * `.figureColumn`'s reason: under `table-layout: fixed` an unstated column
+ * takes what is left, so the two figure columns would move sideways as the
+ * reason sentences changed length. 6.5 rem holds `Relative move` (the longest
+ * name, ~67 px at 11 px) with room to spare and leaves the reason **136 px**
+ * in the rail's narrowest 308 px box — above the ~115 px a 22-character
+ * sentence needs, which is the whole vocabulary.
+ */
+.nameColumn {
+  width: 6.5rem;
+}
+
+/*
+ * **The figure row of the score band is 28 px, not 26, and the 2 px is the
+ * chip's.**
+ *
+ * Measured at all four widths on 2026-10-23 rather than argued — the task's
+ * own brief predicted 0 px from `.percentile`'s and `.comparand`'s readings,
+ * and those two cells have **no padding**. `AnomalyBadge` has
+ * `var(--space-4)` top and bottom, so its box is 24 px against a 16 px line,
+ * and baseline-aligned inside a 26 px metric row it hangs 2 px below the
+ * metric's descender. The row is the union, so it grows.
+ *
+ * **The reserve is what matters rather than the 2 px**: the chip is drawn only
+ * where there is a score, so without a floor here the band would be 26 px in
+ * its refusal states and 28 px with a figure — a step between two states of
+ * one region, in the one region that must not step. The floor makes every
+ * state 28.
+ *
+ * The alternative — centring the chip, which keeps the row at 26 — was
+ * rejected: `.percentile` photographed the centred arrangement at 8× one band
+ * down and recorded that the baselines then disagree, which is visible beside
+ * the figure the chip is meant to sit with.
+ */
+.scoreFigure {
+  min-height: calc(var(--line-height-metric) + 2px);
+}
+
+/* The factor's own name — a row heading, not a cell. */
+.rowName {
+  padding: 0;
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-secondary);
+  text-align: left;
+}
+
+/*
+ * The weight, in score points — the factor's own maximum.
+ *
+ * `dataCell`'s tabular figures, because this is a column of figures to align
+ * and the two columns are read down rather than across. **Untinted**: a weight
+ * is a published judgement rather than a measurement, and the amber is the
+ * chip's.
+ */
+.weight {
+  composes: dataCell from "../../styles/type.module.css";
+  padding: 0;
+  width: 4.5rem;
+  text-align: right;
+  color: var(--ink-secondary);
+}
+
+/*
+ * **What the factor contributed — or, in the same cell, why it did not.**
+ *
+ * The two are mutually exclusive and the cell holds whichever applies, which
+ * is `return-percentile.ts`' idiom two bands down (*replacing a clause rather
+ * than adding a row*) and is forced by a measurement besides: a fourth column
+ * for the reason left it **97 px** in the rail's 308 px box at 390, against a
+ * 22-character vocabulary, so every refused row wrapped and the ledger's
+ * height became a function of the viewport. Here the column is ~185 px at the
+ * narrowest width and every sentence fits one line.
+ *
+ * **Left-aligned, figure and sentence alike**, so the two states start at the
+ * same x and the column scans as one column. There are at most two digits, so
+ * nothing is lost by not right-aligning them.
+ */
+.contributed {
+  /*
+   * **The gutter between the weight and this column**, and it is a padding on
+   * this cell rather than a margin on the span inside it: the cell is the
+   * thing a listener's table navigation lands on, and a right-aligned weight
+   * with nothing between it and a left-aligned figure reads as one number —
+   * which it did, as `3535`, before this line existed.
+   */
+  padding: 0 0 0 var(--space-12);
+  color: var(--ink-primary);
+}
+
+/*
+ * The figure, in the data face with tabular figures — the same size seam as
+ * every other figure in this region, and `dataCell`'s three declarations are
+ * not restated here.
+ */
+.contribution {
+  composes: dataCell from "../../styles/type.module.css";
+}
+
+/*
+ * Why there is no contribution — **at most 24 characters, and the full sentence
+ * stays in the factor's own band.**
+ *
+ * The factor figures, their definitions, their counted samples and their tapes
+ * are drawn a hundred pixels below this ledger, so a paragraph here restating
+ * `99th percentile of 4,620 5-minute returns` would be a second home for one
+ * fact — which ADR 0029 forbids by name and which is the `BarSeriesPanel`
+ * duplicate this product has already deleted once.
+ */
+.reason {
+  color: var(--ink-secondary);
+}
+
+/*
+ * **Breadth, as context rather than as a term** — Story 5.1's decision 4.
+ *
+ * One line of room. The longest string the row can hold is the observed
+ * grammar at a four-digit count, `Breadth: 312 of 466 advancing, heard from in
+ * the last 5 minutes.` at 70 characters — which is **over** the 58 Story 5.5
+ * measured as fitting 308 px, so this row wraps at the narrow widths and the
+ * reserve is two lines rather than one. Measured rather than argued; the
+ * per-width reading is in this task's record.
+ */
+.context {
+  margin: var(--space-12) 0 0;
+  min-height: calc(2 * var(--line-height-micro));
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **AC 11's sentence, and its room is reserved in every state.**
+ *
+ * A 0–100 figure on an amber ramp beside a price is read as a risk meter by
+ * every stranger, and §40's criterion is a first-time viewer understanding the
+ * product in a minute. It is **not** in `SourceNote`: that note is about where
+ * numbers came from, and what a figure *means* is not provenance — which is
+ * where boilerplate goes to be ignored.
+ *
+ * There is nothing to disclaim over a refusal, so the line is blank where there
+ * is no figure; the room stays, and the room is what keeps `0 of 3` the same
+ * height as `3 of 3`.
+ */
+.disclaimer {
+  margin: var(--space-4) 0 0;
+  min-height: var(--line-height-micro);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+}
+
+/*
+ * **The ledger's own name, for a listener** (Task 5.6.5).
+ *
+ * This page now holds **two** tables — the tracked universe's and this one —
+ * and before this caption neither the spec nor a screen reader could tell them
+ * apart: `getByRole("table")` resolved to two elements with one name between
+ * them. `UniverseTable` solved the same problem the same way, with a
+ * visually-hidden `<caption>` rather than an `aria-label`, so this follows its
+ * precedent rather than inventing a second idiom.
+ */
+.ledgerCaption {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
 }

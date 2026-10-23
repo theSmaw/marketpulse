@@ -3,6 +3,7 @@ import {
   type FeedStatus,
   type MarketFeed,
   type MarketStreamMessage,
+  type WireAnomalyOutcome,
   type WireFeedState,
   type WireMarketOverview,
   type WireSymbolReturn,
@@ -325,6 +326,26 @@ export interface SymbolReturnView {
    * refusal with a word on it.
    */
   readonly volume: WireVolumeComparison | null;
+  /**
+   * **How unusual this security is, scored 0–100, with its own account of
+   * itself — or the reason there is no score** (Task 5.6.5).
+   *
+   * A **third sibling** of {@link figure} and {@link volume} rather than a
+   * field inside either, which is the wire's own arrangement
+   * (`ReturnMessage.score`): the score is computed over three factors, only
+   * one of which is the return on this frame, so nesting it under the figure
+   * it is not a property of would delete the states where the return refused
+   * and the score exists anyway. **That is the ordinary local state** — the
+   * price factor refuses with `no-subject-move` while the excess factor ranks
+   * off stored closes.
+   *
+   * `null` is *this gateway sent no score at all* — a browser holding a bundle
+   * across a deploy, or a frame whose explanation `readAnomalyScore` refused
+   * because its published contributions did not re-add to the score beside
+   * them. Never *every factor refused*, which is a `scored: false` carrying
+   * one clause per factor and is every gated run's permanent state.
+   */
+  readonly score: WireAnomalyOutcome | null;
 }
 
 /** A browser that has been told nothing yet, as of a given monotonic instant. */
@@ -537,6 +558,7 @@ export function advanceLiveFeed(
                 symbol: event.message.symbol,
                 figure: event.message.return,
                 volume: event.message.volume,
+                score: event.message.score,
               }
             : state.symbolReturn,
         observations: withObservations(state.observations, bars),
