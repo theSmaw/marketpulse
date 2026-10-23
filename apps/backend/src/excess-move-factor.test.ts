@@ -425,3 +425,53 @@ describe("the figure", () => {
     expect(factor.percentile.feed).toBe(BASELINE_FEED);
   });
 });
+
+describe("what the pass did not hold, and the baseline that is not this one's", () => {
+  it("refuses `no-subject-move` for a symbol the pass is not about", () => {
+    // **`undefined` since Task 5.6.4**, which is a focus outside the join's
+    // own `symbols`. It is optional so the subject and the reference can be
+    // read side by side in **one** argument list off one `OverviewPass`, with
+    // no guard between them — and the word is the shipped one for exactly this
+    // fact rather than a seventh refusal for it.
+    const factor = excessMoveFactor(input({ subject: undefined }));
+
+    expect(factor).toEqual({
+      scored: false,
+      applies: true,
+      refusal: "no-subject-move",
+      sampleCount: BASELINE_MINIMUM_SAMPLE,
+      minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+    });
+  });
+
+  it("treats a generation computed against ANOTHER benchmark as absent", () => {
+    // `0016` §3 puts the reference in the key so *a reader holding either can
+    // say which question it answers*. This is the reader asking — and it is
+    // **absence** rather than a word, because nobody can act on *we hold a
+    // baseline against a different benchmark* and `0 of 2,500` already means
+    // *nothing to rank against*.
+    //
+    // The failure it prevents is maximally quiet: `referenceSymbol` travels on
+    // the row, so a drawn sentence would name the benchmark the wrong baseline
+    // was computed against.
+    const other = { ...baseline(4_000), referenceSymbol: "XLV" };
+
+    const factor = excessMoveFactor(input({ stored: other }));
+
+    expect(factor).toEqual({
+      scored: false,
+      applies: true,
+      refusal: "too-few-samples",
+      sampleCount: 0,
+      minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
+    });
+  });
+
+  it("ranks against a generation whose reference IS this one's", () => {
+    const factor = excessMoveFactor(input({ stored: baseline(4_000) }));
+
+    expect(factor.scored).toBe(true);
+    if (!factor.scored) return;
+    expect(factor.referenceSymbol).toBe("XLK");
+  });
+});

@@ -160,13 +160,35 @@ volume factor, when it arrives, is scored as a PERCENTILE and never as the
 | 5.6.1 | The vocabulary, the collision, and the ADR sweep        | one sentence changes          |
 | 5.6.2 | The excess-move baseline, and the factor in the backend | no                            |
 | 5.6.3 | The scorer, and its three layers                        | no                            |
-| 5.6.4 | **The score draws**                                     | **yes — the epic's headline** |
-| 5.6.5 | The landing page ranks the composite                    | yes                           |
-| 5.6.6 | The conjunction, the sweep, and the close               | no                            |
+| 5.6.4 | The composite reaches the wire                          | no                            |
+| 5.6.5 | **The score draws**                                     | **yes — the epic's headline** |
+| 5.6.6 | The landing page ranks the composite                    | yes                           |
+| 5.6.7 | The conjunction, the sweep, and the close               | no                            |
 
-**Three consecutive tasks with no visible change is the most this story accepts**,
-and it is said plainly because a run of invisible tasks is how a product stops
-being demonstrable. 5.6.4 pays them off.
+~~**Three consecutive tasks with no visible change is the most this story
+accepts**~~ — **amended 2026-10-22: SEVEN tasks, not six, and the invisible run
+is FOUR.**
+
+Task 5.6.4 as first written was **two tasks**, and a developer **stopped before
+changing anything** rather than let it grow. That was the right call, and every
+factual claim behind it was verified before the split:
+
+- **`scoreAnomaly` and `excessMoveFactor` have no shipped call site** — the
+  scorer appears exactly once outside its own module, as a re-export. **There
+  was no producer at all.** Task 5.6.3's record says so; what the split adds is
+  that _the gateway's call_ is a backend task rather than a line.
+- **`figureOf` and `storedFigureOf` are not exported** from
+  `market-overview.ts`, so the excess factor's two figure inputs have **no
+  seam** — and **`buildMarketOverview` has exactly one call site**, enforced by
+  `one-producer-of-the-overview-aggregate`, so reaching them crosses a guard
+  written on purpose.
+- **No `excess-move-baseline-cache` exists** while three siblings do, against a
+  producer that **must not `await`**.
+
+**The invisible run is now four, which exceeds what this section said the story
+would accept** — recorded rather than smoothed over, because the alternative was
+one task quietly doing two tasks' work, which is how a task stops being
+reviewable. **5.6.5 pays all four off.**
 
 ### Out of scope, with reasons rather than silence
 
@@ -195,6 +217,34 @@ the thresholds would stamp every future mark with them silently; and the amber
    curation slots to prevent. **The number of contributing factors is part of
    the score's identity**: a 2-of-4 score is reported, labelled, and not ranked
    against a 4-of-4 score.
+
+   **Amended 2026-10-23 — the CONCLUSION is unchanged and the REASON above does
+   not cover the case this story actually ships.** The argument quoted here
+   depends on the absence being **uneven**: renormalising promotes the
+   worst-covered securities only if coverage differs between them. **The volume
+   factor's absence is uniform across the entire universe at every instant** —
+   `0015` stores a median and a dispersion rather than a distribution, so no
+   security has a rankable volume figure and none ever will until a new nightly
+   pass exists. Renormalising that slot would promote **nobody**, and AC 3's own
+   stated reason is therefore **silent** about it.
+
+   **It is still refused, for a second reason this criterion did not carry.**
+   `ANOMALY_BAND_FLOORS` are **measured quantiles of a max-75, two-factor
+   distribution** — 32 / 63 / 73, derived by Task 5.6.3 from 34,318 scores, with
+   the `elevated ≤ 40 < high` inequality carrying Gate 1 decision 2.
+   Renormalising to 100 would **invalidate all three floors on the day it
+   shipped** and fire that constant's own reversal trigger 1 immediately. So the
+   prohibition holds; which of the two reasons applies depends on whether the
+   absence is uneven, and **a uniform absence is covered by the floors rather
+   than by the top-N argument.**
+
+   **One labelling note that follows, so no later reader misreads the figure.**
+   With volume permanently unrankable, `contributing.length` is `2`, `1` or `0`
+   for every security for ever — so the **count** loses its discriminating power
+   in the volume slot and the information is carried by the **maximum**. The type
+   already handles this: both halves travel, because `2 of 3` has three different
+   maxima depending on **which** two. **`2 of 3` is not a fact about coverage.**
+
 4. **The score is unsigned and carries no direction.** A score higher for falls
    than rises is a risk signal, which §11 forbids in terms.
 5. **`AnomalyScore` cannot be constructed without its explanation** (above),

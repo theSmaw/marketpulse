@@ -30,7 +30,7 @@ and a split guard; this is the same pass over a **differenced** series.
 
 ## What the user can see when this lands
 
-**Nothing.** Task 5.6.4 is the task that pays this off. What changes is that the
+**Nothing.** Task 5.6.5 is the task that pays this off. What changes is that the
 excess move becomes a figure the backend produces and a distribution the store
 holds.
 
@@ -342,7 +342,7 @@ taken after the machine settled, at a load average read **before** each run
 **Epic 14's per-batch re-take is still owed.** Its file asks the next story that
 changes the per-batch path on `/` to _"re-take the whole arm with a control
 rather than add another term to an estimate"_, and this task changes that path.
-It is **deliberately deferred to Task 5.6.5**, which is the task that actually
+It is **deliberately deferred to Task 5.6.6**, which is the task that actually
 re-ranks `/` and is therefore the honest place to measure the whole arm once
 rather than twice — recorded here so it reads as a decision rather than as a
 thing that was forgotten.

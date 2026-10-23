@@ -221,8 +221,21 @@ export interface ExcessMoveFactorInput {
   /**
    * The security's own figure — a live minute against a close, or a stored
    * session's close-to-close move.
+   *
+   * **`undefined` since Task 5.6.4**, which is a symbol the pass that produced
+   * these figures is not about: an untracked ticker, or anything outside the
+   * join's own `symbols`. It refuses with `no-subject-move`, which is that
+   * word's own meaning — *we hold no move for the security at all* — rather
+   * than a fourth refusal for the same fact.
+   *
+   * It is optional so that the subject and the reference can be **read side by
+   * side in one argument list**, off one `OverviewPass`, with no guard between
+   * them: `one-pass-for-a-subject-and-its-benchmark` keys on exactly that
+   * shape, because the two figures are subtracted from each other and a
+   * difference of two instants is a well-formed, correctly-signed figure that
+   * is wrong.
    */
-  readonly subject: WireOverviewFigure;
+  readonly subject: WireOverviewFigure | undefined;
   /**
    * Its sector benchmark's, from the same aggregate and therefore from the same
    * pass over the same market state. `undefined` where the frame carried none.
@@ -230,7 +243,12 @@ export interface ExcessMoveFactorInput {
   readonly reference: WireOverviewFigure | undefined;
   /** Which fund applies, from `excessMoveReference` — never branched on here. */
   readonly referenceOf: ExcessMoveReference;
-  /** The generation held for this security, or `undefined`. */
+  /**
+   * The generation held for this security, or `undefined`.
+   *
+   * **A row computed against a DIFFERENT benchmark is treated as `undefined`**
+   * here rather than at the call site; see the function.
+   */
   readonly stored: StoredExcessBaseline | undefined;
   readonly grid: ExcessGrid;
 }
@@ -262,11 +280,33 @@ export interface ExcessMoveFactorInput {
 export function excessMoveFactor(
   input: ExcessMoveFactorInput,
 ): ExcessMoveFactor {
-  const { subject, reference, referenceOf, stored, grid } = input;
+  const { subject, reference, referenceOf, grid } = input;
 
   if (!referenceOf.applies) {
     return { scored: false, applies: false, because: referenceOf.because };
   }
+
+  // **A generation computed against another benchmark is not a baseline for
+  // this comparison** (Task 5.6.4), and the check is here because this is the
+  // one function that holds both the row and the reference — so no caller can
+  // forget it.
+  //
+  // `0016` §3 puts the reference in the key precisely so *a reader holding
+  // either can say which question it answers*; a reader that held a row and
+  // did not ask would discard that protection one layer up, and the failure is
+  // maximally quiet, because `referenceSymbol` travels on the row and the
+  // drawn sentence would name the benchmark the **wrong** baseline was
+  // computed against.
+  //
+  // **It is absence rather than a word**, which is the owner's own rule about
+  // vocabularies: a reader cannot act on *we hold a baseline against a
+  // different benchmark*, and `too-few-samples` at `0 of 2,500` already means
+  // *nothing to rank against*. Inventing a seventh refusal would be a sentence
+  // nobody could write.
+  const stored =
+    input.stored?.referenceSymbol === referenceOf.symbol
+      ? input.stored
+      : undefined;
 
   const minimumSampleCount = BASELINE_MINIMUM_SAMPLE;
 
@@ -293,6 +333,10 @@ export function excessMoveFactor(
   // `changePercent` and a `stored` figure's is `sessionChangePercent`, and
   // reading either off the wrong state is how a drawn figure went missing once.
   // It also closes the non-finite gap, so no `NaN` reaches the subtraction.
+  if (subject === undefined) {
+    return refuse("no-subject-move");
+  }
+
   const ours = moveRankingKey(subject);
   if (ours === undefined) {
     return refuse("no-subject-move");

@@ -20,7 +20,7 @@ story.
 
 ## What the user can see when this lands
 
-**Nothing.** Task 5.6.4 draws it. This is the third consecutive task with no
+**Nothing.** Task 5.6.5 draws it. This is the third consecutive task with no
 visible change, which is the most this story will accept — said plainly because
 a run of invisible tasks is how a product stops being demonstrable.
 
@@ -455,7 +455,7 @@ the **corpus** rather than the home, which is the stronger direction.
 
 - **The wire frame and the producer.** `WireAnomalyScore`, `toWireAnomalyScore`
   and `readAnomalyScore` exist and are tested; **nothing sends one**. The frame
-  field, the gateway's call and the draw are Task 5.6.4's. The reader is here
+  field, the gateway's call are Task 5.6.4's and the draw is Task 5.6.5's. The reader is here
   because done-when item 3 asks for it and because it is what makes AC 5 a
   statement about a value.
 - **The band floors as a parameter.** The brief asks for them as a parameter
@@ -466,7 +466,7 @@ the **corpus** rather than the home, which is the stronger direction.
 
 ### What the user can see
 
-**Nothing.** Task 5.6.4 draws it. Third consecutive invisible task, which the
+**Nothing.** Task 5.6.5 draws it. Third consecutive invisible task, which the
 story says is the most it accepts.
 
 ### Gates

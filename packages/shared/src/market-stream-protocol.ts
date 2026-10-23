@@ -8,6 +8,14 @@ import type { MarketFeed } from "./market-provenance.js";
 // decoder has to refuse a word this bundle cannot draw a sentence for.
 import { PERCENTILE_REFUSALS } from "./return-baseline.js";
 
+import type {
+  WireAbsentClause,
+  WireAnomalyOutcome,
+  WireAnomalyScore,
+  WireFactorClause,
+  WireUnscoredAnomaly,
+} from "./composite-score.js";
+
 import type { PercentileRefusal } from "./return-baseline.js";
 // The volume factor's refusal words (Task 5.5.4), imported for
 // `PERCENTILE_REFUSALS`' reason exactly: the decoder has to refuse a word this
@@ -26,6 +34,15 @@ import type { VolumeRefusal } from "./volume-baseline.js";
 // refuse. `percentile-ranking.ts` imports nothing from here at all, so there is
 // not even a type-only edge back.
 import { isRankedByPercentile } from "./percentile-ranking.js";
+// The composite score's reader and its wire types (Task 5.6.4). **The decode
+// arm goes through `readAnomalyScore`** rather than reading fields here: that
+// function re-adds the published contributions, re-derives each one from the
+// published weight and the drawn figure, and refuses the whole explanation on
+// a disagreement — which is the guarantee that survives `JSON.parse`, where
+// the brand does not. A field-by-field read in this module would be a second,
+// weaker reader for the one type whose whole point is that it is checkable as
+// a **value**. The edge back is type-only and erased.
+import { readAnomalyScore, toWireAnomalyScore } from "./composite-score.js";
 import { isSectorLadderStep } from "./sector-ladder.js";
 // **The order's own home, imported rather than re-expressed** —
 // `one-comparator-for-the-order-of-a-move`. `readMovers` has to answer *is
@@ -1816,6 +1833,38 @@ export interface ReturnMessage {
    * distinction is `WireMeasuredReturn.percentile`'s own.
    */
   readonly volume: WireVolumeComparison | null;
+  /**
+   * **How unusual this security is, scored 0–100, with its own account of
+   * itself — or the reason there is no score** (Task 5.6.4).
+   *
+   * A **third sibling** of {@link return} and {@link volume} rather than a
+   * field inside either, for the reason those two are siblings: the score is
+   * computed over **three** factors, only one of which is the return on this
+   * frame, so nesting it under the figure it is not a property of would delete
+   * the states where the return refused and the score exists anyway.
+   *
+   * ## The score and its explanation are ONE value on this wire too
+   *
+   * `WireAnomalyScore.contributing` is one clause per contributing factor and
+   * `absent` is one per factor that produced nothing — so the frame carries no
+   * figure a reader cannot trace. The brand does **not** travel: `JSON.parse`
+   * erases symbol keys, which is why the decode arm goes through
+   * `readAnomalyScore`, the reader that **re-adds the published
+   * contributions** and refuses the whole explanation when the sum is not the
+   * score it was sent beside. A pass-through spec proves fidelity and never
+   * correctness (`CLAUDE.md`); that reader is what makes this field checkable
+   * as a **value**.
+   *
+   * `null` means **this gateway sent no score at all**, which is a browser
+   * holding a bundle across a deploy — explicitly not *every factor refused*,
+   * which is a `scored: false` with one clause per factor and is this
+   * product's state on every machine that exists today.
+   *
+   * **`MARKET_STREAM_PROTOCOL_VERSION` stays 1.** See its own argument: a bump
+   * makes a stale tab reject *every* frame, and {@link DecodedMessage}'s
+   * `unsupported` member plus this field's `null` are what make widening free.
+   */
+  readonly score: WireAnomalyOutcome | null;
 }
 
 export type MarketStreamMessage =
@@ -2729,6 +2778,91 @@ const encodeVolume = (volume: WireVolumeComparison): JsonValue =>
     ? toWire(volumeRateFields, volume)
     : toWire(refusedVolumeFields, volume);
 
+/**
+ * One map per member of {@link WireAnomalyOutcome} and one per clause arm, and
+ * each union is encoded by its discriminant — `encodeComparison`'s note,
+ * unchanged: `keyof` a union is the **intersection** of its members' keys, so
+ * one map over an outcome would cover `scored` alone and wave a whole
+ * explanation through unexamined.
+ *
+ * **Field by field, never a spread** (ADR 0031), and here that rule has a
+ * second edge the serialiser cannot see: `AnomalyScore` carries a
+ * **symbol-keyed brand**, `Object.keys` skips symbol keys, and a spread would
+ * carry it onto an object `JSON.stringify` then drops silently — so nothing
+ * would be wrong on the type and the next reader's map would go on looking
+ * complete. `composite-score.ts`' header carries the whole argument.
+ */
+const factorClauseFields: WireFields<WireFactorClause> = {
+  factor: asIs,
+  weight: asIs,
+  rank: asIs,
+  aboveSample: asIs,
+  sampleCount: asIs,
+  contribution: asIs,
+};
+
+/** One absent clause per arm — three arms, three maps, no optional fields. */
+const refusedClauseFields: WireFields<
+  Extract<WireAbsentClause, { state: "refused" }>
+> = {
+  factor: asIs,
+  weight: asIs,
+  state: asIs,
+  refusal: asIs,
+  sampleCount: asIs,
+  minimumSampleCount: asIs,
+};
+
+const inapplicableClauseFields: WireFields<
+  Extract<WireAbsentClause, { state: "inapplicable" }>
+> = {
+  factor: asIs,
+  weight: asIs,
+  state: asIs,
+  because: asIs,
+};
+
+/**
+ * **The payload-free arm, and the map is three fields rather than four** —
+ * which is the arm's own point arriving at the encoder: an arm carrying a word
+ * would be byte-identical in shape to the one above it.
+ */
+const noDistributionClauseFields: WireFields<
+  Extract<WireAbsentClause, { state: "no-distribution" }>
+> = {
+  factor: asIs,
+  weight: asIs,
+  state: asIs,
+};
+
+const encodeAbsentClause = (clause: WireAbsentClause): JsonValue => {
+  if (clause.state === "refused") return toWire(refusedClauseFields, clause);
+  if (clause.state === "no-distribution") {
+    return toWire(noDistributionClauseFields, clause);
+  }
+  return toWire(inapplicableClauseFields, clause);
+};
+
+const anomalyScoreFields: WireFields<WireAnomalyScore> = {
+  scored: asIs,
+  score: asIs,
+  band: asIs,
+  max: asIs,
+  contributing: (clauses) =>
+    clauses.map((clause) => toWire(factorClauseFields, clause)),
+  absent: (clauses) => clauses.map(encodeAbsentClause),
+};
+
+const unscoredAnomalyFields: WireFields<WireUnscoredAnomaly> = {
+  scored: asIs,
+  absent: (clauses) => clauses.map(encodeAbsentClause),
+};
+
+const encodeAnomalyOutcome = (outcome: WireAnomalyOutcome): JsonValue =>
+  outcome.scored
+    ? toWire(anomalyScoreFields, outcome)
+    : toWire(unscoredAnomalyFields, outcome);
+
 const returnMessageFields: WireFields<ReturnMessage> = {
   type: asIs,
   version: asIs,
@@ -2739,6 +2873,10 @@ const returnMessageFields: WireFields<ReturnMessage> = {
   // reason: `WireFields`' totality forces an entry for every field, and an
   // entry answering `undefined` would put a key with no JSON value on the wire.
   volume: (volume) => (volume === null ? null : encodeVolume(volume)),
+  // `null` is written rather than the key dropped, for the two entries above:
+  // `WireFields`' totality forces an entry for every field, and an entry
+  // answering `undefined` would put a key with no JSON value on the wire.
+  score: (score) => (score === null ? null : encodeAnomalyOutcome(score)),
 };
 
 const overviewMessageFields: WireFields<OverviewMessage> = {
@@ -3684,6 +3822,26 @@ const readVolume = (value: unknown): WireVolumeComparison | null => {
   };
 };
 
+/**
+ * **The score a frame carries, or `null`** (Task 5.6.4).
+ *
+ * `readAnomalyScore` is the reader and it is **the only** one: it re-adds the
+ * published contributions, re-derives each from the published weight and the
+ * drawn figure, and refuses the whole explanation on a disagreement. A
+ * field-by-field read here would be a second, weaker reader for the one type
+ * whose point is that it is checkable as a **value**.
+ *
+ * Its answer is a **branded domain** value, so it is mapped back through
+ * `toWireAnomalyScore` before it goes on the message: the field's type is the
+ * wire type, and a runtime value carrying symbol keys the type does not declare
+ * is the leak ADR 0031 is about, arriving from the decode side. The mapping is
+ * field by field, never a spread, for the same reason.
+ */
+const readScore = (value: unknown): WireAnomalyOutcome | null => {
+  const outcome = readAnomalyScore(value);
+  return outcome === undefined ? null : toWireAnomalyScore(outcome);
+};
+
 /** A figure or a refusal, or `undefined` for a frame we cannot read. */
 const readSymbolReturn = (value: unknown): WireSymbolReturn | undefined => {
   if (!isRecord(value)) return undefined;
@@ -3863,6 +4021,15 @@ export function decodeMarketStreamMessage(raw: string): DecodedMessage {
           // arm a browser holding a bundle older or newer than the gateway
           // takes.
           volume: readVolume(parsed.volume),
+          // **An unreadable score is read as no score, and the frame
+          // survives** — the same rule, and the reader is
+          // `readAnomalyScore`: an explanation whose published contributions
+          // do not re-add to the score beside them is refused **whole**,
+          // because a score beside a partial account of itself is a figure
+          // whose addition no longer reaches it. A producer broken into
+          // inventing a score draws a well-formed, correctly-banded figure
+          // that no pass-through spec can see; this is what refuses it.
+          score: readScore(parsed.score),
         },
       };
     }

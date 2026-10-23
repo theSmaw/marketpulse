@@ -1,8 +1,8 @@
-# Task 5.6.6 — The conjunction, the sweep, and the close
+# Task 5.6.7 — The conjunction, the sweep, and the close
 
 **Status:** Not started
 **Story:** [5.6 The Composite Score, & Its Explanation](STORY.md)
-**Depends on:** 5.6.5
+**Depends on:** 5.6.6
 
 ## Objective
 

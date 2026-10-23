@@ -4182,7 +4182,7 @@ export const BREAKS = [
       "  }, KEEPALIVE_INTERVAL_MS);\n\n" +
       "  // pnpm break: reverted automatically\n" +
       "  const overviewRefresh = setTimer(() => {\n" +
-      "    if (clients.size > 0) broadcast(overviewMessage(overview()));\n" +
+      "    if (clients.size > 0) broadcast(overviewMessage(overview().frame));\n" +
       "  }, 30_000);",
     command: ["pnpm", "invariants"],
     expect: "sit outside both known producers",
@@ -4254,10 +4254,15 @@ export const BREAKS = [
       "aggregate from a recomputed one, so the assertion is on WHICH of " +
       "two the gateway sent.",
     file: "apps/backend/src/market-gateway.ts",
-    find: "        send(client, overviewMessage(lastBroadcastOverview ?? overview()));",
+    // **Repointed 2026-10-23 (Task 5.6.4)**: the producer answers an
+    // `OverviewPass` now, so the memo holds a pass and the send reads its
+    // `frame`. The defect is unchanged — a browser joining during an outage is
+    // served a recomputed aggregate — and so is the shape of the edit: the
+    // `??` is what is deleted.
+    find: "        const pass = lastBroadcastPass ?? overview();",
     replace:
       "        // pnpm break: reverted automatically\n" +
-      "        send(client, overviewMessage(overview()));",
+      "        const pass = overview();",
     command: [
       "pnpm",
       "--filter",
@@ -4946,8 +4951,16 @@ export const BREAKS = [
     // `build: true` for the recorded reason: `pnpm e2e` drives the dev pair,
     // which serves built output.
     file: "apps/backend/src/index.ts",
-    find: "  if (!figure.measured) return { return: toWireSymbolReturn(figure), volume };",
+    //
+    // **Repointed 2026-10-23 (Task 5.6.4)**: `symbolReturn` no longer returns
+    // early on an unmeasured figure — it computes both figures and a composite
+    // score and returns once — so the anchor is the `asOf` the fabrication
+    // dates itself with, and the plant is an early return **beside** it. The
+    // found line is kept and the defect appended, so the `find` survives its
+    // own break.
+    find: "  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });",
     replace:
+      "  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });\n" +
       "  // pnpm break: reverted automatically\n" +
       "  if (!figure.measured) {\n" +
       "    const invented = {\n" +
@@ -4971,7 +4984,17 @@ export const BREAKS = [
       "        feed: BASELINE_FEED,\n" +
       "      },\n" +
       "    } as const;\n" +
-      "    return { return: fabricated, volume };\n" +
+      "    return {\n" +
+      "      return: fabricated,\n" +
+      "      volume: {\n" +
+      "        measured: false,\n" +
+      '        refusal: "no-same-tape-baseline",\n' +
+      "        sampleCount: 0,\n" +
+      "        observed: 0,\n" +
+      "        spanMinutes: RETURN_SPAN_MINUTES,\n" +
+      "      },\n" +
+      "      score: null,\n" +
+      "    };\n" +
       "  }",
     command: ["pnpm", "e2e", "security-abnormal-move.spec.ts", "--anyway"],
     expect: "so a measured 5-minute return is fabricated",
@@ -5451,19 +5474,26 @@ export const BREAKS = [
     // `comparableVolumeBaseline`'s refused arm has no `median` member, so the
     // only way to reach a multiple here is to write one out.
     file: "apps/backend/src/index.ts",
-    find: "  const volume = toWireVolume(",
+    //
+    // **Repointed 2026-10-23 (Task 5.6.4)**: the join holds the DOMAIN answer
+    // now and maps it once at the `return`, because the composite's producer is
+    // handed what `volumeRateOf` said rather than a re-read of what was
+    // encoded. So the plant fabricates at the mapping, which is the same one
+    // site and the same plausible edit.
+    find: "    volume: toWireVolume(volume),",
     replace:
-      "  // pnpm break: reverted automatically\n" +
-      "  const volume = {\n" +
-      "    measured: true,\n" +
-      "    ratio: 4.1,\n" +
-      "    sampleCount: 2500,\n" +
-      "    lookbackSessions: 60,\n" +
-      "    bucketMinutes: 5,\n" +
-      "    spanMinutes: 5,\n" +
-      '    feed: "iex",\n' +
-      "  } as const;\n" +
-      "  const refusedVolume = toWireVolume(",
+      "    // pnpm break: reverted automatically\n" +
+      "    volume: {\n" +
+      "      ...toWireVolume(volume),\n" +
+      "      measured: true,\n" +
+      "      ratio: 4.1,\n" +
+      "      sampleCount: 2500,\n" +
+      "      lookbackSessions: 60,\n" +
+      "      bucketMinutes: 5,\n" +
+      "      spanMinutes: 5,\n" +
+      '      feed: "iex",\n' +
+      '    } as SymbolFigures["volume"],',
+
     command: [
       "pnpm",
       "e2e",
@@ -5600,5 +5630,76 @@ export const BREAKS = [
       "import {\n  BASELINE_MINIMUM_SAMPLE,",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-comparator-for-the-order-of-a-composite-score",
+  },
+  // ## Task 5.6.4's, on the two figures that are SUBTRACTED from each other
+  //
+  // Both of these are about a defect that is invisible to every other level:
+  // the wire carries a well-formed answer either way, and
+  // `readAnomalyScore`'s five checks are green on a score built from two
+  // instants, because such a score re-adds to itself.
+  {
+    name: "a-second-pass-for-the-benchmark",
+    proves:
+      "`one-pass-for-a-subject-and-its-benchmark` goes red on a producer " +
+      "that resolves the benchmark's figure from a SECOND pass. The plant " +
+      "is the shape the next author reaches for — call the overview " +
+      "producer again — and the result is a difference between a " +
+      "figure from one `asOf` and a figure from another: well-formed, " +
+      "correctly signed, and wrong.\n\n" +
+      "**Every other guard is green on it.** " +
+      "`one-producer-of-the-overview-aggregate` counts " +
+      "`buildMarketOverview(` call sites and this plant adds none — it " +
+      "calls `marketOverview()`, one level up. " +
+      "`the-overview-frame-is-not-a-heartbeat` counts encode sites in the " +
+      "gateway and this is in `index.ts`. `two-mint-sites-for-an-anomaly-" +
+      "score` is about casts. And no spec can see it: the frame is the same " +
+      "shape, the score re-adds to itself, and the figures on screen are " +
+      "each individually true.",
+    file: "apps/backend/src/index.ts",
+    find: "  const excess = excessMoveFactor({",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const second = marketOverview();\n" +
+      "  const fromTwoPasses = excessMoveFactor({\n" +
+      "    subject: pass.figureOf(symbol),\n" +
+      "    reference: referenceOf.applies\n" +
+      "      ? second.figureOf(referenceOf.symbol)\n" +
+      "      : undefined,\n" +
+      "    referenceOf,\n" +
+      "    stored: undefined,\n" +
+      "    grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },\n" +
+      "  });\n" +
+      "  void fromTwoPasses;\n" +
+      "  const excess = excessMoveFactor({",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-pass-for-a-subject-and-its-benchmark",
+  },
+  {
+    name: "a-second-site-builds-the-no-distribution-arm",
+    proves:
+      "`one-site-builds-the-no-distribution-arm` goes red when a SECOND " +
+      "factor reaches for the payload-free arm — here the price " +
+      "factor, answering a failed baseline read with it. That is a lie in " +
+      "the one direction a reader cannot detect: the arm carries no word, " +
+      "no count and no bound, so the explanation would say *measured, but " +
+      "no history to rank it against* about a security whose " +
+      "`0 of 2,500 returns` is both true and available, and nothing on " +
+      "screen would contradict it. Nothing else can see this: the arm is a " +
+      "legal member of the union, the score still re-adds to itself, and " +
+      "`readAnomalyScore` reads the clause happily.",
+    file: "apps/backend/src/market-composite.ts",
+    // **The substitution plants INSIDE the found line rather than beside a
+    // copy of it**, which is the 2026-10-16 lesson: a plant that duplicates
+    // its own `find` goes red twice — once from
+    // `every-break-can-still-land`, about the break — and two reds, one of
+    // them from a check that is not under test, read exactly like a thorough
+    // proof. Produced here before it was fixed.
+    find: "  if (!figure.measured) {",
+    replace:
+      "  if (!figure.measured) {\n" +
+      "    // pnpm break: reverted automatically\n" +
+      '    return { state: "no-distribution" };',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-site-builds-the-no-distribution-arm",
   },
 ];

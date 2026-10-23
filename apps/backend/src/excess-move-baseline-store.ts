@@ -11,6 +11,8 @@ import type {
 
 import type { Database } from "./schema.js";
 import type { BaselineSubject } from "./return-baseline-store.js";
+import { EXCESS_REFERENCE_KIND } from "./excess-move-baseline.js";
+
 import type {
   ExcessBaselineOutcome,
   ExcessReferenceKind,
@@ -161,6 +163,11 @@ export interface ExcessBaselineStore {
    * we stored, and a security untracked last week still has a baseline that
    * was true when it was computed. The bound is an argument rather than a
    * clock, which is `closesAsOf`'s shape and ADR 0015's gap 4.
+   *
+   * **It is pinned to {@link EXCESS_REFERENCE_KIND}** — one form of the
+   * comparison, in both the frontier read and the generation read. See the
+   * implementation for the defect that repaired, and for why the key's fourth
+   * column is an **order** here rather than a second pin.
    */
   readNewestGeneration(
     atOrBefore: Date,
@@ -264,10 +271,29 @@ export function createExcessBaselineStore(pool: pg.Pool): ExcessBaselineStore {
       // read is one row and the generation read is a few hundred, and a `max()`
       // inlined as a subquery would be re-planned against a growing table for
       // no gain.
+      //
+      // **The reference is in the key, so the frontier is per reference FORM**
+      // (repaired 2026-10-23, Task 5.6.4). `volume-baseline-store.ts`'
+      // precedent, in its own words — *"the tape is in the key, so the frontier
+      // is per tape"* — and this table's key carries two such columns rather
+      // than one. Unpinned, `max(observed_at)` was taken across **every**
+      // reference form: the day a second kind is written by a pass with a
+      // different schedule, *the newest generation* would be that kind's, and
+      // the generation read below would then return **both** forms for one
+      // `observed_at` ordered by symbol alone — so a `Map<Ticker, …>` would
+      // keep whichever row the result set happened to yield last, with **no
+      // defined tie-break**. `0016` §3's whole argument is that the reference
+      // in the key means *a reader holding either can say which question it
+      // answers*, and a read that cannot say which discards that protection one
+      // layer up. Latent today — one vocabulary member — and maximally quiet
+      // when it fires, because `referenceSymbol` travels on the row, so the
+      // drawn sentence would name the benchmark the **wrong** baseline was
+      // computed against.
       const frontier = await db
         .selectFrom("excess_move_baselines")
         .select(({ fn }) => fn.max("observed_at").as("newest"))
         .where("observed_at", "<=", atOrBefore)
+        .where("reference_kind", "=", EXCESS_REFERENCE_KIND)
         .executeTakeFirst();
 
       const newest = frontier?.newest ?? undefined;
@@ -292,7 +318,27 @@ export function createExcessBaselineStore(pool: pg.Pool): ExcessBaselineStore {
         ])
         // No filter on `securities.status`. See the interface.
         .where("excess_move_baselines.observed_at", "=", newest)
+        // **The same pin as the frontier read**, for the frontier read's
+        // reason: a generation is *one form of the comparison as of one window
+        // end*, and a read that admitted two forms would hand a cache two rows
+        // for one ticker.
+        .where(
+          "excess_move_baselines.reference_kind",
+          "=",
+          EXCESS_REFERENCE_KIND,
+        )
+        // **`reference_symbol` is the key's fourth column and CANNOT be pinned
+        // to a constant here**, because it is per security — each equity's own
+        // sector benchmark — rather than one value for the whole generation,
+        // which is where this table's key stops resembling `volume_baselines`'.
+        // So the two halves of the repair are different: the kind is pinned,
+        // and the symbol is made a **deterministic order** so that a security
+        // whose benchmark changed between two runs cannot yield *whichever row
+        // came last*. The reader's own half is in `excess-move-factor.ts`,
+        // which treats a row computed against a different benchmark as
+        // **absent** rather than ranking against it.
         .orderBy("securities.symbol")
+        .orderBy("excess_move_baselines.reference_symbol")
         .execute();
 
       // **One function per domain type, beside the query** — and here that is

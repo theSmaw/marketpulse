@@ -896,3 +896,81 @@ describe("what the TYPE refuses, and what it cannot", () => {
     expect(typeof clause.contribution).toBe("number");
   });
 });
+
+describe("the fourth arm — a figure with no distribution behind it", () => {
+  /** The volume factor's shipped answer on every machine that exists. */
+  const noDistribution: FactorAnswer = { state: "no-distribution" };
+
+  it("is absent, carries the weight the score did not get, and nothing else", () => {
+    const outcome = scoreAnomaly({
+      price: ranked(99),
+      excess: ranked(93),
+      volume: noDistribution,
+    });
+    if (!outcome.scored) throw new Error("expected a scored outcome");
+
+    const clause = outcome.absent.find((entry) => entry.factor === "volume");
+    if (clause === undefined) throw new Error("no volume clause");
+
+    expect(clause.state).toBe("no-distribution");
+    expect(clause.weight).toBe(FACTOR_WEIGHTS.volume);
+    // **Payload-free, asserted by walking the keys rather than by reading
+    // them.** An arm that grew a word would be byte-identical in shape to
+    // `inapplicable`, which is the property the four arms rest on — and the
+    // sentence a reader meets is about the PRODUCT (*no history to rank it
+    // against*) rather than about this security, so there is nothing per
+    // security to carry.
+    expect(Object.keys(clause).toSorted()).toStrictEqual([
+      "factor",
+      "state",
+      "weight",
+    ]);
+  });
+
+  it("reduces the maximum exactly as a refusal does — AC 3", () => {
+    const withArm = scoreAnomaly({
+      price: ranked(99),
+      excess: ranked(93),
+      volume: noDistribution,
+    });
+    const withRefusal = scoreAnomaly({
+      price: ranked(99),
+      excess: ranked(93),
+      volume: noVolume,
+    });
+
+    expect(scored(withArm).score).toBe(scored(withRefusal).score);
+    expect(scored(withArm).max).toBe(75);
+    // **No renormalisation and no imputation**: this arm is a fourth way for a
+    // factor to be absent, not a fourth way for it to contribute.
+    expect(scored(withArm).max).toBe(scored(withRefusal).max);
+  });
+
+  it("round-trips through the wire mapper and the reader", () => {
+    const outcome = scoreAnomaly({
+      price: ranked(99),
+      excess: ranked(93),
+      volume: noDistribution,
+    });
+
+    const read = readAnomalyScore(
+      JSON.parse(JSON.stringify(toWireAnomalyScore(outcome))),
+    );
+
+    expect(read).toStrictEqual(outcome);
+  });
+
+  it("can be every factor's answer, which is an unscored outcome", () => {
+    // Unreachable from the shipped producer — only the volume factor uses the
+    // arm — and asserted because the type permits it and the scorer must not
+    // produce a `score` with no contributing clause.
+    const outcome = scoreAnomaly({
+      price: noDistribution,
+      excess: noDistribution,
+      volume: noDistribution,
+    });
+
+    expect(outcome.scored).toBe(false);
+    expect(outcome.absent).toHaveLength(COMPOSITE_FACTORS.length);
+  });
+});

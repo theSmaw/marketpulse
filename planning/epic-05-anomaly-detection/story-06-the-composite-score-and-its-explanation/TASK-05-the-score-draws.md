@@ -1,8 +1,8 @@
-# Task 5.6.4 — The score draws
+# Task 5.6.5 — The score draws
 
 **Status:** Not started
 **Story:** [5.6 The Composite Score, & Its Explanation](STORY.md)
-**Depends on:** 5.6.3
+**Depends on:** 5.6.4
 
 ## Objective
 
@@ -16,12 +16,12 @@ On `/securities/:symbol`, as the **first band** of `Abnormal-move indicators`
 
 ```
 ANOMALY SCORE
-68 / 100   ┃ elevated ┃
+61 / 100   ┃ elevated ┃
 2 of 3 factors contributing
 
    FACTOR          WEIGHT   CONTRIBUTED
    Price               40            38
-   Relative move       20            12
+   Relative move       35            23
    Volume              25             —   no IEX volume history
    Breadth              —   stated as context
 
@@ -58,7 +58,7 @@ product, not a shortfall.
   baseline.** Not display — that size is spent once per screen and
   `SecurityIdentity` already spends it. The denominator does three jobs and the
   third matters most: **it is the cheapest defence against the risk-meter
-  misread**, because a needle on an arc says _risk_ and `68 / 100` says _a count
+  misread**, because a needle on an arc says _risk_ and `61 / 100` says _a count
   on a stated scale_.
 - **The chip sits on the figure's row, baseline-aligned, and costs 0 px** — a
   13 px glyph on dense 18 px leading sits inside a 20 px metric figure's ascent
@@ -96,7 +96,7 @@ band"` and `Popover.tsx` says the quiet part: _"the first thing this seam
   `MARKET-OVERVIEW.md` §1.4's trigger a **fourth** time — the largest step any
   band has taken. The method reproduces the two shipped bands exactly (142 and
   114, confirmed against a probe), which is why it is trusted and still not
-  believed: `pnpm probe /securities/NVDA --within Abnormal` at four widths, and
+  believed: `pnpm probe /securities/NVDA --within "Abnormal-move indicators"` at four widths, and
   the clause-track budget via `pnpm probe --story … --viewports 374x900`.
 - **Author the canvas pages**, pre-authorised. Page A `The score, and the account
 beneath it`, and a dated amendment to `The rail that says how unusual`
@@ -105,6 +105,32 @@ beneath it`, and a dated amendment to `The rail that says how unusual`
   - **Draw the arc to REJECT it.** A meter shape is what makes a figure read as a
     risk meter, and AC 11's sentence cannot out-argue a picture of a needle. If
     the rejection is not drawn, the next author adds one in good faith.
+
+## Amended by Task 5.6.4 — 2026-10-23: a score DRAWS on this machine, which no earlier task in this epic could say
+
+**Measured off the running backend**: `625 B`, `score 35 · band elevated`,
+`max 35`, the addition closing on the wire. The mechanism is the one nobody
+anticipated — **nothing observed** means the price factor refuses
+(`no-subject-move`), but the subject's and its benchmark's **stored
+close-to-close moves share a basis**, so the excess factor ranks at the 99th.
+
+**So you can probe a REAL drawn score, not only a furnished one.** That is new in
+this epic: Story 5.2's return needs process memory, 5.3's percentile needs a live
+window, and 5.5's volume needs an `iex` tape this store does not hold. The excess
+factor needs only **stored daily closes**.
+
+What that obliges of you:
+
+- **Probe the drawn state against a real frame as well as furnished ones**, and
+  say which figures came from which. A furnished state proves fidelity; a real
+  one proves the producer agrees.
+- **The `2 of 3` label is NOT reachable here** — the price factor refuses on this
+  store, so the live local state is `1 of 3 · max 35`. Do not photograph `1 of 3`
+  and record it as the common case; the deployed common case is `2 of 3`.
+- **CI is unchanged**: zero bars, no stored closes, every factor absent, so
+  `0 of 3` stays its permanent state and the gated criteria do not move.
+- **The sketch in this file prints `2 of 3` with `38 + 23 = 61`**, which is the
+  deployed shape rather than the local one. Keep it as the target and probe both.
 
 ## Done when
 

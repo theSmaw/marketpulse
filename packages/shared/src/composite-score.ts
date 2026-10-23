@@ -356,7 +356,34 @@ export type FactorRefusal =
   PercentileRefusal | ExcessFactorRefusal | VolumeRefusal;
 
 /**
- * **One factor's answer, in three arms that differ in SHAPE.**
+ * **Why a factor's question does not arise** — the composite's own
+ * inapplicability type, by reference to each factor's vocabulary exactly as
+ * {@link FactorRefusal} is.
+ *
+ * ## It was `ExcessMoveInapplicability` until 2026-10-23, and that was a latent
+ * ## defect rather than a shorthand
+ *
+ * One factor's vocabulary was standing as the **composite's** type, so a word
+ * the excess factor happens to own — `no-sector` — was the only thing any
+ * factor could ever be inapplicable *for*. The price factor can never be
+ * inapplicable for `no-sector`: it has no reference and no sector, so the
+ * question *does this security have a benchmark* does not arise for it at all.
+ * A second factor acquiring its own inapplicability would have had to either
+ * widen the excess move's list — putting a word in a vocabulary whose own
+ * docblock says what it is for — or cast.
+ *
+ * **One member type today**, and that is the point of the shape rather than an
+ * argument against it: a vocabulary added to any factor is a **compile error**
+ * at the builder that constructs the answer, which is what
+ * {@link FactorRefusal}'s union buys three times over.
+ */
+export type FactorInapplicability = ExcessMoveInapplicability;
+
+/**
+ * **One factor's answer, in four arms that differ in SHAPE.**
+ *
+ * **Three until 2026-10-23**; the fourth is Task 5.6.4's, is payload-free, and
+ * carries its own argument at the arm.
  *
  * `ExcessMoveFactor`'s mechanism (Task 5.6.2) lifted into the shared package:
  * the discriminant is a word and the arms carry **different members**, so a
@@ -379,6 +406,12 @@ export type FactorRefusal =
  * that do differ in shape are the two the product actually distinguishes:
  * **`refused`** (*we will not answer*) and **`inapplicable`** (*the question
  * does not arise*).
+ *
+ * **The fourth arm added on 2026-10-23 is not that argument reversed.**
+ * `no-distribution` is neither *no data* nor *refused*: the factor **has** its
+ * figure and what is missing is the **history to rank it against**, which is a
+ * fact about this product's stored aggregates rather than about this security's
+ * coverage. See the arm.
  */
 export type FactorAnswer =
   | {
@@ -398,7 +431,62 @@ export type FactorAnswer =
     }
   | {
       readonly state: "inapplicable";
-      readonly because: ExcessMoveInapplicability;
+      readonly because: FactorInapplicability;
+    }
+  | {
+      /**
+       * **The factor produced a figure and there is nothing to rank it
+       * against** — the fourth arm, PAYLOAD-FREE (Task 5.6.4, the owner's
+       * decision).
+       *
+       * ## Why it is not `refused`
+       *
+       * That arm carries `sampleCount` **and** `minimumSampleCount`, and
+       * {@link readAnomalyScore}'s reader refuses `minimumSampleCount === 0` —
+       * so *there is no bound at all* is literally not encodable on it, and
+       * writing a `0` or a `2500` would be two invented figures in a module
+       * `no-imputed-zero-in-a-figure` covers. The volume factor's own bound is
+       * a **function** of a per-bucket measured dispersion
+       * (`TARGET_RELATIVE_STANDARD_ERROR`) rather than a count, so there is no
+       * number to put there even in principle.
+       *
+       * ## Why it is not `inapplicable`
+       *
+       * That word's charter is *no waiting, backfilling or repairing will ever
+       * produce a figure* (`excess-move.ts`' own argument for choosing it over
+       * four others). A nightly pass that stored a **distribution** of this
+       * factor's quantity **would** produce this one, so a reader told
+       * *inapplicable* would be told something false about the future.
+       *
+       * ## Why it carries nothing
+       *
+       * An arm carrying a word would be byte-identical in shape to
+       * `inapplicable`, which negates the property the three arms above are
+       * built on: they differ in **shape** rather than in a nullable word. And
+       * there is no per-security sentence to carry, because **the fact is not
+       * about the security** — no security in the universe has a distribution
+       * of this factor's quantity, so a figure beside it would describe the
+       * product rather than the subject. The factor's own drawn figure has one
+       * home already, on the `return` frame's `volume` half; this arm must not
+       * grow a second.
+       *
+       * **The sentence a reader meets is the owner's, verbatim:**
+       * `Measured, but no history to rank it against.` It is drawn by Task
+       * 5.6.5 and spelled in exactly one place there.
+       *
+       * ## Reversal trigger, a condition
+       *
+       * **The first nightly pass that stores a distribution — breakpoints, not
+       * a median and a dispersion — of a factor's own quantity for a factor
+       * currently using this arm.** At that point the arm is **deleted** rather
+       * than re-purposed, because the factor becomes `ranked` like the other
+       * two; and {@link ANOMALY_BAND_FLOORS}' own trigger 1 — *the first score
+       * computed over a factor set this derivation did not measure* — fires in
+       * the **same commit**, because that is the day the scale stops being
+       * max-75. The two are one condition seen from two sides and must be
+       * acted on together.
+       */
+      readonly state: "no-distribution";
     };
 
 /**
@@ -477,8 +565,14 @@ export type AbsentClause<F extends CompositeFactor = CompositeFactor> =
         }
       | {
           readonly state: "inapplicable";
-          readonly because: ExcessMoveInapplicability;
+          readonly because: FactorInapplicability;
         }
+      /**
+       * **A figure with no distribution behind it** — the payload-free arm; see
+       * {@link FactorAnswer}. It carries the factor and the weight the score
+       * did not get, which every absent clause carries, and nothing else.
+       */
+      | { readonly state: "no-distribution" }
     );
 
 /**
@@ -621,6 +715,19 @@ export function scoreAnomaly(
       continue;
     }
 
+    if (answer.state === "no-distribution") {
+      // **Nothing beside the state.** See the arm: a figure here would be
+      // about the product rather than about this security, and the factor's
+      // own drawn figure has one home on the `return` frame already.
+      absent.push({
+        factor,
+        weight,
+        state: "no-distribution",
+        [brand]: factor,
+      });
+      continue;
+    }
+
     absent.push({
       factor,
       weight,
@@ -716,7 +823,12 @@ export type WireAbsentClause =
       readonly factor: CompositeFactor;
       readonly weight: number;
       readonly state: "inapplicable";
-      readonly because: ExcessMoveInapplicability;
+      readonly because: FactorInapplicability;
+    }
+  | {
+      readonly factor: CompositeFactor;
+      readonly weight: number;
+      readonly state: "no-distribution";
     };
 
 /** No score on the wire. {@link UnscoredAnomaly} without the brand. */
@@ -738,6 +850,14 @@ function absentToWire(clause: AbsentClause): WireAbsentClause {
       refusal: clause.refusal,
       sampleCount: clause.sampleCount,
       minimumSampleCount: clause.minimumSampleCount,
+    };
+  }
+
+  if (clause.state === "no-distribution") {
+    return {
+      factor: clause.factor,
+      weight: clause.weight,
+      state: "no-distribution",
     };
   }
 
@@ -847,6 +967,18 @@ function readAbsentClause(value: unknown): AbsentClause | undefined {
     return undefined;
   }
 
+  if (value.state === "no-distribution") {
+    // **Nothing to read beyond the word**, which is the arm's whole shape: a
+    // clause with a payload here would be a second answer to a question the
+    // `return` frame's `volume` half already answers.
+    return {
+      factor: value.factor,
+      weight: value.weight,
+      state: "no-distribution",
+      [brand]: value.factor,
+    };
+  }
+
   if (value.state === "inapplicable") {
     // **The word is not validated against a list, and that is the decoder's
     // own rule one frame over** (`readReturnPercentile`): a vocabulary member
@@ -860,7 +992,7 @@ function readAbsentClause(value: unknown): AbsentClause | undefined {
       factor: value.factor,
       weight: value.weight,
       state: "inapplicable",
-      because: value.because as ExcessMoveInapplicability,
+      because: value.because as FactorInapplicability,
       [brand]: value.factor,
     };
   }

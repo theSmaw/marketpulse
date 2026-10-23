@@ -521,6 +521,44 @@ describe("readNewestGeneration", () => {
     );
   });
 
+  it("orders two references for one security DETERMINISTICALLY", async () => {
+    // **The repair of 2026-10-23** (Task 5.6.4). The read pins
+    // `reference_kind` in both statements — the frontier and the generation —
+    // which is `volume-baseline-store.ts`' *the tape is in the key, so the
+    // frontier is per tape*, applied to this table's own key column. The
+    // fourth key column cannot be pinned, because it is **per security**: each
+    // equity's own benchmark. So what it gets instead is a deterministic
+    // order, and the reason is the defect: ordered by symbol alone, a reader
+    // building a `Map<Ticker, …>` keeps whichever of two reference rows the
+    // result set yields **last**, with no defined tie-break — and
+    // `referenceSymbol` travels on the row, so the drawn sentence would name
+    // the benchmark the WRONG baseline was computed against.
+    //
+    // The reader's own half is in `excess-move-factor.ts`, which treats a row
+    // computed against a different benchmark as **absent** rather than ranking
+    // against it.
+    await baselines().writeBaseline(
+      probe(),
+      OBSERVED_AT,
+      { kind: EXCESS_REFERENCE_KIND, symbol: "XLV" },
+      PARAMETERS,
+      { kind: "measured", sampleCount: 3_000, breakpoints: BREAKPOINTS },
+    );
+
+    const held = await baselines().readNewestGeneration(
+      new Date("2026-10-01T00:00:00.000Z"),
+    );
+
+    const mine = held
+      .filter((row) => row.symbol === probe().symbol)
+      .map((row) => row.referenceSymbol);
+
+    expect(mine).toEqual(["XLK", "XLV"]);
+    for (const row of held) {
+      expect(row.referenceKind).toBe(EXCESS_REFERENCE_KIND);
+    }
+  });
+
   it("answers nothing at all for a bound before every generation", async () => {
     expect(
       await baselines().readNewestGeneration(

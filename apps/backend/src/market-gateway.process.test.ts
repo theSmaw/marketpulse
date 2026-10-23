@@ -22,11 +22,13 @@ import type {
   WireFeedState,
   WireMarketOverview,
   WireObservation,
+  WireOverviewFigure,
   WireSymbolReturn,
   WireVolumeComparison,
 } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MarketGateway, SymbolFigures } from "./market-gateway.js";
+import type { OverviewPass } from "./market-overview.js";
 
 // **The hole Task 3.5.2's sweep found, closed here** (Task 3.5.4).
 //
@@ -199,7 +201,23 @@ const NO_VOLUME: WireVolumeComparison = {
 const figures = (
   figure: WireSymbolReturn,
   volume: WireVolumeComparison = NO_VOLUME,
-): SymbolFigures => ({ return: figure, volume });
+): SymbolFigures => ({ return: figure, volume, score: null });
+
+/**
+ * **One pass over a furnished frame** (Task 5.6.4).
+ *
+ * The production producer answers an `OverviewPass` — the frame plus the
+ * per-symbol figures it was built from. Every test in this file is about what
+ * the gateway **sends**, so the frame is what they furnish and this wraps it;
+ * the one test that is about the pass itself furnishes figures too.
+ */
+const passOf = (
+  frame: WireMarketOverview,
+  figuresBySymbol: Readonly<Record<string, WireOverviewFigure>> = {},
+): OverviewPass => ({
+  frame,
+  figureOf: (symbol) => figuresBySymbol[symbol],
+});
 
 /** A refusal, which is what a gateway with no trailing window behind it owes. */
 const NOTHING_OBSERVED: SymbolFigures = figures({
@@ -218,8 +236,8 @@ const NOTHING_OBSERVED: SymbolFigures = figures({
 interface GatewaySeams {
   /** Read per send by the gateway, so a test can move it between publishes. */
   readonly feedState?: () => WireFeedState;
-  /** One security's 5-minute return (Task 5.2.3). */
-  readonly symbolReturn?: (symbol: string) => SymbolFigures;
+  /** One security's 5-minute return (Task 5.2.3), and its pass (Task 5.6.4). */
+  readonly symbolReturn?: (symbol: string, pass: OverviewPass) => SymbolFigures;
   /** Captures the keepalive callback so a test can fire it deliberately. */
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
 }
@@ -242,7 +260,9 @@ async function attach(
     feedState:
       seams.feedState ??
       (() => ({ status: "live", feed: "iex", marketOpen: true })),
-    overview,
+    // **Wrapped rather than furnished as a pass**, because every test here is
+    // about what the gateway sends and the frame is what they furnish.
+    overview: () => passOf(overview()),
     symbolReturn: seams.symbolReturn ?? (() => NOTHING_OBSERVED),
     // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
     ...(wallNow === undefined ? {} : { wallNow }),
@@ -1151,7 +1171,7 @@ describe("the join does not run with nobody attached (Task 4.8.11)", () => {
     const gateway = registerMarketGateway(app, {
       snapshot: () => new Map(),
       feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
-      overview,
+      overview: () => passOf(overview()),
       symbolReturn: () => NOTHING_OBSERVED,
     });
 
@@ -1456,6 +1476,60 @@ describe("the market gateway's 5-minute return frame", () => {
     // And the producer was asked about the focused security rather than about
     // the 200 others this browser also wants prices for.
     expect(asked).toEqual([NVDA]);
+  });
+
+  it("hands the producer the SAME pass the aggregate frame came from", async () => {
+    // **The property the whole shape exists for** (Task 5.6.4), asserted on
+    // the **producer** because the wire cannot see it: the excess-move factor
+    // differences the subject's figure and its benchmark's, so a score built
+    // from two passes with two `asOf` instants is a well-formed,
+    // correctly-signed figure that is wrong — and it re-adds to itself, so
+    // `readAnomalyScore` is green on it.
+    //
+    // The pass handed to `symbolReturn` is asserted **identical** to the one
+    // the `overview` frame on this socket was built from, which is the only
+    // statement that cannot be satisfied by a second join that happens to
+    // agree today.
+    const passes: OverviewPass[] = [];
+    let built: OverviewPass | undefined;
+
+    const app = buildServer({
+      logLevel: "silent",
+      logFormat: "json",
+      corsOrigin: "http://localhost:5173",
+    });
+
+    const gateway = registerMarketGateway(app, {
+      snapshot: () => new Map(),
+      feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
+      overview: () => {
+        built = passOf(EMPTY_OVERVIEW);
+        return built;
+      },
+      symbolReturn: (_symbol, pass) => {
+        passes.push(pass);
+        return NOTHING_OBSERVED;
+      },
+    });
+
+    await app.listen({ port: 0, host: "127.0.0.1" });
+    const bound = app.server.address();
+    if (bound === null || typeof bound === "string") {
+      throw new Error("the server did not bind a port");
+    }
+    const client = await connectClient(bound.port);
+
+    try {
+      subscribe(client, [NVDA], NVDA);
+      await client.waitFor("return");
+
+      expect(passes).toHaveLength(1);
+      expect(passes[0]).toBe(built);
+    } finally {
+      client.socket.terminate();
+      await gateway.close();
+      await app.close();
+    }
   });
 
   it("carries a percentile over the socket, with its sample and its tape", async () => {

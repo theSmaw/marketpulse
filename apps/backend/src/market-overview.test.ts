@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMarketOverview,
   newestObservedAt,
+  overviewPassOf,
   toWireMarketOverview,
 } from "./market-overview.js";
 
@@ -963,5 +964,114 @@ describe("the aggregate's observation instant", () => {
 
     expect(second.computedAt).not.toBe(first.computedAt);
     expect(second.observedAt).toBe(first.observedAt);
+  });
+});
+
+describe("overviewPassOf — the frame, and the figures it was built from", () => {
+  const pass = (entries: readonly MarketOverviewEntry[]) =>
+    overviewPassOf({
+      // **The proxy section is two symbols and the join is three**, which is
+      // the point of every assertion below: `DIA` is in no section of this
+      // frame, and the per-symbol read is the one thing that can reach it.
+      proxies: entries.filter((entry) => entry.symbol !== DIA),
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      unusual: NO_SCORES,
+      entries,
+      asOf: ASOF,
+    });
+
+  const joined = () =>
+    buildMarketOverview({
+      symbols: [SPY, QQQ, DIA],
+      observations: new Map([
+        [SPY, observation(SPY, bar(605.5, duringSession("2026-09-14")))],
+        [DIA, observation(DIA, bar(451.25, duringSession("2026-09-14")))],
+      ]),
+      closesAsOf: () =>
+        closesOf(
+          storedClose(SPY, { close: 600, session: "2026-09-11" }),
+          storedClose(QQQ, { close: 500, session: "2026-09-11" }),
+          storedClose(DIA, { close: 450, session: "2026-09-11" }),
+        ),
+      asOf: ASOF,
+    });
+
+  it("carries the frame `toWireMarketOverview` produces, unchanged", () => {
+    const entries = joined();
+
+    expect(pass(entries).frame).toStrictEqual(
+      toWireMarketOverview({
+        proxies: entries.filter((entry) => entry.symbol !== DIA),
+        breadth: BREADTH,
+        movers: NO_MOVERS,
+        unusual: NO_SCORES,
+        entries,
+        asOf: ASOF,
+      }),
+    );
+  });
+
+  it("answers a figure for a symbol in NO SECTION of the frame", () => {
+    // **The whole reason the pass exists.** `overviewSymbols` is
+    // `trackedTickers()`, so the join already computed this entry and the
+    // sections threw it away; a consumer that needed it had no way to it but a
+    // second `buildMarketOverview` with a second `asOf` — and the excess-move
+    // factor **differences** two of these figures.
+    const figure = pass(joined()).figureOf(DIA);
+
+    expect(figure?.state).toBe("observed");
+    expect(figure?.symbol).toBe(DIA);
+    expect(
+      figure?.state === "observed" ? figure.changePercent : undefined,
+    ).toBeCloseTo(0.2777, 3);
+  });
+
+  it("answers `undefined` for a symbol the pass is not about", () => {
+    // Not a zero, not a thrown error and not an empty figure: *we did not
+    // compute this* is its own answer, and `excessMoveFactor` refuses
+    // `no-subject-move` on it.
+    expect(pass(joined()).figureOf("ZZZZ")).toBeUndefined();
+  });
+
+  it("is the SAME figure the frame's own section carries", () => {
+    // One pass, one encoder, one answer — so a reader cannot be shown one
+    // number and a score computed from another.
+    const built = pass(joined());
+
+    expect(built.figureOf(SPY)).toStrictEqual(
+      built.frame.figures.find((figure) => figure.symbol === SPY),
+    );
+  });
+
+  it("does NOT add a per-symbol tape to the frame's provenance", () => {
+    // **The encoding trap.** `figureOf` appends an observed figure's tape to
+    // the frame's `feeds` so that list describes the figures the frame
+    // **carries**. A focused equity is in no section of this frame, so sinking
+    // its tape there would give the screen's source note a tape from a figure
+    // nobody can see on it — invariant 6 implied rather than displayed.
+    const entries = buildMarketOverview({
+      symbols: [SPY, DIA],
+      observations: new Map([
+        // Only the symbol in NO section has been observed, so the frame's own
+        // list is empty and a leak would be visible as one entry.
+        [DIA, observation(DIA, bar(451.25, duringSession("2026-09-14")))],
+      ]),
+      closesAsOf: () =>
+        closesOf(storedClose(SPY, { close: 600, session: "2026-09-11" })),
+      asOf: ASOF,
+    });
+
+    const built = overviewPassOf({
+      proxies: entries.filter((entry) => entry.symbol === SPY),
+      breadth: BREADTH,
+      movers: NO_MOVERS,
+      unusual: NO_SCORES,
+      entries,
+      asOf: ASOF,
+    });
+
+    expect(built.figureOf(DIA)?.state).toBe("observed");
+    expect(built.frame.feeds).toStrictEqual([]);
   });
 });

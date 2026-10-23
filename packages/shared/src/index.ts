@@ -177,6 +177,7 @@ export type {
   CompositeFactor,
   FactorAnswer,
   FactorClause,
+  FactorInapplicability,
   FactorRefusal,
   UnscoredAnomaly,
   WireAbsentClause,

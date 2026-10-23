@@ -13,11 +13,13 @@ import {
   type WireFeedState,
   type WireMarketOverview,
   type WireObservation,
+  type WireAnomalyOutcome,
   type WireSymbolReturn,
   type WireVolumeComparison,
 } from "@marketpulse/shared";
 
 import type { LiveObservation } from "./market-data-stream.js";
+import type { OverviewPass } from "./market-overview.js";
 
 /**
  * The browser's end of the market feed (Task 3.3.2).
@@ -180,6 +182,20 @@ export const SLOW_CLIENT_CLOSE_CODE = MARKET_STREAM_CLOSE.slowClient;
 export interface SymbolFigures {
   readonly return: WireSymbolReturn;
   readonly volume: WireVolumeComparison | null;
+  /**
+   * **The composite anomaly score and its explanation, or the reason there is
+   * no score** (Task 5.6.4).
+   *
+   * A third sibling rather than a field inside either figure above: the score
+   * is computed over **three** factors, only one of which is the return beside
+   * it, so it exists in states where that figure refused.
+   *
+   * `null` is *this gateway sent no score at all*, which is the arm a browser
+   * holding a bundle across a deploy reads. It is explicitly not *every factor
+   * refused*, which is a `scored: false` carrying one clause per factor — and
+   * is this product's state on every machine that exists today.
+   */
+  readonly score: WireAnomalyOutcome | null;
 }
 
 export interface MarketGatewayOptions {
@@ -199,8 +215,19 @@ export interface MarketGatewayOptions {
    * **Required rather than optional.** An optional producer would make a
    * wiring mistake silent — a gateway that simply never sends the frame, on a
    * deployment where nothing else would say so.
+   *
+   * **Amended 2026-10-23 (Task 5.6.4): it answers a PASS rather than a
+   * frame.** An {@link OverviewPass} is the frame plus the per-symbol figures
+   * that frame was built from, and it exists because the excess-move factor
+   * differences **two** of those figures — a security's and its sector
+   * benchmark's — which must come from one pass over one market state. This
+   * gateway already memoised the frame for exactly that kind of consistency
+   * (see `lastBroadcastPass`); what changed is that the value it keeps is now
+   * the one both frames are served from. It is **not** a second producer and
+   * **not** a second join: `one-producer-of-the-overview-aggregate` still
+   * counts exactly one call site of the builder.
    */
-  readonly overview: () => WireMarketOverview;
+  readonly overview: () => OverviewPass;
   /**
    * **One security's 5-minute return, built when a browser is owed one** (Task
    * 5.2.3).
@@ -225,7 +252,7 @@ export interface MarketGatewayOptions {
    * that can describe different minutes. One producer, one frame, one
    * memoisation per focused symbol.
    */
-  readonly symbolReturn: (symbol: string) => SymbolFigures;
+  readonly symbolReturn: (symbol: string, pass: OverviewPass) => SymbolFigures;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
   /**
@@ -527,7 +554,7 @@ export function registerMarketGateway(
    *
    * **Amended 2026-10-10 by Task 4.7.3: the aggregate is now an ARGUMENT, and
    * two of the three paths no longer compute one.** See
-   * `lastBroadcastOverview` below. The encode site is still exactly one, which
+   * `lastBroadcastPass` below. The encode site is still exactly one, which
    * is what `the-overview-frame-is-not-a-heartbeat` holds; what moved is where
    * the *value* comes from.
    */
@@ -631,7 +658,7 @@ export function registerMarketGateway(
    * rejection is a crashed process. It is a single assignment of a value
    * `overview()` has already returned, and the read is a `??`.
    */
-  let lastBroadcastOverview: WireMarketOverview | undefined;
+  let lastBroadcastPass: OverviewPass | undefined;
 
   app.server.on("upgrade", (request, socket, head) => {
     // Path-matched here rather than by the library, so an upgrade to any other
@@ -697,13 +724,20 @@ export function registerMarketGateway(
         // its own so that *on connect* and *on subscribe* cannot come apart.
         //
         // **The LAST BROADCAST one, not a fresh join** (Task 4.7.3) — the
-        // whole argument is on `lastBroadcastOverview`. A browser that joins
+        // whole argument is on `lastBroadcastPass`. A browser that joins
         // after a broadcast is served exactly what every tab already open is
         // looking at, which is a second property worth having: two tabs of `/`
         // no longer disagree about the market by however long apart they were
         // opened. The `??` is the cold-start arm and it is the only path on
         // which these two sends pay a join at all.
-        send(client, overviewMessage(lastBroadcastOverview ?? overview()));
+        // **The pass, not only the frame** (Task 5.6.4): the figure sent two
+        // sends below is scored against the figures in **this** aggregate, so
+        // the subject and its benchmark come from one pass over one market
+        // state. Serving the frame from a memo and the score from a fresh
+        // join would be exactly the contradiction the memo exists to remove,
+        // one surface along.
+        const pass = lastBroadcastPass ?? overview();
+        send(client, overviewMessage(pass.frame));
 
         // **And this browser's own figure, if its screen is about one.**
         //
@@ -720,7 +754,7 @@ export function registerMarketGateway(
         // figure to contradict; and the recomputation is one walk over at most
         // seven bars for one security, against a join over 516.
         if (focus !== undefined) {
-          send(client, returnMessage(focus, symbolReturn(focus)));
+          send(client, returnMessage(focus, symbolReturn(focus, pass)));
         }
       };
 
@@ -829,7 +863,7 @@ export function registerMarketGateway(
       //
       // **Why it is here rather than around the broadcast** (Task 4.8.11).
       // `overviewMessage()` was evaluated as an ARGUMENT to `broadcast` — a
-      // `lastBroadcastOverview = overview()` statement since Task 4.7.3, which
+      // `lastBroadcastPass = overview()` statement since Task 4.7.3, which
       // changes the shape and not the ordering — so until this line the
       // 518-join ran before the client map was read —
       // re-measured 2026-10-10 at **1.521 ms p50 a batch with zero clients**
@@ -859,7 +893,7 @@ export function registerMarketGateway(
       // because memoising that is a different decision with more surface and
       // was not the one taken. Those joins have a reader by construction: the
       // browser that asked.~~ — **taken 2026-10-10 by Task 4.7.3, and not for
-      // the cost.** The snapshot path now serves `lastBroadcastOverview`,
+      // the cost.** The snapshot path now serves `lastBroadcastPass`,
       // because a recomputed aggregate during an outage contradicts itself
       // region by region; two of the three joins per cold load going away is a
       // consequence rather than the reason.
@@ -888,8 +922,9 @@ export function registerMarketGateway(
       // this, so the write is not bookkeeping: it is the thing a reconnect
       // reads. It stays **below** the guard above, which is why
       // `the-join-runs-with-nobody-attached` still goes red.
-      lastBroadcastOverview = overview();
-      broadcast(overviewMessage(lastBroadcastOverview));
+      const pass = overview();
+      lastBroadcastPass = pass;
+      broadcast(overviewMessage(pass.frame));
 
       // **One message per client rather than one for everybody** (Task 3.5.6).
       // The encode happens per client because the payloads genuinely differ;
@@ -916,7 +951,7 @@ export function registerMarketGateway(
         if (focus !== undefined && scoped?.[focus] !== undefined) {
           let figure = figures.get(focus);
           if (figure === undefined) {
-            figure = symbolReturn(focus);
+            figure = symbolReturn(focus, pass);
             figures.set(focus, figure);
           }
 

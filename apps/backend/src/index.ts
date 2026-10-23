@@ -26,10 +26,12 @@ import {
 } from "./feed-diagnostic.js";
 import {
   MARKET_STREAM_PATH,
+  excessMoveReference,
   isTicker,
   marketDateAt,
+  toWireAnomalyScore,
 } from "@marketpulse/shared";
-import type { WireMarketOverview } from "@marketpulse/shared";
+import type { ExcessMoveReference } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 
@@ -41,12 +43,23 @@ import {
 } from "./current-market-state.js";
 import { createTrailingWindow } from "./trailing-window.js";
 import { RETURN_SPAN_MINUTES, fiveMinuteReturn } from "./five-minute-return.js";
+
+import type { FiveMinuteReturn } from "./five-minute-return.js";
 import { toWireSymbolReturn, toWireVolume } from "./five-minute-return-wire.js";
 import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
-import {
-  buildMarketOverview,
-  toWireMarketOverview,
-} from "./market-overview.js";
+import { buildMarketOverview, overviewPassOf } from "./market-overview.js";
+
+import type { OverviewPass } from "./market-overview.js";
+// The composite's one producer (Task 5.6.4) — three factors' own answers in,
+// one scored outcome out. Nothing is computed there and nothing is computed
+// here: `scoreAnomaly` holds the arithmetic, in `packages/shared`, where the
+// four clock rules make AC 12's *reads no clock, socket or handle* a lint
+// error rather than a reading.
+import { compositeAnomaly } from "./market-composite.js";
+import { excessMoveFactor } from "./excess-move-factor.js";
+import { EXCESS_REFERENCE_KIND } from "./excess-move-baseline.js";
+import { createExcessBaselineStore } from "./excess-move-baseline-store.js";
+import { createExcessBaselineCache } from "./excess-move-baseline-cache.js";
 // The ladder's cell, beside the producer because it IS the producer's state:
 // the rung is a fact about the sequence of frames this process has sent, not
 // about the frame it is building.
@@ -55,6 +68,7 @@ import { createLastClosesCache } from "./last-closes-cache.js";
 import { eligibleMoves, marketBreadth } from "./market-breadth.js";
 import { unusualActivity } from "./market-unusual.js";
 import {
+  UNIVERSE,
   equityTickers,
   indexProxyTickers,
   sectorEtfTickers,
@@ -81,6 +95,12 @@ import { createSessionPercentileCache } from "./session-percentile-cache.js";
 import { createSessionPercentileStore } from "./session-percentile-store.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
 import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
+
+import type {
+  BaselineComparison,
+  PercentileAnswer,
+  ReturnPercentile,
+} from "./return-percentile.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -828,7 +848,19 @@ const overviewSymbols = trackedTickers();
 const isProxySymbol = new Set<string>(proxySymbols);
 const isEquitySymbol = new Set<string>(equityTickers());
 
-const marketOverview = (): WireMarketOverview => {
+/**
+ * **The producer the gateway is given — one pass over the market, which is the
+ * frame plus the per-symbol figures it was built from** (Task 5.6.4).
+ *
+ * It was `(): WireMarketOverview` until 2026-10-23 and the join below is
+ * **unchanged**: `overviewSymbols` is `trackedTickers()`, so this call already
+ * computed every security's entry and the three `filter`s below already threw
+ * ~501 of them away. What the pass adds is a way for the one consumer that
+ * needs two of those figures — the excess-move factor, which **differences**
+ * them — to reach them without a second join and therefore without a second
+ * `asOf`. No new arithmetic and no new cost; see `OverviewPass`.
+ */
+const marketOverview = (): OverviewPass => {
   const asOf = new Date();
   const marketOpen = isMarketOpen(asOf);
 
@@ -899,7 +931,7 @@ const marketOverview = (): WireMarketOverview => {
   // already taken.
   const lastSession = sessionRankings.rankingAsOf(marketDateAt(asOf));
 
-  return toWireMarketOverview({
+  return overviewPassOf({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
     breadth: marketBreadth(eligible),
@@ -1067,6 +1099,108 @@ void sessionRankings.load(marketDateAt(new Date())).then(
 );
 
 /**
+ * **The 60-session excess-move baseline, held in memory** (Task 5.6.4, ADR
+ * 0044) — the **fourth** of these.
+ *
+ * `baselines`' shape and `baselines`' reason: a derived aggregate that changes
+ * once a night, read by a path that must not `await`, because
+ * {@link symbolReturn} is called from inside the socket's own callback. The
+ * cache owns the refresh condition and never throws; what this line owns is
+ * that there is exactly one of it.
+ *
+ * **Its store's read is pinned to one reference form** — `0016`'s key carries
+ * the reference, and the cache is keyed on the ticker, which is sound only
+ * because of that pin. The reader's half is in `excess-move-factor.ts`.
+ */
+const excessBaselines = createExcessBaselineCache({
+  store: createExcessBaselineStore(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+// **Loaded at startup, and it does not block the server** — `baselines`'
+// argument unchanged. A replica with no generation stored refuses this factor
+// for every security with `0 of 2,500 excess moves`, which is an honest
+// partial answer rather than a failure, and is CI's permanent state.
+void excessBaselines.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      {
+        securities: excessBaselines.size(),
+        through: excessBaselines.heldThrough(),
+        reference: EXCESS_REFERENCE_KIND,
+      },
+      "excess-move baselines loaded for the relative-move factor",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn({ err: error }, "excess-move baselines could not be loaded");
+  },
+);
+
+/**
+ * **What this gateway answers about a focus it does not track** — nothing
+ * observed, nothing to divide, and no explanation.
+ *
+ * Nothing was observed, so there is nothing observed to carry beside the word
+ * (Task 5.2.4) — and nothing to divide, which the volume half says in its own
+ * vocabulary rather than borrowing this one's. The score is `null` for ADR
+ * 0029's reason: an explanation listing three refusals about a security this
+ * process does not track is a fully-formed claim about nothing.
+ */
+const NOTHING_FOR_AN_UNTRACKED_FOCUS: SymbolFigures = {
+  return: { measured: false, refusal: "nothing-observed", seen: null },
+  volume: {
+    measured: false,
+    refusal: "no-bar-in-bucket",
+    sampleCount: 0,
+    observed: 0,
+    spanMinutes: RETURN_SPAN_MINUTES,
+  },
+  score: null,
+};
+
+/**
+ * **Which fund each tracked security is differenced against, resolved once for
+ * the life of the process** (Task 5.6.4).
+ *
+ * `compute-baselines.ts`' arrangement and its argument: `kind` and `sector` are
+ * **curated** facts, `pnpm universe` converges the store on this file, and
+ * `deploy.yml` loads it before either half of the code rolls — so the universe
+ * is the right source for *which benchmark*, and the resolver is
+ * `excessMoveReference`, which the drawn region reads too. A second branch here
+ * would be a security scored against the wrong fund on one surface only.
+ *
+ * It is a `Map` rather than a scan because `symbolReturn` asks per batch.
+ */
+const excessReferenceOf = new Map<string, ExcessMoveReference>(
+  UNIVERSE.map((security) => [security.symbol, excessMoveReference(security)]),
+);
+
+/**
+ * **What the `return` frame says about the percentile, in the one shape
+ * `toWireSymbolReturn` takes** — a rank, the refusal and its two numbers, or
+ * nothing at all.
+ *
+ * Named rather than nested in the `return` below, and the three answers are
+ * three different claims: a refused **figure** has nothing to rank so it
+ * carries no comparison (the member does not exist on that arm); a refused
+ * **baseline** carries its word and its counts; and a malformed distribution
+ * carries nothing, because the database forbids one and there is no honest
+ * sentence for a row this pass did not write.
+ */
+const percentileAnswerFor = (
+  figure: FiveMinuteReturn,
+  comparison: BaselineComparison,
+  percentile: ReturnPercentile | undefined,
+): PercentileAnswer | undefined => {
+  if (!figure.measured) return undefined;
+  if (!comparison.ranked) return comparison;
+  return percentile === undefined ? undefined : { ranked: true, percentile };
+};
+
+/**
  * **One security's 5-minute return, for the browser whose screen is about it**
  * (Task 5.2.3).
  *
@@ -1096,22 +1230,28 @@ void sessionRankings.load(marketDateAt(new Date())).then(
  * the literally true answer: nothing has been observed for a symbol that
  * cannot exist.
  */
-const symbolReturn = (symbol: string): SymbolFigures => {
-  if (!isTicker(symbol)) {
-    // Nothing was observed, so there is nothing observed to carry beside the
-    // word (Task 5.2.4) — and nothing to divide, which the volume half says
-    // in its own vocabulary rather than borrowing this one's.
-    return {
-      return: { measured: false, refusal: "nothing-observed", seen: null },
-      volume: {
-        measured: false,
-        refusal: "no-bar-in-bucket",
-        sampleCount: 0,
-        observed: 0,
-        spanMinutes: RETURN_SPAN_MINUTES,
-      },
-    };
-  }
+const symbolReturn = (symbol: string, pass: OverviewPass): SymbolFigures => {
+  // **A focus this process does not track is answered rather than thrown on.**
+  // The string came off a socket; `toTicker` throws on anything that is not a
+  // ticker and a throw here would reach the socket's callback.
+  // `nothing-observed` is also the literally true answer — nothing has been
+  // observed for a security we do not subscribe to — and the two halves say it
+  // in their own vocabularies rather than borrowing each other's.
+  //
+  // **Widened from `!isTicker` by Task 5.6.4**, because the excess factor needs
+  // this security's **benchmark**, which only the curated universe can resolve:
+  // a well-formed ticker we do not describe has no resolvable reference at all.
+  // `compute-baselines.ts` takes the same side of the same question for the
+  // same reason — *we could not reach it*, which a universe load repairs,
+  // rather than *the question does not arise*, which nothing repairs.
+  //
+  // **The score is `null` rather than an unscored outcome**, which is ADR
+  // 0029's defer rule: an explanation listing three refusals about a security
+  // this process does not track is a fully-formed claim about nothing.
+  if (!isTicker(symbol)) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
+
+  const referenceOf = excessReferenceOf.get(symbol);
+  if (referenceOf === undefined) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
 
   const asOf = new Date();
   const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });
@@ -1121,19 +1261,14 @@ const symbolReturn = (symbol: string): SymbolFigures => {
   // with no bar exactly five minutes back has no return and may hold all five
   // minutes of volume. `volumeRateOf` is pure and takes the figure and the
   // row, so this site assembles rather than decides.
-  const volume = toWireVolume(
-    volumeRateOf(
-      figure,
-      volumeBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
-    ),
+  //
+  // **It is the domain answer rather than the wire one since Task 5.6.4**, and
+  // the mapping has moved to the one `return` below: the composite's producer
+  // is handed what `volumeRateOf` said, never a re-read of what was encoded.
+  const volume = volumeRateOf(
+    figure,
+    volumeBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
   );
-
-  // **The join of the two halves, and this is the one place that holds both**
-  // (Task 5.3.3): the trailing window is the live tape's and the baseline is a
-  // stored 60-session distribution, so neither producer can see the other and
-  // the comparison is assembled here. A refusal has no magnitude, so there is
-  // nothing to rank.
-  if (!figure.measured) return { return: toWireSymbolReturn(figure), volume };
 
   // **The narrowing is ONE CALL and the type is what carries it** (Task
   // 5.3.4). `comparableBaseline` answers *may this move be ranked at all* —
@@ -1148,29 +1283,66 @@ const symbolReturn = (symbol: string): SymbolFigures => {
   // Both grid values are read from the producers rather than spelled: the
   // stride belongs to the sampler and the tape to the store's own `where`, so
   // the sentence a reader sees cannot drift from what was counted.
+  //
+  // **Asked unconditionally since Task 5.6.4**, where it used to sit behind a
+  // measured figure: the composite's price clause states *how much history we
+  // hold* beside its refusal, and *we have no move* and *we have no baseline*
+  // are two facts a reader is owed both of. Asking is also the cache's own
+  // refresh trigger, which the 15-minute floor bounds.
   const comparison = comparableBaseline(
     baselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
     { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
   );
 
-  if (!comparison.ranked) {
-    return { return: toWireSymbolReturn(figure, comparison), volume };
-  }
-
   // A distribution that is not 101 points is refused by the arithmetic rather
   // than by a word — the database forbids it, so there is no honest sentence
   // for it and the frame carries no comparison at all.
-  const percentile = returnPercentileOf(
-    figure.percent,
-    comparison.distribution,
-  );
+  const percentile =
+    figure.measured && comparison.ranked
+      ? returnPercentileOf(figure.percent, comparison.distribution)
+      : undefined;
+
+  // **The relative-move factor, and the two figures it differences come from
+  // ONE PASS** (Task 5.6.4) — the subject's and its sector benchmark's, read
+  // side by side off the aggregate this browser is being sent in the same
+  // batch. That adjacency is the whole point and is held by
+  // `one-pass-for-a-subject-and-its-benchmark`: two figures taken from two
+  // passes with two `asOf` instants subtract to a well-formed,
+  // correctly-signed number that is **wrong**, and nothing on the wire can
+  // see it, because a score computed that way re-adds to itself.
+  //
+  // `referenceOf` is the one shared resolver's answer — the same one the drawn
+  // region's `figuresOf` reads — so the two processes cannot disagree about
+  // which fund this security is measured against.
+  const excess = excessMoveFactor({
+    subject: pass.figureOf(symbol),
+    reference: referenceOf.applies
+      ? pass.figureOf(referenceOf.symbol)
+      : undefined,
+    referenceOf,
+    stored: excessBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+    grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+  });
+
+  // **The composite, at the one site that holds all three factors** (Task
+  // 5.6.4). Nothing is computed here: `market-composite.ts` translates each
+  // factor's own vocabulary into the scorer's, and `scoreAnomaly` holds every
+  // arithmetic in the score.
+  const score = compositeAnomaly({
+    price: { figure, comparison, percentile },
+    excess,
+  });
 
   return {
     return: toWireSymbolReturn(
       figure,
-      percentile === undefined ? undefined : { ranked: true, percentile },
+      percentileAnswerFor(figure, comparison, percentile),
     ),
-    volume,
+    volume: toWireVolume(volume),
+    // **The named mapper, field by field** — ADR 0031 at a type the
+    // serialiser's own `WireFields` mechanism cannot protect, because
+    // `AnomalyScore` carries a symbol-keyed brand and `Object.keys` skips it.
+    score: toWireAnomalyScore(score),
   };
 };
 

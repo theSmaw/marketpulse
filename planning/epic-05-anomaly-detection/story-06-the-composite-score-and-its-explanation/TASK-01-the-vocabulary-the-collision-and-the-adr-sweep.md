@@ -32,7 +32,7 @@ a new region, which is a diff nobody can review.
 ## What the user can see when this lands
 
 **Nothing — except one sentence changing.** The opening-bias clause stops saying
-`this reads high`. Task 5.6.4 is the task that pays this off.
+`this reads high`. Task 5.6.5 is the task that pays this off.
 
 ## Work
 
