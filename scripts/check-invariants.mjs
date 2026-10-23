@@ -8645,6 +8645,235 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "one-pass-for-a-subject-and-its-benchmark",
+    claim:
+      "Every call to `excessMoveFactor` reads the subject's figure and its " +
+      "benchmark's from ONE `OverviewPass`, in one argument list — two " +
+      "`figureOf` reads off the same receiver, side by side.",
+    check() {
+      // **Task 5.6.4.** The factor **differences** two wire figures, and
+      // `excess-move-factor.ts` states the requirement in as many words: they
+      // must come *"from the same aggregate and therefore from the same pass
+      // over the same market state."*
+      //
+      // ## Why a check rather than a comment
+      //
+      // Nothing else can see it. A score built from two passes — two `asOf`
+      // instants, two joins, or one memoised frame beside one fresh one — is a
+      // well-formed, correctly-signed figure that is **wrong**, and it
+      // **re-adds to itself**, so `readAnomalyScore`'s five checks are all
+      // green on it: the contributions sum to the score, each is
+      // `round(w × rank / 100)` of the published weight, the maximum agrees
+      // and the band is ours. Nothing on the wire distinguishes it, which is
+      // Task 4.8.11's lesson — *the wire cannot see a defect in the producer*
+      // — so the assertion has to be on the producer's own shape.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **The pairing**, not a type name and not a function name. A
+      // re-implementer who resolves the benchmark from `lastBroadcastOverview
+      // .sectors`, from a second `overview()` call, or from a second pass
+      // handed in beside the first still writes `excessMoveFactor({ subject:
+      // …, reference: … })` — and in every one of those shapes the argument
+      // list does **not** hold two `figureOf` reads off one receiver. The
+      // receiver is compared because a *second pass* is the likeliest
+      // regression and `pass2.figureOf(x)` beside `pass.figureOf(y)` is two
+      // reads that are not one pass.
+      const CALL = /\bexcessMoveFactor\s*\(/gu;
+
+      const offenders = [];
+      let callSites = 0;
+
+      for (const { path, text } of shippedSourceFiles()) {
+        const file = relative(REPO_ROOT, path);
+
+        for (const match of text.matchAll(CALL)) {
+          const index = match.index ?? 0;
+          // The declaration is not a call site.
+          if (
+            /\bfunction\s+$/u.test(text.slice(Math.max(0, index - 20), index))
+          ) {
+            continue;
+          }
+
+          // The argument list, by balanced parentheses from the opening one.
+          let depth = 0;
+          let end = index + match[0].length;
+          for (; end < text.length; end += 1) {
+            const character = text[end];
+            if (character === "(") depth += 1;
+            else if (character === ")") {
+              if (depth === 0) break;
+              depth -= 1;
+            }
+          }
+
+          const argumentList = text.slice(index + match[0].length, end);
+          callSites += 1;
+
+          const receivers = new Map();
+          for (const read of argumentList.matchAll(
+            /([A-Za-z_$][\w$]*)\.figureOf\s*\(/gu,
+          )) {
+            const receiver = read[1];
+            receivers.set(receiver, (receivers.get(receiver) ?? 0) + 1);
+          }
+
+          const paired = [...receivers.values()].some((count) => count >= 2);
+          if (!paired) {
+            offenders.push(
+              `${file}: excessMoveFactor(${argumentList
+                .replace(/\s+/gu, " ")
+                .trim()
+                .slice(0, 160)})`,
+            );
+          }
+        }
+      }
+
+      // The anchor. A check that is vacuous when the producer is deleted is a
+      // check that reports a pass on the one state it cannot tolerate.
+      if (callSites === 0) {
+        throw new InvariantFailure(
+          "No shipped file calls `excessMoveFactor` at all, and this check " +
+            "has nothing to say. Either the factor lost its producer — which " +
+            "means no composite carries a relative-move clause — or the call " +
+            "moved behind a name this pattern cannot see. Repoint it in the " +
+            "same change.",
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} of ${String(callSites)} call(s) to ` +
+            "`excessMoveFactor` do not read both figures from one pass:\n      " +
+            offenders.join("\n      ") +
+            "\n    The subject's figure and its benchmark's are SUBTRACTED " +
+            "from each other, so they have to come from one pass over one " +
+            "market state: write them as two `figureOf` reads off the same " +
+            "`OverviewPass`, in this argument list. Two passes — a second " +
+            "`overview()`, a memoised frame beside a fresh join, or " +
+            "`lastBroadcastOverview.sectors` — produce a figure that is " +
+            "well-formed, correctly signed and wrong, and NOTHING on the " +
+            "wire can see it: a score from two instants re-adds to itself, " +
+            "so every one of `readAnomalyScore`'s checks passes on it.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "one-site-builds-the-no-distribution-arm",
+    claim:
+      "`FactorAnswer`'s payload-free `no-distribution` arm is declared in " +
+      "`packages/shared/src/composite-score.ts` and constructed in exactly " +
+      "one other shipped place — the volume factor's answer-builder.",
+    check() {
+      // **Task 5.6.4, the owner's decision.** The arm means *the factor
+      // produced a figure and there is nothing to rank it against*, which is
+      // true of the volume factor for **every security at every instant**:
+      // `0015` stores a median and a dispersion rather than a distribution.
+      //
+      // ## What a second construction site would be
+      //
+      // A **lie about a different fact**, in the one direction a reader cannot
+      // detect. The arm is payload-free on purpose, so it carries no word, no
+      // count and no bound — which is exactly why it must not stand in for a
+      // refusal. A price factor reaching for it when a baseline read fails
+      // would draw *Measured, but no history to rank it against* about a
+      // security whose `0 of 2,500 returns` is the true and available
+      // sentence, and no figure on screen would contradict it.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **The word itself, constructed outside its home.** There is no other
+      // way into the arm: it has no constructor, the discriminant is a string
+      // literal, and `FactorAnswer` is a union the scorer narrows. So the
+      // count is the check — exactly one occurrence outside the declaring
+      // module — and the site is additionally required to be the volume
+      // factor's own builder, so that the *second* defect in the pair (a price
+      // answer reaching for the arm **in the same file**) is a second
+      // occurrence rather than a relocation.
+      const HOME = "packages/shared/src/composite-score.ts";
+      // **A CONSTRUCTION, not an occurrence of the word.** The arm's name is
+      // legitimately read in two other shapes and a check over the bare string
+      // is red on both: `Extract<WireAbsentClause, { state: "no-distribution"
+      // }>`, which is the encoder's own field map narrowing a union by its
+      // discriminant, and `clause.state === "no-distribution"`, which is every
+      // reader that branches on it. Neither puts the arm into existence. So the
+      // pattern is the **property assignment**, and a line that is a type
+      // position (`Extract<`, `Exclude<`, or a `readonly` member declaration)
+      // is skipped — a construction cannot be any of those, and the anchor
+      // below is what keeps the skip honest.
+      // **Not a `/g/` regex, and that is a defect this check had for one
+      // run.** `RegExp.prototype.test` on a global pattern advances
+      // `lastIndex` and carries it to the next call, so a line-by-line filter
+      // over a `/g/` pattern skips every other match. The home's anchor needs
+      // the global form and has its own.
+      const ARM = /state:\s*"no-distribution"/u;
+      const ARM_ANYWHERE = /state:\s*"no-distribution"/gu;
+      const TYPE_POSITION = /\bExtract<|\bExclude<|\breadonly\s+state\b/u;
+      const BUILDER = /\bfunction\s+volumeFactorAnswer\b/u;
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      const home = shipped.find((file) => file.path === HOME);
+      if (
+        home === undefined ||
+        [...home.text.matchAll(ARM_ANYWHERE)].length === 0
+      ) {
+        throw new InvariantFailure(
+          `${HOME} no longer spells the \`no-distribution\` arm, and it is ` +
+            "this check's anchor. Either the arm was deleted — which is the " +
+            "shape its own reversal trigger asks for, in which case delete " +
+            "this check and `ANOMALY_BAND_FLOORS`' trigger 1 fires in the " +
+            "same commit — or it was renamed. Repoint it in the same change.",
+        );
+      }
+
+      const sites = shipped
+        .filter((file) => file.path !== HOME)
+        .flatMap((file) =>
+          file.text
+            .split("\n")
+            .filter((line) => ARM.test(line) && !TYPE_POSITION.test(line))
+            .map((line) => ({
+              path: `${file.path}: ${line.trim()}`,
+              builder: BUILDER.test(file.text),
+            })),
+        );
+
+      if (sites.length !== 1) {
+        throw new InvariantFailure(
+          `${String(sites.length)} shipped construction(s) of the ` +
+            `\`no-distribution\` arm outside ${HOME}:\n      ` +
+            (sites.map((site) => site.path).join("\n      ") || "(none)") +
+            "\n    Exactly one is expected — the volume factor's own " +
+            "answer-builder. ZERO means no factor uses the arm and it should " +
+            "be deleted rather than kept as scaffolding; TWO or more means a " +
+            "second factor is claiming *measured, but no history to rank it " +
+            "against* about something else, and the arm is payload-free, so " +
+            "it cannot say which factor or why. A factor that HAS a refusal " +
+            "word and two counts owes the reader those instead.",
+        );
+      }
+
+      if (sites[0] !== undefined && !sites[0].builder) {
+        throw new InvariantFailure(
+          `${sites[0].path} constructs the \`no-distribution\` arm and does ` +
+            "not declare `volumeFactorAnswer`. The arm belongs to the one " +
+            "factor that has a figure and no distribution of it; a site " +
+            "elsewhere is some other factor borrowing a sentence that is not " +
+            "about it.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

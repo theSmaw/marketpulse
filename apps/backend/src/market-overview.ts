@@ -586,6 +586,113 @@ export function toWireMarketOverview(
 }
 
 /**
+ * **One pass over the market, as the two things one applied batch owes a
+ * browser: the frame, and the per-symbol figures that frame was built from**
+ * (Task 5.6.4).
+ *
+ * ## Why a handle rather than an exported `figureOf`
+ *
+ * The excess-move factor differences **two** of these figures — a security's
+ * and its sector benchmark's — and `excess-move-factor.ts` states the
+ * requirement in as many words: they must come *"from the same aggregate and
+ * therefore from the same pass over the same market state."* An exported
+ * `figureOf` takes a {@link MarketOverviewEntry}, which only the join
+ * produces, so in practice it means a **second** `buildMarketOverview` with a
+ * **second `asOf`** — the subject's figure from one instant and the
+ * benchmark's from another, subtracted from each other. That is a well-formed,
+ * correctly-signed figure that is **wrong**, and nothing on the wire can see
+ * it: a score computed from two instants re-adds to itself, so
+ * `readAnomalyScore`'s checks are all green on it.
+ *
+ * A bare module-level memo was refused for a different reason: it would be
+ * correct today only by the order of two statements in `market-gateway.ts`,
+ * with nothing holding it — `CLAUDE.md`'s *an ordering assertion needs a
+ * marker on each side of the step, and the marker must travel with the step*.
+ * The pass **is** that marker, and it travels as an argument.
+ *
+ * ## It hands out figures and never entries
+ *
+ * A {@link MarketOverviewEntry} carries a {@link BarSource} with a provider and
+ * a retrieval instant, and {@link toWireMarketOverview}'s own docblock says
+ * *"None of it goes on the wire"* citing ADR 0031 — *on a socket it leaks*. So
+ * the entries stay behind this module's door and what crosses it is a
+ * {@link WireOverviewFigure}, built by the one encoder entitled to say what a
+ * browser may see.
+ *
+ * ## `one-producer-of-the-overview-aggregate` is untouched
+ *
+ * {@link buildMarketOverview}'s count stays exactly one, at `index.ts`'s single
+ * call site. That this shape leaves the guard alone rather than needing it
+ * reworded is the test it passes.
+ */
+export interface OverviewPass {
+  /** The aggregate as it travels. {@link toWireMarketOverview}'s answer. */
+  readonly frame: WireMarketOverview;
+  /**
+   * **This pass's figure for one symbol**, or `undefined` for a symbol the
+   * pass is not about — an untracked ticker, or anything outside the join's
+   * own `symbols`.
+   *
+   * Computed **lazily**, for one or two symbols per batch, out of entries the
+   * join has already produced: there is no second join, no second arithmetic
+   * and no second `asOf`. The figures the frame's own sections carry are built
+   * eagerly as they always were; this is the same encoder reaching one or two
+   * entries the sections threw away.
+   */
+  readonly figureOf: (symbol: string) => WireOverviewFigure | undefined;
+}
+
+/**
+ * **One pass, built from the one join's answer** (Task 5.6.4) — the frame
+ * exactly as {@link toWireMarketOverview} produces it, plus the lazy
+ * per-symbol accessor {@link OverviewPass} argues for.
+ *
+ * ## The tape sink is NOT the frame's list, and that is the one encoding trap
+ *
+ * `figureOf` appends an observed figure's tape to a `MarketFeed[]` so the
+ * frame's `feeds` describes the figures the frame **carries**. A per-symbol
+ * read is about a security that may be in **no section of this frame** — a
+ * focused equity is neither a proxy, a benchmark nor necessarily a mover — so
+ * sinking its tape into the frame's list would give the screen's source note a
+ * tape from a figure nobody can see on it. The sink here is a list of its own
+ * and is deliberately read by nothing: the per-symbol figure's provenance
+ * travels on the `return` frame, which carries its own.
+ *
+ * ## A linear find rather than an index
+ *
+ * One or two symbols are read per applied batch, so a `Map` over all 516
+ * entries would be ~516 allocations and sets a batch to answer two questions
+ * that cost ~1,000 comparisons. The two answers are memoised for the pass's
+ * own lifetime, which is what makes *the subject and its benchmark came from
+ * one pass* true even if a caller asks twice.
+ */
+export function overviewPassOf(inputs: WireMarketOverviewInputs): OverviewPass {
+  const frame = toWireMarketOverview(inputs);
+
+  // **Read by nothing.** See the docblock: a focused security's tape is not
+  // this frame's provenance.
+  const aside: MarketFeed[] = [];
+  const figures = new Map<string, WireOverviewFigure>();
+
+  return {
+    frame,
+    figureOf(symbol) {
+      const held = figures.get(symbol);
+      if (held !== undefined) return held;
+
+      const entry = inputs.entries.find(
+        (candidate) => candidate.symbol === symbol,
+      );
+      if (entry === undefined) return undefined;
+
+      const figure = figureOf(entry, aside);
+      figures.set(symbol, figure);
+      return figure;
+    },
+  };
+}
+
+/**
  * One entry to one wire figure, **appending its tape to the frame's list**.
  *
  * Extracted from the loop by Task 4.3.4 so the two sections cannot diverge: a

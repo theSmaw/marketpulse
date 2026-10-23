@@ -1,8 +1,8 @@
-# Task 5.6.5 — The landing page ranks the composite
+# Task 5.6.6 — The landing page ranks the composite
 
 **Status:** Not started
 **Story:** [5.6 The Composite Score, & Its Explanation](STORY.md)
-**Depends on:** 5.6.4
+**Depends on:** 5.6.5
 
 ## Objective
 
@@ -78,7 +78,7 @@ pays for most of the chip.
 - **This is the commit that makes amber reachable on `/`** — `Unusual.tsx`
   currently records that _"no amber appears in this region, so that collision
   stays Story 5.6's and is unreachable from `/`."_ That sentence becomes false
-  here and is a live claim to amend. Task 5.6.6 photographs it.
+  here and is a live claim to amend. Task 5.6.7 photographs it.
 - **Epic 14's `/` frontend clause does NOT fire** — ten rows, not 516 elements —
   and the fourth consecutive non-firing is evidence the wording works. Say so in
   writing.

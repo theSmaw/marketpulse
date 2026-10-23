@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { toTicker } from "./ticker.js";
+// The scorer, so the frame's own bytes are measured over a score this product
+// can actually produce rather than one typed by hand (Task 5.6.4).
+import { scoreAnomaly, toWireAnomalyScore } from "./composite-score.js";
+
+import type { FactorAnswer, WireAnomalyOutcome } from "./composite-score.js";
 // The volume vocabulary's own home, imported rather than re-listed: the round
 // trip below is over **every** member, so a seventh word is covered by this
 // file the day it is written (Task 5.5.4).
@@ -1933,12 +1938,18 @@ describe("the fifth message type, which is about ONE security", () => {
   const frame = (
     figure: WireSymbolReturn,
     volume: WireVolumeComparison | null = null,
+    score: WireAnomalyOutcome | null = null,
   ): ReturnMessage => ({
     type: "return",
     version: MARKET_STREAM_PROTOCOL_VERSION,
     sentAt: "2026-10-14T18:06:00.500Z",
     symbol: "NVDA",
     return: figure,
+    // **`null` by default, which is a gateway that sent no score at all** —
+    // the arm a browser holding a bundle across a deploy reads, and explicitly
+    // not *every factor refused*, which is a `scored: false` carrying one
+    // clause per factor (Task 5.6.4).
+    score,
     // **`null` by default, which is the state every gated run is in** — the
     // `iex` tape is empty wherever no provider is configured, so the producer
     // refuses; a `null` here is the older state still, a gateway that sent no
@@ -2374,7 +2385,125 @@ describe("the fifth message type, which is about ONE security", () => {
     ).toBeNull();
   });
 
-  it("measures 330 bytes for a figure, 419 with a percentile, 540 with both figures, and 167 or 263 for a refused one", () => {
+  // --- The composite score (Task 5.6.4) ---
+
+  it("round-trips a score and its whole explanation", () => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame(MEASURED, null, SCORE)),
+    );
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.score,
+    ).toEqual(SCORE);
+  });
+
+  it("round-trips an unscored outcome, which every gated run sends", () => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(frame(MEASURED, null, UNSCORED)),
+    );
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.score,
+    ).toEqual(UNSCORED);
+  });
+
+  it("carries the payload-free clause as the word and nothing else", () => {
+    // **The arm's whole point, asserted on the WIRE rather than on the type**:
+    // an arm carrying a word would be byte-identical in shape to
+    // `inapplicable`, and this is where that would show.
+    const encoded = JSON.parse(
+      encodeMarketStreamMessage(frame(MEASURED, null, SCORE)),
+    ) as {
+      score: { absent: Record<string, unknown>[] };
+    };
+
+    const clause = encoded.score.absent.find(
+      (entry) => entry.state === "no-distribution",
+    );
+
+    expect(clause).toEqual({
+      factor: "volume",
+      weight: 25,
+      state: "no-distribution",
+    });
+  });
+
+  it("refuses a score whose published contributions do not re-add", () => {
+    // **The guarantee that survives `JSON.parse`** — the brand does not, so
+    // what crosses a wire is checkable only as a value. A producer broken into
+    // inventing a score sends a well-formed, correctly-banded figure that no
+    // pass-through assertion can see; `readAnomalyScore` is what refuses it,
+    // and the frame then reads as *no score* rather than as a wrong one.
+    const lying = JSON.parse(
+      encodeMarketStreamMessage(frame(MEASURED, null, SCORE)),
+    ) as { score: { score: number } };
+    lying.score.score += 1;
+
+    const decoded = decodeMarketStreamMessage(JSON.stringify(lying));
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.score,
+    ).toBeNull();
+  });
+
+  it("reads a frame from a gateway that predates the score as no score", () => {
+    const older: Record<string, unknown> = { ...frame(MEASURED) };
+    delete older.score;
+
+    const decoded = decodeMarketStreamMessage(JSON.stringify(older));
+
+    expect(
+      decoded.kind === "message" &&
+        decoded.message.type === "return" &&
+        decoded.message.score,
+    ).toBeNull();
+  });
+
+  /**
+   * **A score this product can actually produce** (Task 5.6.4) — built by
+   * `scoreAnomaly` rather than typed out, so the bytes measured below are the
+   * bytes of a real answer and not of a shape somebody guessed.
+   *
+   * Two ranked factors and the volume's payload-free arm, which is the shipped
+   * factor set: `0015` stores a median and a dispersion rather than a
+   * distribution, so no security has a rankable volume figure.
+   */
+  const rankedFactor = (rank: number): FactorAnswer => ({
+    state: "ranked",
+    rank,
+    aboveSample: false,
+    sampleCount: 4620,
+  });
+
+  const SCORE: WireAnomalyOutcome = toWireAnomalyScore(
+    scoreAnomaly({
+      price: rankedFactor(99),
+      excess: rankedFactor(93),
+      volume: { state: "no-distribution" },
+    }),
+  );
+
+  /** Every factor absent, which is this product's state on every gated run. */
+  const UNSCORED: WireAnomalyOutcome = toWireAnomalyScore(
+    scoreAnomaly({
+      price: {
+        state: "refused",
+        refusal: "too-few-samples",
+        sampleCount: 0,
+        minimumSampleCount: 2500,
+      },
+      excess: { state: "inapplicable", because: "no-sector" },
+      volume: { state: "no-distribution" },
+    }),
+  );
+
+  it("measures the frame's bytes with and without a score", () => {
     // **The number the Gate 1 decision is read against**, measured here rather
     // than quoted: the rejected alternative — a field on every observation —
     // is +54,525 B a frame at 516 subscribed, so this is a factor of **183**
@@ -2400,8 +2529,34 @@ describe("the fifth message type, which is about ONE security", () => {
     // focused security, so the ratio Gate 1 decision 1 was taken on — against
     // +54,525 B a frame at 516 subscribed — is untouched: 540 B is a factor of
     // **101**.
-    expect(bytes(frame(MEASURED))).toBe(330);
-    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(419);
+    // **330 → 343 B on 2026-10-23** (Task 5.6.4): `,"score":null` is 13 B on
+    // every frame that carries no score, which is every frame a gateway sends
+    // to a browser that has not asked for one — there is no such browser, so
+    // the 13 B is what a **rollback** costs and nothing else.
+    expect(bytes(frame(MEASURED))).toBe(343);
+    expect(bytes(frame({ ...MEASURED, percentile: PERCENTILE }))).toBe(432);
+
+    // **330 → 343, 419 → 432, 540 → 553, 423 → 436, 414 → 427, 167 → 180 and
+    // 263 → 276 on 2026-10-23** (Task 5.6.4), every one of them the same 13 B
+    // of `,"score":null`. The ratio Gate 1 decision 1 was taken on — against
+    // +54,525 B a frame at 516 subscribed — is untouched: 553 B is a factor
+    // of **99**.
+    //
+    // **The score's own cost, measured rather than estimated.** Task 5.6.3
+    // put it "near 520 B". A **two-factor score with its full explanation**
+    // is `763 − 432 = 331 B` on a frame that already carries a percentile,
+    // and an **unscored** outcome — one clause per factor, which is this
+    // product's state on every machine that exists today — is `620 − 343 =
+    // 277 B`. So the estimate was high by ~57% on the scored arm, in the
+    // direction that matters least.
+    //
+    // A scored frame is **763 B at the widest reading here**, a factor of
+    // **71** against the rejected alternative, and it is sent once per
+    // subscribe and once per applied batch for the **one** focused security.
+    expect(
+      bytes(frame({ ...MEASURED, percentile: PERCENTILE }, null, SCORE)),
+    ).toBe(763);
+    expect(bytes(frame(MEASURED, null, UNSCORED))).toBe(620);
 
     // **Both figures, which is the frame a reader on a machine with an `iex`
     // baseline would receive — and no machine has one yet.**
@@ -2420,7 +2575,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         ),
       ),
-    ).toBe(540);
+    ).toBe(553);
 
     // **And the refusal every machine that exists today sends**, 93 B, which
     // is the measured answer to *is it cheaper to send nothing*: it is not,
@@ -2435,7 +2590,7 @@ describe("the fifth message type, which is about ONE security", () => {
           spanMinutes: 5,
         }),
       ),
-    ).toBe(423);
+    ).toBe(436);
 
     // **A REFUSED comparison costs what a ranked one costs** — 400 B for the
     // sample refusal and 405 B for the price-break one — which is the measured
@@ -2455,7 +2610,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(414);
+    ).toBe(427);
     expect(
       bytes(
         frame({
@@ -2468,7 +2623,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(419);
+    ).toBe(432);
     // **The refusal grew on 2026-10-14** (Task 5.2.4): 141 → **153 B** with
     // nothing observed (`"seen":null`) and **249 B** carrying the one instant
     // it has. The figure is unchanged at 298, and the frame is sent once per
@@ -2479,7 +2634,7 @@ describe("the fifth message type, which is about ONE security", () => {
       bytes(
         frame({ measured: false, refusal: "no-earlier-endpoint", seen: null }),
       ),
-    ).toBe(167);
+    ).toBe(180);
     expect(
       bytes(
         frame({
@@ -2496,7 +2651,7 @@ describe("the fifth message type, which is about ONE security", () => {
           },
         }),
       ),
-    ).toBe(263);
+    ).toBe(276);
   });
 
   it.each([
