@@ -237,7 +237,7 @@ interface GatewaySeams {
   /** Read per send by the gateway, so a test can move it between publishes. */
   readonly feedState?: () => WireFeedState;
   /** One security's 5-minute return (Task 5.2.3), and its pass (Task 5.6.4). */
-  readonly symbolReturn?: (symbol: string, pass: OverviewPass) => SymbolFigures;
+  readonly symbolReturn?: (symbol: string) => SymbolFigures;
   /** Captures the keepalive callback so a test can fire it deliberately. */
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
 }
@@ -1478,59 +1478,16 @@ describe("the market gateway's 5-minute return frame", () => {
     expect(asked).toEqual([NVDA]);
   });
 
-  it("hands the producer the SAME pass the aggregate frame came from", async () => {
-    // **The property the whole shape exists for** (Task 5.6.4), asserted on
-    // the **producer** because the wire cannot see it: the excess-move factor
-    // differences the subject's figure and its benchmark's, so a score built
-    // from two passes with two `asOf` instants is a well-formed,
-    // correctly-signed figure that is wrong — and it re-adds to itself, so
-    // `readAnomalyScore` is green on it.
-    //
-    // The pass handed to `symbolReturn` is asserted **identical** to the one
-    // the `overview` frame on this socket was built from, which is the only
-    // statement that cannot be satisfied by a second join that happens to
-    // agree today.
-    const passes: OverviewPass[] = [];
-    let built: OverviewPass | undefined;
-
-    const app = buildServer({
-      logLevel: "silent",
-      logFormat: "json",
-      corsOrigin: "http://localhost:5173",
-    });
-
-    const gateway = registerMarketGateway(app, {
-      snapshot: () => new Map(),
-      feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
-      overview: () => {
-        built = passOf(EMPTY_OVERVIEW);
-        return built;
-      },
-      symbolReturn: (_symbol, pass) => {
-        passes.push(pass);
-        return NOTHING_OBSERVED;
-      },
-    });
-
-    await app.listen({ port: 0, host: "127.0.0.1" });
-    const bound = app.server.address();
-    if (bound === null || typeof bound === "string") {
-      throw new Error("the server did not bind a port");
-    }
-    const client = await connectClient(bound.port);
-
-    try {
-      subscribe(client, [NVDA], NVDA);
-      await client.waitFor("return");
-
-      expect(passes).toHaveLength(1);
-      expect(passes[0]).toBe(built);
-    } finally {
-      client.socket.terminate();
-      await gateway.close();
-      await app.close();
-    }
-  });
+  // **The test that asserted the producer was handed the SAME pass is gone**
+  // (2026-10-26), with the parameter it was about. Task 5.6.4 passed the
+  // {@link OverviewPass} to `symbolReturn` so the excess-move factor could
+  // difference the subject's wire figure and its benchmark's — the wrong
+  // quantity, a session-to-date move against a distribution of five-minute
+  // excesses. The repaired factor reads both legs' **five-minute returns** off
+  // their own trailing windows, so there is no pass to hand over and no
+  // identity to assert. The property that replaced it is held one layer up, in
+  // `one-instant-for-a-subject-and-its-benchmark`, and by the factor's own
+  // argument types: a `WireOverviewFigure` is now a compile error there.
 
   it("carries a percentile over the socket, with its sample and its tape", async () => {
     // **Done-when 1, at the only level that can show it**: the five fields

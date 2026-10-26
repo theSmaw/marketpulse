@@ -79,10 +79,24 @@ export function basisOf(figure: WireOverviewFigure): string | undefined {
  * comparable pair.
  *
  * **It is reachable every day between the overnight backfill and the next
- * bell**, so it is an ordinary state rather than an edge: a scored factor that
- * silently scored a mixed-basis difference would produce a well-formed,
+ * bell**, so it is an ordinary state rather than an edge: a surface that
+ * silently drew a mixed-basis difference would produce a well-formed,
  * correctly-coloured number that is wrong in exactly the way the region above
  * it declined to be.
+ *
+ * ## Amended 2026-10-26: the SCORED factor no longer reads this
+ *
+ * These two functions came here from `apps/frontend/src/market/` on the stated
+ * grounds that the scored excess-move factor had to inherit this refusal
+ * rather than re-derive it. It did — and the thing it was inheriting the
+ * refusal *about* was the wrong quantity: a `WireOverviewFigure`'s move is
+ * session-to-date and `0016`'s distribution is of five-minute excesses.
+ * `excessMoveFactor` now differences two five-minute returns and refuses on
+ * the endpoints' own instants, so **nothing in the backend calls either
+ * function today**. They remain exported here rather than moved back because
+ * the move cost nothing and a second relocation is churn — but the *one
+ * implementation, two processes* argument for their address has lapsed, and
+ * the next reader looking for a shared consumer will not find one.
  */
 export function sharedBasis(
   left: string | undefined,

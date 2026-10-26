@@ -111,17 +111,32 @@ export type ExcessBaselineRefusal = (typeof EXCESS_BASELINE_REFUSALS)[number];
  *   `BASELINE_MINIMUM_SAMPLE`, or there is no row at all. **One word for both**,
  *   because `0 of 2,500 excess moves` is a true sentence about a cold replica
  *   and a second refusal for it would be a second sentence saying it.
- * - `mixed-basis` — the two moves were **measured from different closes**, so
- *   the subtraction is refused. **Inherited rather than re-derived**: the drawn
- *   region has refused exactly this since Story 5.1 and the predicate is
- *   `sharedBasis` over `basisOf`, in `move-basis.ts`, one implementation for
- *   both processes. It is reachable **every day between the overnight
- *   backfill and the next bell**, so it is an ordinary state rather than an
- *   edge.
- * - `no-subject-move` — we hold no move for the security at all: nothing has
- *   been heard from it, or we hold a price with no close to measure it from.
- * - `no-reference-move` — the same, for the benchmark. The subject's own figure
- *   is still true and still drawn; only the difference is withheld.
+ * - `mixed-basis` — the two moves were not measured over the same interval, so
+ *   the subtraction is refused.
+ *
+ *   **Amended 2026-10-26, and the word is kept for a NARROWER fact.** It meant
+ *   *measured from different closes*, inherited from the drawn region's
+ *   `sharedBasis` over `basisOf`, because the factor differenced two
+ *   `WireOverviewFigure`s. That numerator was wrong — a session-to-date move
+ *   ranked against `0016`'s distribution of **five-minute** excesses — and the
+ *   factor now differences two five-minute returns, which share a basis by
+ *   construction when their endpoints agree. So the drawn region goes on
+ *   refusing *two closes* with `sharedBasis` and this factor refuses **two
+ *   different five minutes** on the endpoints' own instants. Still an ordinary
+ *   state rather than an edge: IEX minute presence is 81.6% and `ERIE`'s is
+ *   2.1%, so a benchmark that printed a minute the subject did not is the
+ *   common case.
+ * - `no-subject-move` — we hold no five-minute move for the security at all.
+ *   **One word for all three of `fiveMinuteReturn`'s refusals** — nothing
+ *   observed, no bar exactly five minutes back, or a zero basis — because each
+ *   of those travels to the surface in full on the **return** half of the same
+ *   frame, and re-spelling them here would be a second sentence saying what the
+ *   row above already says.
+ * - `no-reference-move` — the same, for the benchmark, and it is the state the
+ *   whole numerator repair rests on: a benchmark that printed nothing in these
+ *   five minutes has **not** been flat, and reading it as `0` would score the
+ *   subject's whole move as excess. The subject's own figure is still true and
+ *   still drawn; only the difference is withheld.
  */
 export const EXCESS_FACTOR_REFUSALS = [
   "split-discontinuity",

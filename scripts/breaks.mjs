@@ -5638,41 +5638,78 @@ export const BREAKS = [
   // `readAnomalyScore`'s five checks are green on a score built from two
   // instants, because such a score re-adds to itself.
   {
-    name: "a-second-pass-for-the-benchmark",
+    name: "a-second-instant-for-the-benchmark",
     proves:
-      "`one-pass-for-a-subject-and-its-benchmark` goes red on a producer " +
-      "that resolves the benchmark's figure from a SECOND pass. The plant " +
-      "is the shape the next author reaches for — call the overview " +
-      "producer again — and the result is a difference between a " +
-      "figure from one `asOf` and a figure from another: well-formed, " +
-      "correctly signed, and wrong.\n\n" +
-      "**Every other guard is green on it.** " +
-      "`one-producer-of-the-overview-aggregate` counts " +
-      "`buildMarketOverview(` call sites and this plant adds none — it " +
-      "calls `marketOverview()`, one level up. " +
-      "`the-overview-frame-is-not-a-heartbeat` counts encode sites in the " +
-      "gateway and this is in `index.ts`. `two-mint-sites-for-an-anomaly-" +
-      "score` is about casts. And no spec can see it: the frame is the same " +
-      "shape, the score re-adds to itself, and the figures on screen are " +
-      "each individually true.",
+      "`one-instant-for-a-subject-and-its-benchmark` goes red on a producer " +
+      "that reads the benchmark's five-minute return against its OWN clock. " +
+      "The plant is the shape the next author reaches for — the leg is three " +
+      "lines, so write the three lines — and the result is a difference " +
+      "between a return measured over one five minutes and a return measured " +
+      "over another.\n\n" +
+      "**Replaces `a-second-pass-for-the-benchmark` (2026-10-26)**, whose " +
+      "plant resolved the benchmark's **wire figure** from a second " +
+      "`OverviewPass`. That pairing was real and the quantity it paired was " +
+      "wrong: a wire figure's move is the move since the basis close, and " +
+      "`0016`'s distribution is of five-minute excesses. A wire figure can no " +
+      "longer reach the factor at all — `tsc` holds that half — so the plant " +
+      "moves with the numerator.\n\n" +
+      "**Every other guard is green on it.** The types agree: both legs are " +
+      "`FiveMinuteReturn`s. `one-producer-of-the-overview-aggregate` counts " +
+      "`buildMarketOverview(` call sites and this adds none. And the symptom " +
+      "is not a wrong number, which is what makes it worse: the factor " +
+      "refuses a pair whose endpoints disagree, so the region goes quietly " +
+      "`mixed-basis` and a reader sees an honest-looking absence for ever.",
     file: "apps/backend/src/index.ts",
-    find: "  const excess = excessMoveFactor({",
+    find: "  const referenceFigure = referenceOf.applies",
     replace:
       "  // pnpm break: reverted automatically\n" +
-      "  const second = marketOverview();\n" +
-      "  const fromTwoPasses = excessMoveFactor({\n" +
-      "    subject: pass.figureOf(symbol),\n" +
-      "    reference: referenceOf.applies\n" +
-      "      ? second.figureOf(referenceOf.symbol)\n" +
-      "      : undefined,\n" +
-      "    referenceOf,\n" +
-      "    stored: undefined,\n" +
-      "    grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },\n" +
-      "  });\n" +
-      "  void fromTwoPasses;\n" +
-      "  const excess = excessMoveFactor({",
+      "  const onItsOwnClock = referenceOf.applies\n" +
+      "    ? fiveMinuteReturn(trailingWindows.read(referenceOf.symbol), {\n" +
+      "        asOf: new Date(),\n" +
+      "      })\n" +
+      "    : undefined;\n" +
+      "  void onItsOwnClock;\n" +
+      "  const referenceFigure = referenceOf.applies",
     command: ["node", "scripts/check-invariants.mjs"],
-    expect: "one-pass-for-a-subject-and-its-benchmark",
+    expect: "one-instant-for-a-subject-and-its-benchmark",
+  },
+  {
+    name: "an-unspanned-excess-numerator",
+    proves:
+      "`the-excess-numerator-spans-its-baseline` goes red when the excess " +
+      "factor stops comparing the numerator's span with the distribution's " +
+      "stride — which is the defect this factor SHIPPED WITH, found in " +
+      "merged code on 2026-10-26.\n\n" +
+      "It ranked a session-to-date excess against a distribution of " +
+      "five-minute excesses. Measured on the local store: 496 measured " +
+      "baselines, p50 breakpoint 0.0856 points, mean 99th 0.6893. A " +
+      "session-to-date excess clears the 99th routinely, so the factor paid " +
+      "its full 35 of 100 for most of the universe and the inflation grew " +
+      "through the session.\n\n" +
+      "**Nothing else can see it, and that is measured rather than argued.** " +
+      "With the guard defeated, `node scripts/check-invariants.mjs` reports " +
+      "`72 invariants hold.` and the backend's 1,318 other tests pass: the " +
+      "types agree (both legs are `FiveMinuteReturn`s of the right shape), " +
+      "the percentile arithmetic is correct about the number it is given, " +
+      "the score re-adds to itself so `readAnomalyScore`'s five checks are " +
+      "green, and `pnpm e2e` cannot produce a figure at all — CI's store is " +
+      "516 securities and zero bars.\n\n" +
+      "**The plant KEEPS the comparison and defeats it**, which is the only " +
+      "way to plant a deletion while the registry's own `find` has to " +
+      "survive its own substitution (the 2026-10-16 lesson). `&& false` is " +
+      "the mechanical stand-in for the line the next author removes.",
+    file: "apps/backend/src/excess-move-factor.ts",
+    find: "subject.spanMinutes !== comparison.distribution.spanMinutes",
+    replace:
+      "subject.spanMinutes !== comparison.distribution.spanMinutes && false",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "excess-move-factor",
+    ],
+    expect: "the-excess-numerator-spans-its-baseline",
   },
   {
     name: "a-second-site-builds-the-no-distribution-arm",
