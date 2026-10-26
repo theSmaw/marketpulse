@@ -1,51 +1,64 @@
-import {
-  BASELINE_MINIMUM_SAMPLE,
-  basisOf,
-  moveRankingKey,
-  sharedBasis,
-} from "@marketpulse/shared";
+import { BASELINE_MINIMUM_SAMPLE } from "@marketpulse/shared";
 
 import type {
   ExcessFactorRefusal,
   ExcessMoveInapplicability,
   ExcessMoveReference,
   MarketFeed,
-  WireOverviewFigure,
 } from "@marketpulse/shared";
 
 import { returnPercentileOf } from "./return-percentile.js";
 import type { ReturnPercentile } from "./return-percentile.js";
 import type { StoredExcessBaseline } from "./excess-move-baseline-store.js";
+import type { FiveMinuteReturn, MeasuredReturn } from "./five-minute-return.js";
 
 /**
  * **The relative-move factor, scored in THIS process** (Task 5.6.2) — the
  * composite's second scored factor, and the first thing in this product that
  * scores a figure the browser was already drawing.
  *
- * ## Why it had to move, which is not a style question
+ * ## THE NUMERATOR IS A FIVE-MINUTE RETURN, AND THAT IS A REPAIR
  *
- * `apps/frontend/src/market/relative-performance.ts` builds all three moves and
- * both differences correctly, and says so in its own header: *"Nothing here
- * fetches, and nothing here is a second join."* That is right for a **drawn**
- * figure and wrong for a **scored** one. Invariant 1 — *every number a user
- * sees comes from deterministic code* — and ADR 0038's rejected alternative
- * *"compute the aggregate in the browser"*, refused by the owner on the
- * recorded grounds that **"Epic 5's scores cannot live in a browser."**
+ * **Corrected 2026-10-26.** This factor shipped differencing two
+ * `WireOverviewFigure`s through `moveRankingKey` — `changePercent` against
+ * `sessionChangePercent`, both of them *the move since the basis close*, a
+ * **session-to-date** quantity. `0016`'s own header says what the stored
+ * distribution is of: *"this security's five-minute return minus its sector
+ * benchmark's, **over the same five minutes**, in percentage points"* — so a
+ * session-to-date excess was being ranked against a distribution of
+ * five-minute excesses.
  *
- * ADR 0038 decision 2 is the precedent for how: `changeFromClose` went to
- * `packages/shared` as *one implementation, two processes*. So the two things
- * this module must not re-decide — *which field a figure's move lives in* and
- * *what that move was measured from* — are `moveRankingKey` and `basisOf`, both
- * shared, and the predicate over them is `sharedBasis`, also shared since this
- * task. **`relativePerformance`'s drawn output is unchanged**; nothing was
- * rewritten, two functions moved house and the browser goes on calling them.
+ * Measured on the local store at the time of the repair: 496 measured
+ * baselines, **p50 breakpoint 0.0856 points**, mean 99th **0.6893**, mean max
+ * **2.3391**. A session-to-date excess clears the 99th routinely, so the
+ * factor contributed its **full 35 of 100** for the majority of the universe,
+ * and the inflation **grew through the session**, because `changeFromClose`
+ * does.
+ *
+ * The price factor beside it was never wrong in this way — it ranks
+ * `fiveMinuteReturn(...).percent` against the same `SAMPLE_SPAN_MINUTES` grid.
+ * What was missing was anything comparing **the numerator's span to the
+ * baseline's**: `comparableExcessBaseline` checked the baseline's span and
+ * nothing checked the figure's. Both halves of the repair are here — the
+ * inputs are {@link FiveMinuteReturn}s, so a wire figure is a **compile
+ * error**, and the span agreement is asserted against the distribution's own
+ * stride before the percentile is taken.
+ *
+ * ## Two five-minute returns, read off two trailing windows at ONE instant
+ *
+ * `STREAM_SYMBOLS` is `trackedTickers()`, so the trailing windows hold all 516
+ * securities **including all eleven sector SPDRs** — the benchmark's own
+ * five-minute return is an ordinary `fiveMinuteReturn(windows.read(XLK))` and
+ * needs no new seam, no eager figure map and no second join. The two legs are
+ * read with **one `asOf`**, which
+ * `one-instant-for-a-subject-and-its-benchmark` holds.
  *
  * ## Nothing here reads a clock, a handle, a socket or a protocol
  *
  * `return-percentile.ts`' property, for its reason: Epic 13's replay calls this
  * with a generation addressed as-of a past session and gets the same answer the
- * live path gets, because the only inputs are two wire figures, a stored row
- * and a reference. Invariant 4 made structural rather than instructed.
+ * live path gets, because the only inputs are two measured returns, a stored
+ * row and a reference. Invariant 4 made structural rather than instructed.
  *
  * ## Three kinds of no-answer, and the third is new to this product
  *
@@ -60,16 +73,16 @@ import type { StoredExcessBaseline } from "./excess-move-baseline-store.js";
  *   told *unavailable* reasonably waits, and no amount of waiting will give a
  *   broad-market fund a sector.
  *
- * ## The `?? 0` rule arriving at a cache rather than at an arithmetic
+ * ## The rule against an imputed zero, arriving at a window rather than a cache
  *
- * `closesAsOf` is **synchronous and never throws**, and returns an **empty
- * map** until its first successful load — documented there as *"the true answer
- * rather than a degraded one"*. A reader that treated an absent close as `0`
- * would compute this factor against **no reference** and draw a number that is
- * wrong by the whole size of the market's move. Nothing here can: an absent
- * close makes a figure `state: "unknown"`, `moveRankingKey` answers
- * `undefined`, and this module refuses with `no-reference-move`. Asserted
- * rather than argued, in `excess-move-factor.test.ts`.
+ * A benchmark that printed nothing in these five minutes **has not been flat**,
+ * and reading its return as `0` would make the subject's whole move read as
+ * excess. Nothing here can: a window with no pair answers a
+ * `RefusedReturn`, this module refuses `no-reference-move`, and the
+ * nightly sampler takes the identical side of the identical question — *"a
+ * missing reference close is a sample that does not exist, never a stretch to
+ * the nearest bar and never a reference return of `0`"* (`excess-move-baseline.ts`).
+ * One rule, two spans, two homes that agree.
  */
 
 /** The baseline a figure may be ranked against, as the arithmetic needs it. */
@@ -194,6 +207,14 @@ export interface ExcessMoveScored {
   readonly referenceSymbol: string;
 }
 
+// **There is deliberately NO `spanMinutes` on the scored arm.** The span the
+// figure was measured over and the stride the distribution was sampled on are
+// proved equal by the check in {@link excessMoveFactor}, and
+// `percentile.spanMinutes` already carries it — so a second member would be a
+// second home for one number, which this repository refuses by name. The day
+// the factor scores two spans, the check becomes a branch and this member is
+// what the branch owes.
+
 /** The factor refused, with its reason and the bound it was refused against. */
 export interface ExcessMoveRefused extends ExcessRefused {
   readonly applies: true;
@@ -219,28 +240,38 @@ export type ExcessMoveFactor =
 
 export interface ExcessMoveFactorInput {
   /**
-   * The security's own figure — a live minute against a close, or a stored
-   * session's close-to-close move.
+   * **The security's own FIVE-MINUTE return**, measured between two bars whose
+   * own `startsAt` are exactly the span apart — `fiveMinuteReturn` over this
+   * security's trailing window.
    *
-   * **`undefined` since Task 5.6.4**, which is a symbol the pass that produced
-   * these figures is not about: an untracked ticker, or anything outside the
-   * join's own `symbols`. It refuses with `no-subject-move`, which is that
-   * word's own meaning — *we hold no move for the security at all* — rather
-   * than a fourth refusal for the same fact.
+   * **It is not a `WireOverviewFigure` and that is the 2026-10-26 repair.** A
+   * wire figure's move is *the move since the basis close*, a session-to-date
+   * quantity, and `0016`'s distribution is of five-minute excesses: ranking
+   * one against the other gave the factor its full 35 of 100 for most of the
+   * universe, growing through the session. The type is the guard — a
+   * re-implementer reaching for `pass.figureOf(symbol)` gets a compile error
+   * rather than a plausible number — and the span check below is the other
+   * half, for a figure of the right type measured over a different span.
    *
-   * It is optional so that the subject and the reference can be **read side by
-   * side in one argument list**, off one `OverviewPass`, with no guard between
-   * them: `one-pass-for-a-subject-and-its-benchmark` keys on exactly that
-   * shape, because the two figures are subtracted from each other and a
-   * difference of two instants is a well-formed, correctly-signed figure that
-   * is wrong.
+   * **Required rather than optional.** `fiveMinuteReturn` always answers:
+   * a symbol this process does not track reads an empty window and refuses
+   * `nothing-observed`, so there is no fourth state for a caller to invent.
+   * A refusal here is `no-subject-move`, which is that word's own meaning.
    */
-  readonly subject: WireOverviewFigure | undefined;
+  readonly subject: FiveMinuteReturn;
   /**
-   * Its sector benchmark's, from the same aggregate and therefore from the same
-   * pass over the same market state. `undefined` where the frame carried none.
+   * **Its sector benchmark's own five-minute return**, read off the benchmark's
+   * trailing window at the **same `asOf`** — which is what makes the two legs
+   * one measurement rather than two. All eleven sector SPDRs are in
+   * `STREAM_SYMBOLS`, so this needs no seam the subject does not already use.
+   *
+   * `undefined` only where there is no benchmark to read — the inapplicable
+   * arm, which is answered before this is looked at. A benchmark that printed
+   * nothing refuses `no-earlier-endpoint` or `nothing-observed` on its own
+   * arm and this factor answers `no-reference-move`; it is **never** read as a
+   * return of `0`.
    */
-  readonly reference: WireOverviewFigure | undefined;
+  readonly reference: FiveMinuteReturn | undefined;
   /** Which fund applies, from `excessMoveReference` — never branched on here. */
   readonly referenceOf: ExcessMoveReference;
   /**
@@ -254,8 +285,8 @@ export interface ExcessMoveFactorInput {
 }
 
 /**
- * **The factor: a signed excess, and where its magnitude sits in this
- * security's own 60-session history of it.**
+ * **The factor: a signed excess of two FIVE-MINUTE returns, and where its
+ * magnitude sits in this security's own 60-session history of it.**
  *
  * The order of the guards is the order a reader needs the answers in, and each
  * one is a different sentence:
@@ -263,19 +294,35 @@ export interface ExcessMoveFactorInput {
  * 1. **inapplicable** — there is no reference at all. It outranks everything
  *    because a security with no sector cannot have a too-short baseline of a
  *    comparison that does not exist.
- * 2. **no move on either side** — the subject's first, because that is the
- *    thing on screen. Each figure is still true; only the difference is
- *    withheld, which is the drawn region's own rule.
- * 3. **mixed basis** — the two moves were measured from different closes.
- *    **Inherited, not re-derived**: `sharedBasis` over `basisOf`, the same
- *    implementation the drawn region refuses with, now in `packages/shared`.
- *    Reachable **every day between the overnight backfill and the next bell**.
- * 4. **the baseline** — too short, or refused for a price break on either leg.
+ * 2. **no measured return on either side** — the subject's first, because that
+ *    is the thing on screen. Each leg's own refusal is still true and still
+ *    drawn beside it; only the difference is withheld, which is the drawn
+ *    region's own rule.
+ * 3. **mixed basis** — the two returns were measured over **different five
+ *    minutes**. *Basis* is the older endpoint, which is `five-minute-return.ts`'
+ *    own use of the word (`no-basis` is a zero close on exactly that bar), so
+ *    two legs whose endpoints differ are two moves from two bases and the
+ *    subtraction is refused. Reachable whenever one leg prints a minute the
+ *    other does not: IEX minute presence is 81.6% and `ERIE`'s is 2.1%.
+ * 4. **the baseline** — too short, refused for a price break on either leg, or
+ *    a distribution whose **stride is not this figure's span**, which is the
+ *    defect this function shipped with and is now the guard.
  *
  * **The subtraction happens after all four**, which is the whole point: a
  * factor that scored first and checked afterwards would have produced a
  * well-formed, correctly-coloured number that is wrong in exactly the way the
  * region above it declined to be.
+ *
+ * ## `mixed-basis` is the same word for a NARROWER fact than it was
+ *
+ * It used to mean *the two wire figures were measured from different closes*,
+ * which cannot arise here — two five-minute returns over the same endpoints
+ * share a basis by construction, and that is the point of the repair. The word
+ * is kept rather than retired because it is still honest about the one way two
+ * legs can disagree: **they can be over different five minutes.** Inventing a
+ * second word for *the legs disagree about which minutes* would be two
+ * sentences saying one thing, and retiring it would leave the reachable state
+ * with no word at all.
  */
 export function excessMoveFactor(
   input: ExcessMoveFactorInput,
@@ -328,40 +375,72 @@ export function excessMoveFactor(
     minimumSampleCount,
   });
 
-  // **`moveRankingKey` rather than a field name**, which is the one question
-  // that function exists to answer once: an `observed` figure's move is
-  // `changePercent` and a `stored` figure's is `sessionChangePercent`, and
-  // reading either off the wrong state is how a drawn figure went missing once.
-  // It also closes the non-finite gap, so no `NaN` reaches the subtraction.
-  if (subject === undefined) {
+  // **A refused leg is read through its own union rather than a field name**,
+  // which is `fiveMinuteReturn`'s whole shape: `measured: false` carries a
+  // word for *why*, and the three of them — `nothing-observed`,
+  // `no-earlier-endpoint`, `no-basis` — are all *we hold no five-minute move
+  // for this name*. One word here rather than three, because the leg's own
+  // refusal travels to the surface on the return half of the same frame and a
+  // second spelling of it would be a second sentence.
+  //
+  // It also closes the non-finite gap the wire figures needed `moveRankingKey`
+  // for: `no-basis` is a zero or non-finite older close, so no `Infinity`
+  // reaches the subtraction.
+  if (!subject.measured) {
     return refuse("no-subject-move");
   }
 
-  const ours = moveRankingKey(subject);
-  if (ours === undefined) {
-    return refuse("no-subject-move");
-  }
-
-  if (reference === undefined) {
+  // `?.` rather than two conjuncts: *no benchmark to read* and *the
+  // benchmark's own window had no pair* are one answer here, and the optional
+  // chain narrows to the measured arm either way.
+  if (!reference?.measured) {
     return refuse("no-reference-move");
   }
 
-  const theirs = moveRankingKey(reference);
-  if (theirs === undefined) {
-    return refuse("no-reference-move");
-  }
-
-  if (!sharedBasis(basisOf(subject), basisOf(reference))) {
+  // **The two legs must be over the SAME five minutes**, compared on both
+  // endpoints' own `startsAt`. A benchmark that printed 13:50→13:55 while the
+  // subject printed 14:00→14:05 gives a correctly-signed difference of two
+  // true figures about two different intervals — and the nightly sampler
+  // refuses exactly this pair, needing **four** closes at **two** instants, so
+  // a numerator it would not have sampled must not be ranked against what it
+  // did.
+  if (!sameInterval(subject, reference)) {
     return refuse("mixed-basis");
   }
 
   const comparison = comparableExcessBaseline(stored, grid);
   if (!comparison.scored) return { ...comparison, applies: true };
 
+  // **THE SPAN AGREEMENT — the numerator's against the distribution's** (the
+  // 2026-10-26 repair's second half, and the one the first half cannot make
+  // structural). The type above fixes *what kind of quantity* the numerator
+  // is; this fixes *over how long*. A distribution whose stride is not this
+  // figure's span is **not a distribution of this quantity**, which is exactly
+  // the malformed-row state below — so it takes the same answer for the same
+  // reason, with the distribution's own counted `n` beside it, and no seventh
+  // refusal word is invented for something no reader can act on.
+  //
+  // Both numbers are read from their producers: the figure carries
+  // `RETURN_SPAN_MINUTES` from the trailing window's span, the distribution
+  // carries the sampler's `SAMPLE_SPAN_MINUTES`. They are **two independent
+  // constants in two modules**, which is why this is a comparison rather than
+  // a comment.
+  if (subject.spanMinutes !== comparison.distribution.spanMinutes) {
+    return {
+      scored: false,
+      applies: true,
+      refusal: "too-few-samples",
+      sampleCount: comparison.distribution.sampleCount,
+      minimumSampleCount,
+    };
+  }
+
   // **Two percentages either side of one operator, each on its own line.**
   // This is a DIFFERENCE and not an order, which is why
   // `one-comparator-for-the-order-of-a-move` is silent about it — the drawn
   // region's `comparisonOf` carries the same note for the same shape.
+  const ours = subject.percent;
+  const theirs = reference.percent;
   const excessPoints = ours - theirs;
 
   // **The SIGNED excess goes in and the magnitude is taken inside**, which is
@@ -395,4 +474,23 @@ export function excessMoveFactor(
     percentile,
     referenceSymbol: referenceOf.symbol,
   };
+}
+
+/**
+ * **Both legs measured between the same two instants.**
+ *
+ * The endpoints' own `startsAt` rather than a tolerance: `fiveMinuteReturn`
+ * picks an endpoint on an **exact** instant match for its own stated reason —
+ * *"a 47-minute pair is not a near miss to be tolerated"* — and a predicate
+ * over the pair must not be looser than the pair's own selection.
+ *
+ * Comparing both ends rather than one is redundant while both legs come from
+ * the one shared span, and is the clause that survives a second span arriving:
+ * equal `to` with unequal `from` is a 5-minute return beside a 15-minute one.
+ */
+function sameInterval(ours: MeasuredReturn, theirs: MeasuredReturn): boolean {
+  return (
+    ours.from.startsAt.getTime() === theirs.from.startsAt.getTime() &&
+    ours.to.startsAt.getTime() === theirs.to.startsAt.getTime()
+  );
 }

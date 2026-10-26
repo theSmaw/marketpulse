@@ -162,8 +162,9 @@ volume factor, when it arrives, is scored as a PERCENTILE and never as the
 | 5.6.3 | The scorer, and its three layers                        | no                            |
 | 5.6.4 | The composite reaches the wire                          | no                            |
 | 5.6.5 | **The score draws**                                     | **yes — the epic's headline** |
-| 5.6.6 | The landing page ranks the composite                    | yes                           |
-| 5.6.7 | The conjunction, the sweep, and the close               | no                            |
+| 5.6.6 | The session-basis composite                             | no                            |
+| 5.6.7 | The landing page ranks the composite                    | yes                           |
+| 5.6.8 | The conjunction, the sweep, and the close               | no                            |
 
 ~~**Three consecutive tasks with no visible change is the most this story
 accepts**~~ — **amended 2026-10-22: SEVEN tasks, not six, and the invisible run
@@ -184,6 +185,17 @@ factual claim behind it was verified before the split:
   written on purpose.
 - **No `excess-move-baseline-cache` exists** while three siblings do, against a
   producer that **must not `await`**.
+
+**Amended again 2026-10-26: EIGHT tasks, and the invisible run is FIVE.** Task
+5.6.6 as written was blocked by a fact nobody had checked — `/`'s ranked region
+has **two bases**, and the `session` arm reads a stored row carrying a percentile
+and **no score**. That arm runs **out of hours, about 80% of the week, and
+permanently on CI**, so the region would have drawn a score for a few hours a day
+and an ordinal the rest — two quantities in one column on different days, which
+is exactly what `market-unusual.ts`' two-arm union exists to prevent. **The owner
+chose to store the composite nightly** rather than ship that split. A second
+developer stopped before writing code to say so, which is the second time on this
+story that was the right call.
 
 **The invisible run is now four, which exceeds what this section said the story
 would accept** — recorded rather than smoothed over, because the alternative was
@@ -316,6 +328,28 @@ backfill and the next opening bell. **A scored factor must inherit that
 refusal**: a factor that silently scores a mixed-basis difference produces a
 well-formed, correctly-coloured number that is wrong in exactly the way the
 region above it declined to be.
+
+> **Amended 2026-10-26, and this paragraph was the proximate cause of a live
+> correctness defect.** The instruction is sound and the thing it pointed at
+> was the wrong quantity. `relativePerformance` differences two
+> `WireOverviewFigure`s — whose move is `changePercent` / `sessionChangePercent`,
+> _the move since the basis close_, a **session-to-date** figure — and that is
+> correct for the drawn region, which says in words what it is comparing.
+> `0016`'s distribution is of **five-minute** excesses. Inheriting the drawn
+> region's refusal pulled the drawn region's **inputs** across with it, and the
+> factor shipped ranking a session-to-date excess against a five-minute
+> distribution: measured on the local store, mean rank **91.37** with **58.8%**
+> of samples at the 99th, against **46.08** for the correct numerator over the
+> same 34,622 samples. The factor paid its full 35 of 100 for the majority of
+> the universe, growing through the session.
+>
+> **What a hand-off of this shape owes is the QUANTITY and not only the
+> refusal.** The repair differences two `fiveMinuteReturn`s read off the two
+> trailing windows at one `asOf`; `mixed-basis` survives for the narrower fact
+> that the two legs can be over two different five minutes; and
+> `the-excess-numerator-spans-its-baseline` is the guard that was missing —
+> nothing had ever compared the numerator's span with the baseline's
+> `span_minutes`.
 
 **2. The ETF-versus-peer-median decision is yours, by name, and it is recorded
 rather than assumed.** Story 5.1's AC 3 says the region names what its reference

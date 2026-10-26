@@ -113,6 +113,17 @@ symbol observed — and asserts `frame.feeds` is `[]`.
 
 ### The new invariant, and the naive draft that was GREEN on the defect
 
+> **Renamed 2026-10-26 to `one-instant-for-a-subject-and-its-benchmark`, and
+> the pairing it held was real while the quantity it paired was wrong.** The
+> factor differenced two `WireOverviewFigure`s — a session-to-date move either
+> side of the operator — against `0016`'s distribution of five-minute excesses.
+> It now differences two `fiveMinuteReturn`s read off two trailing windows, so
+> a wire figure is a **compile error** and what has to be one is no longer the
+> pass but the **`asOf`**. The transcripts below are this task's own record and
+> stand as written; the check they name no longer exists under that id, and the
+> break `a-second-pass-for-the-benchmark` is now
+> `a-second-instant-for-the-benchmark`.
+
 **`one-pass-for-a-subject-and-its-benchmark`.** Every call to `excessMoveFactor`
 must read both figures off **the same receiver**, in one argument list — the
 pairing rather than a type name.

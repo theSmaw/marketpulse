@@ -412,10 +412,15 @@ function figuresOf(
  * **Re-exported rather than declared, since Task 5.6.2.** The implementation
  * and the whole of its argument moved to `packages/shared/src/move-basis.ts`
  * the day the **scored** factor had to inherit this refusal rather than
- * re-derive it: a factor that silently scored a mixed-basis difference would
+ * re-derive it: a surface that silently drew a mixed-basis difference would
  * produce a well-formed, correctly-coloured number that is wrong in exactly the
  * way this region declined to be. ADR 0038 decision 2 — one implementation, two
  * processes — and `src/market/index.ts` goes on exporting it from here.
+ *
+ * **Amended 2026-10-26: this region is the only consumer again.** The scored
+ * factor's numerator was repaired to two **five-minute returns**, which share
+ * a basis by construction, so it refuses on the endpoints' own instants and
+ * reads neither of these functions. See `move-basis.ts`' own amendment.
  */
 export { sharedBasis };
 

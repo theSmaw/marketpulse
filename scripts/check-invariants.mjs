@@ -8647,41 +8647,86 @@ const INVARIANTS = [
   },
 
   {
-    id: "one-pass-for-a-subject-and-its-benchmark",
+    id: "one-instant-for-a-subject-and-its-benchmark",
     claim:
-      "Every call to `excessMoveFactor` reads the subject's figure and its " +
-      "benchmark's from ONE `OverviewPass`, in one argument list — two " +
-      "`figureOf` reads off the same receiver, side by side.",
+      "Every file calling `excessMoveFactor` reads the subject's five-minute " +
+      "return and its benchmark's from `fiveMinuteReturn`, with the SAME " +
+      "`asOf` argument — two reads, one instant.",
     check() {
-      // **Task 5.6.4.** The factor **differences** two wire figures, and
-      // `excess-move-factor.ts` states the requirement in as many words: they
-      // must come *"from the same aggregate and therefore from the same pass
-      // over the same market state."*
+      // **Task 5.6.4, re-pointed 2026-10-26 when the numerator was repaired.**
+      //
+      // The original claim was that both legs came from one `OverviewPass`, in
+      // one argument list, as two `figureOf` reads off one receiver. That
+      // pairing was real and the quantity it paired was **wrong**: a wire
+      // figure's move is the move since the basis close, a session-to-date
+      // number, and `0016`'s distribution is of FIVE-MINUTE excesses. The
+      // factor now differences two `fiveMinuteReturn`s and a wire figure is a
+      // compile error, so the pairing moves with the numerator: what has to be
+      // one is no longer the pass, it is the **instant**.
       //
       // ## Why a check rather than a comment
       //
-      // Nothing else can see it. A score built from two passes — two `asOf`
-      // instants, two joins, or one memoised frame beside one fresh one — is a
+      // Nothing else can see it. Two legs read at two instants subtract to a
       // well-formed, correctly-signed figure that is **wrong**, and it
       // **re-adds to itself**, so `readAnomalyScore`'s five checks are all
       // green on it: the contributions sum to the score, each is
       // `round(w × rank / 100)` of the published weight, the maximum agrees
       // and the band is ours. Nothing on the wire distinguishes it, which is
-      // Task 4.8.11's lesson — *the wire cannot see a defect in the producer*
-      // — so the assertion has to be on the producer's own shape.
+      // Task 4.8.11's lesson — *the wire cannot see a defect in the producer*.
+      //
+      // The type now holds the half a check cannot: a `WireOverviewFigure`
+      // cannot reach this function at all. What a type cannot hold is **which
+      // clock each leg was read against**, and `new Date()` is a free
+      // expression.
       //
       // ## The clause a re-implementer cannot avoid writing
       //
-      // **The pairing**, not a type name and not a function name. A
-      // re-implementer who resolves the benchmark from `lastBroadcastOverview
-      // .sectors`, from a second `overview()` call, or from a second pass
-      // handed in beside the first still writes `excessMoveFactor({ subject:
-      // …, reference: … })` — and in every one of those shapes the argument
-      // list does **not** hold two `figureOf` reads off one receiver. The
-      // receiver is compared because a *second pass* is the likeliest
-      // regression and `pass2.figureOf(x)` beside `pass.figureOf(y)` is two
-      // reads that are not one pass.
+      // **The second argument.** A re-implementer who reads the benchmark's
+      // window on its own `new Date()`, or inside a helper with its own clock,
+      // writes a `fiveMinuteReturn(…, { asOf: … })` whose options text differs
+      // from the subject's — and that is the defect, whatever the identifiers
+      // are called. Two reads sharing one options expression is the only
+      // shape that cannot be two instants.
       const CALL = /\bexcessMoveFactor\s*\(/gu;
+      const READ = /\bfiveMinuteReturn\s*\(/gu;
+
+      /** The argument list at `from`, by balanced parentheses. */
+      const argumentsAt = (text, from) => {
+        let depth = 0;
+        let end = from;
+        for (; end < text.length; end += 1) {
+          const character = text[end];
+          if (character === "(") depth += 1;
+          else if (character === ")") {
+            if (depth === 0) break;
+            depth -= 1;
+          }
+        }
+        return text.slice(from, end);
+      };
+
+      /** Everything after the first top-level comma, whitespace-collapsed. */
+      const secondArgument = (list) => {
+        let depth = 0;
+        for (let index = 0; index < list.length; index += 1) {
+          const character = list[index];
+          if (character === "(" || character === "{" || character === "[") {
+            depth += 1;
+          } else if (
+            character === ")" ||
+            character === "}" ||
+            character === "]"
+          ) {
+            depth -= 1;
+          } else if (character === "," && depth === 0) {
+            return list
+              .slice(index + 1)
+              .replace(/\s+/gu, " ")
+              .trim();
+          }
+        }
+        return "";
+      };
 
       const offenders = [];
       let callSites = 0;
@@ -8689,47 +8734,52 @@ const INVARIANTS = [
       for (const { path, text } of shippedSourceFiles()) {
         const file = relative(REPO_ROOT, path);
 
-        for (const match of text.matchAll(CALL)) {
-          const index = match.index ?? 0;
-          // The declaration is not a call site.
+        const calls = [...text.matchAll(CALL)].filter(
+          (match) =>
+            !/\bfunction\s+$/u.test(
+              text.slice(
+                Math.max(0, (match.index ?? 0) - 20),
+                match.index ?? 0,
+              ),
+            ),
+        );
+        if (calls.length === 0) continue;
+        callSites += calls.length;
+
+        // Every window read in this file, by the instant it was read against.
+        const instants = new Map();
+        for (const read of text.matchAll(READ)) {
+          const index = read.index ?? 0;
           if (
             /\bfunction\s+$/u.test(text.slice(Math.max(0, index - 20), index))
           ) {
             continue;
           }
+          const asOf = secondArgument(
+            argumentsAt(text, index + read[0].length),
+          );
+          instants.set(asOf, (instants.get(asOf) ?? 0) + 1);
+        }
 
-          // The argument list, by balanced parentheses from the opening one.
-          let depth = 0;
-          let end = index + match[0].length;
-          for (; end < text.length; end += 1) {
-            const character = text[end];
-            if (character === "(") depth += 1;
-            else if (character === ")") {
-              if (depth === 0) break;
-              depth -= 1;
-            }
-          }
+        const reads = [...instants.values()].reduce(
+          (total, count) => total + count,
+          0,
+        );
 
-          const argumentList = text.slice(index + match[0].length, end);
-          callSites += 1;
+        if (reads < 2) {
+          offenders.push(
+            `${file}: ${String(reads)} \`fiveMinuteReturn\` read(s) beside ` +
+              `${String(calls.length)} \`excessMoveFactor\` call(s) — the ` +
+              "benchmark's own five-minute return is not read here at all",
+          );
+          continue;
+        }
 
-          const receivers = new Map();
-          for (const read of argumentList.matchAll(
-            /([A-Za-z_$][\w$]*)\.figureOf\s*\(/gu,
-          )) {
-            const receiver = read[1];
-            receivers.set(receiver, (receivers.get(receiver) ?? 0) + 1);
-          }
-
-          const paired = [...receivers.values()].some((count) => count >= 2);
-          if (!paired) {
-            offenders.push(
-              `${file}: excessMoveFactor(${argumentList
-                .replace(/\s+/gu, " ")
-                .trim()
-                .slice(0, 160)})`,
-            );
-          }
+        if (instants.size > 1) {
+          offenders.push(
+            `${file}: ${String(instants.size)} different instants — ` +
+              [...instants.keys()].map((asOf) => `\`${asOf}\``).join(", "),
+          );
         }
       }
 
@@ -8747,18 +8797,21 @@ const INVARIANTS = [
 
       if (offenders.length > 0) {
         throw new InvariantFailure(
-          `${String(offenders.length)} of ${String(callSites)} call(s) to ` +
-            "`excessMoveFactor` do not read both figures from one pass:\n      " +
+          `${String(offenders.length)} file(s) calling \`excessMoveFactor\` ` +
+            "do not read both legs at one instant:\n      " +
             offenders.join("\n      ") +
-            "\n    The subject's figure and its benchmark's are SUBTRACTED " +
-            "from each other, so they have to come from one pass over one " +
-            "market state: write them as two `figureOf` reads off the same " +
-            "`OverviewPass`, in this argument list. Two passes — a second " +
-            "`overview()`, a memoised frame beside a fresh join, or " +
-            "`lastBroadcastOverview.sectors` — produce a figure that is " +
-            "well-formed, correctly signed and wrong, and NOTHING on the " +
-            "wire can see it: a score from two instants re-adds to itself, " +
-            "so every one of `readAnomalyScore`'s checks passes on it.",
+            "\n    The subject's five-minute return and its benchmark's are " +
+            "SUBTRACTED from each other, so they have to be measured over the " +
+            "same five minutes: read both with `fiveMinuteReturn(windows." +
+            "read(symbol), { asOf })` off ONE `asOf`. Two instants — a second " +
+            "`new Date()`, or a helper that reads its own clock — produce a " +
+            "figure that is well-formed, correctly signed and wrong, and " +
+            "NOTHING on the wire can see it: a score from two instants " +
+            "re-adds to itself, so every one of `readAnomalyScore`'s checks " +
+            "passes on it. The factor refuses a pair whose endpoints " +
+            "disagree, so the symptom is a region that is quietly `mixed-" +
+            "basis` for ever rather than a wrong number — which is the one " +
+            "failure mode nobody goes looking for.",
         );
       }
     },

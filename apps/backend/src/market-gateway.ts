@@ -245,6 +245,15 @@ export interface MarketGatewayOptions {
    * optional producer makes a wiring mistake a region that is silent for ever
    * on a deployment where nothing else would say so.
    *
+   * **Amended 2026-10-26: it takes a SYMBOL and nothing else again.** Task
+   * 5.6.4 handed it the {@link OverviewPass} so the excess-move factor could
+   * difference the subject's wire figure and its benchmark's; that numerator
+   * was the wrong quantity — a session-to-date move ranked against a
+   * distribution of five-minute excesses — and the repair reads both legs'
+   * **five-minute returns** off their own trailing windows. So the parameter
+   * went away with the defect, and `overview` still answers a pass because the
+   * frame is still served from the memo.
+   *
    * **Amended 2026-10-20 (Task 5.5.4): it answers TWO figures.** The volume
    * multiple is derived from the same walk of the same trailing window as the
    * return — `fiveMinuteReturn` sums the numerator in the pass that counts
@@ -252,7 +261,7 @@ export interface MarketGatewayOptions {
    * that can describe different minutes. One producer, one frame, one
    * memoisation per focused symbol.
    */
-  readonly symbolReturn: (symbol: string, pass: OverviewPass) => SymbolFigures;
+  readonly symbolReturn: (symbol: string) => SymbolFigures;
   readonly setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout;
   readonly clearTimer?: (timer: NodeJS.Timeout) => void;
   /**
@@ -754,7 +763,7 @@ export function registerMarketGateway(
         // figure to contradict; and the recomputation is one walk over at most
         // seven bars for one security, against a join over 516.
         if (focus !== undefined) {
-          send(client, returnMessage(focus, symbolReturn(focus, pass)));
+          send(client, returnMessage(focus, symbolReturn(focus)));
         }
       };
 
@@ -951,7 +960,7 @@ export function registerMarketGateway(
         if (focus !== undefined && scoped?.[focus] !== undefined) {
           let figure = figures.get(focus);
           if (figure === undefined) {
-            figure = symbolReturn(focus, pass);
+            figure = symbolReturn(focus);
             figures.set(focus, figure);
           }
 

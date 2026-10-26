@@ -341,7 +341,7 @@ equities advancing` counts over the securities we **heard from** and states it
   **drawn rejection of the arc** are owed. The arc's rejection is argued in
   `anomaly-score.ts` beside `SCORE_SCALE` so it is at least written down.
 - **`pnpm e2e`** — the orchestrator's to run.
-- **`SecurityRow`'s `Popover`** — untouched by instruction; Task 5.6.6's.
+- **`SecurityRow`'s `Popover`** — untouched by instruction; Task 5.6.7's.
 
 ### Gates
 

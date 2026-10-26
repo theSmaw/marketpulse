@@ -4801,6 +4801,30 @@ refused rather than read as `0`, and that the two structural absences are
 corroborated any of them** — that is `MARKET-OVERVIEW.md` §9's trap 8, and it is
 the reason the assertions are grounded in the producer rather than in a frame.
 
+**Amended 2026-10-26, and the first of those three claims was TRUE AND THE
+DEFECT.** The factor did inherit `mixed-basis` rather than re-deriving it — and
+inheriting the drawn region's refusal meant inheriting the drawn region's
+**inputs**: two `WireOverviewFigure`s, whose move is _the move since the basis
+close_, differenced as the numerator for `0016`'s distribution of **five-minute**
+excesses. Measured on the local store over 34,622 grid pairs in one session: the
+shipped numerator ranked at mean **91.37** with **58.8% of samples at the 99th**,
+against **46.08** for a correct five-minute numerator over the identical sample.
+The factor paid its full 35 of 100 for the majority of the universe, and the
+inflation grew through the session because `changeFromClose` does.
+
+**Nothing mechanical could see it, which is the part to keep.** Both legs were
+the same type, the percentile arithmetic was correct about the number it was
+given, the score re-added to itself so `readAnomalyScore`'s five checks were
+green, and with the repair's guard defeated `node scripts/check-invariants.mjs`
+reports `72 invariants hold.` and the backend's other 1,285 tests pass. What was
+missing was anything comparing **the numerator's span to the baseline's**:
+`comparableExcessBaseline` checked the baseline's `span_minutes` and nothing
+checked the figure's. That is now `the-excess-numerator-spans-its-baseline` in
+`excess-move-factor.test.ts`, with the break `an-unspanned-excess-numerator`
+behind it — **a test rather than a `pnpm invariants` clause because it must read
+a value**: `RETURN_SPAN_MINUTES` is `TRAILING_WINDOW_SPAN_MS / MS_PER_MINUTE`, a
+derived number, and a grep would have to re-implement that arithmetic.
+
 **Re-measure:** `grep -rn "excessMoveFactor" apps/ packages/ e2e/` — today it
 matches one declaration and one test file. **Owner: Task 5.6.3** (the scorer)
 and **5.6.4** (the figure on screen), which are the two tasks that make it

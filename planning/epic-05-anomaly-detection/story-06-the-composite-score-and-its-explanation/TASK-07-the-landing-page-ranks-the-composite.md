@@ -1,8 +1,8 @@
-# Task 5.6.6 — The landing page ranks the composite
+# Task 5.6.7 — The landing page ranks the composite
 
 **Status:** Not started
 **Story:** [5.6 The Composite Score, & Its Explanation](STORY.md)
-**Depends on:** 5.6.5
+**Depends on:** 5.6.6
 
 ## Objective
 
@@ -78,7 +78,7 @@ pays for most of the chip.
 - **This is the commit that makes amber reachable on `/`** — `Unusual.tsx`
   currently records that _"no amber appears in this region, so that collision
   stays Story 5.6's and is unreachable from `/`."_ That sentence becomes false
-  here and is a live claim to amend. Task 5.6.7 photographs it.
+  here and is a live claim to amend. Task 5.6.8 photographs it.
 - **Epic 14's `/` frontend clause does NOT fire** — ten rows, not 516 elements —
   and the fourth consecutive non-firing is evidence the wording works. Say so in
   writing.
@@ -122,6 +122,137 @@ history 516` on this store, measured by 5.6.2's own pass run — so a composite
 measured locally is a **two-of-three** composite and the figure is simultaneously
 a **lower** bound on the deployed cost. State both; do not let a reader take it
 as either alone.
+
+## Amended 2026-10-26 before this task started — THREE premises in it were wrong, and all three were mine
+
+A developer read this file, measured against the real store, and **stopped before
+writing code**. Every claim it made was verified. The corrections are here rather
+than in a closed task's record, because they are the premises this task would
+otherwise act on.
+
+### 1. The live cohort is `{price, excess}`, NOT `{price}`
+
+Measured against the local store — and the deployment has run the same nightly
+pass since 5.6.2 merged:
+
+```
+excess_move_baselines:       501 distinct securities
+return_baselines:            516 distinct securities
+session_return_percentiles:  485 rows
+```
+
+**So essentially every equity has BOTH baselines.** Two consequences, and both
+reverse what this file said:
+
+- _"Ranking by the composite is **order-identical** to ranking by the
+  percentile"_ is **false**. The score is no longer a monotone function of one
+  unit value, so the order is genuinely different.
+- _"This changes the drawn figure and the label **now**, and the order
+  **later**"_ is **false**. **The order changes on the first frame.**
+
+**The owner accepted the re-order**, on the grounds that the composite is what
+the epic exists to rank by and a security unusual on two factors should outrank
+one unusual on a single factor. ADR 0041 already governs a ranked surface
+re-ordering under live data, and `ORDER HELD` exists for exactly this. **What
+changed is the risk description, not the work** — this is not the low-risk
+change the paragraph above claimed.
+
+### 2. The mock row is unreachable in this tree
+
+```
+ 1  NVDA   NVIDIA Corp        91  ┃extreme ┃
+```
+
+**`91` cannot happen.** A price-only score caps at **40**; a two-factor score at
+**75** (40 + 35). `91` needs three factors, and volume is `no-distribution`
+**unconditionally** until a nightly pass stores a distribution of a volume rate.
+Treat the sketch as a **shape** and draw the states this tree can produce.
+
+### 3. The cold-load figure does not transfer to the chip
+
+This file cited `RankedList.module.css`' **44.20 / 50.73 px** discrepancy. That
+measures **five glyphs of `--font-data`** at `--font-size-dense`.
+`AnomalyBadge.badge` composes only `microLabel`, which sets size, line-height,
+letter-spacing and `text-transform` and **no `font-family`** — so the chip
+inherits **`--font-sans`**, a different stack with a different fallback. **The
+principle stands and the number does not**: measure in the cold-load face, but
+measure _that_ face.
+
+**And the widest band word is `elevated` (8 glyphs), not `extreme` (7)** — a
+fixed chip column must be probed at `ELEVATED`.
+
+### 4. One measured figure this file did not have
+
+At **390** the ticker track is **64, not 68** — the gap steps below 37rem. Probed
+grids, pre-change: `15 68 125 64` at 1440, `15 68 140 64` at 1024,
+`15 68 503 64` at 768, **`15 64 141 64` at 390**. The list is **ten rows, 269 px,
+identical at all four widths**, and nothing in the region scrolls at those pairs.
+
+### 5. The excess factor needs a figures seam `OverviewPass` refuses in that direction
+
+`compositeAnomaly` requires an `ExcessMoveFactor`, which requires a
+`WireOverviewFigure` for the subject **and** its benchmark — and **there is no
+honest `FactorAnswer` for _we did not ask_**: `inapplicable` means the question
+does not arise, `refused` demands a refusal word and two counts. So **not
+computing the excess factor on `/` is unrepresentable in the type.**
+
+But `figureOf` is private and `OverviewPass`' handle is a **linear find** per
+symbol, argued for on the grounds that _one or two symbols are read per applied
+batch_. 501 securities × a find over 516 entries is **~258k comparisons a
+batch**, and the ordering is circular — `unusual` is an **input** to
+`overviewPassOf`, so the pass's `figureOf` does not exist when `unusualActivity`
+is called.
+
+**The repair is an eager `Map<string, WireOverviewFigure>` built once in
+`marketOverview` and read by both.** That moves ~486 figure encodings per batch
+from never-computed to always-computed, **which is the cost Epic 14's re-take
+must price** — so build the seam, then measure it, and do not report a figure
+taken over an unreviewed seam of your own design.
+
+> **WITHDRAWN 2026-10-26, and do not build this seam.** The whole of this
+> section is downstream of a premise that was a **live correctness defect**:
+> `ExcessMoveFactor` required a `WireOverviewFigure` either side, and a wire
+> figure's move is _the move since the basis close_ — a **session-to-date**
+> quantity — while `0016`'s distribution is of **five-minute** excesses.
+> Measured on the local store over 34,622 grid pairs: the shipped numerator
+> ranked at mean **91.37** with **58.8%** of samples at the 99th, against
+> **46.08** for a correct five-minute numerator over the identical sample.
+>
+> `excessMoveFactor` now takes two `FiveMinuteReturn`s, so **three of this
+> section's four problems do not exist**:
+>
+> - there is no `WireOverviewFigure` seam to build, eagerly or lazily, and no
+>   ~258k comparisons and no ~486 figure encodings a batch to price;
+> - the **circularity is gone** — `unusual` is still an input to
+>   `overviewPassOf`, but the factor's inputs come from `trailingWindows.read`,
+>   which `marketOverview` already holds (it passes `windowOf:
+trailingWindows.read` into `unusualActivity` today);
+> - `mixed-basis` is not a concern on `/` either: two five-minute returns over
+>   the same endpoints share a basis by construction, and the factor refuses
+>   on the endpoints' own instants.
+>
+> **What this task must price instead** is ~**512 walks over ≤7 bars** per
+> applied batch — 501 subjects plus the eleven sector SPDRs, read once each —
+> against the 0.474–0.509 ms p50 a batch Story 5.4 measured for the
+> percentile-only ranking. Read both legs off **one `asOf`**:
+> `one-instant-for-a-subject-and-its-benchmark` refuses a producer that does
+> not, and the symptom it prevents is not a wrong number but a region that is
+> quietly `mixed-basis` for ever.
+>
+> What **remains true** from this section is its first paragraph: there is no
+> honest `FactorAnswer` for _we did not ask_, so not computing the excess
+> factor on `/` is still unrepresentable in the type.
+
+### Row-shape assertion inventory, taken before any change
+
+**23 role-based row assertions across 10 e2e specs; 25 across 6 component test
+files** — of which **`RankedList.test.tsx` holds 14**, the shared component and
+therefore the real defect **class**, which is the same shape that bit Task 5.6.5.
+By `expect` count the at-risk set is **13 files, ~450 assertions**.
+
+**The four `unusual` e2e specs contain NO role-based row assertion** — they
+assert on ordinal **text** and on counts, which is exactly the channel a score
+plus a chip breaks. Scope them; never loosen them.
 
 ## Done when
 

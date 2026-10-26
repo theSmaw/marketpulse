@@ -1230,7 +1230,7 @@ const percentileAnswerFor = (
  * the literally true answer: nothing has been observed for a symbol that
  * cannot exist.
  */
-const symbolReturn = (symbol: string, pass: OverviewPass): SymbolFigures => {
+const symbolReturn = (symbol: string): SymbolFigures => {
   // **A focus this process does not track is answered rather than thrown on.**
   // The string came off a socket; `toTicker` throws on anything that is not a
   // ticker and a throw here would reach the socket's callback.
@@ -1255,6 +1255,21 @@ const symbolReturn = (symbol: string, pass: OverviewPass): SymbolFigures => {
 
   const asOf = new Date();
   const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });
+
+  // **The benchmark's own five-minute return, read at the SAME `asOf`** (the
+  // 2026-10-26 repair). `STREAM_SYMBOLS` is `trackedTickers()`, so every
+  // sector SPDR has a trailing window of its own and the benchmark's leg is
+  // the same three lines as the subject's — no figure map, no second join and
+  // no `OverviewPass`.
+  //
+  // **Read here, beside the subject's, on one `asOf`.** That adjacency is what
+  // `one-instant-for-a-subject-and-its-benchmark` holds: two reads with two
+  // instants subtract to a well-formed, correctly-signed number that is wrong,
+  // and nothing on the wire can see it, because a score computed that way
+  // re-adds to itself.
+  const referenceFigure = referenceOf.applies
+    ? fiveMinuteReturn(trailingWindows.read(referenceOf.symbol), { asOf })
+    : undefined;
 
   // **The volume multiple, from the SAME walk** (Task 5.5.4). It is computed
   // whatever the return did, because the two refuse independently: a window
@@ -1302,23 +1317,19 @@ const symbolReturn = (symbol: string, pass: OverviewPass): SymbolFigures => {
       ? returnPercentileOf(figure.percent, comparison.distribution)
       : undefined;
 
-  // **The relative-move factor, and the two figures it differences come from
-  // ONE PASS** (Task 5.6.4) — the subject's and its sector benchmark's, read
-  // side by side off the aggregate this browser is being sent in the same
-  // batch. That adjacency is the whole point and is held by
-  // `one-pass-for-a-subject-and-its-benchmark`: two figures taken from two
-  // passes with two `asOf` instants subtract to a well-formed,
-  // correctly-signed number that is **wrong**, and nothing on the wire can
-  // see it, because a score computed that way re-adds to itself.
+  // **The relative-move factor, and the two returns it differences are over
+  // the SAME FIVE MINUTES** (repaired 2026-10-26). It shipped differencing two
+  // `WireOverviewFigure`s — a session-to-date move either side of the operator
+  // — against `0016`'s distribution of **five-minute** excesses, so the factor
+  // contributed its full 35 of 100 for most of the universe and grew through
+  // the session. `excess-move-factor.ts` carries the measurement.
   //
   // `referenceOf` is the one shared resolver's answer — the same one the drawn
   // region's `figuresOf` reads — so the two processes cannot disagree about
   // which fund this security is measured against.
   const excess = excessMoveFactor({
-    subject: pass.figureOf(symbol),
-    reference: referenceOf.applies
-      ? pass.figureOf(referenceOf.symbol)
-      : undefined,
+    subject: figure,
+    reference: referenceFigure,
     referenceOf,
     stored: excessBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
     grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },

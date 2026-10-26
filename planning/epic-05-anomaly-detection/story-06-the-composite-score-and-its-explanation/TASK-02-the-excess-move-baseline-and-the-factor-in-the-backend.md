@@ -123,6 +123,15 @@ and must refuse rather than treat an absent close as zero — which is AC 8's
 3. The scored factor is produced in the backend; nothing scored is computed in a
    browser; `relativePerformance`'s drawn figures are unchanged.
 4. `mixed-basis` is inherited and asserted, and both legs are split-guarded.
+
+   > **Falsified 2026-10-26 — this done-when was met and was the defect.**
+   > Inheriting `mixed-basis` from the drawn region meant inheriting its
+   > **inputs**: two `WireOverviewFigure`s, whose move is session-to-date, as
+   > the numerator for a distribution of **five-minute** excesses. The factor
+   > now differences two `fiveMinuteReturn`s and `mixed-basis` is kept for the
+   > narrower fact that two legs can be over different five minutes. The rest
+   > of this record stands as written.
+
 5. The distribution is recorded as figures, for 5.6.3's boundaries.
 6. `pnpm verify`, `pnpm test:database` green; the per-batch arm re-taken whole.
 
@@ -342,7 +351,7 @@ taken after the machine settled, at a load average read **before** each run
 **Epic 14's per-batch re-take is still owed.** Its file asks the next story that
 changes the per-batch path on `/` to _"re-take the whole arm with a control
 rather than add another term to an estimate"_, and this task changes that path.
-It is **deliberately deferred to Task 5.6.6**, which is the task that actually
+It is **deliberately deferred to Task 5.6.7**, which is the task that actually
 re-ranks `/` and is therefore the honest place to measure the whole arm once
 rather than twice — recorded here so it reads as a decision rather than as a
 thing that was forgotten.

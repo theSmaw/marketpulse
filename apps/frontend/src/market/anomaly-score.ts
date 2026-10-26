@@ -161,11 +161,13 @@ const REFUSAL_REASONS: Readonly<Record<FactorRefusal, string>> = {
   // different sentence, refuses every constituent of one sector at once, and
   // is repaired somewhere else entirely.
   "reference-split-discontinuity": "benchmark price break",
-  // The two moves were measured from different closes, so the subtraction is
-  // refused — `Relative performance`'s own refusal, inherited rather than
-  // re-worded, and reachable every day between the overnight backfill and the
-  // next bell.
-  "mixed-basis": "moves from two closes",
+  // **The two five-minute returns were not over the same five minutes**, so
+  // the subtraction is refused. One word changed from `moves from two closes`
+  // on 2026-10-26, which is exactly what the repair changed: the factor used
+  // to difference two session-to-date moves and now differences two
+  // five-minute returns, so what can disagree is the WINDOW rather than the
+  // close. Reachable on any ordinary minute — IEX minute presence is 81.6%.
+  "mixed-basis": "moves over two windows",
   "no-subject-move": "no move for this name",
   "no-reference-move": "no benchmark move",
   // *We have never heard IEX for this security* — a gap in our listening
