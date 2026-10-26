@@ -75,7 +75,7 @@ async function expectTheUniverseRendered(page: Page): Promise<void> {
   // A literal date here would be a gate reporting the age of a laptop's store
   // as a defect. What is asserted is the shape the code produces — the word,
   // and a date **or nothing**, which is the state where the closes disagree.
-  const table = region.getByRole("table");
+  const table = region.getByRole("table", { name: "Tracked universe" });
   await expect(table).toBeVisible();
   // **The word depends on whether anything is live, so both spellings are the
   // shape** (Task 3.6.1, corrected here 2026-09-21 after the deployed check
@@ -505,7 +505,9 @@ test("the arrival is announced, by a live region that survives it", async ({
     (window as unknown as { announcer?: Element }).announcer = element;
   });
 
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   // The sentence changed in place. It names what a listener needs and not the
   // table — the failure this replaces would have been a region reading 101 rows
@@ -836,7 +838,9 @@ test("an empty universe names the command that fills it", async ({ page }) => {
   ).toBeVisible();
 
   // No table at all, rather than a header row over nothing.
-  await expect(region.getByRole("table")).toHaveCount(0);
+  await expect(
+    region.getByRole("table", { name: "Tracked universe" }),
+  ).toHaveCount(0);
 
   await expectNothingFailedToRender(page);
   await expectNoAxeViolations(page, "the securities route, empty");
@@ -978,7 +982,14 @@ test("prefers-reduced-motion stops the table arriving", async ({ page }) => {
 
   const reduced = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
-    const entering = document.querySelector("table")?.parentElement;
+    // **The universe's table by its CAPTION, not `querySelector("table")`**
+    // (2026-10-26). The security page draws a second table since Task 5.6.5 —
+    // the anomaly score's ledger — and it comes FIRST in DOM order, so the bare
+    // selector silently started measuring a box with no entrance animation.
+    const entering = [...document.querySelectorAll("table")].find(
+      (table) =>
+        table.querySelector("caption")?.textContent === "Tracked universe",
+    )?.parentElement;
 
     return {
       matches: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -1006,7 +1017,14 @@ test("prefers-reduced-motion stops the table arriving", async ({ page }) => {
   await expectTheUniverseRendered(page);
 
   const normal = await page.evaluate(() => {
-    const entering = document.querySelector("table")?.parentElement;
+    // **The universe's table by its CAPTION, not `querySelector("table")`**
+    // (2026-10-26). The security page draws a second table since Task 5.6.5 —
+    // the anomaly score's ledger — and it comes FIRST in DOM order, so the bare
+    // selector silently started measuring a box with no entrance animation.
+    const entering = [...document.querySelectorAll("table")].find(
+      (table) =>
+        table.querySelector("caption")?.textContent === "Tracked universe",
+    )?.parentElement;
 
     return {
       matches: window.matchMedia("(prefers-reduced-motion: reduce)").matches,

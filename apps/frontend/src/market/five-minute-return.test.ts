@@ -58,6 +58,9 @@ const held = (figure: WireSymbolReturn, symbol = "NVDA") => ({
   // It is on the view because the frame carries both figures; `volumeRatioIndicator`
   // is the one that spells it, in `volume-ratio.test.ts`.
   volume: null,
+  // **The score half, which this module does not read either** (Task 5.6.5).
+  // `anomalyScoreBand` is the one that spells it, in `anomaly-score.test.ts`.
+  score: null,
 });
 
 /**

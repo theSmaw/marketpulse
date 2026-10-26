@@ -819,6 +819,27 @@ test("the two plots hang on one axis and stop at the same pixel", async ({
    * What the ceiling refuses is a **third block arriving in the gap**: the
    * Volume region's deleted paragraph was two lines, so restoring it clears
    * this by a wide margin, which is how it was break-verified.
+   *
+   * **Re-measured 2026-10-23 by Task 5.6.5: 220 → 235, and the CAUSE is one
+   * this comment did not contemplate.** Nothing arrived in the gap. The
+   * anomaly-score band made `Abnormal-move indicators` **244 px taller**
+   * (256 → 500), and that region is the **opposite column's** sibling at 1440 —
+   * so the grid row stretches, the Price panel grows to 511, and the two plots
+   * are pushed apart **from outside the gap entirely**.
+   *
+   * Measured at four widths rather than argued, with a throwaway spec deleted
+   * after the run: **1440 = 225, 1024 = 195, 768 = 195, 390 = 752.** Only 1440
+   * moved, because only there is the rail a sibling column; 1024 and 768 sit on
+   * the 190 floor untouched, and 390 is one column where the plots are a screen
+   * apart by construction and this assertion does not run.
+   *
+   * **235 keeps the guard's stated purpose intact.** The floor is still 190,
+   * the stretch accounts for 35, and the third block this ceiling exists to
+   * refuse — the Volume region's deleted two-line paragraph — is ~32 px, so a
+   * restored one would read 257 and still breach. The headroom is 10 px rather
+   * than 30, which is the honest cost of the step and is **why this is a
+   * re-measure rather than a raise**: a ceiling moved to admit today's change
+   * without measuring what it now permits has stopped guarding anything.
    */
   const gap = await page.evaluate(() => {
     const plots = [...document.querySelectorAll("svg:has(line)")];
@@ -833,7 +854,7 @@ test("the two plots hang on one axis and stop at the same pixel", async ({
   });
 
   expect(gap).toBeGreaterThan(0);
-  expect(gap).toBeLessThan(220);
+  expect(gap).toBeLessThan(235);
 
   // Then every vertical mark on them — the session seams and the coverage edge.
   // Identical strings, not merely a similar count: these are the same values

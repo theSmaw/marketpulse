@@ -8874,6 +8874,137 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "amber-appears-once-in-the-rail",
+    claim:
+      "The anomaly ramp is read by exactly one shipped stylesheet — " +
+      "`AnomalyBadge.module.css`, as the chip's fill behind its written band " +
+      "name. No other component may spend amber, and no rule may put it in " +
+      "`color`.",
+    check() {
+      // **Task 5.6.5, and what it holds is Story 5.1's close, item 3**:
+      // *amber appears exactly ONCE in the rail — as the band's fill behind
+      // its written band name. Not on a difference, not on a score, not on a
+      // reference.*
+      //
+      // ## The defect the next author writes in good faith
+      //
+      // **Tinting the score to match its chip.** `61 / 100` beside an
+      // `ELEVATED` chip looks unfinished to an eye that has just drawn the
+      // chip, and `color: var(--anomaly-high)` on `.score` is one line that
+      // reads as polish. It is the risk-meter reading the band's label and its
+      // footer exist to refuse, delivered in the one channel a reader cannot
+      // argue with — and it would put this product's own ramp into `color`,
+      // where `AnomalyBadge.module.css`' header records it measures **under
+      // 2.2:1** on both page grounds and is a fill-or-icon colour only.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **A `var(--anomaly-…)` or `var(--palette-amber…)` read in a
+      // declaration.** There is no other way to spend the ramp: these tokens
+      // are the only amber in this product, and `tokens.ts` throws at startup
+      // for one missing from the stylesheet. So the check is a **count of the
+      // stylesheets that spend it**, which is one, plus the property it is
+      // spent on, which is never `color`.
+      //
+      // ## What this does NOT prove
+      //
+      // That the chip is the only amber *on screen*. An image, an SVG `fill`
+      // attribute in markup or an inline style would each escape it — none of
+      // which exists in this tree, and each of which is a conversation rather
+      // than an edit.
+      const modules = sourceFilesUnder(
+        resolve(REPO_ROOT, "apps/frontend/src"),
+      ).filter(({ path }) => path.endsWith(".module.css"));
+
+      if (modules.length === 0) {
+        throw new InvariantFailure(
+          "No `.module.css` files under apps/frontend/src — have they moved?",
+        );
+      }
+
+      // A declaration rather than a mention: several files name these tokens
+      // in prose, and the comment lines are excluded by the first test.
+      const spends = (text) =>
+        text
+          .split("\n")
+          .some(
+            (line) =>
+              !/^\s*(?:\*|\/\*|\/\/)/u.test(line) &&
+              /var\(\s*--(?:anomaly-|palette-amber)/u.test(line),
+          );
+
+      const spending = modules.filter(({ text }) => spends(text));
+
+      // Absolute, as `sourceFilesUnder` yields them; the reports below
+      // relativise so a failure reads as a path in this repository.
+      const HOME = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/components/AnomalyBadge/AnomalyBadge.module.css",
+      );
+
+      // **The anchor.** A ramp nobody spends passes this vacuously, and the
+      // chip ceasing to carry its fill is exactly the change that would make
+      // the check silent while the prohibition became writable again.
+      if (!spending.some(({ path }) => path === HOME)) {
+        throw new InvariantFailure(
+          `${relative(REPO_ROOT, HOME)} no longer reads the anomaly ramp, ` +
+            "and this clause is " +
+            "anchored on it. Either the chip stopped carrying its fill — in " +
+            "which case the one amber position in the rail is gone — or the " +
+            "tokens were renamed and this check now guards nothing.",
+        );
+      }
+
+      const elsewhere = spending.filter(({ path }) => path !== HOME);
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} stylesheet(s) besides the band chip ` +
+            "spend the anomaly ramp:\n      " +
+            elsewhere
+              .map(({ path }) => relative(REPO_ROOT, path))
+              .join("\n      ") +
+            "\n    Amber appears exactly once in the rail — the chip's fill, " +
+            "behind its written band name. Not the score, not a " +
+            "contribution, not a weight: a tinted figure is the risk-meter " +
+            "reading AC 11 exists to refuse, in the one channel a reader " +
+            "cannot argue with.",
+        );
+      }
+
+      // **And never in `color`.** The ramp measures under 2.2:1 against both
+      // page grounds, so a rule putting it in the ink is below the contrast
+      // floor whatever element it sits on — `AnomalyBadge.module.css`' own
+      // header carries the measurement.
+      const asInk = modules.flatMap(({ path, text }) =>
+        text
+          .split("\n")
+          .filter(
+            (line) =>
+              !/^\s*(?:\*|\/\*|\/\/)/u.test(line) &&
+              /(?:^|[^-])color:\s*var\(\s*--(?:anomaly-|palette-amber)/u.test(
+                line,
+              ),
+          )
+          .map(
+            (line) => `${relative(REPO_ROOT, path)}\n        ${line.trim()}`,
+          ),
+      );
+
+      if (asInk.length > 0) {
+        throw new InvariantFailure(
+          `${String(asInk.length)} rule(s) put the anomaly ramp in the ink:` +
+            "\n      " +
+            asInk.join("\n      ") +
+            "\n    It measures under 2.2:1 on both page grounds and is a " +
+            "fill-or-icon colour only. The band's name is what carries the " +
+            "band; the fill is the redundancy behind it.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

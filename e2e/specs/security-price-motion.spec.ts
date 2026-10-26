@@ -365,7 +365,7 @@ test("a page fed only by the store marks nothing, on the block or in the table",
   // 3.6.1 the universe table's rows carry the same `[data-arrival]` handle,
   // `composes:`d from the same rule — 518 more places this could fire.
   // **Waits for the universe ANSWER, not for the table to paint.** The first
-  // draft asserted `getByRole("table")` straight after the navigation and
+  // draft asserted `getByRole("table", { name: "Tracked universe" })` straight after the navigation and
   // failed in a full suite run while passing alone: the table is 518 rows
   // behind a 190 kB response, and on a loaded machine that is longer than an
   // assertion's default patience. Waiting on the response makes the wait about
@@ -377,16 +377,27 @@ test("a page fed only by the store marks nothing, on the block or in the table",
       SECURITIES_ROUTE_PATTERN(new URL(response.url())),
     );
 
+  // **Named rather than bare since 2026-10-23 (Task 5.6.5), and the rename is
+  // the POINT rather than a workaround.** This page now holds TWO tables — the
+  // tracked universe's and the anomaly score's ledger — so a bare
+  // `getByRole("table", { name: "Tracked universe" })` is a strict-mode violation rather than an assertion.
+  // The ledger gained a visually-hidden caption in the same change, following
+  // `UniverseTable`'s own idiom, because two tables sharing no name between
+  // them is a defect for a listener before it is one for a spec.
   const first = universeAnswered();
   await page.goto(EXPLORER);
   await first;
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 
   const second = universeAnswered();
   await page.reload();
   await second;
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
   await expect(page.locator("[data-arrival]")).toHaveCount(0);
 
   await expectNothingFailedToRender(page);

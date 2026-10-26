@@ -5702,4 +5702,54 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-site-builds-the-no-distribution-arm",
   },
+  {
+    name: "the-score-is-tinted-to-match-its-chip",
+    proves:
+      "`amber-appears-once-in-the-rail` goes red when a SECOND stylesheet " +
+      "spends the anomaly ramp — here the score itself, tinted to match the " +
+      "chip beside it, which is the edit the next author makes in good " +
+      "faith because `61 / 100` beside an `ELEVATED` chip looks unfinished. " +
+      "It is the risk-meter reading AC 11's two channels exist to refuse, " +
+      "delivered in the one channel a reader cannot argue with, and it puts " +
+      "a ramp measured UNDER 2.2:1 on both page grounds into the ink. " +
+      "Nothing else can see it: no stylesheet is applied in the test " +
+      "environment, so `getTokens()` throws there and *do not assert on " +
+      "colour* is structural rather than a discipline; jsdom computes no " +
+      "layout, axe reads the chip rather than the figure, and the drawn " +
+      "page is a correct-looking amber number.",
+    file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.module.css",
+    // **The substitution KEEPS the found line and appends the defect beside
+    // it**, which is the 2026-10-16 rule: a plant that replaces its own
+    // `find` goes red twice — once from `every-break-can-still-land`, about
+    // the break — and two reds, one of them from a check that is not under
+    // test, read exactly like a thorough proof.
+    find: "  font-weight: var(--font-weight-strong);",
+    replace:
+      "  font-weight: var(--font-weight-strong);\n" +
+      "  /* pnpm break: reverted automatically */\n" +
+      "  color: var(--anomaly-high);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "amber-appears-once-in-the-rail",
+  },
+  {
+    name: "the-band-chip-puts-its-ramp-in-the-ink",
+    proves:
+      "`amber-appears-once-in-the-rail`'s SECOND clause goes red on its own. " +
+      "The first clause counts stylesheets and is silent here, because this " +
+      "defect is in the one file that is allowed to spend the ramp — so " +
+      "without this clause the chip could put amber in `color` and the " +
+      "check would report that all invariants hold. It is below the " +
+      "contrast floor on both page grounds at under 2.2:1, which is a " +
+      "measurement no test in this product can take: no stylesheet is " +
+      "applied in the test environment, and a browser is the only level " +
+      "that can see contrast.",
+    file: "apps/frontend/src/components/AnomalyBadge/AnomalyBadge.module.css",
+    find: "  background: var(--anomaly-high);",
+    replace:
+      "  background: var(--anomaly-high);\n" +
+      "  /* pnpm break: reverted automatically */\n" +
+      "  color: var(--anomaly-extreme);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "amber-appears-once-in-the-rail",
+  },
 ];
