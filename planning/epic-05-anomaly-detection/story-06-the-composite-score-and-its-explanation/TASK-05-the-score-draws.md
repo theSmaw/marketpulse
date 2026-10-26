@@ -490,6 +490,41 @@ honest cost of the step and is recorded as such. **A ceiling moved to admit
 today's change without measuring what it now permits has stopped guarding
 anything.**
 
+### And I fixed the same defect BADLY the first time — CI caught the rest
+
+**The first repair was an instance repair for a class defect, and that is the
+more useful failure of the two.** When my local run surfaced the two-tables
+problem in one spec, I fixed **that spec** and pushed. CI then failed `e2e` with
+**eleven more**, in `search-keyboard.spec.ts` and `securities-route.spec.ts`.
+
+There were **13 bare `getByRole("table")` sites across 3 files**. I repaired 2.
+
+This repository's own rule names it exactly: _a sentence duplicated for
+legibility must be counted with a grep before it is corrected._ The rule is
+written about prose; it is **the same rule for a locator**, and I did not apply
+it because the failure arrived as a single red test rather than as a count.
+
+**Grepping properly then found two more that the table rename alone would not
+have fixed**, because they are the same fact arriving through a different role:
+
+- **`document.querySelector("table")` takes the FIRST table in DOM order** —
+  which is now the ledger, not the universe table — so a `prefers-reduced-motion`
+  test had quietly started measuring a box with **no entrance animation**. It
+  would have gone on passing or failing for reasons unrelated to motion.
+- **`getByRole("row")).toHaveCount(13)` counted BOTH tables**: the universe's 13
+  collapsed bands plus the ledger's 5, giving 18.
+
+Neither is reachable by searching for the string that failed. Both are reachable
+by asking _what else assumes there is one table on this page?_ — which is the
+question the first repair skipped.
+
+**Scoped rather than loosened, in every case**: the row count and the motion
+probe both now name the universe's table by its caption. No assertion was
+relaxed, and the second table remains a real `<table>` with a real name, because
+the markup was right and the specs were right to fail.
+
+Settled suite after the full repair: **271 passed, 0 failed, exit 0.**
+
 ### And a process note against myself
 
 I started that first suite at a load average of **8.72**, above the threshold of

@@ -130,7 +130,9 @@ async function focusIsObscured(page: Page): Promise<boolean> {
 // under it.
 test("search, open, and land on that security's page", async ({ page }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await field(page).fill(QUERY);
   await page.getByRole("option").first().click();
@@ -160,7 +162,9 @@ test("search, open, and land on that security's page", async ({ page }) => {
 // where focus is after each one is asserted rather than assumed.
 test("the same journey by keyboard alone", async ({ page }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   // 1. Reach the field. Five presses: the four navigation links, then this —
   // a control *over* both surfaces has to come before them.
@@ -233,7 +237,9 @@ test("Escape closes the list, and a second Escape clears the query", async ({
   page,
 }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await field(page).focus();
   await page.keyboard.type("nv");
@@ -256,7 +262,9 @@ test("Tab leaves an open list, and Shift-Tab comes back to the query", async ({
   page,
 }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await field(page).focus();
   await page.keyboard.type("nv");
@@ -282,7 +290,9 @@ test("Back returns to the list with the query still in the field", async ({
   page,
 }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await field(page).focus();
   await page.keyboard.type(QUERY);
@@ -296,7 +306,9 @@ test("Back returns to the list with the query still in the field", async ({
 
 test("Enter with nothing matched opens nothing", async ({ page }) => {
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await field(page).fill("zzzz");
   await expect(
@@ -348,7 +360,9 @@ for (const [width, height] of [
   }) => {
     await page.setViewportSize({ width, height });
     await page.goto(`/securities/${SYMBOL}`);
-    await expect(page.getByRole("table")).toBeVisible();
+    await expect(
+      page.getByRole("table", { name: "Tracked universe" }),
+    ).toBeVisible();
 
     // **Waited for the answer before counting, since Task 2.12.8.** The chart
     // contributes a tab stop in `loaded` and `partial` and in no other state —
@@ -455,7 +469,9 @@ test("an unavailable search stays reachable and carries its reason", async ({
 // re-read by anything.
 test("the bulk collapse says what it did", async ({ page }) => {
   await page.goto(`/securities/${SYMBOL}`);
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   const toggle = page.getByRole("button", { name: /Collapse all|Expand all/ });
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -466,7 +482,13 @@ test("the bulk collapse says what it did", async ({ page }) => {
   await expect(toggle).toHaveText("Expand all");
 
   // What it actually did, so the state above is about something.
-  await expect(page.getByRole("row")).toHaveCount(13);
+  //
+  // **Scoped to the universe's own table since 2026-10-26**, because the
+  // security page draws a SECOND table — the anomaly score's ledger — and a
+  // page-level row count had quietly become 13 + the ledger's 5.
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }).getByRole("row"),
+  ).toHaveCount(13);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
