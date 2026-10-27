@@ -10,7 +10,6 @@ import type {
 import { returnPercentileOf } from "./return-percentile.js";
 import type { ReturnPercentile } from "./return-percentile.js";
 import type { StoredExcessBaseline } from "./excess-move-baseline-store.js";
-import type { FiveMinuteReturn, MeasuredReturn } from "./five-minute-return.js";
 
 /**
  * **The relative-move factor, scored in THIS process** (Task 5.6.2) — the
@@ -40,9 +39,16 @@ import type { FiveMinuteReturn, MeasuredReturn } from "./five-minute-return.js";
  * What was missing was anything comparing **the numerator's span to the
  * baseline's**: `comparableExcessBaseline` checked the baseline's span and
  * nothing checked the figure's. Both halves of the repair are here — the
- * inputs are {@link FiveMinuteReturn}s, so a wire figure is a **compile
- * error**, and the span agreement is asserted against the distribution's own
- * stride before the percentile is taken.
+ * inputs are {@link ExcessLeg}s, so a wire figure is a **compile error**, and
+ * the span agreement is asserted against the distribution's own stride before
+ * the percentile is taken.
+ *
+ * **The parameter type was `FiveMinuteReturn` until 2026-10-26 (Task 5.6.6)**
+ * and is now the minimal contract {@link ExcessLeg}, because this product has
+ * **two** producers of a five-minute return — the live window's and the
+ * nightly pass's over stored closes — and neither may be forged from the
+ * other. See {@link MeasuredExcessLeg} for why that does not weaken the guard
+ * above.
  *
  * ## Two five-minute returns, read off two trailing windows at ONE instant
  *
@@ -121,6 +127,61 @@ export interface ExcessGrid {
   readonly spanMinutes: number;
   readonly feed: MarketFeed;
 }
+
+/**
+ * **One leg of the difference, as the minimal contract this factor reads of
+ * it** (Task 5.6.6) — a signed move, the span it was measured over, and the two
+ * instants it was measured between.
+ *
+ * ## Why a contract rather than `MeasuredReturn`
+ *
+ * There are **two** producers of a five-minute return in this process and they
+ * are not the same type, deliberately. `fiveMinuteReturn` walks a
+ * `TrailingWindow`'s `LiveObservation[]` and its endpoints carry a
+ * `BarSource` — a provider and a `retrievedAt`. `sessionClosingReturn` walks
+ * ~24,000 stored `sip` closes keyed by instant, and `session-percentile.ts`
+ * records why it is a second walk rather than a reuse: handing that map to the
+ * first function would mean **forging 24,000 `LiveObservation`s with a
+ * `BarSource` nobody retrieved**, which is the shape ADR 0031 exists to refuse.
+ *
+ * The nightly pass needs this factor over the **stored** producer's figures —
+ * the session basis — and the live gateway needs it over the window's. So what
+ * the parameter asks for is what the function **reads**, which is this: four
+ * members, none of them a provenance claim. `MeasuredReturn` satisfies it
+ * structurally and needs no adapter; `MeasuredSessionReturn` reaches it through
+ * `excessLegOf` in `session-percentile.ts`, because its endpoints are named
+ * `at` rather than `startsAt`.
+ *
+ * ## It does NOT weaken the 2026-10-26 repair's type guard
+ *
+ * That repair made a `WireOverviewFigure` a **compile error** here, and it
+ * still is: a wire figure has no `measured` discriminant, no `spanMinutes` and
+ * no endpoint instants at all — its move is `changePercent`, the move since the
+ * basis close. The thing the type refuses is *a quantity of the wrong kind*,
+ * and every member below is one this factor subtracts or compares.
+ */
+export interface MeasuredExcessLeg {
+  readonly measured: true;
+  /** The signed move, as a percentage. */
+  readonly percent: number;
+  /** The span its two endpoints are apart, in minutes. */
+  readonly spanMinutes: number;
+  readonly from: ExcessLegEndpoint;
+  readonly to: ExcessLegEndpoint;
+}
+
+/** One endpoint: **the bar's own `startsAt`**, and nothing else this reads. */
+export interface ExcessLegEndpoint {
+  readonly startsAt: Date;
+}
+
+/**
+ * A leg, measured or not. The refused arm carries **nothing**: each leg's own
+ * refusal word travels to the surface on the `return` frame's own half, and
+ * this factor answers `no-subject-move` or `no-reference-move` — one word
+ * rather than three, which is `excessMoveFactor`'s own recorded choice.
+ */
+export type ExcessLeg = MeasuredExcessLeg | { readonly measured: false };
 
 /**
  * **Whether this stored generation may be ranked against at all.**
@@ -253,12 +314,18 @@ export interface ExcessMoveFactorInput {
    * rather than a plausible number — and the span check below is the other
    * half, for a figure of the right type measured over a different span.
    *
-   * **Required rather than optional.** `fiveMinuteReturn` always answers:
+   * **{@link ExcessLeg} rather than `FiveMinuteReturn`** since Task 5.6.6, and
+   * that is the same guard over two producers rather than a relaxation of it:
+   * the nightly pass's figure comes from `sessionClosingReturn` over stored
+   * closes, whose endpoints cannot be `fiveMinuteReturn`'s without forging a
+   * `BarSource` nobody retrieved.
+   *
+   * **Required rather than optional.** Both producers always answer:
    * a symbol this process does not track reads an empty window and refuses
    * `nothing-observed`, so there is no fourth state for a caller to invent.
    * A refusal here is `no-subject-move`, which is that word's own meaning.
    */
-  readonly subject: FiveMinuteReturn;
+  readonly subject: ExcessLeg;
   /**
    * **Its sector benchmark's own five-minute return**, read off the benchmark's
    * trailing window at the **same `asOf`** — which is what makes the two legs
@@ -271,7 +338,7 @@ export interface ExcessMoveFactorInput {
    * arm and this factor answers `no-reference-move`; it is **never** read as a
    * return of `0`.
    */
-  readonly reference: FiveMinuteReturn | undefined;
+  readonly reference: ExcessLeg | undefined;
   /** Which fund applies, from `excessMoveReference` — never branched on here. */
   readonly referenceOf: ExcessMoveReference;
   /**
@@ -488,7 +555,10 @@ export function excessMoveFactor(
  * the one shared span, and is the clause that survives a second span arriving:
  * equal `to` with unequal `from` is a 5-minute return beside a 15-minute one.
  */
-function sameInterval(ours: MeasuredReturn, theirs: MeasuredReturn): boolean {
+function sameInterval(
+  ours: MeasuredExcessLeg,
+  theirs: MeasuredExcessLeg,
+): boolean {
   return (
     ours.from.startsAt.getTime() === theirs.from.startsAt.getTime() &&
     ours.to.startsAt.getTime() === theirs.to.startsAt.getTime()

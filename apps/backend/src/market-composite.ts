@@ -1,9 +1,12 @@
 import { BASELINE_MINIMUM_SAMPLE, scoreAnomaly } from "@marketpulse/shared";
 
-import type { AnomalyOutcome, FactorAnswer } from "@marketpulse/shared";
+import type {
+  AnomalyOutcome,
+  CompositeFactor,
+  FactorAnswer,
+} from "@marketpulse/shared";
 
 import type { ExcessMoveFactor } from "./excess-move-factor.js";
-import type { FiveMinuteReturn } from "./five-minute-return.js";
 import type {
   BaselineComparison,
   ReturnPercentile,
@@ -51,6 +54,18 @@ import type {
  */
 
 /**
+ * **A five-minute return, as the price factor's builder reads it: did we get
+ * one?** See {@link PriceFactorInput.figure}.
+ *
+ * Both `MeasuredReturn` and `MeasuredSessionReturn` satisfy it, as do their
+ * refused arms, and a `WireOverviewFigure` does not — it has no `measured`
+ * discriminant at all.
+ */
+export interface PriceFactorFigure {
+  readonly measured: boolean;
+}
+
+/**
  * **What the price factor is: the percentile of this security's own 5-minute
  * return**, as the three values the wiring site is already holding.
  *
@@ -59,8 +74,21 @@ import type {
  * the one site that makes it.
  */
 export interface PriceFactorInput {
-  /** The figure, measured or refused — `fiveMinuteReturn`'s answer. */
-  readonly figure: FiveMinuteReturn;
+  /**
+   * **Whether there is a move at all** — and that is the whole of what this
+   * builder reads of the figure, which is why the type says so (Task 5.6.6).
+   *
+   * It was `FiveMinuteReturn` and the number was never read here: the ordinal
+   * is {@link PriceFactorInput.percentile}'s and the history is
+   * {@link PriceFactorInput.comparison}'s, so the figure's only job in this
+   * function is to distinguish *we hold no move for this security* from *we
+   * hold one and could not rank it*. There are now **two** producers of that
+   * answer — `fiveMinuteReturn` over a live trailing window and
+   * `sessionClosingReturn` over stored closes, which may not be forged from
+   * each other (`session-percentile.ts` says why) — and a contract naming the
+   * one member that is read admits both with no adapter and no cast.
+   */
+  readonly figure: PriceFactorFigure;
   /**
    * Whether there is a baseline to rank it against at all —
    * `comparableBaseline`'s answer. **Required**, because *how much history do
@@ -225,18 +253,43 @@ export interface CompositeInput {
 }
 
 /**
- * **The composite, at one site** — AC 5's *a score cannot be constructed
- * without its explanation*, met by there being exactly one route to one.
+ * **The three factors' answers, at one site** — the translation, with no mint
+ * in it (extracted at Task 5.6.6).
  *
- * `scoreAnomaly` is the mint; this is the translation in front of it. The
- * record it builds is keyed on `CompositeFactor`, so a fourth factor is a
- * compile error here naming the missing member rather than a slot silently
- * absent from every score.
+ * The record is keyed on `CompositeFactor`, so a fourth factor is a compile
+ * error **here** naming the missing member rather than a slot silently absent
+ * from every score.
+ *
+ * ## Why it is exported beside {@link compositeAnomaly} rather than inlined
+ *
+ * The nightly pass stores the **answers** as the row's content and the minted
+ * score beside them (`0017` §5), so it needs both halves of one evaluation.
+ * Calling `compositeAnomaly` and then rebuilding the answers would be two
+ * evaluations of one thing — and deriving the answers back out of the
+ * outcome's clauses would be a second mapping between the two vocabularies,
+ * in the direction nothing else in this product goes.
+ *
+ * So the pass calls this and then `scoreAnomaly`, which **is**
+ * {@link compositeAnomaly} written out; the live gateway calls
+ * {@link compositeAnomaly}, because it needs the outcome alone.
  */
-export function compositeAnomaly(input: CompositeInput): AnomalyOutcome {
-  return scoreAnomaly({
+export function compositeAnswers(
+  input: CompositeInput,
+): Record<CompositeFactor, FactorAnswer> {
+  return {
     price: priceFactorAnswer(input.price),
     excess: excessFactorAnswer(input.excess),
     volume: volumeFactorAnswer(),
-  });
+  };
+}
+
+/**
+ * **The composite, at one site** — AC 5's *a score cannot be constructed
+ * without its explanation*, met by there being exactly one route to one.
+ *
+ * `scoreAnomaly` is the mint; {@link compositeAnswers} is the translation in
+ * front of it, and this is the pair.
+ */
+export function compositeAnomaly(input: CompositeInput): AnomalyOutcome {
+  return scoreAnomaly(compositeAnswers(input));
 }

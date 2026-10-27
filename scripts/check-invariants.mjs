@@ -8650,8 +8650,8 @@ const INVARIANTS = [
     id: "one-instant-for-a-subject-and-its-benchmark",
     claim:
       "Every file calling `excessMoveFactor` reads the subject's five-minute " +
-      "return and its benchmark's from `fiveMinuteReturn`, with the SAME " +
-      "`asOf` argument — two reads, one instant.",
+      "return and its benchmark's from ONE of the two producers, over the " +
+      "SAME interval expression — two reads, one interval.",
     check() {
       // **Task 5.6.4, re-pointed 2026-10-26 when the numerator was repaired.**
       //
@@ -8681,14 +8681,40 @@ const INVARIANTS = [
       //
       // ## The clause a re-implementer cannot avoid writing
       //
-      // **The second argument.** A re-implementer who reads the benchmark's
-      // window on its own `new Date()`, or inside a helper with its own clock,
-      // writes a `fiveMinuteReturn(…, { asOf: … })` whose options text differs
-      // from the subject's — and that is the defect, whatever the identifiers
-      // are called. Two reads sharing one options expression is the only
-      // shape that cannot be two instants.
+      // **The argument that fixes the interval.** A re-implementer who reads
+      // the benchmark's leg on its own `new Date()`, or inside a helper with
+      // its own clock, writes a `fiveMinuteReturn(…, { asOf: … })` whose
+      // options text differs from the subject's — and that is the defect,
+      // whatever the identifiers are called. Two reads sharing one interval
+      // expression is the only shape that cannot be two intervals.
+      //
+      // ## WIDENED 2026-10-26 (Task 5.6.6): there are TWO producers, and a
+      // ## check that knew one reported a correct pass as a defect
+      //
+      // The nightly pass stores the composite for the last completed session
+      // (`0017_session_composite_scores.sql`), so it calls this factor over the
+      // **stored** producer — `sessionClosingReturn`, which walks ~24,000 `sip`
+      // closes keyed by instant. That is a second implementation on purpose:
+      // `session-percentile.ts` records that handing the map to
+      // `fiveMinuteReturn` would mean forging 24,000 `LiveObservation`s with a
+      // `BarSource` nobody retrieved, which is what ADR 0031 exists to refuse.
+      //
+      // So the property is **one interval**, not one `asOf`, and what fixes an
+      // interval differs by producer:
+      //
+      //   - `fiveMinuteReturn(window, OPTIONS)` — the `OPTIONS` argument,
+      //     which carries `asOf`;
+      //   - `sessionClosingReturn({ session: SESSION, closes })` — the
+      //     `session` property, because the closes are per security by design
+      //     and the session is the thing both legs must share.
+      //
+      // The two producers may **not** be mixed in one file, which is a
+      // stricter clause than the original and is the one this widening owes: a
+      // live figure differenced against a stored one is two intervals wearing
+      // one expression, and that is the 2026-10-26 defect one layer up.
       const CALL = /\bexcessMoveFactor\s*\(/gu;
       const READ = /\bfiveMinuteReturn\s*\(/gu;
+      const SESSION_READ = /\bsessionClosingReturn\s*\(/gu;
 
       /** The argument list at `from`, by balanced parentheses. */
       const argumentsAt = (text, from) => {
@@ -8703,6 +8729,33 @@ const INVARIANTS = [
           }
         }
         return text.slice(from, end);
+      };
+
+      /**
+       * The `session:` property's own expression, by balanced delimiters — the
+       * stored producer's interval key. See the widening above.
+       */
+      const sessionArgument = (list) => {
+        const at = list.search(/\bsession\s*:/u);
+        if (at < 0) return "";
+        const after = list.slice(list.indexOf(":", at) + 1);
+        let depth = 0;
+        for (let index = 0; index < after.length; index += 1) {
+          const character = after[index];
+          if (character === "(" || character === "{" || character === "[") {
+            depth += 1;
+          } else if (
+            character === ")" ||
+            character === "}" ||
+            character === "]"
+          ) {
+            if (depth === 0) return after.slice(0, index).trim();
+            depth -= 1;
+          } else if (character === "," && depth === 0) {
+            return after.slice(0, index).trim();
+          }
+        }
+        return after.replace(/\s+/gu, " ").trim();
       };
 
       /** Everything after the first top-level comma, whitespace-collapsed. */
@@ -8746,39 +8799,60 @@ const INVARIANTS = [
         if (calls.length === 0) continue;
         callSites += calls.length;
 
-        // Every window read in this file, by the instant it was read against.
-        const instants = new Map();
-        for (const read of text.matchAll(READ)) {
-          const index = read.index ?? 0;
-          if (
-            /\bfunction\s+$/u.test(text.slice(Math.max(0, index - 20), index))
-          ) {
-            continue;
-          }
-          const asOf = secondArgument(
-            argumentsAt(text, index + read[0].length),
-          );
-          instants.set(asOf, (instants.get(asOf) ?? 0) + 1);
-        }
+        // Every five-minute-return read in this file, by the expression that
+        // fixes the interval it was read over. The producer's name travels
+        // inside the key, so a file mixing the two has two keys rather than one
+        // that happens to collide.
+        const intervals = new Map();
+        const producers = new Set();
 
-        const reads = [...instants.values()].reduce(
+        const record = (pattern, producer, keyOf) => {
+          for (const read of text.matchAll(pattern)) {
+            const index = read.index ?? 0;
+            if (
+              /\bfunction\s+$/u.test(text.slice(Math.max(0, index - 20), index))
+            ) {
+              continue;
+            }
+            producers.add(producer);
+            const key = `${producer}(${keyOf(
+              argumentsAt(text, index + read[0].length),
+            )})`;
+            intervals.set(key, (intervals.get(key) ?? 0) + 1);
+          }
+        };
+
+        record(READ, "fiveMinuteReturn", secondArgument);
+        record(SESSION_READ, "sessionClosingReturn", sessionArgument);
+
+        const reads = [...intervals.values()].reduce(
           (total, count) => total + count,
           0,
         );
 
         if (reads < 2) {
           offenders.push(
-            `${file}: ${String(reads)} \`fiveMinuteReturn\` read(s) beside ` +
+            `${file}: ${String(reads)} five-minute-return read(s) beside ` +
               `${String(calls.length)} \`excessMoveFactor\` call(s) — the ` +
               "benchmark's own five-minute return is not read here at all",
           );
           continue;
         }
 
-        if (instants.size > 1) {
+        if (producers.size > 1) {
           offenders.push(
-            `${file}: ${String(instants.size)} different instants — ` +
-              [...instants.keys()].map((asOf) => `\`${asOf}\``).join(", "),
+            `${file}: ${String(producers.size)} different producers — ` +
+              [...producers].map((name) => `\`${name}\``).join(", ") +
+              " — a live figure differenced against a stored one is two " +
+              "intervals wearing one expression",
+          );
+          continue;
+        }
+
+        if (intervals.size > 1) {
+          offenders.push(
+            `${file}: ${String(intervals.size)} different intervals — ` +
+              [...intervals.keys()].map((key) => `\`${key}\``).join(", "),
           );
         }
       }
@@ -8803,8 +8877,11 @@ const INVARIANTS = [
             "\n    The subject's five-minute return and its benchmark's are " +
             "SUBTRACTED from each other, so they have to be measured over the " +
             "same five minutes: read both with `fiveMinuteReturn(windows." +
-            "read(symbol), { asOf })` off ONE `asOf`. Two instants — a second " +
-            "`new Date()`, or a helper that reads its own clock — produce a " +
+            "read(symbol), { asOf })` off ONE `asOf`, or both with " +
+            "`sessionClosingReturn({ session, closes })` off ONE session — " +
+            "and never one of each. Two intervals — a second " +
+            "`new Date()`, a second session, or a helper that reads its own " +
+            "clock — produce a " +
             "figure that is well-formed, correctly signed and wrong, and " +
             "NOTHING on the wire can see it: a score from two instants " +
             "re-adds to itself, so every one of `readAnomalyScore`'s checks " +
@@ -8923,6 +9000,126 @@ const INVARIANTS = [
             "factor that has a figure and no distribution of it; a site " +
             "elsewhere is some other factor borrowing a sentence that is not " +
             "about it.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "a-stored-composite-is-minted-from-its-answers",
+    claim:
+      "Every shipped file that queries `session_composite_scores` mints its " +
+      "score with `scoreAnomaly` from the row's stored factor answers, and " +
+      "none of them returns the stored `score` column as the figure.",
+    check() {
+      // **Task 5.6.6.** `0017_session_composite_scores.sql` stores the three
+      // factor **answers** as the row's content and the minted `score`, `band`
+      // and `max` **as well** — §5 — and the whole value of the pair is that
+      // the second set is read only to be **disagreed with**. A reader that
+      // returned the stored column would make the table authoritative about a
+      // figure that is a function of two policies, both of which carry
+      // reversal triggers: `FACTOR_WEIGHTS`' is a measurement of two factors'
+      // relative discriminating power, and `ANOMALY_BAND_FLOORS`' first is *the
+      // first score computed over a factor set this derivation did not
+      // measure*.
+      //
+      // ## What the defect looks like, and why nothing else sees it
+      //
+      // A weight change ships, the nightly pass re-runs tonight, and **60
+      // sessions of rows keep their old scores** — well-formed integers in
+      // range, each with a band that agrees with the floors that produced it,
+      // every database constraint satisfied. `/`'s out-of-hours ranking would
+      // then be by the old policy and its in-session ranking by the new one:
+      // two quantities in one column on different days, which is the exact
+      // thing this whole task exists to prevent. No test, no frame and no
+      // `check` constraint can tell the two apart, because the arithmetic that
+      // would disagree is the arithmetic that was not run.
+      //
+      // ## TWO conjuncts, and the first one alone is not provable
+      //
+      // **1. The call.** A reader that returns the stored column has no use for
+      // `scoreAnomaly` at all — the whole point of the shortcut is that the
+      // arithmetic is skipped — and `@typescript-eslint/no-unused-vars` kills a
+      // mint whose result is never read, so the two halves of the defect are
+      // mechanically coupled: you cannot keep the call and take the shortcut
+      // without the lint failing.
+      //
+      // **2. The assignment, and it is here because conjunct 1 cannot be
+      // broken by a substitution that keeps its own `find` text.** A break
+      // whose `replace` deletes the line it found goes red **twice** — once
+      // from `every-break-can-still-land` about the break and once from a
+      // clause the plant was not written for — which is the 2026-10-16 lesson
+      // and reads exactly like a thorough proof while establishing nothing. So
+      // the clause a re-implementer cannot avoid is also expressed as
+      // something a plant can **append**: a property named `score`, `band` or
+      // `max` assigned from a member read of the same name, off anything that
+      // is not a **minted outcome**. `score: row.score` is the defect;
+      // `score: score.outcome.score` — the write path handing the minted figure
+      // to the row — is not, and the discriminant is the identifier `outcome`,
+      // which is the only thing in this product that holds a minted score.
+      //
+      // The corpus is **the query subject** rather than the table's name
+      // anywhere: `"session_composite_scores"` complete with its closing quote
+      // matches `selectFrom(…)` and `insertInto(…)` and does **not** match
+      // `schema.ts`' docblocks, which spell it in backticks, or the select
+      // list's `"session_composite_scores.score"`. A new reader is a new file
+      // that issues a query, which is the shape this repository's convention
+      // forces, and the anchor below is what keeps the corpus honest.
+      const SUBJECT = '"session_composite_scores"';
+      const MINT = /\bscoreAnomaly\s*\(/u;
+      // `score: X.score`, `band: X.band`, `max: X.max` where `X` does not name
+      // a minted outcome. Conjunct 2; see above.
+      const STORED_FIGURE =
+        /\b(score|band|max)\s*:\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.\1\b/gu;
+
+      const readers = shippedSourceFiles()
+        .filter(({ text }) => text.includes(SUBJECT))
+        .map(({ path, text }) => ({ path: relative(REPO_ROOT, path), text }));
+
+      // The anchor. A check that is vacuous when the table loses its reader is
+      // a check that reports a pass on the one state it cannot tolerate.
+      if (readers.length === 0) {
+        throw new InvariantFailure(
+          "No shipped file queries `session_composite_scores`, and this " +
+            "check has nothing to say. Either the stored composite lost its " +
+            "store — in which case `0017`'s two tables are dead and should be " +
+            "dropped rather than left to be found — or the query moved behind " +
+            "a name this pattern cannot see. Repoint it in the same change.",
+        );
+      }
+
+      const offenders = [];
+
+      for (const { path, text } of readers) {
+        if (!MINT.test(text)) {
+          offenders.push(`${path}: never calls \`scoreAnomaly\``);
+        }
+
+        for (const read of text.matchAll(STORED_FIGURE)) {
+          const receiver = read[2] ?? "";
+          if (/\boutcome\b/u.test(receiver)) continue;
+          offenders.push(`${path}: \`${read[0]}\` — not a minted outcome`);
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} site(s) querying ` +
+            "`session_composite_scores` do not mint the figure they " +
+            "return:\n      " +
+            offenders.join("\n      ") +
+            "\n    A stored composite is a CACHE OF A POLICY, not of a " +
+            "measurement: the score is a function of `FACTOR_WEIGHTS` and " +
+            "`ANOMALY_BAND_FLOORS`, both of which carry reversal triggers. So " +
+            "the row's content is the three factor ANSWERS and the reader " +
+            "mints from them — `0017` §5 — while the stored `score`, `band` " +
+            "and `max` are read only to be disagreed with, which is what makes " +
+            "a producer/reader split detectable at all. Returning the stored " +
+            "column instead leaves a weight change with 60 sessions of stale " +
+            "scores behind it, every one of them a well-formed integer in " +
+            "range with a band that agrees with the floors that produced it, " +
+            "and nothing in the database, on the wire or on the screen able to " +
+            "say the meaning changed.",
         );
       }
     },

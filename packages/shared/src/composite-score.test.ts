@@ -8,6 +8,7 @@ import {
   FACTOR_WEIGHTS,
   bandOf,
   readAnomalyScore,
+  readFactorAnswer,
   scoreAnomaly,
   toWireAnomalyScore,
 } from "./composite-score.js";
@@ -972,5 +973,194 @@ describe("the fourth arm — a figure with no distribution behind it", () => {
 
     expect(outcome.scored).toBe(false);
     expect(outcome.absent).toHaveLength(COMPOSITE_FACTORS.length);
+  });
+});
+
+describe("readFactorAnswer", () => {
+  // **The stored reader** (Task 5.6.6) — a `0017` row's column group, read
+  // back into one arm. It is in this module and not beside the `select` for the
+  // reason its docblock gives: the rule it applies is *which members does each
+  // arm require, and where is `0` a legal sample*, which is this type's rule
+  // and is already expressed twice here for a frame.
+
+  it("reads each of the four arms back", () => {
+    expect(
+      readFactorAnswer({
+        state: "ranked",
+        rank: 99,
+        aboveSample: false,
+        sampleCount: 4620,
+      }),
+    ).toEqual({
+      state: "ranked",
+      rank: 99,
+      aboveSample: false,
+      sampleCount: 4620,
+    });
+
+    expect(
+      readFactorAnswer({
+        state: "refused",
+        refusal: "too-few-samples",
+        sampleCount: 0,
+        minimumSampleCount: 2500,
+      }),
+    ).toEqual({
+      state: "refused",
+      refusal: "too-few-samples",
+      sampleCount: 0,
+      minimumSampleCount: 2500,
+    });
+
+    expect(
+      readFactorAnswer({ state: "inapplicable", because: "is-benchmark" }),
+    ).toEqual({ state: "inapplicable", because: "is-benchmark" });
+
+    expect(readFactorAnswer({ state: "no-distribution" })).toEqual({
+      state: "no-distribution",
+    });
+  });
+
+  it("refuses an unknown state rather than falling through to an arm", () => {
+    // The payload-free arm is the one answer that looks correct about every
+    // security at once, so a fifth word must not reach it.
+    expect(readFactorAnswer({ state: "measured" })).toBeUndefined();
+    expect(readFactorAnswer({ state: "" })).toBeUndefined();
+    expect(readFactorAnswer({})).toBeUndefined();
+    expect(readFactorAnswer(null)).toBeUndefined();
+    expect(readFactorAnswer([])).toBeUndefined();
+  });
+
+  it("refuses `0` as a RANKED factor's sample and accepts it on a refusal", () => {
+    // An ordinal taken against an empty distribution is not an ordinal;
+    // `0 of 2,500 returns` is a cold replica's own true sentence.
+    // `readFactorClause` and `readAbsentClause` apply the identical pair.
+    expect(
+      readFactorAnswer({
+        state: "ranked",
+        rank: 0,
+        aboveSample: false,
+        sampleCount: 0,
+      }),
+    ).toBeUndefined();
+
+    expect(
+      readFactorAnswer({
+        state: "refused",
+        refusal: "no-subject-move",
+        sampleCount: 0,
+        minimumSampleCount: 2500,
+      }),
+    ).not.toBeUndefined();
+  });
+
+  it("refuses a bound of `0` on a refusal", () => {
+    // *There is no bound at all* is not encodable on this arm, which is the
+    // whole reason `no-distribution` exists as a fourth arm rather than a
+    // refusal with an invented figure.
+    expect(
+      readFactorAnswer({
+        state: "refused",
+        refusal: "too-few-samples",
+        sampleCount: 0,
+        minimumSampleCount: 0,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("refuses a rank of `100`, a negative one and a fractional one", () => {
+    // Above the highest order statistic there is no sample.
+    for (const rank of [100, 140, -1, 0.5]) {
+      expect(
+        readFactorAnswer({
+          state: "ranked",
+          rank,
+          aboveSample: false,
+          sampleCount: 4620,
+        }),
+      ).toBeUndefined();
+    }
+  });
+
+  it("refuses a numeric member that arrived as a STRING", () => {
+    // A `bigint` column reaches JavaScript as a `string`
+    // (`migrations/README.md` §4) and converting it is the caller's decision,
+    // taken beside its own query. A coercion here would be the one place
+    // `"1e400"` becomes `Infinity` with nothing saying so.
+    expect(
+      readFactorAnswer({
+        state: "ranked",
+        rank: 99,
+        aboveSample: false,
+        sampleCount: "4620",
+      }),
+    ).toBeUndefined();
+  });
+
+  it("refuses an empty refusal word and an empty inapplicability word", () => {
+    expect(
+      readFactorAnswer({
+        state: "refused",
+        refusal: "",
+        sampleCount: 0,
+        minimumSampleCount: 2500,
+      }),
+    ).toBeUndefined();
+
+    expect(
+      readFactorAnswer({ state: "inapplicable", because: "" }),
+    ).toBeUndefined();
+  });
+
+  it("does NOT check a refusal word against a list", () => {
+    // `readAbsentClause`'s own recorded rule for the same field: a vocabulary
+    // member a newer producer knows and this bundle does not would otherwise
+    // delete a row from a ranked list rather than draw it. The database is the
+    // opposite boundary and holds the list — `0017` §6 — because there the
+    // writer is ours.
+    expect(
+      readFactorAnswer({
+        state: "refused",
+        refusal: "a-word-no-bundle-knows",
+        sampleCount: 7,
+        minimumSampleCount: 2500,
+      }),
+    ).toEqual({
+      state: "refused",
+      refusal: "a-word-no-bundle-knows",
+      sampleCount: 7,
+      minimumSampleCount: 2500,
+    });
+  });
+
+  it("round-trips every arm `scoreAnomaly` can be given", () => {
+    // The property the store rests on: what the pass wrote, read back, scores
+    // to the same figure. `0017` §5's producer/reader check is exactly this
+    // equality, taken against the stored columns.
+    const answers: Record<CompositeFactor, FactorAnswer> = {
+      price: {
+        state: "ranked",
+        rank: 99,
+        aboveSample: false,
+        sampleCount: 4620,
+      },
+      excess: {
+        state: "refused",
+        refusal: "mixed-basis",
+        sampleCount: 4281,
+        minimumSampleCount: 2500,
+      },
+      volume: { state: "no-distribution" },
+    };
+
+    const read = Object.fromEntries(
+      COMPOSITE_FACTORS.map((factor) => [
+        factor,
+        readFactorAnswer(answers[factor]),
+      ]),
+    ) as Record<CompositeFactor, FactorAnswer>;
+
+    expect(read).toEqual(answers);
+    expect(scoreAnomaly(read)).toEqual(scoreAnomaly(answers));
   });
 });

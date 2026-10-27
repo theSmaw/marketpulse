@@ -5789,4 +5789,86 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "amber-appears-once-in-the-rail",
   },
+  {
+    name: "the-stored-score-is-read-rather-than-minted",
+    proves:
+      "`a-stored-composite-is-minted-from-its-answers` goes red on a reader " +
+      "of `session_composite_scores` that returns the row's own `score`, " +
+      "`band` and `max` columns instead of minting them from the three factor " +
+      "answers the row carries.\n\n" +
+      "**That is the defect of the next weight change, not of today.** The " +
+      "store ships both halves because `0017` §5 asks for both: the answers " +
+      "ARE the row's content and the minted figures are stored **as well**, " +
+      "so a producer/reader split is detectable. A reader that returns the " +
+      "stored column makes the table authoritative about a figure that is a " +
+      "function of `FACTOR_WEIGHTS` and `ANOMALY_BAND_FLOORS` — both of which " +
+      "carry reversal triggers — so the day either moves, 60 sessions of rows " +
+      "keep their old scores: well-formed integers in range, each with a band " +
+      "that agrees with the floors that produced it, every `check` constraint " +
+      "satisfied.\n\n" +
+      "**Nothing else can see it.** The database cannot: the row is legal. " +
+      "The wire cannot: a stale score re-adds to itself from its own stale " +
+      "clauses, so all five of `readAnomalyScore`'s checks are green. `pnpm " +
+      "e2e` cannot: CI's store is 516 securities, zero bars and no nightly " +
+      "runner, so `readNewestSession` is `undefined` there for ever. And the " +
+      "screen cannot, because the figure it would contradict is the figure it " +
+      "is drawing.\n\n" +
+      "**The plant APPENDS and keeps the found line**, which is why the check " +
+      "has a second conjunct at all. Conjunct 1 is *the file calls " +
+      "`scoreAnomaly`*, and a substitution that deleted the call would also " +
+      "delete the registry's own `find` — two reds, one of them from " +
+      "`every-break-can-still-land` about the break rather than from the " +
+      "check under test, which is the 2026-10-16 lesson. Conjunct 2 is the " +
+      "assignment, and an assignment can be appended beside a mint that is " +
+      "still there.",
+    file: "apps/backend/src/session-composite-store.ts",
+    find: "        scores.push({ symbol: toTicker(row.symbol), outcome, answers });",
+    replace:
+      "        scores.push({ symbol: toTicker(row.symbol), outcome, answers });\n" +
+      "        // pnpm break: reverted automatically\n" +
+      "        void { score: row.score, band: row.band, max: row.max };",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-stored-composite-is-minted-from-its-answers",
+  },
+  {
+    name: "a-second-session-for-the-benchmark",
+    proves:
+      "`one-instant-for-a-subject-and-its-benchmark`'s WIDENED arm goes red " +
+      "on a nightly pass that reads one leg of the excess over a different " +
+      "session from the other.\n\n" +
+      "**It is the stored producer's half of the 2026-10-26 defect**, and the " +
+      "arm exists because that check knew one producer and the composite now " +
+      "has two. `a-second-instant-for-the-benchmark` plants an `asOf` on the " +
+      "live path, where the interval is fixed by a clock; here it is fixed by " +
+      "a **session**, because `sessionClosingReturn` walks ~24,000 stored " +
+      "`sip` closes keyed by instant and may not be `fiveMinuteReturn` — " +
+      "`session-percentile.ts` records that forging 24,000 `LiveObservation`s " +
+      "with a `BarSource` nobody retrieved is what ADR 0031 exists to " +
+      "refuse.\n\n" +
+      "**Every other guard is green on it.** The types agree: both legs are " +
+      "`ExcessLeg`s of the right shape. `the-excess-numerator-spans-its-" +
+      "baseline` is green, because both legs are five-minute returns and the " +
+      "span matches the distribution's stride — the defect is WHICH five " +
+      "minutes, not how long. And the symptom is not a wrong number, which " +
+      "is what makes it worse: the factor refuses a pair whose endpoints " +
+      "disagree, so every equity goes quietly `mixed-basis` and 60 sessions " +
+      "of stored composites become price-only scores capped at 40, each one " +
+      "an honest-looking `1 of 3`.\n\n" +
+      "**The plant APPENDS beside the found line** rather than replacing it, " +
+      "so the registry's own `find` survives its own break (2026-10-16).",
+    file: "apps/backend/src/compute-baselines.ts",
+    find: "  const scored = window.sessions[window.sessions.length - 1];",
+    replace:
+      "  const scored = window.sessions[window.sessions.length - 1];\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const onItsOwnSession = window.sessions[0];\n" +
+      "  void (onItsOwnSession === undefined\n" +
+      "    ? undefined\n" +
+      "    : sessionClosingReturn({\n" +
+      "        session: onItsOwnSession,\n" +
+      "        closes: new Map(),\n" +
+      "      }));",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-instant-for-a-subject-and-its-benchmark",
+  },
 ];
