@@ -2179,6 +2179,47 @@ state is reached by keyboard" --repeat-each=24 --workers=4`, load ratio under
 arm that reaches it is `pnpm e2e` whole — which is the suite being its own
 plant, and is expensive.
 
+### Measured 2026-10-28 by Task 5.6.7, and the WORKER COUNT is the variable — in the OPPOSITE direction to every other flake in this file
+
+The entry's own re-measure, run verbatim at a load average of **3.67** read
+before the arm:
+
+```
+pnpm e2e overview-nothing-to-open.spec.ts -g "UN-PINNABLE hold state is reached by keyboard" --repeat-each=24 --workers=4
+  24 passed (18.1s)
+```
+
+**0 / 24 at four workers.** But the same test at **one** worker, immediately
+before:
+
+```
+pnpm e2e … -g "UN-PINNABLE hold state" --workers=1 --repeat-each=12
+  9 passed, 3 failed
+```
+
+**3 / 12 — 25% — at ONE worker, and 0 / 24 at FOUR.** It was seen once in a
+settled `--workers=2` full run on the same tree, which is consistent with a rate
+between the two.
+
+**This inverts the assumption every other entry in this file rests on.**
+`security-gap-fill` is **0% at one worker and 5.6% at four**;
+`market-gateway.process.test.ts` runs **0% quiet and 79% loaded**. Those get
+worse with contention. **This one gets worse with LESS of it**, and the
+mechanism in the entry above explains why: the failure is a **furnished frame
+that has not arrived, rendered and been read** when the assertion runs. At one
+worker the repeats run back to back in one browser with no scheduling slack
+between them; at four they are spread, and each gets more wall-clock between
+navigation and assertion than it does when it is the only thing running.
+
+**So the standing advice — _re-run a suspected flake alone to tell it from a
+regression_ — is exactly backwards for this one.** Running it alone is the arm
+most likely to fail it, and a developer who saw it red in a suite, re-ran it
+alone, saw it red again and concluded "regression" would be wrong twice.
+
+**Re-measure unchanged**, but take **both** arms: `--workers=4` and
+`--workers=1`, 24 executions each, counting failures per execution, with the
+load read before. **The figure to report is the pair**, not either alone.
+
 **Owner: Story 4.9, beside its `pnpm e2e` ×3 arm**, which is the only place in
 the epic already paying for whole-suite executions.
 

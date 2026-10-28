@@ -61,13 +61,21 @@ const COUNTS = { scored: 455, eligible: 466, tracked: 501 } as const;
  * importing its builder would make this spec agree with it by construction. If
  * the product's words change, these strings are supposed to need changing.
  */
+// **Updated 2026-10-28 by Task 5.6.7, which is this comment working as
+// designed.** The cut stopped being "a long enough history to rank" when the
+// region stopped ranking by one factor: it now states the COHORT — how many
+// factors scored and the maximum they can reach — because two scores are
+// comparable only if computed over the same factor set, and a reader cannot
+// read `75` without knowing it is out of 75 rather than 100.
 const SESSION_CLAIM =
   "Of the 501 companies we track, 466 had a measurable 5-minute move into " +
-  "the close on 2026-10-14 and 455 have a long enough history to rank.";
+  "the close on 2026-10-14 and 455 have a score on 2 of 3 factors, to a " +
+  "maximum of 75. 11 have too short a baseline.";
 
 const OBSERVED_CLAIM =
   "Of the 501 companies we track, 466 were heard from in the last 5 " +
-  "minutes and 455 have a long enough history to rank.";
+  "minutes and 455 have a score on 2 of 3 factors, to a maximum of 75. " +
+  "11 have too short a baseline.";
 
 const region = (page: Page) =>
   page.getByRole("region", { name: "Unusual activity" });

@@ -248,7 +248,13 @@ test("the list is ten rows at the pitch the grid is sized off, with no implicit 
 }) => {
   await open(page);
 
-  const rows = region(page).getByRole("listitem");
+  // **The ELEMENTS, not the accessible rows** — corrected 2026-10-28, and the
+  // distinction is the whole check. The held pads that fill a short list are
+  // `aria-hidden`, so `getByRole("listitem")` sees only the rows that carry a
+  // security: three, against a furnished section of three. This assertion is
+  // about GEOMETRY — the pitch the grid row is sized off — and the pads occupy
+  // that geometry whether or not a listener is told about them.
+  const rows = region(page).locator("li");
   await expect(rows).toHaveCount(10);
 
   const boxes = await rows.evaluateAll((nodes) =>
