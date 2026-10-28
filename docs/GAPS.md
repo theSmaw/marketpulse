@@ -4871,3 +4871,47 @@ been in a version of this state since 2026-10-12, when two symbols became
 `UNIVERSE`'s symbols. **Condition for repair:** the first pass whose `absent`
 count is not explained by missing bars — at which point the summary needs to
 separate the two, which is one more counter rather than a design question.
+
+## The stored composite is written and read by NOBODY, and the pass's cold figure is not a cold figure
+
+**Added 2026-10-26 by Task 5.6.6.** `0017_session_composite_scores` is applied,
+the nightly pass writes it, and `session-composite-store.ts` and
+`session-composite-cache.ts` read it — and **no shipped process constructs that
+cache.** `index.ts` does not, `market-unusual.ts` does not read it, and no frame
+carries it: the wire row's new shape and the session arm's ranking are **Task
+5.6.7's**, deliberately, because they are browser-visible and were not folded
+into a migration task.
+
+So three things are true at once and only the first is guarded. The store's read
+path is driven against a real table by
+`session-composite-scores.database.test.ts` (26 tests, 383 in the suite), the
+cache's floor and failure behaviour by `session-composite-cache.test.ts` — and
+**the pair has never run in a process that serves anybody.** The startup load,
+the warning a disagreement logs, and whether `COMPOSITE_RANKING_REFRESH_FLOOR_MS`
+is the right floor against the real ask cadence are all unexercised.
+
+**And on CI it is unexercisable, permanently.** CI's store is 516 securities with
+**zero bars** and no nightly runner, so `readNewestSession` is `undefined` there
+for ever and every assertion a browser could make about a stored composite is an
+assertion about the honest-nothing state.
+
+**The pass's "cold" figure is the other half, and it is named rather than
+claimed.** Measured on the local store (48.8 M bars, 516 securities) on
+2026-10-26: **24.434 s** on the first run after the migration, then **19.359 s**
+and **18.418 s**. The first figure is _first run after a catalogue write_, **not
+a cold heap**: a true cold reading needs the database's shared buffers and the
+host page cache dropped, which means restarting the container, and a dev pair was
+running against it. Task 5.6.2's `26.4 s cold, 17.0/19.2 s warm` for the three
+baselines is the only cold reading this pass has ever had and it is a **dated
+figure taken before this task's work existed** — so the composite's marginal cost
+is **not measured**, only bounded above by the difference between two readings
+taken on two days.
+
+What is measured is that it issues **no read of its own**: every input is a value
+one of the four stores already produced in the same iteration, and the only new
+statements are 485 upserts and one pass row.
+
+**Re-measure:** `pnpm db down && pnpm db`, wait for health, then
+`time node scripts/compute-baselines.mjs` twice — with no dev pair attached.
+**Owner: Task 5.6.7** for the reader, and **Task 5.6.8** for the cold figure at
+the story's close.

@@ -1,3 +1,7 @@
+import { EXCESS_FACTOR_REFUSALS } from "./excess-move.js";
+import { PERCENTILE_REFUSALS } from "./return-baseline.js";
+import { VOLUME_REFUSALS } from "./volume-baseline.js";
+
 import type { AnomalyBand } from "./anomaly.js";
 import type {
   ExcessFactorRefusal,
@@ -356,6 +360,44 @@ export type FactorRefusal =
   PercentileRefusal | ExcessFactorRefusal | VolumeRefusal;
 
 /**
+ * **Every word {@link FactorRefusal} can hold, as a VALUE — derived from the
+ * three vocabularies and never a fourth copy of them** (Task 5.6.6).
+ *
+ * The type above is a union of three closed lists that each live beside the
+ * producer that owns them. What had no runtime form was the **union**, and
+ * `0017_session_composite_scores.sql` needs one: a stored factor answer carries
+ * its refusal word, and `README.md` §1's rule is that a closed set of values is
+ * `text` with a `check` constraint — *"the database's backstop against a writer
+ * that bypassed it"*. A hand-written list in the migration would be a fourth
+ * home for three vocabularies, so the migration's constraint is asserted
+ * against **this** array by `session-composite-scores.database.test.ts`, which
+ * is `market-bars.database.test.ts`' arrangement for `PROVIDER_IDS` and
+ * `MARKET_FEEDS`.
+ *
+ * **Deduplicated, because the three lists overlap** — `split-discontinuity` is
+ * in two of them and `too-few-samples` in two — and the insertion order is
+ * `PercentileRefusal`, then the excess's, then the volume's, so the array is
+ * deterministic and a `check` written from it is stable across runs.
+ *
+ * ## It does NOT narrow what a reader accepts, deliberately
+ *
+ * {@link readAnomalyScore} validates that a refusal is a non-empty string and
+ * **not** that it is a member of this list, on `readReturnPercentile`'s own
+ * recorded grounds: *a vocabulary member a newer gateway knows and this bundle
+ * does not would otherwise refuse a frame the producer is being honest in.*
+ * The database is the opposite boundary — our own nightly writer, where a word
+ * nobody has migrated for should be a loud refusal rather than a stored string
+ * no reader has a sentence for — so the two disagree on purpose.
+ */
+export const COMPOSITE_FACTOR_REFUSALS: readonly FactorRefusal[] = [
+  ...new Set<FactorRefusal>([
+    ...PERCENTILE_REFUSALS,
+    ...EXCESS_FACTOR_REFUSALS,
+    ...VOLUME_REFUSALS,
+  ]),
+];
+
+/**
  * **Why a factor's question does not arise** — the composite's own
  * inapplicability type, by reference to each factor's vocabulary exactly as
  * {@link FactorRefusal} is.
@@ -506,6 +548,40 @@ export type FactorAnswer =
        */
       readonly state: "no-distribution";
     };
+
+/**
+ * **{@link FactorAnswer}'s four arms, as a VALUE** (Task 5.6.6) — the
+ * discriminant spelled once so a stored row can carry it and a `check`
+ * constraint can bound it.
+ *
+ * The arms differ in **shape**, which is the whole mechanism above, and a
+ * stored row cannot: `0017_session_composite_scores.sql` holds one column group
+ * per factor, so the shape is expressed as a check that each arm's members are
+ * present exactly when its state is. That check needs the state's vocabulary,
+ * and `FACTOR_ANSWER_STATES_COVER_THE_ARMS` is what stops this list and the
+ * union drifting apart — a fifth arm is a compile error here rather than a
+ * state the database silently refuses on the first night it is written.
+ */
+export const FACTOR_ANSWER_STATES = [
+  "ranked",
+  "refused",
+  "inapplicable",
+  "no-distribution",
+] as const;
+
+/** One of {@link FACTOR_ANSWER_STATES}. */
+export type FactorAnswerState = (typeof FACTOR_ANSWER_STATES)[number];
+
+/**
+ * Every arm of {@link FactorAnswer} has a word in {@link FACTOR_ANSWER_STATES}.
+ * **A type-level assertion rather than a test** — `BandFloorsCoverTheBands`'
+ * mechanism, which is the only thing that cannot be forgotten.
+ */
+export type FactorAnswerStatesCoverTheArms =
+  FactorAnswer["state"] extends FactorAnswerState ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const FACTOR_ANSWER_STATES_COVER_THE_ARMS: FactorAnswerStatesCoverTheArms = true;
 
 /**
  * **A real symbol rather than a `declare const`, and the difference is load-
@@ -915,6 +991,104 @@ export function toWireAnomalyScore(
     })),
     absent: outcome.absent.map(absentToWire),
   };
+}
+
+/**
+ * **One factor's answer, read back from somewhere it was STORED** (Task 5.6.6)
+ * — the third reader in this module and the only one whose input is not a wire
+ * body.
+ *
+ * ## Why it is here and not in the store that calls it
+ *
+ * Because the rule it applies is this module's: *which members does each arm
+ * require, and where is `0` a legal sample*. `readFactorClause` and
+ * `readAbsentClause` already answer that for a frame — `0` is legal on a
+ * refusal and nowhere else, a bound of `0` is not a bound, a rank above `99`
+ * is not a rank — and a nightly pass's reader re-expressing it beside a
+ * `select` would be **a second home for the arms' own shape**, in a module that
+ * cannot see the type's docblocks.
+ *
+ * It also keeps one thing true that a check holds by counting:
+ * `no-distribution` is **constructed in exactly two places in this product**,
+ * its declaring module and the volume factor's builder, and
+ * `one-site-builds-the-no-distribution-arm` is red on a third. A store
+ * decoding its own stored rows would be that third site, and the arm is
+ * payload-free — so nothing in it would say the construction was a round-trip
+ * rather than a claim.
+ *
+ * ## What it does NOT validate, and that is `readAbsentClause`'s own rule
+ *
+ * The **refusal word** and the **inapplicability word** are checked to be
+ * non-empty strings and not against a list, for that function's recorded
+ * reason: a vocabulary member a newer producer knows and this bundle does not
+ * would otherwise delete a row rather than draw it. The database is the
+ * opposite boundary and holds the list — `0017` §6 — because there the writer
+ * is ours.
+ *
+ * Every numeric member must already **be** a number. A `bigint` column reaches
+ * JavaScript as a `string` (`migrations/README.md` §4) and converting it is the
+ * caller's decision, taken beside its own query; this function refuses a string
+ * rather than coercing one, because a coercion here would be the one place
+ * `"1e400"` becomes `Infinity` with nothing saying so.
+ */
+export function readFactorAnswer(value: unknown): FactorAnswer | undefined {
+  if (!isRecord(value)) return undefined;
+
+  if (value.state === "ranked") {
+    // **A rank is `0`–`99` and never `100`** — above the highest order
+    // statistic there is no sample — and **`0` is not a legal sample on a
+    // ranked factor**: an ordinal taken against an empty distribution is not
+    // an ordinal. `readFactorClause`'s identical pair.
+    if (!count(value.rank) || value.rank > 99) return undefined;
+    if (typeof value.aboveSample !== "boolean") return undefined;
+    if (!count(value.sampleCount) || value.sampleCount === 0) return undefined;
+
+    return {
+      state: "ranked",
+      rank: value.rank,
+      aboveSample: value.aboveSample,
+      sampleCount: value.sampleCount,
+    };
+  }
+
+  if (value.state === "refused") {
+    // **`0` IS a legal sample here and nowhere else** — `0 of 2,500` is a cold
+    // replica's own true sentence — and a bound of `0` is not a bound.
+    // `readAbsentClause`'s identical pair.
+    if (typeof value.refusal !== "string" || value.refusal === "") {
+      return undefined;
+    }
+    if (!count(value.sampleCount)) return undefined;
+    if (!count(value.minimumSampleCount) || value.minimumSampleCount === 0) {
+      return undefined;
+    }
+
+    return {
+      state: "refused",
+      refusal: value.refusal as FactorRefusal,
+      sampleCount: value.sampleCount,
+      minimumSampleCount: value.minimumSampleCount,
+    };
+  }
+
+  if (value.state === "inapplicable") {
+    if (typeof value.because !== "string" || value.because === "") {
+      return undefined;
+    }
+    return {
+      state: "inapplicable",
+      because: value.because as FactorInapplicability,
+    };
+  }
+
+  if (value.state === "no-distribution") {
+    // **Nothing to read beyond the word**, which is the arm's whole shape: an
+    // answer with a payload here would be a second answer to a question the
+    // `return` frame's `volume` half already answers.
+    return { state: "no-distribution" };
+  }
+
+  return undefined;
 }
 
 /** A record, for the reader's own narrowing. `readUnusual`'s `isRecord`. */

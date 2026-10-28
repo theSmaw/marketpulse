@@ -264,6 +264,80 @@ plus a chip breaks. Scope them; never loosen them.
 5. The recompute is rewritten by hand and its break goes red.
 6. `pnpm verify`, `pnpm e2e` green at two workers.
 
+## Amended by Task 5.6.6 — 2026-10-26: the SESSION arm's composite is stored, nothing reads it, and eight constraints come with it
+
+**`/`'s `Unusual activity` has two bases and the `session` arm — about 80% of
+the week, and permanently on CI — read a row carrying a percentile and no
+score.** `0017_session_composite_scores` now stores one per equity per session,
+written by the nightly pass. **This task is the reader**, and the following are
+constraints rather than suggestions: each is something Task 5.6.6 measured or
+decided for this task, written here in words this task can act on rather than
+as a pointer back.
+
+1. **Nothing constructs the cache.** `session-composite-cache.ts` exists and is
+   unit-tested; `index.ts` does **not** build it, so this task owes the
+   construction and the startup `load(…)` off the hot path, beside the four
+   caches already there. The read must stay synchronous — `symbolReturn` and the
+   overview join run inside the socket's own callback, where an unhandled
+   rejection is a crashed process.
+
+2. **Read the MINTED outcome, never the stored column.** `readNewestSession`
+   returns `StoredCompositeScore.outcome`, minted by `scoreAnomaly` from the
+   row's three stored factor answers. The stored `score`, `band` and `max` are
+   read only to be disagreed with (`0017` §5), and
+   **`a-stored-composite-is-minted-from-its-answers`** in `pnpm invariants`
+   fails the build on a reader that returns the column instead. The break
+   `the-stored-score-is-read-rather-than-minted` proves it.
+
+3. **`StoredCompositeRanking.disagreed` must not vanish.** A row whose stored
+   figures do not reproduce is **dropped** — a rollback that put the runner and
+   this bundle two weight sets apart, which is detectable only because both
+   halves are stored. The cache logs it; this task decides whether the region's
+   own cut sentence needs it, and the chain to preserve is `rows ≤ scored`.
+   `scored` comes off the pass row and never from counting rows.
+
+4. **The stored cohort is `{price, excess}` for EVERY scored security, and
+   `max = 75` on every row.** Measured on the local store: 501 tracked, **485
+   scored**, 16 unscored, **0 single-factor scores** — not merely _dominated by_
+   the two-factor set. The two factors refuse for the same root causes, so a
+   security whose price factor refuses has an excess factor that refuses too.
+   **So the cohort rule has nothing to separate out of hours**, and `2 of 3 ·
+max 75` is the only label the session basis can draw today. Do not infer that
+   the live basis is the same shape — it is not measured.
+
+5. **`above_sample` is `false` on every stored row, for ever.** `0014` §5's
+   recorded asymmetry: the window the pass ranks against **contains** the sample
+   being ranked, so `>99th` is reachable in session and never out of hours. The
+   column exists because the shape is one shape.
+
+6. **The stored composite is EQUITIES ONLY — 501, never 516.** AC 13's reason:
+   scoring `SPY` and the eleven sector SPDRs beside their own constituents would
+   make this region and `Market proxies` / `Sector performance`
+   non-independent. `0017` §7 carries the condition for widening it, and it is
+   not this task's — _the first surface that needs a composite for a security
+   the market is shut on_, which is a security page's own score out of hours.
+
+7. **The weights and the floors the pass applied are on the pass row and travel
+   with the rows.** AC 2 publishes the weights on screen, and `0014` §5's rule
+   is that the figure the screen states must be the one the **producer**
+   applied — so out of hours the sentence reads `pass.weights`, not this
+   bundle's `FACTOR_WEIGHTS`. `pass.floors` is beside it for the same reason.
+
+8. **Band distribution over the 485, so the chip's states are known before you
+   draw them:** `normal 162, elevated 201, high 106, extreme 16` — 3.3% extreme
+   against Task 5.6.3's 1.6% at the median live instant. Mean score **43.87**,
+   range **3–75**. `ANOMALY_BAND_FLOORS`' trigger 2 (_a fifth of the universe at
+   `extreme`_) is nowhere near firing.
+
+**And one premise this file does not yet carry.** Its §1 amendment says _the
+order changes on the first frame_ and gives three row counts as evidence. Those
+counts are confirmed — `excess_move_baselines` 501, `return_baselines` 516,
+`session_return_percentiles` 485 — and what is now also true is that the stored
+composite's own order is a genuine re-order of the stored **percentile** order,
+because 485 of 485 rows add a second term. `compareByScore` is the one home for
+that order and `one-comparator-for-the-order-of-a-composite-score` refuses a
+second.
+
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 

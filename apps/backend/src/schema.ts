@@ -59,6 +59,10 @@
 import type { ColumnType, Generated, GeneratedAlways } from "kysely";
 
 import type {
+  AnomalyBand,
+  FactorAnswerState,
+  FactorInapplicability,
+  FactorRefusal,
   MarketFeed,
   ProviderId,
   ExcessBaselineRefusal,
@@ -1379,6 +1383,265 @@ export interface ExcessMoveBaselinePassesTable {
   recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * `session_composite_scores` — the **composite anomaly score** of one completed
+ * session, per security, with the three factor answers it was minted from (Task
+ * 5.6.6). See `../migrations/0017_session_composite_scores.sql`, which is the
+ * source of truth this mirrors and which carries the decisions, and
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md),
+ * which this **instantiates rather than extends**.
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **seventh derived table in this schema** — {@link
+ * SessionCompositeScorePassesTable} is the eighth — and the label is sharper
+ * here than on any of the six before it: **a stored composite is a cache of a
+ * POLICY**, not only of a measurement. Changing a weight, a band floor, a
+ * factor's unit mapping or the factor set is a delete and a re-run, never a
+ * backfill.
+ *
+ * ## Why it exists at all
+ *
+ * `/`'s `Unusual activity` has two bases. The `session` arm reads
+ * `session_return_percentiles`, which carries a **percentile and no score**, and
+ * that arm runs out of hours — about 80% of the week — and permanently on CI. A
+ * region drawing a composite in session and an ordinal the rest of the time
+ * would be two quantities in one column on different days.
+ *
+ * ## A row is a SCORE, and the answers are the row's content
+ *
+ * The migration's §4 and §5. `AnomalyScore.contributing` is a non-empty tuple,
+ * so a score with no contributing factor is untypeable one layer up, and
+ * `session_composite_scores_one_factor_contributes` is the same statement where
+ * a `null` cannot sneak past a type. The three factor answers are stored as
+ * three column groups — `FactorAnswer`'s four arms in columns — so the factor
+ * set **is** the set of states and `max` and `band` are derivable. The minted
+ * `score`, `band` and `max` are stored **as well**, which makes a
+ * producer/reader disagreement detectable; the reader mints from the answers
+ * and `a-stored-composite-is-minted-from-its-answers` in `pnpm invariants`
+ * fails the build on one that returns the stored column instead.
+ */
+export interface SessionCompositeScoresTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * `securities.id`, a real foreign key with no `on delete`. `string` because
+   * it is a `bigint`. `never` on update: a row does not change which security
+   * it describes.
+   */
+  security_id: ColumnType<string, string, never>;
+
+  /**
+   * **The scored session's close** — the coordinate a replay keys on, and
+   * `README.md` §2's reserved name so Epic 13's plugin covers this table with
+   * its generic predicate. No default; the writer supplies it.
+   *
+   * `never` on update: with `security_id` this is the row's identity.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The minted score, `0`–`100`** — `Σ round(w × u / 100)` over the
+   * contributing factors, in score points. `integer`, so a `number` on read
+   * rather than a `string`: `../migrations/README.md` §4's `bigint` rule is for
+   * a **count**, and a bounded 0–100 figure is neither a count nor a price.
+   */
+  score: ColumnType<number, number, number>;
+
+  /**
+   * `bandOf(score)` — derivable, stored for detectability. The vocabulary is
+   * `ANOMALY_BANDS` and `session_composite_scores_band_known` is the database's
+   * backstop against a writer that bypassed it.
+   */
+  band: ColumnType<AnomalyBand, AnomalyBand, AnomalyBand>;
+
+  /** **`Σ w` over this row's `ranked` factors**, `1`–`100`. */
+  max: ColumnType<number, number, number>;
+
+  /**
+   * **The price factor's answer** — `FactorAnswer`'s discriminant. Every column
+   * in the group below is present exactly when its arm's state is, which
+   * `session_composite_scores_price_answer_shape` holds in the database because
+   * a row cannot express arms that differ in shape.
+   */
+  price_state: ColumnType<
+    FactorAnswerState,
+    FactorAnswerState,
+    FactorAnswerState
+  >;
+  /** `ranked` only: the integer ordinal `0`–`99`. */
+  price_rank: ColumnType<number | null, number | null, number | null>;
+  /** `ranked` only. `false` on every row this pass writes; migration §5. */
+  price_above_sample: ColumnType<
+    boolean | null,
+    boolean | null,
+    boolean | null
+  >;
+  /** `ranked` or `refused`: the counted `n`. `bigint`, so `string` on read. */
+  price_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  /** `refused` only: the word, bounded by `COMPOSITE_FACTOR_REFUSALS`. */
+  price_refusal: ColumnType<
+    FactorRefusal | null,
+    FactorRefusal | null,
+    FactorRefusal | null
+  >;
+  /** `refused` only: the bound it was refused against. */
+  price_minimum_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  /** `inapplicable` only. Not bounded to a list; migration §6 says why. */
+  price_inapplicable_because: ColumnType<
+    FactorInapplicability | null,
+    FactorInapplicability | null,
+    FactorInapplicability | null
+  >;
+
+  /** **The excess-move factor's answer.** {@link price_state}'s group, repeated. */
+  excess_state: ColumnType<
+    FactorAnswerState,
+    FactorAnswerState,
+    FactorAnswerState
+  >;
+  excess_rank: ColumnType<number | null, number | null, number | null>;
+  excess_above_sample: ColumnType<
+    boolean | null,
+    boolean | null,
+    boolean | null
+  >;
+  excess_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  excess_refusal: ColumnType<
+    FactorRefusal | null,
+    FactorRefusal | null,
+    FactorRefusal | null
+  >;
+  excess_minimum_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  excess_inapplicable_because: ColumnType<
+    FactorInapplicability | null,
+    FactorInapplicability | null,
+    FactorInapplicability | null
+  >;
+
+  /**
+   * **The volume factor's answer** — `no-distribution` on every row ever
+   * written, so every other column in this group is `null` on every row. The
+   * group exists anyway: the factor set is the set of states, so a factor with
+   * no figure must still have a state in the row.
+   */
+  volume_state: ColumnType<
+    FactorAnswerState,
+    FactorAnswerState,
+    FactorAnswerState
+  >;
+  volume_rank: ColumnType<number | null, number | null, number | null>;
+  volume_above_sample: ColumnType<
+    boolean | null,
+    boolean | null,
+    boolean | null
+  >;
+  volume_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  volume_refusal: ColumnType<
+    FactorRefusal | null,
+    FactorRefusal | null,
+    FactorRefusal | null
+  >;
+  volume_minimum_sample_count: ColumnType<
+    string | null,
+    string | number | null,
+    string | number | null
+  >;
+  volume_inapplicable_because: ColumnType<
+    FactorInapplicability | null,
+    FactorInapplicability | null,
+    FactorInapplicability | null
+  >;
+
+  /** {@link ReturnBaselinesTable.recorded_at}'s note, unchanged. */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
+ * `session_composite_score_passes` — one row per pass recording **what the pass
+ * was over and the POLICY it applied** (Task 5.6.6). ADR 0044's 2026-10-16
+ * amendment, fourth application.
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **eighth derived table in this schema**; see
+ * {@link SessionCompositeScoresTable} for the label's cost.
+ *
+ * **Two populations that PARTITION** — `tracked = scored + unscored` — which is
+ * `volume_baseline_passes`' shape rather than
+ * `session_return_percentile_passes`' nesting: every tracked equity ends in
+ * exactly one of *it has a score* and *every factor was absent*. **The reasons
+ * are deliberately not here**: they are per factor and already have homes keyed
+ * on the same `observed_at`, in `session_return_percentile_passes` and
+ * `excess_move_baseline_passes`.
+ *
+ * **And it is where the policy lives**, which makes it different in kind from
+ * the three pass rows beside it: those carry the parameters a measurement was
+ * taken under, this one carries the judgements a score was minted under. Both
+ * `FACTOR_WEIGHTS` and `ANOMALY_BAND_FLOORS` have reversal triggers that can
+ * fire while 60 sessions of rows are standing.
+ */
+export interface SessionCompositeScorePassesTable {
+  id: GeneratedAlways<string>;
+
+  /**
+   * **The scored session's close**, and the natural key: one pass per session.
+   * No default, `never` on update.
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The two populations, which partition** —
+   * `tracked = scored + unscored`, checked in the database.
+   *
+   * `bigint`, so `string` on read: `../migrations/README.md` §4's rule for a
+   * count.
+   */
+  tracked_count: ColumnType<string, string | number, string | number>;
+  scored_count: ColumnType<string, string | number, string | number>;
+  unscored_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The weights the pass applied** — `FACTOR_WEIGHTS`, read from
+   * `packages/shared` and never spelled by the pass. Three columns rather than
+   * a `jsonb` map, so a fourth factor is a migration somebody writes.
+   */
+  price_weight: ColumnType<number, number, number>;
+  excess_weight: ColumnType<number, number, number>;
+  volume_weight: ColumnType<number, number, number>;
+
+  /**
+   * **The band floors the pass applied** — `ANOMALY_BAND_FLOORS`. `normal` is
+   * the floor-less arm, so three columns tile the four bands.
+   */
+  elevated_floor: ColumnType<number, number, number>;
+  high_floor: ColumnType<number, number, number>;
+  extreme_floor: ColumnType<number, number, number>;
+
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
@@ -1392,4 +1655,6 @@ export interface Database {
   volume_baseline_passes: VolumeBaselinePassesTable;
   excess_move_baselines: ExcessMoveBaselinesTable;
   excess_move_baseline_passes: ExcessMoveBaselinePassesTable;
+  session_composite_scores: SessionCompositeScoresTable;
+  session_composite_score_passes: SessionCompositeScorePassesTable;
 }

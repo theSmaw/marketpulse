@@ -2,9 +2,11 @@ import {
   BASELINE_LOOKBACK_SESSIONS,
   BASELINE_MINIMUM_SAMPLE,
   excessMoveReference,
+  scoreAnomaly,
 } from "@marketpulse/shared";
 
 import type {
+  AnomalyBand,
   ExcessBaselineRefusal,
   ExcessMoveReference,
   MarketSession,
@@ -36,12 +38,21 @@ import type {
   StoredReturnBaseline,
 } from "./return-baseline-store.js";
 import { createSessionPercentileStore } from "./session-percentile-store.js";
+import { createSessionCompositeStore } from "./session-composite-store.js";
+import type { SessionCompositeStore } from "./session-composite-store.js";
+import { compositeAnswers } from "./market-composite.js";
+import { excessMoveFactor } from "./excess-move-factor.js";
 import type {
   SessionPercentileStore,
   StoredSessionRefusals,
 } from "./session-percentile-store.js";
-import { sessionClosingReturn } from "./session-percentile.js";
+import { excessLegOf, sessionClosingReturn } from "./session-percentile.js";
+import type { SessionReturnOutcome } from "./session-percentile.js";
 import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
+import type {
+  BaselineComparison,
+  ReturnPercentile,
+} from "./return-percentile.js";
 import {
   TARGET_RELATIVE_STANDARD_ERROR,
   VOLUME_BASELINE_FEED,
@@ -62,6 +73,7 @@ import { createExcessBaselineStore } from "./excess-move-baseline-store.js";
 import type {
   ExcessBaselineStore,
   ExcessRefusalTally,
+  StoredExcessBaseline,
 } from "./excess-move-baseline-store.js";
 
 /**
@@ -125,6 +137,43 @@ interface PassTally {
   volume: VolumeTally;
   /** The excess-move baseline's own figures; see {@link ExcessTally}. */
   excess: ExcessTally;
+  /** The stored composite's own figures; see {@link CompositeTally}. */
+  composite: CompositeTally;
+}
+
+/**
+ * **The stored composite's tally — TWO security populations that partition**
+ * (Task 5.6.6).
+ *
+ * `tracked = scored + unscored`, and the reason it is two rather than `0014`'s
+ * nesting three or `0016`'s partitioning four is `0017` §4: every tracked
+ * equity ends in exactly one of *it has a score* and *every factor was absent*,
+ * with no intermediate population to nest. There is no refusal breakdown here
+ * **on purpose** — the reasons are per factor and already counted on the two
+ * pass rows this one shares an `observed_at` with, and a third copy would be a
+ * third home for one fact.
+ *
+ * `bands` is **measurement** rather than product, like `ExcessTally`'s two
+ * sample bounds: `ANOMALY_BAND_FLOORS` are measured quantiles of a max-75
+ * two-factor distribution, and the figure that says whether they still describe
+ * this store is how many securities land in each band. Nothing stores it — each
+ * row carries its own band.
+ */
+interface CompositeTally {
+  /** The equities the pass was over. Counted, never spelled. */
+  tracked: number;
+  /** How many got a score, and therefore have a row. */
+  scored: number;
+  /** How many had no contributing factor at all — **no row written**. */
+  unscored: number;
+  /** How many scored securities landed in each band, and in each factor set. */
+  bands: Record<AnomalyBand, number>;
+  /**
+   * How many scored securities had each factor set, keyed by the set's own
+   * membership — `price+excess`, `price`, `excess` — so the cohort line is read
+   * off the pass rather than described.
+   */
+  sets: Map<string, number>;
 }
 
 /**
@@ -218,6 +267,32 @@ const noSessionTally = (): SessionTally => ({
   },
 });
 
+/**
+ * **One sector benchmark's window, read once in the prologue** — its closes,
+ * its split verdict, and its own closing five-minute return.
+ *
+ * A named type rather than an inline object because it gained a third member
+ * at Task 5.6.6 and is now passed to two functions.
+ */
+interface Benchmark {
+  readonly closes: ReadonlyMap<number, number>;
+  readonly discontinuous: boolean;
+  /**
+   * The fund's own closing return for the scored session, or `undefined` where
+   * there is no scored session at all — which is the state of a window with no
+   * last session, and is CI's.
+   */
+  readonly closingReturn: SessionReturnOutcome | undefined;
+}
+
+const noCompositeTally = (): CompositeTally => ({
+  tracked: 0,
+  scored: 0,
+  unscored: 0,
+  bands: { normal: 0, elevated: 0, high: 0, extreme: 0 },
+  sets: new Map(),
+});
+
 const noExcessTally = (): ExcessTally => ({
   tracked: 0,
   measured: 0,
@@ -280,6 +355,12 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   // excess go through `ReturnBaselineStore.readWindowCloses`, the one query
   // object `EXPLAIN` has been taken of; see that module's header.
   const excess = createExcessBaselineStore(pool);
+  // **The fifth store, on the same pool**, for the same recorded reason: its
+  // rows hold a **policy applied to measurements** rather than a measurement,
+  // and this is one process doing one pass. It has no read of `market_bars`
+  // either — every input to a composite is a value one of the four stores
+  // above already produced in this iteration.
+  const composites = createSessionCompositeStore(pool);
 
   const lines: string[] = [];
   const errors: string[] = [];
@@ -321,6 +402,7 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
       sessions,
       volumes,
       excess,
+      composites,
       subjects,
       window,
     );
@@ -365,6 +447,22 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
         `${String(tally.excess.refusals.referenceSplitDiscontinuity)} reference, ` +
         `inapplicable ${String(tally.excess.inapplicable)} (no reference at all), ` +
         `no pairs ${String(tally.excess.absent)} (no row written)`,
+      // **The stored composite's two lines** (Task 5.6.6). The first is the
+      // security partition — two populations that sum to `tracked`, which the
+      // database refuses a row that violates — and the second is the
+      // measurement: which factor sets the scores came from, and how they fell
+      // across the four bands, because `ANOMALY_BAND_FLOORS` are measured
+      // quantiles of a two-factor distribution and this is the figure that
+      // says whether they still describe this store.
+      `session composites for ${window.asOfSession} — ` +
+        `tracked ${String(tally.composite.tracked)}, ` +
+        `scored ${String(tally.composite.scored)}, ` +
+        `unscored ${String(tally.composite.unscored)} (no row written)`,
+      `composite sets — ${describeSets(tally.composite.sets)}; bands — ` +
+        `normal ${String(tally.composite.bands.normal)}, ` +
+        `elevated ${String(tally.composite.bands.elevated)}, ` +
+        `high ${String(tally.composite.bands.high)}, ` +
+        `extreme ${String(tally.composite.bands.extreme)}`,
       `excess samples — ${String(tally.excess.samples)} total, ` +
         `${
           tally.excess.measured === 0
@@ -395,6 +493,7 @@ async function runPass(
   sessions: SessionPercentileStore,
   volumes: VolumeBaselineStore,
   excess: ExcessBaselineStore,
+  composites: SessionCompositeStore,
   subjects: readonly BaselineSubject[],
   window: BaselineWindow,
 ): Promise<PassTally> {
@@ -406,6 +505,7 @@ async function runPass(
     session: noSessionTally(),
     volume: noVolumeTally(),
     excess: noExcessTally(),
+    composite: noCompositeTally(),
   };
 
   // **The equities, by the same positive-membership selection breadth and the
@@ -456,10 +556,14 @@ async function runPass(
   // copies of eleven answers. A benchmark that crosses a price break refuses
   // every one of its constituents, which is the honest answer and is a
   // different sentence from the constituent's own break.
-  const benchmarks = new Map<
-    string,
-    { closes: ReadonlyMap<number, number>; discontinuous: boolean }
-  >();
+  // The last session of the window **is** the session being scored, and
+  // `window.observedAt` is its close — `baselineWindowEndingAt` derives both
+  // from one place, so there is nothing here to put out of step. It is read
+  // **before** the prologue below, because each fund's own closing return is
+  // taken there and a return is of a session.
+  const scored = window.sessions[window.sessions.length - 1];
+
+  const benchmarks = new Map<string, Benchmark>();
 
   for (const reference of referenceOf.values()) {
     if (!reference.applies) continue;
@@ -476,13 +580,23 @@ async function runPass(
     benchmarks.set(reference.symbol, {
       closes,
       discontinuous: seriesIsDiscontinuous(window.sessions, closes),
+      // **The fund's own CLOSING five-minute return, taken once here** (Task
+      // 5.6.6) — the reference leg of every constituent's excess numerator.
+      //
+      // Once per fund rather than once per constituent, which is the prologue's
+      // own argument one quantity over: eleven walks of eleven resident maps
+      // instead of 501 walks of the same eleven. And it is taken **here**, from
+      // the same `closes` the distribution was sampled from and over the same
+      // `scored` session, which is what makes
+      // `one-instant-for-a-subject-and-its-benchmark` true of this path: there
+      // is exactly one session expression in this file and both legs are read
+      // against it.
+      closingReturn:
+        scored === undefined
+          ? undefined
+          : sessionClosingReturn({ session: scored, closes }),
     });
   }
-
-  // The last session of the window **is** the session being scored, and
-  // `window.observedAt` is its close — `baselineWindowEndingAt` derives both
-  // from one place, so there is nothing here to put out of step.
-  const scored = window.sessions[window.sessions.length - 1];
 
   for (const subject of subjects) {
     const closes = await store.readWindowCloses(subject, window.range);
@@ -509,12 +623,13 @@ async function runPass(
     // **The session's closing score, off the closes already in hand** (Task
     // 5.4.5) — a by-product of the read above rather than a second pass over
     // the same bars, which is what makes this cost I/O nothing.
-    if (scored !== undefined && isEquity.has(subject.symbol)) {
-      await scoreClosingMove(sessions, subject, window, scored, outcome, {
-        closes,
-        tally: tally.session,
-      });
-    }
+    const price =
+      scored === undefined || !isEquity.has(subject.symbol)
+        ? undefined
+        : await scoreClosingMove(sessions, subject, window, scored, outcome, {
+            closes,
+            tally: tally.session,
+          });
 
     // **The volume baseline, in this same iteration** (Task 5.5.3). It is a
     // second statement over the **same** index range rather than a second
@@ -548,12 +663,44 @@ async function runPass(
     // excluded — a security the pass skipped silently and a security the
     // question does not arise for are different facts, and only the second is
     // something a surface can say.
-    await computeExcessBaseline(excess, subject, window, outcome, {
-      closes,
-      reference: referenceOf.get(subject.symbol),
-      benchmarks,
-      tally: tally.excess,
-    });
+    const reference = referenceOf.get(subject.symbol);
+
+    const stored = await computeExcessBaseline(
+      excess,
+      subject,
+      window,
+      outcome,
+      {
+        closes,
+        reference,
+        benchmarks,
+        tally: tally.excess,
+      },
+    );
+
+    // **The composite, LAST in the iteration and over the three answers the
+    // four steps above have already produced** (Task 5.6.6). It reads no bars,
+    // issues no query but its own write, and costs no I/O at all — which is
+    // `computeExcessBaseline`'s own property one layer up.
+    //
+    // **Over the equities alone**, which is `scoreClosingMove`'s population
+    // rather than the two baselines': this feeds a ranked list, and scoring
+    // `SPY` beside its own constituents would make `Unusual activity` and
+    // `Market proxies` / `Sector performance` non-independent (AC 13). `0017`
+    // §7 carries the condition for widening it.
+    if (
+      scored !== undefined &&
+      price !== undefined &&
+      reference !== undefined
+    ) {
+      await scoreComposite(composites, subject, window, {
+        price,
+        reference,
+        stored,
+        benchmarks,
+        tally: tally.composite,
+      });
+    }
   }
 
   // **Written last and outside a transaction**, which is the session pass
@@ -585,6 +732,26 @@ async function runPass(
       minimumSampleCount: BASELINE_MINIMUM_SAMPLE,
     },
   });
+
+  // **Written last and outside a transaction**, which is the arrangement all
+  // three pass rows beside it have, and the two populations **partition** — so
+  // a pass that died mid-loop writes a row whose counts do not sum and
+  // `session_composite_score_passes_populations_partition` refuses it. No pass
+  // row at all is the readable state: `readNewestSession` bounds the scores on
+  // it, so a crash leaves rows nothing reads rather than a session drawn under
+  // the wrong figures.
+  //
+  // **The weights and the floors are not arguments** — the store reads them
+  // from `FACTOR_WEIGHTS` and `ANOMALY_BAND_FLOORS`, because what must be
+  // stored is what the **minting** applied and nothing else in this process
+  // knows that but the scorer. `0017` §5.
+  if (scored !== undefined) {
+    await composites.writePass(window.observedAt, {
+      tracked: tally.composite.tracked,
+      scored: tally.composite.scored,
+      unscored: tally.composite.unscored,
+    });
+  }
 
   await volumes.writePass(window.observedAt, {
     tracked: tally.volume.tracked,
@@ -763,13 +930,20 @@ async function computeExcessBaseline(
   pass: {
     closes: ReadonlyMap<number, number>;
     reference: ExcessMoveReference | undefined;
-    benchmarks: ReadonlyMap<
-      string,
-      { closes: ReadonlyMap<number, number>; discontinuous: boolean }
-    >;
+    benchmarks: ReadonlyMap<string, Benchmark>;
     tally: ExcessTally;
   },
-): Promise<void> {
+  // **It RETURNS the generation it wrote** (Task 5.6.6), in the shape the
+  // serving path's own narrowing takes, so the composite a few lines later
+  // ranks against the row this iteration produced rather than re-reading it.
+  // `storedFrom`'s arrangement one factor over, and the same reason: the bound
+  // is `comparableExcessBaseline`'s to apply, not this function's.
+  //
+  // `undefined` for every kind that is **not a row** — absent, inapplicable,
+  // and a store that has never heard of the fund — which is exactly what
+  // `excessMoveFactor` takes for *nothing to rank against*: `too-few-samples`
+  // at `0 of 2,500`, the true figure.
+): Promise<StoredExcessBaseline | undefined> {
   const { closes, reference, benchmarks, tally } = pass;
 
   tally.tracked += 1;
@@ -779,7 +953,7 @@ async function computeExcessBaseline(
   // only one of them is repaired by `pnpm universe`.
   if (reference === undefined) {
     tally.absent += 1;
-    return;
+    return undefined;
   }
 
   if (!reference.applies) {
@@ -789,13 +963,13 @@ async function computeExcessBaseline(
     // copy would be a second home for it and would go stale the day a
     // curation changes a security's kind.
     tally.inapplicable += 1;
-    return;
+    return undefined;
   }
 
   const benchmark = benchmarks.get(reference.symbol);
   if (benchmark === undefined) {
     tally.absent += 1;
-    return;
+    return undefined;
   }
 
   const excessOutcome = excessBaselineOf({
@@ -808,7 +982,7 @@ async function computeExcessBaseline(
 
   if (excessOutcome.kind === "none") {
     tally.absent += 1;
-    return;
+    return undefined;
   }
 
   await excess.writeBaseline(
@@ -827,9 +1001,21 @@ async function computeExcessBaseline(
 
   tally.samples += excessOutcome.sampleCount;
 
+  // **The generation in the shape a reader takes it**, built once here rather
+  // than twice: the write above and the return below are the same facts, and
+  // the row that was just written is the row the composite ranks against.
+  const facts = {
+    symbol: subject.symbol,
+    observedAt: window.observedAt,
+    referenceKind: EXCESS_REFERENCE_KIND,
+    referenceSymbol: reference.symbol,
+    lookbackSessions: BASELINE_LOOKBACK_SESSIONS,
+    sampleCount: excessOutcome.sampleCount,
+  };
+
   if (excessOutcome.kind === "refused") {
     tally.refusals[EXCESS_REFUSAL_FIELD[excessOutcome.refusal]] += 1;
-    return;
+    return { ...facts, refusal: excessOutcome.refusal };
   }
 
   tally.measured += 1;
@@ -841,6 +1027,12 @@ async function computeExcessBaseline(
     tally.largestSample,
     excessOutcome.sampleCount,
   );
+
+  return {
+    ...facts,
+    refusal: null,
+    breakpoints: excessOutcome.breakpoints,
+  };
 }
 
 /**
@@ -888,28 +1080,34 @@ async function scoreClosingMove(
   scored: MarketSession,
   outcome: ReturnBaselineOutcome,
   pass: { closes: ReadonlyMap<number, number>; tally: SessionTally },
-): Promise<void> {
+): Promise<SessionPriceFactor> {
   const { closes, tally } = pass;
 
   tally.tracked += 1;
 
   const figure = sessionClosingReturn({ session: scored, closes });
 
-  if (!figure.measured) {
-    tally.refusals[FIGURE_REFUSAL_FIELD[figure.refusal]] += 1;
-    return;
-  }
-
-  tally.eligible += 1;
-
+  // **Asked unconditionally since Task 5.6.6**, where it used to sit behind a
+  // measured figure: the composite's price clause states *how much history we
+  // hold* beside its refusal, so *we have no move* and *we have no baseline*
+  // are two facts a reader is owed both of. `index.ts` took the same step on
+  // the live path at Task 5.6.4, for the same reason. It is pure — the
+  // generation is already in hand — so moving it changes no I/O and no tally.
   const comparison = comparableBaseline(storedFrom(subject, window, outcome), {
     spanMinutes: SAMPLE_SPAN_MINUTES,
     feed: BASELINE_FEED,
   });
 
+  if (!figure.measured) {
+    tally.refusals[FIGURE_REFUSAL_FIELD[figure.refusal]] += 1;
+    return { figure, comparison, percentile: undefined };
+  }
+
+  tally.eligible += 1;
+
   if (!comparison.ranked) {
     tally.refusals[COMPARISON_REFUSAL_FIELD[comparison.refusal]] += 1;
-    return;
+    return { figure, comparison, percentile: undefined };
   }
 
   const percentile = returnPercentileOf(
@@ -923,7 +1121,9 @@ async function scoreClosingMove(
   // word at all**, because inventing a refusal word for a state no reader can
   // act on would be a sentence nobody could write. It leaves `scored` below
   // `eligible`, which is the only direction a count may err in.
-  if (percentile === undefined) return;
+  if (percentile === undefined) {
+    return { figure, comparison, percentile: undefined };
+  }
 
   tally.scored += 1;
 
@@ -941,6 +1141,139 @@ async function scoreClosingMove(
     from: { ...figure.from, feed: BASELINE_FEED },
     to: { ...figure.to, feed: BASELINE_FEED },
     observed: figure.observed,
+  });
+
+  return { figure, comparison, percentile };
+}
+
+/**
+ * **The price factor's three inputs, as this pass produced them** — returned
+ * rather than discarded (Task 5.6.6), because the composite a few lines later
+ * needs exactly these three and recomputing them would re-walk ~24,000 closes
+ * and re-take an ordinal over 101 breakpoints for an answer already in hand.
+ *
+ * It is `PriceFactorInput`'s shape without being that type: the figure here is
+ * a `SessionReturnOutcome` and the live path's is a `FiveMinuteReturn`, which
+ * is why `market-composite.ts`' parameter is the contract both satisfy rather
+ * than either one of them.
+ */
+interface SessionPriceFactor {
+  readonly figure: SessionReturnOutcome;
+  readonly comparison: BaselineComparison;
+  readonly percentile: ReturnPercentile | undefined;
+}
+
+/**
+ * **One security's composite for the scored session, from the three answers
+ * this iteration already has — or no row at all** (Task 5.6.6).
+ *
+ * ## It computes nothing and decides nothing
+ *
+ * `compositeAnswers` translates each factor's own vocabulary into the scorer's
+ * and `scoreAnomaly` holds every arithmetic in the score — the weights, the
+ * `round(w × u / 100)`, the sum, the maximum and the band. The two together
+ * **are** `compositeAnomaly`, which `index.ts` calls as one function because it
+ * needs the outcome alone; this pass needs the answers too, because the answers
+ * are the row's content (`0017` §5) and deriving them back out of the outcome's
+ * clauses would be a second mapping between the two vocabularies.
+ *
+ * ## The excess numerator is the CLOSING five-minute excess, and both legs are
+ * ## over the same five minutes
+ *
+ * This is the lesson of the defect repaired on 2026-10-26, arriving on the
+ * second basis. The subject's leg is `sessionClosingReturn` over the closes
+ * this iteration read; the benchmark's is `sessionClosingReturn` over the
+ * fund's closes, taken once in the prologue over the **same `scored`
+ * session** — so there is one session expression in this file and the two legs
+ * cannot be over two intervals by construction. `excessMoveFactor` still
+ * refuses `mixed-basis` on the narrower fact that a fund may print a minute the
+ * constituent does not, and it still compares the numerator's own
+ * `spanMinutes` against the distribution's stride, which is the guard the live
+ * path shipped without.
+ *
+ * **A stored composite is a cache of a policy**, so storing a wrong term writes
+ * it into 60 sessions of rows that look well-formed. The protection is that
+ * nothing here is a term: every figure is a producer's, and the one new thing
+ * this function does is choose which two legs to difference.
+ *
+ * ## An unscored security is NO ROW, and is counted
+ *
+ * `0017` §4. Every factor absent is `UnscoredAnomaly`, which has no `score`
+ * member at all, and the store throws rather than writing one — so the absence
+ * is the record and `unscored_count` is the figure.
+ */
+async function scoreComposite(
+  composites: SessionCompositeStore,
+  subject: BaselineSubject,
+  window: BaselineWindow,
+  pass: {
+    price: SessionPriceFactor;
+    reference: ExcessMoveReference;
+    stored: StoredExcessBaseline | undefined;
+    benchmarks: ReadonlyMap<string, Benchmark>;
+    tally: CompositeTally;
+  },
+): Promise<void> {
+  const { price, reference, stored, benchmarks, tally } = pass;
+
+  tally.tracked += 1;
+
+  // **The benchmark's own closing return, or nothing at all.** `undefined`
+  // reaches `excessMoveFactor` as `no-reference-move` — never as a return of
+  // `0`, which would score the subject's whole move as excess. The inapplicable
+  // arm is answered inside that function and never looks at this.
+  const benchmark = reference.applies
+    ? benchmarks.get(reference.symbol)
+    : undefined;
+
+  const excess = excessMoveFactor({
+    subject: excessLegOf(price.figure),
+    reference:
+      benchmark?.closingReturn === undefined
+        ? undefined
+        : excessLegOf(benchmark.closingReturn),
+    referenceOf: reference,
+    stored,
+    grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+  });
+
+  const answers = compositeAnswers({
+    price: {
+      figure: price.figure,
+      comparison: price.comparison,
+      percentile: price.percentile,
+    },
+    excess,
+  });
+
+  const outcome = scoreAnomaly(answers);
+
+  if (!outcome.scored) {
+    tally.unscored += 1;
+    return;
+  }
+
+  tally.scored += 1;
+  tally.bands[outcome.band] += 1;
+
+  // **The factor set, keyed by its own membership** — measurement rather than
+  // product, and the figure Task 5.6.7 needs before it ranks: a `{price}`
+  // score caps at 40 and a `{price, excess}` one at 75, so how many securities
+  // are in each set is how many are on each scale.
+  const set = outcome.contributing
+    .map((clause) => clause.factor)
+    .sort((a, b) => a.localeCompare(b))
+    .join("+");
+  // Written as a branch rather than `?? 0`, which is the shape this epic has
+  // forbidden in five consecutive stories: the `0` here is a **true** figure
+  // about a set nothing has counted yet, and the one place `?? 0` would read as
+  // correct is the one place a grep for it stops being usable.
+  const seen = tally.sets.get(set);
+  tally.sets.set(set, seen === undefined ? 1 : seen + 1);
+
+  await composites.writeScore(subject, window.observedAt, {
+    outcome,
+    answers,
   });
 }
 
@@ -995,6 +1328,26 @@ const COMPARISON_REFUSAL_FIELD: Record<
   "too-few-samples": "tooFewSamples",
   "split-discontinuity": "splitDiscontinuity",
 };
+
+/**
+ * **The factor sets a pass produced, counted**, in descending order of how many
+ * securities were in each — `price+excess 485` — or `—` where nothing scored,
+ * which is CI's permanent state.
+ *
+ * It is a line in the summary and nothing else: the set is readable off every
+ * stored row's three states, so this is a measurement of the pass rather than a
+ * figure anything stores. `0017` §5's *the factor set IS the set of states*.
+ */
+function describeSets(sets: ReadonlyMap<string, number>): string {
+  if (sets.size === 0) return "—";
+
+  return [...sets.entries()]
+    .sort(([leftSet, left], [rightSet, right]) =>
+      left === right ? leftSet.localeCompare(rightSet) : right - left,
+    )
+    .map(([set, count]) => `${set} ${String(count)}`)
+    .join(", ");
+}
 
 /**
  * Warnings to stderr, so stdout carries the summary and nothing else —

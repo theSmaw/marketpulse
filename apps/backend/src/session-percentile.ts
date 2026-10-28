@@ -2,6 +2,7 @@ import { RETURN_SPAN_MINUTES } from "./five-minute-return.js";
 
 import type { MarketSession } from "@marketpulse/shared";
 import type { ReturnRefusal } from "./five-minute-return.js";
+import type { ExcessLeg } from "./excess-move-factor.js";
 
 /**
  * **The closing five-minute return of one completed session, from stored
@@ -170,5 +171,38 @@ export function sessionClosingReturn(
     to: { at: new Date(newerAt), price: newer },
     observed,
     spanMinutes: RETURN_SPAN_MINUTES,
+  };
+}
+
+/**
+ * **This figure as one leg of an excess difference** (Task 5.6.6) — the
+ * adapter, and the whole of why there is one.
+ *
+ * `excessMoveFactor` reads four members of a leg: the discriminant, the signed
+ * percentage, the span, and the two endpoints' own `startsAt`. This type
+ * carries all four and spells two of them differently — `from.at` rather than
+ * `from.startsAt` — because a stored close is not a bar with a `BarSource` and
+ * the header above says why it must not pretend to be one.
+ *
+ * So the rename is the adapter, in one place with a test, rather than a
+ * structural coincidence at the call site. **`price` is deliberately dropped**:
+ * the factor subtracts two percentages and compares two instants, and it has
+ * no business with either leg's level.
+ *
+ * It is here rather than in `excess-move-factor.ts` for `market-bars.ts`'
+ * mapper rule — *one function per domain type, beside the thing it maps from* —
+ * and because the direction is one-way: this module knows what a session return
+ * is and that one knows what it needs, so the knowledge that the two agree
+ * belongs on the side that can change.
+ */
+export function excessLegOf(outcome: SessionReturnOutcome): ExcessLeg {
+  if (!outcome.measured) return { measured: false };
+
+  return {
+    measured: true,
+    percent: outcome.percent,
+    spanMinutes: outcome.spanMinutes,
+    from: { startsAt: outcome.from.at },
+    to: { startsAt: outcome.to.at },
   };
 }
