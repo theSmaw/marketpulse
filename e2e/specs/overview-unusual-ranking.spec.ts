@@ -25,13 +25,22 @@ import { backendOrigin } from "../support/pair.js";
 // independent recompute saw it.
 //
 // This region is the worst case this product has for that failure, and it is
-// worth being precise about why. **A percentile is the only figure on this
-// screen that a reader cannot check against anything on the page.** A price
-// has a chart beside it; a sector move has ten siblings; this ordinal's inputs
-// are sixty sessions of a table the browser never reads — 101 breakpoints ×
-// 501 securities, ~417 KB, which is never going on this wire. So a wrong
-// ordinal is a confident, well-formed row at the top of a region about unusual
-// behaviour, and nothing on screen contradicts it.
+// worth being precise about why. **The composite score is the only figure on
+// this screen that a reader cannot check against anything on the page.** A
+// price has a chart beside it; a sector move has ten siblings; this score's
+// inputs are **two** 60-session distributions of tables the browser never
+// reads. So a wrong score is a confident, well-formed row at the top of a
+// region about unusual behaviour, and nothing on screen contradicts it.
+//
+// **And it got worse at Task 5.6.7, not better.** The figure was a price
+// percentile — one factor, one distribution — and it is now a weighted sum of
+// two, with a band word over it whose thresholds are a third thing nothing on
+// screen can check. The row also carries **less**: the ordinal, its counted
+// `n`, `aboveSample` and both endpoints left the wire, so the invariant-5
+// arms below that re-derived the figure from its own inputs have nothing to
+// re-derive from. What replaced them is the **cohort** — the scale the rows
+// were ranked on, which is the one thing that makes a raw score comparison
+// honest — and the arms are rewritten accordingly rather than deleted.
 //
 // ## So the claim is grounded OUT OF FRAME, in two places
 //
@@ -55,12 +64,19 @@ import { backendOrigin } from "../support/pair.js";
 //
 // Every row carries its own key, so the order is checkable **from the frame**
 // — but only if the order is re-expressed here rather than imported.
-// `compareByPercentile`, `isRankedByPercentile` and `selectByPercentile` are
-// all exported from `@marketpulse/shared` and **every one of them is written
-// out below** (Task 4.3.7's rule): the functions this file exists to judge are
-// those functions, so importing one would be asserting that the application
-// agrees with itself. If the product's tie-break or precision changes, these
-// lines are supposed to need changing.
+// `compareByScore`, `isRankedByScore` and `selectByScore` are all exported
+// from `@marketpulse/shared` and **every one of them is written out below**
+// (Task 4.3.7's rule): the functions this file exists to judge are those
+// functions, so importing one would be asserting that the application agrees
+// with itself. If the product's tie-break or precision changes, these lines
+// are supposed to need changing.
+//
+// **Rewritten by hand at Task 5.6.7 rather than re-pointed.** The quantity
+// changed, so the comparator did: `b.rank - a.rank` became `b.score -
+// a.score`, which is a different expression over a different field with the
+// same tie-break. Had this file imported the comparator, the rename would
+// have been invisible here and the recompute would have gone on agreeing with
+// the renderer by construction — which is the whole thing it exists not to do.
 //
 // ## What a green run here does not certify
 //
@@ -80,29 +96,43 @@ import { backendOrigin } from "../support/pair.js";
 const OVERVIEW = "/";
 
 /**
- * The ordinal's bounds, **written out rather than imported**.
+ * The score's bounds, **written out rather than imported**.
  *
- * `0` through `99`, never `100`: above the highest order statistic there is no
- * sample, so a ceiling of 100 would assert a strict maximum over a
- * distribution that deliberately excludes the window being scored. A rank of
- * `106` — `rank + 7` at the top of the list — fails here, and that is the
- * plant this file was proved red on.
+ * `0` through `100`, and `100` **is** a value — which is the difference from
+ * the ordinal this replaced, where the ceiling was 99 because above the
+ * highest order statistic there is no sample. A composite is a weighted sum
+ * whose every factor can reach its own weight, so the structural ceiling is
+ * the sum of the weights.
+ *
+ * The **drawn** ceiling in this tree is 75, because the volume factor is
+ * `no-distribution` for every security — and that figure is deliberately NOT
+ * asserted here: a bound written from today's factor coverage would go red on
+ * the first night a volume distribution is stored, which is a change this
+ * check has no business failing.
  */
 const LOWEST = 0;
-const HIGHEST = 99;
+const HIGHEST = 100;
+
+/** The four band words, written out rather than imported for the same reason. */
+const BANDS = ["normal", "elevated", "high", "extreme"];
 
 /**
- * **The order, re-expressed**: most unusual first, then ticker ascending.
+ * **The order, re-expressed**: highest score first, then ticker ascending.
  *
  * A **total** order, which is the difference from the movers' comparator and
  * the reason this is an equality rather than a monotonicity check: ties break
  * on the symbol, so a correct frame admits exactly **one** order and a swapped
  * pair is a defect rather than a tolerance.
+ *
+ * **An integer score makes ties routine rather than rare.** The shipped
+ * two-factor scale holds 76 values for ~484 scored securities, so by the
+ * pigeonhole principle some score is shared on every frame — which is why the
+ * tie-break is the half of this expression that matters.
  */
 const inRankedOrder = (rows: readonly WireUnusualRow[]): string[] =>
   [...rows]
     .sort((a, b) =>
-      a.rank === b.rank ? (a.symbol < b.symbol ? -1 : 1) : b.rank - a.rank,
+      a.score === b.score ? (a.symbol < b.symbol ? -1 : 1) : b.score - a.score,
     )
     .map((row) => row.symbol);
 
@@ -225,36 +255,46 @@ test("a deployment with no provider has observed nothing, so the OBSERVED basis 
   // from the store or it was invented, and the two are separable without
   // trusting the producer:
   //
-  //   - **every endpoint is `sip`.** The nightly pass reads `feed = 'sip'`
-  //     rows by name, and the only other tape in this product arrives on a
-  //     live socket a provider-less deployment does not have. An `iex`
-  //     endpoint on this deployment is a figure about an observation that
-  //     cannot exist — the original claim, one field over.
-  //   - **every endpoint falls inside the session the section names.** A
-  //     producer ranking its own in-memory bars would carry today's instants
-  //     under a date from last week, which is the exact confusion the two
-  //     bases exist to prevent.
+  //   - **the section names a session, and it is a real date.** A producer
+  //     ranking its own in-memory bars has no session to name, which is the
+  //     exact confusion the two bases exist to prevent.
+  //   - **the baseline's tape is `sip`.** The nightly pass reads `feed =
+  //     'sip'` rows by name, and the only other tape in this product arrives
+  //     on a live socket a provider-less deployment does not have.
+  //   - **the generation this ranking was taken against is keyed by the same
+  //     session.** ADR 0044's rule, and a stored row is the only thing that
+  //     can satisfy it: the pass ranks each closing move against the
+  //     generation whose window ends at the session being scored.
+  //
+  // **AMENDED 2026-10-28 (Task 5.6.7), and the amendment is a LOSS this file
+  // has to be honest about.** The per-endpoint `sip` check above was the
+  // strongest arm here and it is **gone**, because the endpoints left the
+  // wire with the ordinal: the row is a score, a band and a move. So the
+  // tape claim moves from ten rows' endpoints to the section's one baseline,
+  // which is a weaker statement about the same fact — one field instead of
+  // twenty — and the per-row *is this instant inside the session* arm has no
+  // instant left to read. Stated rather than quietly dropped, because the
+  // next reader is owed the shape of what this spec can still see.
   const session = unusual.session;
   expect(session).toMatch(/^\d{4}-\d{2}-\d{2}$/u);
 
-  for (const row of unusual.rows) {
-    expect(row.from.feed, `${row.symbol} from`).toBe("sip");
-    expect(row.to.feed, `${row.symbol} to`).toBe("sip");
+  expect(unusual.baseline.feed).toBe("sip");
 
-    // The market-local date of each instant, through **the one module
-    // permitted to convert one** rather than by slicing an ISO string or
-    // building a second formatter — a `no-restricted-syntax` rule refuses
-    // both, and it caught this file's first draft doing the second.
-    for (const at of [row.from.at, row.to.at]) {
-      expect(marketDateAt(new Date(at)), `${row.symbol} ${at}`).toBe(session);
-    }
+  // The generation's own session, read through **the one module permitted to
+  // convert an instant to a market-local date** — a `no-restricted-syntax`
+  // rule refuses a second formatter and it caught this file's first draft
+  // building one. Here the figure is already a date, so the conversion is the
+  // comparison's own anchor rather than a parse.
+  if (unusual.baseline.generation !== undefined) {
+    expect(unusual.baseline.generation.session).toBe(session);
+    expect(marketDateAt(new Date(`${session}T20:00:00.000Z`))).toBeDefined();
   }
 
   // And the region drew them, rather than claiming the market is quiet.
   if (unusual.rows.length > 0) {
     await expect(
       page.getByRole("region", { name: "Unusual activity" }),
-    ).toContainText("percentile");
+    ).toContainText(/composite anomaly score/iu);
   }
 });
 
@@ -266,14 +306,37 @@ test("the three populations nest and the set is the one the universe says it is"
 
   const unusual = mustHaveUnusual(latestUnusual(overviews));
 
-  // **`rows ≤ scored ≤ eligible ≤ tracked`.** The chain the region's cut
-  // sentence rests on, and the only arithmetic behind `eligible − scored`,
-  // which is the **sole** trace a refused security leaves. Every term is `0`
-  // or `501` on CI, where it holds and is worth holding: a negative remainder
-  // is a count of securities that cannot exist.
-  expect(unusual.rows.length).toBeLessThanOrEqual(unusual.scored);
+  // **`rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`.** The chain the
+  // region's cut sentence rests on, and the only arithmetic behind
+  // `eligible − scored`, which is the **sole** trace a security with no factor
+  // at all leaves. Every term is `0` or `501` on CI, where it holds and is
+  // worth holding: a negative remainder is a count of securities that cannot
+  // exist.
+  //
+  // **It gained a link at Task 5.6.7**, because the rows are a selection from
+  // the **cohort** rather than from `scored`: `scored` counts every security
+  // that got a composite at all, and a 1-of-3 score is honestly scored and
+  // deliberately not ranked against a 2-of-3 one (AC 3). The weaker chain
+  // would be green on a producer ranking across cohorts.
+  if (unusual.cohort !== undefined) {
+    expect(unusual.rows.length).toBeLessThanOrEqual(unusual.cohort.scored);
+    expect(unusual.cohort.scored).toBeLessThanOrEqual(unusual.scored);
+    expect(unusual.cohort.scored + unusual.cohort.others).toBeLessThanOrEqual(
+      unusual.scored,
+    );
+  } else {
+    expect(unusual.rows.length).toBeLessThanOrEqual(unusual.scored);
+  }
   expect(unusual.scored).toBeLessThanOrEqual(unusual.eligible);
   expect(unusual.eligible).toBeLessThanOrEqual(unusual.tracked);
+
+  // **A section with rows and no cohort is a producer that ranked without
+  // declaring a scale**, which is the one shape AC 3 cannot tolerate: a raw
+  // score comparison is honest only over one factor set, so a list with no
+  // named set is a list nobody can say is comparable.
+  if (unusual.rows.length > 0) {
+    expect(unusual.cohort).toBeDefined();
+  }
 
   // **The population, against an independent source** — the one assertion
   // here that is non-vacuous on a store with no bars, and the one that
@@ -283,7 +346,7 @@ test("the three populations nest and the set is the one the universe says it is"
   expect(unusual.tracked).toBe((await activeEquities(page)).length);
 });
 
-test("every ordinal is inside the bound the figure can hold, and the list is in the one order its own rows admit", async ({
+test("every score is inside the bound the figure can hold, and the list is in the one order its own rows admit", async ({
   page,
 }) => {
   const overviews = await openWithRecordedStream(page);
@@ -301,29 +364,46 @@ test("every ordinal is inside the bound the figure can hold, and the list is in 
   }
 
   for (const row of unusual.rows) {
-    // **Integer, bounded, and `100` is not a value.** The precision is an
-    // integer because the binomial standard error at the 99th of n = 4,620 is
-    // 0.146 points; the ceiling is 99 because above the highest order
-    // statistic there is no sample.
-    expect(Number.isInteger(row.rank)).toBe(true);
-    expect(row.rank).toBeGreaterThanOrEqual(LOWEST);
-    expect(row.rank).toBeLessThanOrEqual(HIGHEST);
+    // **Integer and bounded.** `scoreAnomaly` sums rounded per-factor
+    // contributions, so a fractional score is a figure no scorer in this
+    // product produces — and an addition a reader performs on the screen
+    // would fail on it.
+    expect(Number.isInteger(row.score)).toBe(true);
+    expect(row.score).toBeGreaterThanOrEqual(LOWEST);
+    expect(row.score).toBeLessThanOrEqual(HIGHEST);
 
-    // **The counted `n`, never a constant and never zero.** A rank taken
-    // against nothing is an ordinal over an empty distribution.
-    expect(row.sampleCount).toBeGreaterThan(0);
+    // **The band is one of four**, and `BANDS` is written out above rather
+    // than imported. A fifth word is a region heading that names a band this
+    // product has no floor for — the head slot writes whatever the frame
+    // sends, which is deliberate (it is the producer's word) and is why the
+    // vocabulary is checked here rather than trusted.
+    expect(BANDS).toContain(row.band);
 
-    // **Every factor behind the ordinal travels** (invariant 5): the move it
-    // ranked, and the two instants it was measured between. An ordinal with
-    // no instant is a claim about a move nobody can date.
-    expect(Number.isFinite(row.percent)).toBe(true);
-    expect(Number.isNaN(Date.parse(row.from.at))).toBe(false);
-    expect(Number.isNaN(Date.parse(row.to.at))).toBe(false);
+    // **Every score is inside its own cohort's ceiling.** This is the arm that
+    // replaces the per-row invariant-5 checks the endpoints used to carry, and
+    // it is the strongest thing left that is recomputable from the frame: a
+    // 2-of-3 score of 84 is not a wrong number, it is a number from a factor
+    // set the section did not declare.
+    if (unusual.cohort !== undefined) {
+      expect(
+        row.score,
+        `${row.symbol} against the cohort's ceiling`,
+      ).toBeLessThanOrEqual(unusual.cohort.max);
+    }
+
+    // **The move, where the frame carries one** — optional on purpose: the
+    // session arm reads it from beside the score, and a security scored on its
+    // excess factor alone has no percentile row. `0` is not substituted for
+    // it, because a direction of *unchanged* is the claim *this security did
+    // not move*.
+    if (row.percent !== undefined) {
+      expect(Number.isFinite(row.percent)).toBe(true);
+    }
   }
 
-  // **The order, recomputed from the rows' own factor values.** An equality
-  // rather than a monotonicity check, because the comparator is total: ties
-  // break on the ticker, so a correct frame admits exactly one order.
+  // **The order, recomputed from the rows' own scores.** An equality rather
+  // than a monotonicity check, because the comparator is total: ties break on
+  // the ticker, so a correct frame admits exactly one order.
   expect(unusual.rows.map((row) => row.symbol)).toEqual(
     inRankedOrder(unusual.rows),
   );

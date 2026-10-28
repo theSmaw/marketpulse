@@ -152,6 +152,26 @@
  * `ORDER HELD` and this region's own strings, so the head cannot move when
  * the badge appears — the defect Task 4.3.6 found in a browser, where a
  * four-pixel-taller badge moved all eleven rows on pointer enter.
+ *
+ * ## It has a measured CEILING as well as a floor, and the ceiling is not a
+ * ## declaration
+ *
+ * The slot's string carries the band since the chip came off the row, so it
+ * is `Top 10 · led by elevated` at its widest rather than `Top 10`. **There
+ * is deliberately no `max-width`**: clipping is the one failure this cell may
+ * not have, because the band word *is* the channel. What bounds it is the
+ * string, and the string was chosen against the measurement — the head's
+ * content box is **308 px** at 1440 and at 390 (the binding width; 1024 is
+ * wider and 768 is 686), the region title takes **120.3** in the cold-load
+ * face and `Panel.header`'s gap takes 16, so the slot has **171.7** and the
+ * widest string this region can build is **166.5**.
+ *
+ * The failure if that is ever exceeded is not a clipped badge: `.headings`
+ * carries `min-width: 0`, so an oversized slot **wraps `Unusual activity`
+ * onto a second line** and takes the region's height with it — at 768 and
+ * 390 the grid row is content-sized, so the whole lower page steps.
+ * `overview-unusual-denominator.spec.ts` asserts the header's height for
+ * that reason; nothing below `pnpm probe` can see it.
  */
 .slot {
   display: flex;

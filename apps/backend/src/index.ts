@@ -91,6 +91,8 @@ import { createReturnBaselineCache } from "./return-baseline-cache.js";
 import { createVolumeBaselineCache } from "./volume-baseline-cache.js";
 import { createVolumeBaselineStore } from "./volume-baseline-store.js";
 import { volumeRateOf } from "./volume-ratio.js";
+import { createSessionCompositeCache } from "./session-composite-cache.js";
+import { createSessionCompositeStore } from "./session-composite-store.js";
 import { createSessionPercentileCache } from "./session-percentile-cache.js";
 import { createSessionPercentileStore } from "./session-percentile-store.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
@@ -931,6 +933,15 @@ const marketOverview = (): OverviewPass => {
   // already taken.
   const lastSession = sessionRankings.rankingAsOf(marketDateAt(asOf));
 
+  // **The stored composite ranking, resolved once** — `lastSession`'s shape for
+  // `lastSession`'s reason: asking the cache is also what triggers its refresh.
+  const lastComposite = sessionComposites.rankingAsOf(marketDateAt(asOf));
+
+  // **The excess-move generation, resolved once per batch rather than 501
+  // times** — `generation`'s own argument over the second of the two tables a
+  // composite reads.
+  const excessGeneration = excessBaselines.baselineAsOf(marketDateAt(asOf));
+
   return overviewPassOf({
     proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
     sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
@@ -960,12 +971,30 @@ const marketOverview = (): OverviewPass => {
       // the sampler and the tape to the store's own `where`.
       grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
       asOf,
+      // **Which fund each security's excess move is differenced against**, from
+      // the one shared resolver `symbolReturn` reads — so the ranked region and
+      // the security page cannot disagree about a benchmark.
+      referenceOf: (symbol) => excessReferenceOf.get(symbol),
+      // **The excess factor's own generation, resolved once** — `generation`'s
+      // shape and its reason: `baselineAsOf` is also the cache's refresh
+      // trigger, and 501 evaluations of a refresh condition per applied batch
+      // is a cost nothing asked for.
+      excessBaselineOf: (symbol) => excessGeneration.get(symbol),
       // **The out-of-hours answer, and it is READ rather than held** (Task
       // 5.4.5): one row per security per session written by `pnpm baselines`,
       // so a restarted replica — which is every merge — draws the last
       // session's ranking instead of an empty region. `undefined` is a store
       // with no session written, which is CI's permanent state.
       ...(lastSession === undefined ? {} : { sessionRanking: lastSession }),
+      // **The stored COMPOSITE, beside the stored percentile and never instead
+      // of it** (Task 5.6.7). The composite rows carry the score and the
+      // factor answers; the percentile rows carry the signed closing move the
+      // direction glyph needs and the `eligible` count the footer states.
+      // `0017` §2 keys both tables on the same session's close for exactly
+      // this, and the producer refuses to mix two sessions' halves.
+      ...(lastComposite === undefined
+        ? {}
+        : { compositeRanking: lastComposite }),
     }),
     // **The join's whole answer, beside the three selections taken out of
     // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
@@ -1136,6 +1165,49 @@ void excessBaselines.load(marketDateAt(new Date())).then(
   },
   (error: unknown) => {
     app.log.warn({ err: error }, "excess-move baselines could not be loaded");
+  },
+);
+
+/**
+ * **The last completed session's composite ranking, held in memory** (Task
+ * 5.6.7) — the reader `0017` was written for, and the first thing that reads
+ * `session_composite_scores`.
+ *
+ * `sessionRankings`' shape beside it and its reason, with one addition that is
+ * this cache's own: its read is a **mint per row** rather than a parse —
+ * `scoreAnomaly` is applied to each row's three stored factor answers and the
+ * stored `score`, `band` and `max` are read only to be disagreed with (`0017`
+ * §5). So the fifteen-minute refresh floor is doing more work here than in its
+ * three siblings, and the cache holds the ranking rather than a map because the
+ * region's footer and its ten rows are one answer.
+ *
+ * **Loaded at startup off the hot path, like the four beside it**, because the
+ * overview join runs inside the socket's own callback where an unhandled
+ * rejection is a crashed process — so the serving read is synchronous and
+ * never throws.
+ */
+const sessionComposites = createSessionCompositeCache({
+  store: createSessionCompositeStore(database),
+  warn: (fields, message) => {
+    app.log.warn(fields, message);
+  },
+});
+
+void sessionComposites.load(marketDateAt(new Date())).then(
+  () => {
+    app.log.info(
+      {
+        securities: sessionComposites.size(),
+        through: sessionComposites.heldThrough(),
+      },
+      "session composite scores loaded for the unusual-activity ranking",
+    );
+  },
+  (error: unknown) => {
+    app.log.warn(
+      { err: error },
+      "session composite scores could not be loaded",
+    );
   },
 );
 

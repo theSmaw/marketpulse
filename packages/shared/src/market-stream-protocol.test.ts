@@ -1210,16 +1210,15 @@ describe("the movers section, whose ORDER is the answer", () => {
   });
 });
 
-describe("the unusual-activity section, whose rows are an ORDINAL and the figures behind it", () => {
+describe("the unusual-activity section, whose rows are a COMPOSITE SCORE and its band", () => {
+  // **Re-based at Task 5.6.7**: the row was an ordinal, its `n`, `aboveSample`,
+  // a signed move and two timestamped endpoints. It is now the score, the
+  // band, and the move the direction glyph needs.
   const ROW: WireUnusualRow = {
     symbol: "NVDA",
-    rank: 99,
-    aboveSample: true,
-    sampleCount: 4620,
+    score: 72,
+    band: "high",
     percent: -2.4137,
-    from: { at: "2026-09-16T13:56:00.000Z", price: 178.42, feed: "iex" },
-    to: { at: "2026-09-16T14:01:00.000Z", price: 174.11, feed: "iex" },
-    observed: 5,
   };
 
   const SECTION: WireUnusualActivity = {
@@ -1228,6 +1227,7 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     tracked: 501,
     eligible: 438,
     scored: 427,
+    cohort: { factors: ["price", "excess"], max: 75, scored: 420, others: 7 },
     windowMinutes: 5,
     spanMinutes: 5,
     baseline: {
@@ -1259,8 +1259,15 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     const leaky = {
       ...ROW,
       breakpoints: [0, 1, 2],
+      // **The whole explanation, which is the leak this row's shape prevents.**
+      // The producer ranks on a minted `AnomalyScore` carrying a clause per
+      // factor with every figure behind it, and `Candidate` in
+      // `market-unusual.ts` is a different type for exactly this reason. On
+      // HTTP a schema strips it; on a socket nothing does.
+      contributing: [{ factor: "price", weight: 40, rank: 99 }],
       from: {
-        ...ROW.from,
+        at: "2026-09-16T13:56:00.000Z",
+        price: 178.42,
         provider: "alpaca",
         retrievedAt: "2026-09-16T14:01:30.400Z",
       },
@@ -1277,39 +1284,73 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     });
 
     expect(wire).not.toContain("breakpoints");
+    expect(wire).not.toContain("contributing");
     expect(wire).not.toContain("provider");
     expect(wire).not.toContain("retrievedAt");
     expect(wire).not.toContain("securityId");
     expect(wire).toContain('"symbol":"NVDA"');
-    expect(wire).toContain('"rank":99');
+    expect(wire).toContain('"score":72');
   });
 
-  it("carries the ordinal, both endpoints and the baseline's own tape", () => {
+  it("carries the score, the band, the move and the baseline's own tape", () => {
     const wire = roundTrip(SECTION);
 
-    expect(wire).toContain('"rank":99');
-    expect(wire).toContain('"aboveSample":true');
-    expect(wire).toContain('"sampleCount":4620');
+    expect(wire).toContain('"score":72');
+    expect(wire).toContain('"band":"high"');
     expect(wire).toContain('"percent":-2.4137');
-    expect(wire).toContain('"at":"2026-09-16T13:56:00.000Z"');
-    expect(wire).toContain('"at":"2026-09-16T14:01:00.000Z"');
-    // The numerator's tape per endpoint and the denominator's on the section:
-    // every comparison this story ships is a consolidated-tape baseline
-    // against a single-venue numerator, and the frame says so rather than
-    // implying one tape per comparison.
-    expect(wire).toContain('"feed":"iex"');
+    // The denominator's tape on the section. The numerator's per-endpoint tape
+    // left with the endpoints at Task 5.6.7: the row's drawn figure is no
+    // longer a ratio of two prices this frame carries, and the screen's one
+    // source note names both tapes for the region.
     expect(wire).toContain('"feed":"sip"');
   });
 
-  it("carries no band, and never has", () => {
-    // Gate 1 decision 1, as bytes. The four bands are defined for the
-    // composite 0–100 score and this ranks one factor of four, so a chip here
-    // would read `extreme` on price alone.
+  it("carries the BAND, which it refused to until Task 5.6.7", () => {
+    // Story 5.4's Gate 1 decision 1 was that this section ships the ordinal
+    // and no band, because it ranked **one factor of three** and a chip would
+    // have read `extreme` on price alone. The composite is the stated reversal
+    // condition and it has fired — so the assertion flips rather than being
+    // deleted, because the shape of what changed is the record.
     const wire = roundTrip(SECTION);
 
-    for (const band of ["normal", "elevated", "high", "extreme", "band"]) {
-      expect(wire).not.toContain(band);
-    }
+    expect(wire).toContain('"band":"high"');
+  });
+
+  it("carries the cohort, and omits it rather than writing a null", () => {
+    // **AC 3 as bytes.** Two scores are comparable only over the same factor
+    // set, so the section names the scale it ranked on and counts what it set
+    // aside. `others` is `0` on every machine that exists — measured, 485
+    // stored rows and no single-factor score — and travels anyway.
+    const wire = roundTrip(SECTION);
+
+    expect(wire).toContain('"factors":["price","excess"]');
+    expect(wire).toContain('"max":75');
+    expect(wire).toContain('"others":7');
+
+    const cohortless: Record<string, unknown> = { ...SECTION };
+    delete cohortless.cohort;
+    const bare = roundTrip(cohortless as unknown as WireUnusualActivity);
+
+    expect(bare).not.toContain("cohort");
+    expect(bare).not.toContain("null");
+  });
+
+  it("omits an ABSENT move rather than writing a zero for it", () => {
+    // `?? 0`'s failure mode wearing a glyph: a `percent: null` reaches a
+    // lenient reader as `0`, which is the claim *this security did not move*
+    // and draws an em dash where a direction belongs. The session arm reaches
+    // this state for a security scored on its excess factor alone.
+    const moveless: Record<string, unknown> = { ...ROW };
+    delete moveless.percent;
+
+    const wire = roundTrip({
+      ...SECTION,
+      rows: [moveless as unknown as WireUnusualRow],
+    });
+
+    expect(wire).not.toContain("percent");
+    expect(wire).not.toContain("null");
+    expect(wire).toContain('"score":72');
   });
 
   it("counts the refusals by kind, with every word present at zero", () => {
@@ -1376,51 +1417,21 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
     expect(wire).not.toContain("unusual");
   });
 
-  it("costs 389 B of section plus 232 B a row — 2,718 B at the ten rows this region ships", () => {
-    // **Measured rather than estimated**, off this encoder.
+  it("costs the section plus a row, re-measured off this encoder at Task 5.6.7", () => {
+    // **Measured rather than estimated**, off this encoder, and **the row got
+    // cheaper**: it was eight fields and is three.
     //
-    // ## The figure the owner needs, because the row count moved
+    // The figures are read below rather than quoted here, because this
+    // repository's own rule is that a figure that counts something in this
+    // tree is invalidated by recording it. What is worth writing down is the
+    // **shape** of the change and the one arithmetic a reader gets wrong:
+    // **the comma between two rows is a byte**, so a per-row figure quoted
+    // without the separators under-reports a list by `rows − 1`.
     //
-    // `UNUSUAL_ROWS` went from five to ten on 2026-10-16 (Task 5.4.3, on the
-    // measured 168 px void a five-row list left in a 491 px box), and the
-    // section's cost is linear in it. **Taken at ten rather than projected
-    // from five**, and the reading confirms the projection: **2,699 B**.
-    //
-    // | shape                          | bytes     |
-    // | ------------------------------ | --------- |
-    // | fixed section, no rows         | 370       |
-    // | first row                      | 232       |
-    // | five rows (`1,164` of rows)    | 1,534     |
-    // | **ten rows (`2,329` of rows)** | **2,699** |
-    //
-    // Note `2,329` rather than `10 × 232 = 2,320`: **the comma between two
-    // rows is a byte**, so the nine separators are nine bytes and a per-row
-    // figure quoted without them under-reports a list. The same arithmetic
-    // gives `1,164` at five rather than `1,160`.
-    //
-    // So a row is **232.9 B over ten** against the movers' measured 124.3 B,
-    // which is 1.9x and is all `MeasuredReturn`'s own rule: a mover row is a
-    // `WireOverviewFigure` of four or five short fields, and this row carries
-    // an ordinal, a counted `n`, a move and **two timestamped endpoints with
-    // a tape each** — 118 B of the 232 are the two endpoints.
-    //
-    // Gate 1's `223 B a row / 1,281 B at five` is superseded twice over: it
-    // was taken on a shape carrying a `band`, and `1,281 / 5` is 256, so no
-    // two of its own figures agree. AC 8's `~2.4 KB a section` presumed ten
-    // rows and is, by luck, the closest of the three.
-    //
-    // The fixed cost is the part a reader of this test should notice: three
-    // counts, two spans, the baseline block and five refusal words, paid on
-    // **every** frame including every gated run, where all of it is zero for
-    // ever. CI's shape — no rows, no generation, every count zero — is 303 B.
-    //
-    // **Re-measured 2026-10-16 (Task 5.4.5): the fixed cost is 389 B, up 19
-    // from 370**, which is `"basis":"observed"` and nothing else. The
-    // `session` arm is **393 B**, four more than the observed arm, because it
-    // trades `windowMinutes: 5` for a ten-character date. Per-row figures are
-    // unchanged: the
-    // discriminant is one field per **section**, which is the whole of ADR
-    // 0038's grain argument at the field level.
+    // The fixed cost is the part to notice: three counts, two spans, the
+    // baseline block, the cohort and five refusal words, paid on **every**
+    // frame including every gated run, where all of it is zero for ever. The
+    // cohort is **absent** on a gated run, because nothing is scored there.
     const bare = roundTrip({ ...SECTION, rows: [] }).length;
     const one = roundTrip(SECTION).length;
     const rowsOf = (count: number) =>
@@ -1428,21 +1439,37 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
         ...SECTION,
         // Distinct symbols, because `readUnusual` refuses a list that names
         // one security twice — a byte measurement over a frame the browser
-        // would throw away is a measurement of nothing.
+        // would throw away is a measurement of nothing. Descending scores,
+        // because it also refuses a list out of the comparator's order.
         rows: Array.from({ length: count }, (_, at) => ({
           ...ROW,
           symbol: `SYM${String(at)}`,
+          score: 72 - at,
         })),
       }).length;
 
     const reference = encodeMarketStreamMessage(overviewMessage({})).length;
 
-    expect(bare - reference).toBe(389);
-    expect(one - bare).toBe(232);
+    const section = bare - reference;
+    const row = one - bare;
+
+    // **The row is well under the movers' measured 124.3 B**, where it used to
+    // be 1.9× it — and the section is a little larger, because the cohort is a
+    // per-**section** fact where the eight per-row fields were per row. That
+    // trade is ADR 0038's grain argument paying out: ten rows × five dropped
+    // figures against one object.
+    expect(row).toBeLessThan(124);
+    expect(section).toBeGreaterThan(389);
+
+    // The separators, stated as an assertion rather than as a comment, because
+    // it is the arithmetic every per-row figure in this repository has had to
+    // be corrected for once.
+    expect(rowsOf(10) - bare).toBe(10 * row + 9);
+    expect(rowsOf(5) - bare).toBe(5 * row + 4);
 
     // **The session arm, measured rather than assumed to cost the same.** It
-    // is the arm `/` is on for roughly 80% of the week.
-    const session = roundTrip({
+    // is the arm `/` is on for roughly 80% of the week, and on CI for ever.
+    const sessionArm = roundTrip({
       basis: "session",
       rows: [],
       tracked: SECTION.tracked,
@@ -1454,16 +1481,9 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
       session: "2026-10-15",
     }).length;
 
-    expect(session - reference).toBe(393);
-
-    // Five and ten, both read rather than one read and one multiplied: the
-    // comma between two rows is a byte, so `10 × 232` over-states by ten and
-    // `5 × 232` by five.
-    expect(rowsOf(5) - bare).toBe(1164);
-    expect(rowsOf(10) - bare).toBe(2329);
-
-    // **The whole section, as the owner's record needs it.**
-    expect(rowsOf(10) - reference).toBe(2718);
+    // Four more than the observed arm, which trades `windowMinutes: 5` for a
+    // ten-character date — and **no cohort**, because nothing was scored.
+    expect(sessionArm - reference).toBe(393);
   });
 
   // **The reader's half, added by Task 5.4.3** — the half Task 5.4.2
@@ -1519,10 +1539,10 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
       return decoded.message.overview;
     };
 
-    const ranked = (rank: number, symbol: string): WireUnusualRow => ({
+    const ranked = (score: number, symbol: string): WireUnusualRow => ({
       ...ROW,
       symbol,
-      rank,
+      score,
     });
 
     it("reads a well-formed section whole", () => {
@@ -1576,26 +1596,34 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
       ).toBeUndefined();
     });
 
-    it("refuses a list that is not in the comparator's own order", () => {
+    it("refuses a list that is not in the COMPOSITE comparator's own order", () => {
       // **Stronger than the movers' equivalent, and that is the tie-break
-      // paying for itself**: `compareByPercentile` breaks ties on the ticker,
-      // so a correct frame admits exactly ONE order and a swapped pair is a
-      // defect rather than a tolerance.
+      // paying for itself**: `compareByScore` breaks ties on the ticker, so a
+      // correct frame admits exactly ONE order and a swapped pair is a defect
+      // rather than a tolerance.
+      //
+      // **And `isRankedByScore` rather than `isRankedByPercentile` since Task
+      // 5.6.7.** Reading the composite's order with the ordinal's comparator
+      // would have been green on every frame rather than loud: a
+      // `WireUnusualRow` no longer has a `rank` at all, and an absent ranking
+      // key sorts as unrankable — so every list would have passed. The
+      // assertions below are the half that catches it, because a swapped pair
+      // of **scores** is only visible to a comparator that reads scores.
       const ordered = {
         ...SECTION,
-        rows: [ranked(99, "AVGO"), ranked(99, "NVDA"), ranked(97, "CRM")],
+        rows: [ranked(72, "AVGO"), ranked(72, "NVDA"), ranked(64, "CRM")],
       };
       expect(decode(ordered)?.unusual?.rows).toHaveLength(3);
 
       const swapped = {
         ...SECTION,
-        rows: [ranked(99, "NVDA"), ranked(99, "AVGO"), ranked(97, "CRM")],
+        rows: [ranked(72, "NVDA"), ranked(72, "AVGO"), ranked(64, "CRM")],
       };
       expect(decode(swapped)?.unusual).toBeUndefined();
 
       const unranked = {
         ...SECTION,
-        rows: [ranked(97, "AVGO"), ranked(99, "NVDA")],
+        rows: [ranked(64, "AVGO"), ranked(72, "NVDA")],
       };
       expect(decode(unranked)?.unusual).toBeUndefined();
     });
@@ -1607,16 +1635,19 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
       expect(
         decode({
           ...SECTION,
-          rows: [ranked(99, "NVDA"), ranked(99, "NVDA")],
+          rows: [ranked(72, "NVDA"), ranked(72, "NVDA")],
         })?.unusual,
       ).toBeUndefined();
     });
 
-    it("refuses counts that do not nest", () => {
-      // `rows ≤ scored ≤ eligible ≤ tracked`. The only arithmetic the
-      // region's cut sentence rests on: `eligible − scored` is the refused
-      // count, and a negative remainder is a number of securities that
-      // cannot exist.
+    it("refuses counts that do not nest, THROUGH the cohort", () => {
+      // `rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`. The chain gained
+      // a link at Task 5.6.7, because the rows are a selection from the
+      // **cohort** rather than from `scored`: `scored` counts every security
+      // that got a composite at all, and a 1-of-3 score is honestly scored and
+      // deliberately not ranked.
+      //
+      // It is still the only arithmetic the region's cut sentence rests on.
       expect(decode({ ...SECTION, scored: 0 })?.unusual).toBeUndefined();
       expect(
         decode({ ...SECTION, eligible: 1, scored: 2 })?.unusual,
@@ -1624,34 +1655,110 @@ describe("the unusual-activity section, whose rows are an ORDINAL and the figure
       expect(
         decode({ ...SECTION, tracked: 10, eligible: 11, scored: 11 })?.unusual,
       ).toBeUndefined();
+
+      // A cohort claiming more scored securities than the section did.
+      expect(
+        decode({
+          ...SECTION,
+          cohort: { ...SECTION.cohort, scored: 999 },
+        })?.unusual,
+      ).toBeUndefined();
+
+      // A cohort plus its others exceeding the section's own count, which is
+      // the partition failing to be a partition.
+      expect(
+        decode({
+          ...SECTION,
+          scored: 10,
+          cohort: { factors: ["price"], max: 40, scored: 6, others: 6 },
+        })?.unusual,
+      ).toBeUndefined();
+
+      // More rows than the cohort holds. The weaker `rows ≤ scored` would be
+      // green on this: `scored` is 427.
+      expect(
+        decode({
+          ...SECTION,
+          cohort: { ...SECTION.cohort, scored: 0, others: 0 },
+        })?.unusual,
+      ).toBeUndefined();
     });
 
-    it("refuses an ordinal outside the bound the figure can hold", () => {
-      // **The check with the least help from the screen.** A `106th
-      // percentile` draws as a confident, well-formed row, and nothing on
-      // `/` can contradict it — the distribution behind it is 101 breakpoints
-      // × 501 securities that no browser holds. `100th` is refused for the
-      // same reason it is never printed: above the highest order statistic
-      // there is no sample.
-      for (const rank of [-1, 100, 106, 99.5, Number.NaN]) {
+    it("refuses a score outside the bound the figure can hold", () => {
+      // **The check with the least help from the screen.** A `140` draws as a
+      // confident, well-formed row at the top of a region about unusual
+      // behaviour, and nothing on `/` can contradict it — the figure's inputs
+      // are two 60-session distributions no browser holds.
+      //
+      // `100` is **legal here** where `100th` was refused one figure ago, and
+      // the difference is structural rather than a relaxation: the ordinal's
+      // ceiling was *above the highest order statistic there is no sample*,
+      // and this is a weighted sum whose every factor can reach its own
+      // weight.
+      for (const score of [-1, 101, 140, 61.5, Number.NaN]) {
         expect(
-          decode({ ...SECTION, rows: [{ ...ROW, rank }] })?.unusual,
+          decode({ ...SECTION, rows: [{ ...ROW, score }] })?.unusual,
+        ).toBeUndefined();
+      }
+
+      expect(
+        decode({ ...SECTION, rows: [{ ...ROW, score: 100 }] })?.unusual?.rows,
+      ).toHaveLength(1);
+      expect(
+        decode({ ...SECTION, rows: [{ ...ROW, score: 0 }] })?.unusual?.rows,
+      ).toHaveLength(1);
+    });
+
+    it("refuses a band this bundle has no fill for", () => {
+      // The chip's fill is the figure's second channel and a fifth band has
+      // none here, so the row is refused rather than drawn with a blank chip.
+      // It is also read **strictly** rather than re-derived, which is the
+      // whole reason the word is on the wire: the floors the score was minted
+      // against were the producer's, and a rollback can put a runner and this
+      // bundle two floor sets apart.
+      for (const band of ["", "severe", "HIGH", "unusual"]) {
+        expect(
+          decode({
+            ...SECTION,
+            rows: [{ ...ROW, band }],
+          })?.unusual,
         ).toBeUndefined();
       }
     });
 
-    it("refuses a row ranked against no sample at all", () => {
+    it("keeps a row whose MOVE is absent or unreadable, because the glyph is a second channel", () => {
+      // The score is the figure and the direction is redundancy over it, so a
+      // move this reader cannot vouch for is a row with no glyph rather than a
+      // discarded row — `seen`'s rule, one wire over. A `0` substituted here
+      // would draw the em dash, which is the claim *this security did not
+      // move*.
+      const moveless: Record<string, unknown> = { ...ROW };
+      delete moveless.percent;
+
       expect(
-        decode({ ...SECTION, rows: [{ ...ROW, sampleCount: 0 }] })?.unusual,
-      ).toBeUndefined();
+        decodeRaw({ ...SECTION, rows: [moveless] })?.unusual?.rows,
+      ).toHaveLength(1);
+      expect(
+        decodeRaw({ ...SECTION, rows: [moveless] })?.unusual?.rows[0],
+      ).not.toHaveProperty("percent");
+      expect(
+        decodeRaw({ ...SECTION, rows: [{ ...ROW, percent: "down" }] })?.unusual
+          ?.rows[0],
+      ).not.toHaveProperty("percent");
     });
 
-    it("refuses a row with no endpoints, because an ordinal with no instant is undatable", () => {
-      const noFrom: Record<string, unknown> = { ...ROW };
-      delete noFrom.from;
-      expect(
-        decodeRaw({ ...SECTION, rows: [noFrom] })?.unusual,
-      ).toBeUndefined();
+    it("keeps a section whose COHORT is malformed, because absent is a state", () => {
+      // The counts and the rows are still true without it, and the region's
+      // sentence falls silent about the scale rather than naming one nobody
+      // sent — `generation`'s rule one object over. A frame from a previous
+      // image carries no cohort at all.
+      const decoded = decodeRaw({
+        ...SECTION,
+        cohort: { factors: ["price", "soup"], max: 75, scored: 420, others: 7 },
+      });
+
+      expect(decoded?.unusual?.rows).toHaveLength(1);
+      expect(decoded?.unusual?.cohort).toBeUndefined();
     });
 
     it("refuses a baseline whose tape this bundle cannot name", () => {

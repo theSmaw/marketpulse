@@ -87,24 +87,132 @@ the evening that fills those rows, ordered by what expires soonest.
 `/` draws **seven** regions. [`PRODUCT_SPEC.md`](../PRODUCT_SPEC.md) §9 sketches
 them; this epic fills **four** (and Story 5.4 filled a fifth on 2026-10-17).
 
-| Region                   | Holds                                                                                               | Owner           |
-| ------------------------ | --------------------------------------------------------------------------------------------------- | --------------- |
-| `Market proxies`         | `SPY` `QQQ` `DIA` `IWM` — price, change, arrival mark                                               | Story 4.2 ✔     |
-| `Sector performance`     | eleven ranked sector SPDRs, each its benchmark's own move                                           | Story 4.3 ✔     |
-| `Market breadth`         | three counts, a remainder and a net headline                                                        | Story 4.4 ✔     |
-| `Movers`                 | `GAINERS` and `LOSERS`, five rows each                                                              | Story 4.5 ✔     |
-| `Market topology`        | `reserved`                                                                                          | **Epic 6**      |
-| `Unusual activity`       | **ten ranked rows — the percentile ordinal, a tinted direction glyph, three populations and a cut** | **Story 5.4 ✔** |
-| `Current investigations` | `reserved`                                                                                          | **Epic 7+**     |
+| Region                   | Holds                                                                                                                                    | Owner           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `Market proxies`         | `SPY` `QQQ` `DIA` `IWM` — price, change, arrival mark                                                                                    | Story 4.2 ✔     |
+| `Sector performance`     | eleven ranked sector SPDRs, each its benchmark's own move                                                                                | Story 4.3 ✔     |
+| `Market breadth`         | three counts, a remainder and a net headline                                                                                             | Story 4.4 ✔     |
+| `Movers`                 | `GAINERS` and `LOSERS`, five rows each                                                                                                   | Story 4.5 ✔     |
+| `Market topology`        | `reserved`                                                                                                                               | **Epic 6**      |
+| `Unusual activity`       | **ten ranked rows — the composite score, a tinted direction glyph, the day's band in the head, three populations, the cohort and a cut** | **Story 5.6 ✔** |
+| `Current investigations` | `reserved`                                                                                                                               | **Epic 7+**     |
 
 **Amended 2026-10-17 by Story 5.4: five of the seven hold figures and only TWO
 are `reserved`.** `Unusual activity` draws the ten securities whose last
-five-minute move sits furthest out in their own 60-session history — ranked by
+five-minute move sits furthest out in their own 60-session history — ~~ranked by
 the **price percentile**, drawn as an **ordinal** (`99th`) with the word
 `percentile` in the list heading and spoken whole, because
 `packages/shared/src/anomaly.ts` deliberately holds no score→band boundaries and
-the four bands belong to the **composite** score Story 5.6 ships. Three things
-from it are load-bearing for anything added to this screen.
+the four bands belong to the **composite** score Story 5.6 ships~~ — **false
+since 2026-10-28: Task 5.6.7 re-based it on the composite, and Story 5.4's own
+stated reversal condition is what fired.** Three things from Story 5.4 are
+load-bearing for anything added to this screen and are left standing below; what
+changed is set out first.
+
+### Amended 2026-10-28 by Task 5.6.7 — the figure, the order, and where the band goes
+
+**The region ranks and draws `scoreAnomaly`'s 0–100 composite**, with `bandOf`'s
+word **in the region's head slot** — `TOP 10 · ALL EXTREME`. Story 5.4's Gate 1
+had refused a per-row chip on the stated condition that it would have read
+`extreme` on **one factor of three**; `ANOMALY_BAND_FLOORS` are measured
+quantiles of 34,318 scores (32 / 63 / 73) and the band distribution over 485
+stored rows is `normal 162, elevated 201, high 106, extreme 16`, so the
+condition was met and the chip shipped — **in a fifth track for one afternoon,
+before the owner moved the word into the heading on a second measurement.**
+Point 3 below is that measurement and is the most transferable thing here.
+
+**Both arms moved in one change and the coupling is the point.** The order and
+the drawn figure are one decision: a composite in the comparator with an ordinal
+in the column draws row 1 at `85th` above row 2 at `97th` — a visibly
+mis-ordered list with every figure on it individually correct — and the
+`session` arm runs about 80% of the week and permanently on CI, so that would
+have been the deployment's ordinary evening state. The session arm reads
+`session_composite_scores` beside `session_return_percentiles` (`0017` §2 keys
+both on the same session's close) and **refuses to mix two sessions' halves**.
+
+**Five things from it are load-bearing further on.**
+
+**1. The COHORT rule — two scores are comparable iff computed over the same
+factor set.** `packages/shared/src/composite-cohort.ts` is the one home; the
+largest cohort is ranked within, named on screen, and the rest are **counted**.
+Ranking across cohorts is AC 3's refusal in terms, because a score from fewer
+factors has the higher variance and a mixed top-N systematically promotes the
+**worst-covered** securities. It is **correct and invisible**: `{price, excess}`
+is the sole cohort on every machine that exists (485 of 485 stored rows, 0
+single-factor scores), so it is held by a check — `a-ranked-score-list-is-one-cohort`
+— rather than by a test, because a test over today's fixtures is green with the
+partition deleted.
+
+**2. `scored` changed meaning and the nesting chain gained a link.** It was _how
+many held a comparable price baseline_; it is now _how many got a composite at
+all_, because a refused price factor is an **absent factor** rather than a
+dropped row. The chain is `rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`
+and `readUnusual` walks all five.
+
+**3. A PROPERTY OF THE DAY IS STATED ONCE — the row is FOUR tracks and the band
+is in the head.** This is the one change on this screen that was found by
+**looking at it** rather than by any check, and the arithmetic is why.
+
+A per-row chip is a **fixed 76 px of a 308 px row — 25%** — and the row has no
+slack to give it: probed with the chip, `15 68 57 44 76` at 1440, `15 68 72 44
+76` at 1024, `15 68 435 44 76` at 768 and `15 64 77 44 76` at 390, so the
+company name fell to **57 px**, about eight characters — `Dominio…`,
+`The Kra…`, `3M Co…`, `ExxonM…`. The ordinal's 64 → 44 paid for less than half
+the chip and the name paid the rest, because the score cell **keeps the
+direction glyph** and the widest band word is `elevated` (8 glyphs), not
+`extreme` (7).
+
+**And the ten chips said one word.** Measured against the stored composites:
+**1 distinct band in the top ten**, all `extreme`, out of 16 `extreme`
+securities in the whole universe; Task 5.6.3 measured all ten rows sharing one
+band in **35 of 77** instants and more than three sharing one in **77 of 77**.
+A top-N selected for extremity and bucketed by extremity concentrates in the
+top bands **by construction** — which the chip's own argument had already
+written down: _it stops being a property of the selection and becomes a
+property of the day_. A property of the day is stated **once**.
+
+So the band is the head slot's: `Top 10 · all extreme`, or `Top 10 · led by
+extreme` where the ten do not share one. **The span was refused on a
+measurement, and the refusal generalises to any region head on this screen.**
+The head's content box is **308 px** at 1440 and at 390 (the binding width),
+of which the region title takes **120.3** in the cold-load face and
+`Panel.header`'s gap 16, leaving the slot **171.7** — against
+`Top 10 · extreme to elevated` at **201.28** and `Top 10 · led by elevated` at
+**166.5**. The failure past that line is not a clipped word: `Panel.headings`
+carries `min-width: 0`, so an oversized slot **wraps the region title onto a
+second line** and the region grows, which at 768 and 390 steps the whole lower
+page. Of the two honest endpoints the **leader's** band is the one carried: it
+is the row the reader's eye is on, and a quiet day states itself (`led by
+elevated`).
+
+The row is four tracks again — `15 68 145 44` at 1440, `15 68 160 44` at 1024,
+`15 68 523 44` at 768 and `15 64 161 44` at 390, so the **name is 145 px**
+against 57 — and the region is **491 / 491 / 458 / 458 px** with the list
+**269 px** in every state, unchanged throughout.
+
+**4. A chip taller than the row's line box steps the whole lower page, and only
+`pnpm probe` can see it.** The first draft gave the compact chip `--space-4`
+vertically — 24 px in an 18 px line box — and every row came out **33 px instead
+of 26**, the list **329 instead of 269**. All 3,652 unit tests were green on it.
+`.bar` and `.price` each paid for that class once at 390; this time it left a
+**check** behind (`overview-unusual-denominator.spec.ts` asserts the row pitch
+and the list height) rather than a comment.
+
+**5. Amber was reachable on `/` for an afternoon and is not any more.**
+`market.css` resolves `--anomaly-high`, `--feed-stale`, `--service-degraded`
+and `--provenance-synthetic` all to `--palette-amber`, so a chip in this region
+and the chrome's degraded words would have been one hue on one screen. The head
+slot carries the band as a **word** in `--ink-secondary` and spends none of the
+ramp — **fewer amber positions is better, and the word reads correctly without
+a fill** — so `/` is back to the state `Unusual.tsx` recorded before the chip:
+no amber on it at all. `amber-appears-once-in-the-rail` holds the mechanical
+half, by refusing any second stylesheet that reads the ramp. **The collision
+stays Story 5.6's, on the security page, where Task 5.6.8 photographs it.**
+
+**And what no gated machine and no person has ever seen is a single drawn row.**
+CI has zero bars, no provider and no composite generation; the local store has
+no `iex` row and no provider. **The only place a score has ever been drawn is
+Storybook.** `LIVE-REHEARSAL.md` row 5.6 is unwatched.
 
 **The figure it ranks is a MAGNITUDE, and that cost a defect.**
 `return-percentile.ts:129` takes `Math.abs(percent)` — _how far from zero the

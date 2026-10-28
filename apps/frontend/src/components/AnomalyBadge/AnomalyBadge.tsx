@@ -19,6 +19,27 @@ import styles from "./AnomalyBadge.module.css";
 // The score-to-band boundaries are deliberately absent here as well as there.
 // That is Epic 5's detection policy, and a threshold invented in a styling task
 // would outlive the guess.
+//
+// ## There was a `compact` modifier for one afternoon, and its disposition is
+// ## DELETION rather than an orphan
+//
+// Task 5.6.7 added one — `min-width: 0` and a stepped padding — so the chip
+// could sit in a fifth track on `/`'s `Unusual activity` row, whose content
+// box is 308 px. The owner removed that chip the same day: the top ten share
+// one band (1 distinct band in the top ten, measured), so 76 px of a 308 px
+// row repeated one word ten times and left the company name eight characters.
+// `/` states the band **once**, in the region's head slot, as a word with no
+// fill.
+//
+// The modifier went with it rather than being kept against a future use. A
+// variant with no consumer is a second appearance to keep in step with the
+// four fills and the three measured ink contrasts, and nothing would ever
+// render it — this product has one orphaned seam already (`Popover`) and
+// keeping a second would make that a habit rather than a decision. **The
+// reversal condition, as a condition**: the first surface that needs this
+// chip in a column narrower than its `6rem` reserve. What it must keep when
+// it returns is in `RankedList.module.css`' `.unusual` header, which keeps
+// the width table and the 18 px height the row's pitch rests on.
 
 export interface AnomalyBadgeProps {
   readonly band: AnomalyBand;

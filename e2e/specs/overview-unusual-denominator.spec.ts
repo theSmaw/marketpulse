@@ -44,7 +44,8 @@ import {
 //     denominator reaching none — its only printed home was an `aria-hidden`
 //     ladder, correctly hidden — and the DOM was right in both versions.
 //     This region draws **no ladder and prints no denominator anywhere
-//     else**: the head slot states the bound (`Top 10`) and no count. So the
+//     else**: the head slot states the bound and today's band
+//     (`Top 10 · led by extreme`) and no count. So the
 //     footer is the entire delivery of the figure to either audience, and
 //     three of its siblings in the same region legitimately carry
 //     `aria-hidden` (`RankedList`'s `.rules` and `.ladder`), which is what
@@ -67,9 +68,9 @@ const RANKED = ["CTSH", "NVDA", "AVGO"] as const;
  */
 const SECTION = unusualSection(
   [
-    unusualRow("CTSH", 99, -4.12, { aboveSample: true }),
-    unusualRow("NVDA", 99, 3.88),
-    unusualRow("AVGO", 98, -2.4),
+    unusualRow("CTSH", 75, "extreme", -4.12),
+    unusualRow("NVDA", 75, "extreme", 3.88),
+    unusualRow("AVGO", 68, "high", -2.4),
   ],
   { scored: 455, eligible: 466, tracked: 501 },
 );
@@ -84,7 +85,7 @@ const SECTION = unusualSection(
  */
 const POPULATIONS =
   "Of the 501 companies we track, 466 were heard from in the last 5 " +
-  "minutes and 455 have a long enough history to rank.";
+  "minutes and 455 have a score on 2 of 3 factors, to a maximum of 75.";
 
 /** The two comparison refusals, counted — `unusualSection`'s own tallies. */
 const REFUSED = "11 have too short a baseline.";
@@ -202,6 +203,120 @@ test("the screen's note names the baseline's tape, and the region does not", asy
   const inRegion = (await region(page).textContent()) ?? "";
   expect(inRegion).not.toContain("sessions of stored bars");
   expect(inRegion).not.toContain("All US exchanges");
+
+  await expectNothingFailedToRender(page);
+});
+
+/**
+ * **The region is ONE HEIGHT, and its rows are the pitch the grid is sized
+ * off** (Task 5.6.7).
+ *
+ * ## It exists because the probe caught a defect nothing else could
+ *
+ * The band chip arrived with `--space-4` of vertical padding, which is 24 px
+ * of chip in a row whose line box is 18 — so **every row came out 33 px
+ * instead of 26 and the list 329 instead of 269**, the region 60 px taller,
+ * stepping the whole lower page at the two widths where the grid rows are
+ * untied. `pnpm probe / --within "Unusual activity"` printed it in one line;
+ * the 41 `RankedList` tests, this region's own tests and every unit test in
+ * the repository were **green on it**, because jsdom applies no stylesheet and
+ * computes no layout.
+ *
+ * **That chip has since been removed** — the top ten share one band, so it
+ * repeated one word ten times for 25% of the row — and the row is four cells
+ * again. The check outlives it: it is about the row's **pitch**, which is what
+ * the grid is sized off, not about any particular cell.
+ *
+ * `.bar` and `.price` each paid for that lesson once at 390 and each left a
+ * comment rather than a check. This is the check: the next cell added to this
+ * row goes red here rather than on somebody's screen.
+ *
+ * ## The figures are MEASURED, and they are the row pitch rather than the box
+ *
+ * `pnpm probe`, 2026-10-28, all four widths: the list is **269 px** and the
+ * rows resolve `27 × 9 + 26` — nine pitches and a last row with no separator.
+ * The region's own box is 491/491/458/458 and is **not** asserted here: it is
+ * a grid resolution that three sibling regions participate in, so a change
+ * anywhere in that column would fail this spec about the wrong thing.
+ *
+ * The tolerance is **the row pitch**, which is what `MARKET-OVERVIEW.md` §1.4
+ * cares about: an implicit second row of the `<li>` is `+7 px` a row and 70 px
+ * of region, far outside it, while a sub-pixel font-metric difference is not.
+ */
+test("the list is ten rows at the pitch the grid is sized off, with no implicit second row", async ({
+  page,
+}) => {
+  await open(page);
+
+  // **The ELEMENTS, not the accessible rows** — corrected 2026-10-28, and the
+  // distinction is the whole check. The held pads that fill a short list are
+  // `aria-hidden`, so `getByRole("listitem")` sees only the rows that carry a
+  // security: three, against a furnished section of three. This assertion is
+  // about GEOMETRY — the pitch the grid row is sized off — and the pads occupy
+  // that geometry whether or not a listener is told about them.
+  const rows = region(page).locator("li");
+  await expect(rows).toHaveCount(10);
+
+  const boxes = await rows.evaluateAll((nodes) =>
+    nodes.map((node) => Math.round(node.getBoundingClientRect().height)),
+  );
+
+  // Every row the same height, and that height the shipped 26 px row plus its
+  // own separator — never 33, which is what a cell taller than the line box
+  // produces.
+  expect(new Set(boxes.slice(0, 9)).size).toBe(1);
+  expect(boxes[0]).toBeLessThanOrEqual(27);
+  expect(boxes[0]).toBeGreaterThanOrEqual(26);
+
+  const list = await region(page).locator("ol").first().boundingBox();
+  expect(Math.round(list?.height ?? 0)).toBeLessThanOrEqual(270);
+  expect(Math.round(list?.height ?? 0)).toBeGreaterThanOrEqual(268);
+
+  await expectNothingFailedToRender(page);
+});
+
+/**
+ * **The head is ONE LINE, and the slot's string is what could take it off
+ * one.**
+ *
+ * The slot carries the band since the chip came off the row — `Top 10 · led
+ * by extreme` for this section's three furnished rows — and `Panel.headings`
+ * carries `min-width: 0`, so the failure mode is not a clipped badge: an
+ * oversized slot **wraps `Unusual activity` onto a second line** and takes the
+ * region's height with it. At 768 and 390 the grid row is content-sized, so
+ * the whole lower page steps.
+ *
+ * Measured with `pnpm probe`, 2026-10-28, at all four widths: the header is
+ * **47 px**, the title's box **114 × 22**, and the slot **132** against the
+ * **171.7** it has at 308 px of head. The widest string this region can build
+ * is `Top 10 · led by elevated` at **166.5** in the cold-load face, so the
+ * budget is spent to 97% and the margin is 5 px — which is exactly why this is
+ * a check rather than a comment.
+ *
+ * The tolerance is **one line against two**: a wrapped title is +22 px, far
+ * outside it, while a sub-pixel font-metric difference is not.
+ */
+test("the region's head stays one line under the band clause", async ({
+  page,
+}) => {
+  await open(page);
+
+  await expect(region(page).getByText("Top 10 · led by extreme")).toBeVisible();
+
+  const head = await region(page).evaluate((root) => {
+    const headings = root.querySelector('[class*="_headings_"]');
+    const slot = root.querySelector('[class*="_slot_"]');
+    return {
+      title: Math.round(headings?.getBoundingClientRect().height ?? 0),
+      slot: Math.round(slot?.getBoundingClientRect().width ?? 0),
+    };
+  });
+
+  // One line of `--line-height-subheading`, never two.
+  expect(head.title).toBeLessThanOrEqual(24);
+
+  // And the string inside the budget the title and the gap leave it.
+  expect(head.slot).toBeLessThanOrEqual(171);
 
   await expectNothingFailedToRender(page);
 });

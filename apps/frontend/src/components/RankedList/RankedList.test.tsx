@@ -731,8 +731,10 @@ describe("the ticker link, and the roving stop over it", () => {
   });
 });
 
-describe("the third anatomy: an ordinal where a change would be", () => {
-  // **`bar: { kind: "none", figure: "ordinal" }`** — Task 5.4.3. The anatomy
+describe("the third anatomy: a composite score, and no chip", () => {
+  // **`bar: { kind: "none", figure: "score" }`** — Task 5.4.3, re-based at
+  // 5.6.7, where the cell's quantity changed from a price percentile to the
+  // composite score and a **fifth** cell arrived beside it. The anatomy
   // was derived from the bar alone until this shipped (`signed ? "sector" :
   // "mover"`), so a third `bar: "none"` use was silently handed `.movers`'
   // five-track list with four children: `.movers .figure { grid-column: 5 }`
@@ -747,45 +749,62 @@ describe("the third anatomy: an ordinal where a change would be", () => {
   // covered by the existing `every-row-variant-restates-its-tracks`
   // invariant.
 
-  const ordinalRow = (
+  const scoreRow = (
     symbol: string,
     rank: number,
-    drawn: string,
+    score: string,
   ): SectorRow => ({
     symbol,
     label: `${symbol} Corporation`,
     rank,
     move: undefined,
-    reading: { drawn, spoken: `${drawn} percentile`, direction: "negative" },
+    // **Drawn and spoken agree**, because a score has no long form — so the
+    // cell renders one element rather than two. The ordinal this replaced was
+    // drawn short and spoken whole.
+    reading: { drawn: score, spoken: score, direction: "negative" },
     absent: undefined,
-    basis: "percentile:2026-10-14",
+    basis: "composite:2026-10-14",
     arrival: undefined,
   });
 
-  const ORDINAL_ROWS = [
-    ordinalRow("NVDA", 1, ">99th"),
-    ordinalRow("AVGO", 2, "97th"),
-  ];
+  const SCORE_ROWS = [scoreRow("NVDA", 1, "72"), scoreRow("AVGO", 2, "61")];
 
   const drawn = () =>
     renderWithContext(
       <RankedList
-        rows={ORDINAL_ROWS}
-        bar={{ kind: "none", figure: "ordinal" }}
+        rows={SCORE_ROWS}
+        bar={{ kind: "none", figure: "score" }}
         name="Unusual activity"
         quietGroup="impossible"
       />,
     );
 
-  it("draws FOUR cells a row — rank, ticker, name, ordinal — and no more", () => {
-    // A fifth grid item has nowhere to go, and inside a `subgrid` — which
-    // cannot grow columns beyond the range it adopts — that is a **second row
-    // of the `<li>`**: 33 px instead of 26 on every row, which `.bar` and
-    // `.price` have each paid for once.
+  it("draws FOUR cells a row — rank, ticker, name, score — and no more", () => {
+    // **It was five for an afternoon**, when Task 5.6.7 put a band chip in a
+    // fifth track; the owner removed it on a measurement (the top ten share
+    // one band, so 76 px of a 308 px row repeated one word ten times and left
+    // the company name 57 px). The count is load-bearing in a way nothing
+    // below `pnpm probe` can see: a grid item with no track is placed in an
+    // implicit row of the `<li>` — 33 px instead of 26 on every row, which
+    // `.bar` and `.price` have each paid for once. The CSS restates the track
+    // list in **both** width bands in the same change as this cell, and this
+    // assertion is what pairs the two halves.
     drawn();
 
     const first = screen.getAllByRole("listitem")[0];
     expect(first?.children).toHaveLength(4);
+  });
+
+  it("draws no band word on the row, in any cell", () => {
+    // The band is the region's head slot's, once — `unusual-activity.ts`'
+    // `boundOf`. A chip here would also be the only amber on `/`, which
+    // `amber-appears-once-in-the-rail` keeps to one stylesheet.
+    const { container } = drawn();
+
+    for (const band of ["normal", "elevated", "high", "extreme"]) {
+      expect(container.textContent.toLowerCase()).not.toContain(band);
+    }
+    expect(container.querySelectorAll('[class*="_badge_"]')).toHaveLength(0);
   });
 
   it("draws the cells in the order they are read", () => {
@@ -803,7 +822,8 @@ describe("the third anatomy: an ordinal where a change would be", () => {
     expect(text[0]).toBe("1");
     expect(text[1]).toBe("NVDA");
     expect(text[2]).toBe("NVDA Corporation");
-    expect(text[3]).toContain(">99th");
+    expect(text[3]).toContain("72");
+    expect(text).toHaveLength(4);
   });
 
   it("draws no bar cell, because a `none` use never renders one", () => {
@@ -821,15 +841,52 @@ describe("the third anatomy: an ordinal where a change would be", () => {
     expect(container.querySelectorAll('[class*="_price_"]')).toHaveLength(0);
   });
 
-  it("puts the ordinal in its own class rather than in `.figure`", () => {
+  it("puts the score in its own class rather than in `.figure`", () => {
     // The shared `@media (width < 37rem)` block ends with
     // `.figure { font-size: var(--font-size-micro) }`, **unscoped to either
-    // layout** — so an ordinal drawn in `.figure` would step to 11 px at 390
+    // layout** — so a score drawn in `.figure` would step to 11 px at 390
     // with nobody deciding it, in a cell sized at 13. This assertion is the
     // only thing below `pnpm probe` that can see the cell is not that one.
     const { container } = drawn();
 
     expect(container.querySelectorAll('[class*="_ordinal_"]')).toHaveLength(2);
     expect(container.querySelectorAll('[class*="_figure_"]')).toHaveLength(0);
+  });
+
+  it("draws ONE element for the figure where the two renderings agree", () => {
+    // ADR 0029's *one fact, one home* at the grain of a cell, and the same
+    // branch `Unusual.claim` takes: splitting an identical string across an
+    // `aria-hidden` span and a visually-hidden one puts it in `textContent`
+    // twice for a listener to meet twice. A score has no long form to defer to.
+    const { container } = drawn();
+
+    expect(container.querySelectorAll('[class*="_spoken_"]')).toHaveLength(0);
+    expect(
+      container.querySelectorAll('[class*="_value_"][aria-hidden="true"]'),
+    ).toHaveLength(0);
+  });
+
+  it("keeps BOTH renderings where they differ, so the drawn/spoken split survives", () => {
+    // The split is not deleted, only unused by this region's own figure: the
+    // next use with a short form gets it back, and the branch is on the
+    // strings rather than on a flag.
+    const { container } = renderWithContext(
+      <RankedList
+        rows={[
+          {
+            ...SCORE_ROWS[0],
+            reading: { drawn: "72", spoken: "72 of 75", direction: "negative" },
+          } as SectorRow,
+        ]}
+        bar={{ kind: "none", figure: "score" }}
+        name="Unusual activity"
+        quietGroup="impossible"
+      />,
+    );
+
+    expect(container.querySelectorAll('[class*="_spoken_"]')).toHaveLength(1);
+    expect(
+      container.querySelectorAll('[class*="_value_"][aria-hidden="true"]'),
+    ).toHaveLength(1);
   });
 });

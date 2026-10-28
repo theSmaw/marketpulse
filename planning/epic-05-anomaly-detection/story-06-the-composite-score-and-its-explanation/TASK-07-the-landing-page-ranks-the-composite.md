@@ -1,6 +1,6 @@
 # Task 5.6.7 — The landing page ranks the composite
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-28**
 **Story:** [5.6 The Composite Score, & Its Explanation](STORY.md)
 **Depends on:** 5.6.6
 
@@ -343,6 +343,400 @@ second.
 
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-10-28
 
-## For a stakeholder — a status report, YYYY-MM-DD
+### Both arms moved in one change, which is the whole shape of it
+
+`/`'s `Unusual activity` ranked and drew the **price percentile** — one factor
+of three — and now ranks and draws the **composite score** with its band as a
+chip beside it. The producer, the wire, the reader, the drawing and the session
+arm all changed together, because the order and the drawn figure are one
+decision: a composite in the comparator with an ordinal in the column draws row
+1 at `85th` above row 2 at `97th`, a visibly mis-ordered list with every figure
+on it individually correct — and the session arm runs about 80% of the week and
+permanently on CI, so that would have been the deployment's ordinary evening
+state rather than an edge case.
+
+**`WireUnusualRow` went from eight fields to three** — `symbol`, `score`,
+`band`, plus an optional `percent` the direction glyph needs. The ordinal, its
+counted `n`, `aboveSample` and both timestamped endpoints left the wire with the
+figure they described.
+
+### The cohort rule, implemented, stated on screen, and invisible
+
+**Two scores are comparable iff computed over the same factor set.**
+`packages/shared/src/composite-cohort.ts` is the one home for that rule;
+`selectLargestCohort` partitions, the largest cohort is ranked within, and the
+securities on other scales are **counted** rather than silently absent. The
+section carries `WireUnusualCohort` — the factor set, its `max`, how many are in
+it and how many are not — and the footer absorbs it into the **cut** sentence
+rather than taking a fourth line:
+
+> Of the 501 companies we track, 466 were heard from in the last 5 minutes and
+> 455 have a score on 2 of 3 factors, to a maximum of 75. 11 have too short a
+> baseline. Nothing newer than Oct 15 · 14:01 EDT has reached us.
+
+Four lines of micro at 308 px, which is exactly the reserve. The nesting chain
+gained a link and still closes: **`rows ≤ cohort.scored ≤ scored ≤ eligible ≤
+tracked`**, and `readUnusual` walks all five.
+
+**`scored` changed meaning and that is the substantive half.** It was _how many
+held a comparable price baseline_; it is now _how many got a composite at all_.
+Under a composite a refused price factor is an **absent factor** rather than a
+dropped row — so a security whose excess move ranked is honestly `1 of 3 · max
+35`, scored and deliberately **not** ranked against a 2-of-3 one.
+
+**It is correct and invisible, and that is said out loud rather than left to be
+found.** Task 5.6.6 measured 485 scored securities with **0 single-factor
+scores**, because the two scored factors refuse for the same root causes — so
+`{price, excess}` is the **sole** cohort and `others` is `0` in every state any
+machine can produce. **The machinery is untested against a real second cohort.**
+It is written so that the second cohort's arrival is a data change rather than a
+code change, and it is held by a check (`a-ranked-score-list-is-one-cohort`)
+rather than by a test, precisely because a test over today's fixtures is green
+with the partition deleted.
+
+### The defect the probe caught, which nothing else could
+
+**The band chip shipped with `--space-4` of vertical padding, which is 24 px of
+chip in a row whose line box is 18.** Measured by `pnpm probe / --within
+"Unusual activity"`: every row came out **33 px instead of 26** and the list
+**329 instead of 269** — the region 60 px taller, stepping the whole lower page
+at the two widths where the grid rows are untied.
+
+**The 41 `RankedList` tests, this region's own tests and all 3,652 unit tests
+were green on it.** jsdom applies no stylesheet and computes no layout. It is
+the same class `.bar` and `.price` each paid for once at 390, found the same way
+and by nothing else — and the thirty seconds the probe costs against the five
+minutes the browser suite costs is the whole of `CLAUDE.md`'s working loop
+earning its place again.
+
+The repair is `padding: var(--border-width) var(--space-4)` with the bordered
+variant taking `0` vertically and letting its own border make up the two pixels:
+`0 + 0 + 16 + 1 + 1 = 18`, equal to the filled chips' `1 + 1 + 16`. **The
+line-height is NOT re-declared**, because `.badge` composes `microLabel` which
+declares it and `a-compose-never-carries-an-override` would fail the build —
+correctly, since `type.module.css` lands later and the declaration would be
+silently ignored.
+
+**And it left a check behind rather than a comment.**
+`overview-unusual-denominator.spec.ts` now asserts the row pitch and the list's
+height, so the next cell added to this row goes red in CI rather than on
+somebody's screen.
+
+### The row, measured at four widths
+
+| width | row grid (resolved) | name   | list   | region |
+| ----- | ------------------- | ------ | ------ | ------ |
+| 1440  | `15 68 57 44 76`    | 57 px  | 269 px | 491 px |
+| 1024  | `15 68 72 44 76`    | 72 px  | 269 px | 491 px |
+| 768   | `15 68 435 44 76`   | 435 px | 269 px | 458 px |
+| 390   | `15 64 77 44 76`    | 77 px  | 269 px | 458 px |
+
+Ten rows at a 27 px pitch in every state, in all five Storybook states and on
+`/` itself. **The region's heights are unchanged from its pre-change figures.**
+
+**The name paid for the chip, and by more than this task predicted.** The task
+budgeted the score at two glyphs (~28 px) and the chip at ~72, leaving the name
+~77 at 1440. Two measured things moved it: the score cell **keeps the direction
+glyph**, so it is 44 and not 28, and the widest band word is **`elevated`
+(8 glyphs)** rather than `extreme` (7). The ordinal's 64 → 44 paid for less than
+half the chip; the rest came out of the name, which is **57 px at 1440** against
+125 before — about eight characters, ellipsised.
+
+### The chip, measured in the cold-load face
+
+`AnomalyBadge.badge` composes only `microLabel`, which sets **no
+`font-family`**, so the chip inherits `--font-sans`. Measured with the webfont
+aborted, at 11 px with `0.08em` tracking and `--space-4` either side:
+
+| band       | shipped | cold-load |
+| ---------- | ------- | --------- |
+| `normal`   | 57.14   | 60.78     |
+| `elevated` | 66.05   | **69.64** |
+| `high`     | 37.19   | 39.27     |
+| `extreme`  | 62.72   | 65.52     |
+
+The track is **76**, holding the widest word in the face a cold load gets with
+**6.36 px** to spare. The cold-load inflation is **×1.045–1.064** against the
+×1.148 `RankedList.module.css` records for five glyphs of `--font-data`: the
+principle transfers and **the number does not**, which is this task's own
+premise 3 confirmed by measurement rather than accepted. The **height is 18 px
+in both faces**, which is the figure the region's height actually rests on.
+
+### The row-shape assertion sweep
+
+**Taken before any change, with the command**: 28 role-based row assertions
+across 10 e2e specs and 46 across 7 component test files by a wide grep; **64
+`row`/`listitem` role assertions across 16 files** by the narrow one. `UniverseTable`
+holds 16, `RankedList` 15.
+
+**Changed: the `unusual` anatomy's own, and nothing else.** The row gained a
+fifth `<li>` child in one anatomy; the sector and mover anatomies are untouched
+and `UniverseTable` is a `<table>` this task never reaches. Specifically:
+
+- `RankedList.test.tsx` — the `four cells a row` assertion became **five**, and
+  four assertions were added beside it (the chip's written word, that a listener
+  gets it, the empty band cell on a held pad, and the one-element figure).
+- The **four `unusual` e2e specs contain no role-based row assertion** — they
+  assert on ordinal **text** and on counts, which is the channel a score plus a
+  chip breaks, exactly as this task predicted. Three were scoped rather than
+  loosened: `>99th, 99th, 98th…` → `75, 75, 68, 64, 58` with the band words
+  asserted beside them, and `toContain("99th")` → `toContain("75")`.
+- `overview-degraded-grid.spec.ts`' ten furnished rows were re-scored, keeping
+  the tie structure so the tie-break is still exercised rather than dodged.
+
+### The recompute moved, and it lost an arm
+
+`overview-unusual-ranking.spec.ts` writes the order out **by hand** so it cannot
+agree with the renderer by construction. It is rewritten rather than re-pointed:
+`b.rank - a.rank` became `b.score - a.score`, a different expression over a
+different field. **Had it imported the comparator the rename would have been
+invisible here**, and the recompute would have gone on agreeing with the
+renderer — which is the one thing it exists not to do.
+
+**One arm is a LOSS and is recorded as one.** The per-endpoint _every endpoint
+is `sip`_ check was the strongest claim in that file and the endpoints left the
+wire with the ordinal. The tape claim moves to the section's **one** baseline —
+a weaker statement about the same fact, one field instead of twenty — and the
+per-row _is this instant inside the session_ arm has no instant left to read.
+What replaced them is stronger in a different direction: **every score is inside
+its own cohort's declared ceiling**, which is the arm that catches a producer
+ranking across scales.
+
+### `SecurityRow` deleted, `Popover` deferred by name
+
+**`SecurityRow` is deleted**, and the disposition is a refusal on §11's own
+grounds rather than a tidy-up: it wrapped `AnomalyBadge` in a `Popover` so a
+reader could **ask** for a score's explanation, and §11 requires every score to
+**carry** one. `AbnormalMove.tsx`' reference to it is amended.
+
+That orphaned `Popover`, whose disposition is **named as a deferral for Epic 7's
+dense surfaces** in its own header, with a reversal trigger: _the first surface
+that needs an explanation a reader asks for, on a row too narrow to carry it._
+If Epic 7 closes without one, the disposition to take is deletion plus an ADR
+amendment retiring the Base UI seam — not another epic of keeping it.
+
+### What no gated machine and no person has ever seen
+
+**A single drawn row of this.** CI's store is 516 securities with zero bars, no
+provider and **no composite generation**, so every gated run draws ten held pads
+and the honest-nothing sentence, permanently. The local store has no `iex` row
+and no provider either, so the only place a score has ever been drawn is
+**Storybook**.
+
+`LIVE-REHEARSAL.md` carries row **5.6** unwatched; this task does not fill it.
+
+### Amber is now reachable on `/`, and nothing here repairs it
+
+`Unusual.tsx` recorded that _"no amber appears in this region, so that collision
+stays Story 5.6's and is unreachable from `/` today."_ **That is false as of
+this commit** and the claim is amended in place. `market.css` resolves
+`--anomaly-high`, `--feed-stale`, `--service-degraded` and
+`--provenance-synthetic` all to `--palette-amber`, so this region's chip and the
+chrome's degraded words are one hue on one screen. **Task 5.6.8 photographs
+it**; the repair needs the photographs first.
+
+## For a stakeholder — a status report, 2026-10-28
+
+**The landing page now ranks by the score the epic exists for.** `/`'s `Unusual
+activity` used to list the ten securities whose last five-minute move sat
+furthest out in their own history, drawn as an ordinal — `99th`. It now lists
+the ten with the highest **composite anomaly score**, drawn as a 0–100 figure
+with its band written beside it: `61 ELEVATED`. The security page and the
+landing page finally agree about what is being ranked.
+
+**The region says what scale it is on, which is the part that is easy to miss.**
+Not every security can be scored on every factor, and a score computed from
+fewer factors is not comparable with one computed from more — so the page ranks
+within one group, names it (`a score on 2 of 3 factors, to a maximum of 75`),
+and says how many it set aside. Today that last number is always zero, because
+every scored security happens to be in the same group. The machinery is there
+for the day it is not.
+
+**The geometry held, and one defect was caught by looking.** The region is the
+same height it has always been at every width, after a first draft that made
+every row a quarter taller and would have pushed the whole lower half of the
+page down. No test in the repository could see it; opening the page with a
+measuring tape took thirty seconds.
+
+**What nobody has seen is a single row of it working.** The data this ranking
+needs does not exist on any machine we control — not on the build servers, not
+on a developer's laptop. Every figure above was drawn in the component workshop.
+A person watching the deployed product during a real session is still owed, and
+is recorded as owed.
+
+---
+
+## Amended 2026-10-28, the same day, by the owner — THE CHIP CAME OFF THE ROW
+
+**The per-row band chip above was built, probed and correct, and it was the
+wrong drawing for this surface.** It was removed by looking at the rendered
+page; nothing mechanical could have raised it, and everything above about it is
+left standing because the measurements are what argue the replacement.
+
+### The measurement, which is the chip's own argument carried one step further
+
+`Unusual.tsx` had written down why Story 5.4's Gate 1 could ever be reversed:
+_at which point the chip stops being a property of the selection and becomes a
+property of the day._ It is. Against the stored composites: **`distinct bands
+in top 10: 1`**, all `extreme`, out of **16** `extreme` securities in the whole
+universe. Task 5.6.3 had already measured **all ten rows sharing one band in 35
+of 77 instants** and **more than three sharing one in 77 of 77**. A top-N
+selected for extremity and bucketed by extremity concentrates in the top bands
+**by construction** — which is also why that story's own _more than three rows
+share a band_ trigger was dead on arrival.
+
+So the chip spent **76 px of a 308 px row — 25%** — repeating one word ten
+times, and the company name paid for it at **57 px, about eight characters**:
+`Dominio…`, `The Kra…`, `3M Co…`, `ExxonM…`. That reads as broken rather than
+as designed, which is `CLAUDE.md`'s own UI bar failing.
+
+**A property of the day is stated once.**
+
+### The wording, and the span that was refused on a measurement
+
+The head slot reads **`Top 10 · all extreme`** when the ranked rows share one
+band and **`Top 10 · led by extreme`** when they do not. `boundOf` in
+`apps/frontend/src/market/unusual-activity.ts` is the one home.
+
+The rows arrive score-descending and the band is monotone in the score, so the
+available honest statements are _all X_, _X down to Y_, and _the leader is X_.
+**The span does not fit**, measured in the cold-load face in `.bound`'s own
+face at 1440:
+
+| string                         | px     |      |
+| ------------------------------ | ------ | ---- |
+| `Top 10 · all extreme`         | 141.31 | fits |
+| `Top 10 · all elevated`        | 145.45 | fits |
+| `Top 10 · led by extreme`      | 162.36 | fits |
+| `Top 10 · led by elevated`     | 166.48 | fits |
+| `Top 10 · extreme to high`     | 170.91 | fits |
+| `Top 10 · elevated to normal`  | 196.55 | OVER |
+| `Top 10 · extreme to elevated` | 201.28 | OVER |
+
+The head's content box is **308 px** at 1440 **and at 390** — the binding
+width, because 1024 is wider and 768 is 686 — of which the region title takes
+**120.3** and `Panel.header`'s gap takes **16**, leaving the slot **171.7**.
+Every span of more than one step is over that line by 25–30 px, and **the
+failure is not a clipped word**: `Panel.headings` carries `min-width: 0`, so an
+oversized slot wraps `Unusual activity` onto a second line and takes the
+region's height with it — at 768 and 390 the grid row is content-sized, so the
+whole lower page steps. A clause that fits on most days and steps the page on
+the rest is worse than one that never does.
+
+Of the two endpoints, the **leader's** band is carried: it is the row the
+reader's eye is already on, it answers _is today worth looking at_, and a quiet
+day states itself (`led by elevated` is how a top ten says it found nothing
+extreme). `Top 10` stays — it is the only surface saying the list is a
+**selection**. The margin at the widest string is **5.2 px**, which is why
+`overview-unusual-denominator.spec.ts` now asserts the head is one line rather
+than a comment saying it should be.
+
+**The band word stays written, never abbreviated**, for the chip's own reason:
+the ramp's greyscale steps are 1.12 / 1.43 / 1.59 — enough to see a change and
+nowhere near enough to name one.
+
+### Amber: the heading carries the word and NOT the fill
+
+**Fewer amber positions is better and the heading reads correctly without
+one**, so there is no fill. The consequence is that `/` is back to the state
+`Unusual.tsx` recorded before this task — **no amber on it at all** — and the
+`--anomaly-high` / `--feed-stale` / `--service-degraded` /
+`--provenance-synthetic` collision stays on the security page, where Task 5.6.8
+photographs it. It is also mechanically held: `amber-appears-once-in-the-rail`
+fails the build on a second stylesheet reading the ramp, so a fill added to
+`Unusual.module.css` could not ship.
+
+### The row, re-probed at four widths
+
+`pnpm probe / --within "Unusual activity"`, 2026-10-28, against the live local
+store (ten rows, all `extreme`):
+
+| width | row grid (resolved) | name   | was | list   | header |
+| ----- | ------------------- | ------ | --- | ------ | ------ |
+| 1440  | `15 68 145 44`      | 145 px | 57  | 269 px | 47 px  |
+| 1024  | `15 68 160 44`      | 160 px | 72  | 269 px | 47 px  |
+| 768   | `15 68 523 44`      | 523 px | 435 | 269 px | 47 px  |
+| 390   | `15 64 161 44`      | 161 px | 77  | 269 px | 47 px  |
+
+The pitch is **27 px** and the list **269 px** in every state, unchanged — the
+check the probe earned still holds — and the head is **one line at every
+width**, with the slot at **132 px** for the live `all extreme` string.
+
+### `AnomalyBadge.compact`: DELETED, with the reason
+
+Its only consumer was this row. A variant with no consumer is a second
+appearance to keep in step with the four fills and the three measured ink
+contrasts, and nothing would ever render it; this product already has one
+orphaned seam (`Popover`) and a second would make that a habit rather than a
+decision. **The reversal condition**: _the first surface that needs this chip in
+a column narrower than its `6rem` reserve._ What it must keep when it returns —
+the width table in both faces and the **18 px height** the row's pitch rests on
+— is kept in `RankedList.module.css`' `.unusual` header rather than deleted
+with the rule.
+
+Removing it left `AnomalyBadge.module.css` and `AnomalyBadge.stories.tsx`
+**byte-identical to HEAD**, which is the whole of 5.6.7's diff to those two
+files; `AnomalyBadge.tsx` differs from HEAD only by the recorded disposition.
+
+### The assertion sweep, found against changed
+
+Taken with the command, 2026-10-28:
+
+```
+grep -rn '"row"\|"listitem"\|role=.row.\|role=.listitem.' apps e2e packages \
+  --include="*.ts" --include="*.tsx"
+```
+
+**83 occurrences across 21 files** (`UniverseTable` 16, `RankedList` 17, the
+rest ≤ 5 each). The narrow grep — the four `getByRole`/`getAllByRole` forms —
+gives **49 across 17 files**. Both are stated because the task's own prior
+inventory used a third shape and reported 64 across 16; the number depends
+entirely on the grep, which is this repository's own rule about counting a
+phrase.
+
+**Changed: the `unusual` anatomy's own, and nothing else.** The row lost its
+fifth `<li>` child in one anatomy; the sector and mover anatomies are untouched
+and `UniverseTable` is a `<table>` this change never reaches.
+
+- `RankedList.test.tsx` — `five cells a row` → **four**; the three chip
+  assertions (the word inside the fill, that a listener gets it, the empty band
+  cell on a held pad) replaced by **one** that no band word appears anywhere in
+  the row and no `_badge_` element is rendered; the cell-order test now asserts
+  the row has four cells rather than naming a fifth.
+- `Unusual.test.tsx` — the head-slot tests now assert the whole string
+  (`Top 10 · all extreme`) and a new one asserts the word is written and
+  **unfilled**; the list's own _no band word_ assertion kept and re-argued.
+- `unusual-activity.test.ts` — _carries the PRODUCER's band_ became _puts no
+  band on the ROW_, beside five new `boundOf` assertions (both sentences, the
+  wire-not-derived rule, the silence, the interpolation).
+- `overview-unusual-keyboard.spec.ts` — the per-row chip text assertion
+  (`["extreme", "extreme", "high", "high", "elevated"]`) became the head slot's
+  `Top 10 · led by extreme` **plus a count of zero chips in the region**:
+  scoped, and strictly stronger about where the band may appear.
+- `overview-unusual-denominator.spec.ts` — the pitch check kept unchanged with
+  its measured numbers, and a **new** test asserts the head stays one line
+  (title box ≤ 24 px, slot ≤ 171 px), which is the failure mode the new string
+  introduces.
+
+The other three `unusual` e2e specs and `overview-degraded-grid.spec.ts` needed
+**no assertion change**: none asserts a chip, and the degraded states rank
+nothing, so the head slot is silent in all of them exactly as it was.
+
+### Gates
+
+`pnpm typecheck`, `pnpm lint`, `pnpm format:check`, the frontend package's
+1,686 tests and `pnpm invariants` (**74 hold**) all green; `pnpm verify` green.
+`pnpm e2e` is the owner's.
+
+**The break: hand-performed, because `pnpm break` refuses a dirty target and
+this task's own work is uncommitted.** `every-break-can-still-land` is inside
+the green 74, which is the half that rots. `the-band-chip-puts-its-ramp-in-the-ink`
+ran for real (its file is clean again) — _broken → red → restored
+byte-identical_, matching `amber-appears-once-in-the-rail`. And the clause this
+change is actually in — `.unusual`'s narrow-block track list, now four tracks —
+was proved by hand: deleting the narrow `.unusual` block took
+`every-row-variant-restates-its-tracks` red with the right message
+(`1 row variant(s) state a track list above 37rem and none below it`), `1 of 74
+invariants failed`, and the file was restored byte-identical by checksum.

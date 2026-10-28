@@ -39,6 +39,34 @@ import styles from "./Popover.module.css";
 // The wrapper stays thin. It owns the seam, not behaviour: no state, no side
 // effects, no opinion about placement beyond the offset. It does not render
 // `Popover.Backdrop` or `Popover.Close`, because neither has a caller yet.
+//
+// ## IT HAS NO LIVE CONSUMER, AND THAT IS A DEFERRAL RATHER THAN AN ACCIDENT
+//
+// Added 2026-10-28 by Task 5.6.7. Its only consumer was `SecurityRow`, which
+// wrapped `AnomalyBadge` in this seam so a reader could **ask** for a score's
+// explanation. That component was **deleted** and the reason is above this
+// paragraph in its own words: *"the first thing this seam carries is an
+// anomaly score's explanation"* — and `PRODUCT_SPEC.md` §11 requires every
+// score to **carry** its explanation rather than to be askable for one. So the
+// refusal is on §11's own grounds and not on usage: `Abnormal-move indicators`
+// draws the clause-per-factor ledger inline, and `/`'s ranked rows draw the
+// score with its band and link to that ledger.
+//
+// **What this file is kept for is named rather than left to be guessed:
+// Epic 7's dense surfaces.** The seam's whole value is that the Base UI
+// decision above is reversible only while call sites import *this* file, and
+// the argument for choosing Base UI — plugging an existing component library
+// into this product later — is not spent by one consumer going away. The
+// shape is right for the case it was built for and wrong for the case that
+// arrived: a **dense table row** where an explanation cannot be drawn inline
+// at all, which is what Epic 7's evidence surfaces are.
+//
+// **Reversal trigger, as a condition**: the first surface that needs an
+// explanation a reader asks for, on a row too narrow to carry it. If Epic 7
+// reaches its own close without one, the disposition to take is deletion plus
+// a `docs/adr/` amendment retiring the Base UI seam — not another epic of
+// keeping it. Until then it keeps its stories, and `pnpm stories` is what
+// stops it rotting unseen.
 
 export interface PopoverProps {
   /**

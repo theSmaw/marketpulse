@@ -9,6 +9,7 @@ import type { MarketFeed } from "./market-provenance.js";
 import { PERCENTILE_REFUSALS } from "./return-baseline.js";
 
 import type {
+  CompositeFactor,
   WireAbsentClause,
   WireAnomalyOutcome,
   WireAnomalyScore,
@@ -27,13 +28,32 @@ import type { VolumeRefusal } from "./volume-baseline.js";
 // The ladder's rungs, so this module can refuse a value that is not one of
 // them. The back edge — `sector-ranking.ts` importing `WireOverviewFigure` from
 // here — is **type-only** and is erased, so there is no runtime cycle.
-// The ordinal order's own home (Task 5.4.3), imported for `isRankedByMove`'s
-// reason one quantity over: `readUnusual` has to answer *is this list ranked*,
-// and a decoder writing its own inequality over two ordinals would be the
-// second comparator `one-comparator-for-the-order-of-a-percentile` exists to
-// refuse. `percentile-ranking.ts` imports nothing from here at all, so there is
-// not even a type-only edge back.
-import { isRankedByPercentile } from "./percentile-ranking.js";
+// **The composite's own order** (Task 5.6.7), imported for `isRankedByMove`'s
+// reason one quantity over: `readUnusual` answers *is this list ranked* about
+// an order computed server-side, and a decoder writing its own inequality over
+// two scores would be the second comparator
+// `one-comparator-for-the-order-of-a-composite-score` exists to refuse.
+// `score-ranking.ts` imports nothing from here at all, so there is not even a
+// type-only edge back.
+//
+// **It replaced `isRankedByPercentile`, which this module no longer imports at
+// all.** Task 5.4.3 brought that one in for the unusual section's ordinal, and
+// the composite is a different quantity over a different field — so re-pointing
+// rather than widening is what put a compile error at the one call site. Note
+// what the lazy version of this change would have done: leaving the ordinal's
+// comparator in place would have been **green on every frame**, because
+// `WireUnusualRow` no longer has a `rank` at all and an absent ranking key
+// sorts as unrankable.
+import { isRankedByScore } from "./score-ranking.js";
+// The band and factor vocabularies (Task 5.6.7), imported rather than
+// re-spelled for `PERCENTILE_REFUSALS`' reason: the region draws the band as a
+// **fill with a written word in it** and names the cohort's factors in a
+// sentence, so a word this bundle has no name for is a blank chip or a slug on
+// screen.
+import { COMPOSITE_FACTORS } from "./composite-score.js";
+import { ANOMALY_BANDS } from "./anomaly.js";
+
+import type { AnomalyBand } from "./anomaly.js";
 // The composite score's reader and its wire types (Task 5.6.4). **The decode
 // arm goes through `readAnomalyScore`** rather than reading fields here: that
 // function re-adds the published contributions, re-derives each one from the
@@ -725,67 +745,104 @@ export interface WireSessionMovers extends WireMoverLists {
 }
 
 /**
- * **One ranked row of `Unusual activity`** (Task 5.4.2) — a security, where
- * its five-minute move sits in its own 60-session history, and the figures
- * that answer came from.
+ * **One ranked row of `Unusual activity`** (Task 5.4.2, re-based on the
+ * composite at Task 5.6.7) — a security, how unusual its behaviour is on a
+ * 0–100 scale, and which way it went.
  *
- * ## It is {@link WireReturnPercentile}'s `ranked: true` arm, with the
- * ## per-frame constants hoisted off it
+ * ## Three fields, where it carried eight — the FIGURE changed, not only the
+ * ## drawing
  *
- * A row **is** a ranked comparison by definition — AC 7: a security with no
- * score has **no rank**, and a refused security is not a row at all — so there
- * is no second percentile shape here and nothing to discriminate against.
- * `ranked: true` is therefore absent rather than carried: a discriminant with
- * one reachable value is 14 bytes a row saying what the array's own membership
- * already says. {@link spanMinutes} and the baseline's tape are
- * {@link WireUnusualActivity}'s, because they are the same for every row on a
- * frame and 124.3 B a row is the budget this section is measured against.
+ * Until Task 5.6.7 this row was {@link WireReturnPercentile}'s `ranked: true`
+ * arm: an ordinal, its `n`, `aboveSample`, the signed move and both endpoints.
+ * The region now ranks and draws the **composite**, so the ordinal is one
+ * factor's figure rather than the row's, and the eight fields would be seven
+ * figures nothing draws beside one that is drawn.
  *
- * ## The endpoints are not optional
+ * **The explanation did not go with them, which is the part to be clear
+ * about.** §11's *every score carries its explanation* is honoured by
+ * {@link WireUnusualCohort} plus the destination: the cohort names the factor
+ * set and its ceiling **once for the section** — every drawn row shares it by
+ * construction, which is what the cohort rule buys — and each row's ticker
+ * opens that security's page, where `Abnormal-move indicators` draws the full
+ * clause-per-factor ledger from the `return` frame. That is the shape §11's
+ * own refusal of a popover asked for: the score **carries** its explanation
+ * rather than being askable for one, at the grain each surface can hold.
  *
- * {@link WireMeasuredReturn} establishes that this figure may not be read
- * without the two instants it was measured between, and that rule does not
- * weaken because the figure is now in a list: `from` and `to` are the only
- * thing on the row that says **when**, and an ordinal with no instant is a
- * claim about a move nobody can date. They are also what makes the region's
- * own age claim possible without a second instant on the frame.
+ * Ten rows of per-factor clauses in a 308 px column is not an explanation, it
+ * is the fully-formed record ADR 0029 refuses — and the arithmetic is the one
+ * that already moved the word `percentile` off this row.
  *
- * ## Every factor behind the ordinal travels
+ * ## What is still checkable from the frame alone
  *
- * Invariant 5's rule applied to a derived figure: a drawn number owes the
- * figures it came from. {@link percent} is the move, the endpoints are what it
- * was measured between, {@link sampleCount} is the counted `n` the ordinal was
- * taken against, and {@link aboveSample} is the one thing a rank cannot say.
- * What a reader **cannot** re-derive is the cut — that needs the population's
- * 101 breakpoints × 501 securities, ~417 KB, which is never going on this wire
- * — and ADR 0038's 2026-10-12 amendment is why shipping a selection is still
- * honest: every row carries its own key, so the **order** and the
- * **uniqueness** are checkable from the frame alone.
+ * ADR 0038's 2026-10-12 amendment, unchanged and the reason a **selection** is
+ * honest: every row carries its own key, so the **order** —
+ * `isRankedByScore`, a total order — and the **uniqueness** are verifiable by
+ * a reader that holds nothing else. What cannot be re-derived from the wire is
+ * the cut, which needs 101 breakpoints × 501 securities twice over, and
+ * {@link WireUnusualCohort} is what makes the restriction visible instead.
+ *
+ * ## The per-frame constants are still hoisted off it
+ *
+ * {@link WireUnusualCounts.spanMinutes} and the baseline's tape are the
+ * section's, because they are the same for every row on a frame and 124.3 B a
+ * row was the budget this section was measured against. A row is now **well
+ * under** it, which is the one place this change spends nothing.
  */
 export interface WireUnusualRow {
   /** The security. The row's own key, and the only activatable thing on it. */
   readonly symbol: string;
   /**
-   * **The integer ordinal, `0` through `99`. Never `100`.**
+   * **The composite anomaly score, `0` through `100`** — the drawn figure
+   * since Task 5.6.7, and what this list is ranked by.
    *
-   * {@link WireReturnPercentile.rank}'s field, under its own argument: the
-   * precision is an integer because the binomial standard error at the 99th of
-   * n = 4,620 is 0.146 points, and the ceiling is 99 because above the highest
-   * order statistic there is no sample.
+   * An integer because `scoreAnomaly` sums **rounded** per-factor
+   * contributions: a score computed from unrounded values can be ±1 from the
+   * addition a reader performs on the screen, and an addition that fails on
+   * correct code is not an interpretable score.
+   *
+   * **`100` is reachable here where the ordinal it replaced capped at 99**,
+   * and the difference is structural rather than incidental: the ordinal's
+   * ceiling was *above the highest order statistic there is no sample*, while
+   * this is a weighted sum whose every factor can reach its own weight. The
+   * **drawn** ceiling in this tree is `75` — two factors — and the track is
+   * nonetheless reserved at three glyphs, because a column sized to today's
+   * maximum moves the layout the day the volume factor arrives.
    */
-  readonly rank: number;
-  /** The magnitude is strictly above every sample the baseline holds. */
-  readonly aboveSample: boolean;
-  /** The counted `n` this ordinal was taken against — **never a constant**. */
-  readonly sampleCount: number;
-  /** The signed five-minute move, as a percentage. The ranked magnitude's own figure. */
-  readonly percent: number;
-  /** The **older** endpoint. */
-  readonly from: WireReturnEndpoint;
-  /** The **newer** endpoint. */
-  readonly to: WireReturnEndpoint;
-  /** How many of the span's minutes were observed, `1` to `spanMinutes`. */
-  readonly observed: number;
+  readonly score: number;
+  /**
+   * **{@link bandOf} of the score, as the PRODUCER computed it** — carried
+   * rather than derived in the browser.
+   *
+   * `0014` §5's rule: the figure a screen states must be the one the producer
+   * applied. The band is a function of `ANOMALY_BAND_FLOORS`, which on the
+   * `session` basis were the **nightly pass's** rather than this bundle's, and
+   * a rollback can put a runner and a reader two floor sets apart. A browser
+   * that re-derived it would draw a chip the gateway disagrees with, with both
+   * halves individually correct — which is the one failure
+   * `session_composite_scores`' stored `band` column exists to detect.
+   */
+  readonly band: AnomalyBand;
+  /**
+   * **The signed five-minute move, as a percentage** — absent where this basis
+   * holds no move for the security.
+   *
+   * It is on the row for one reason and it is not the figure: the composite
+   * ranks a **magnitude**, so without a direction a −9% crash and a +9% spike
+   * draw the identical row. That is Task 5.4.3's measured finding, and the
+   * repair it shipped (a tinted `DirectionGlyph` beside an untinted figure)
+   * survives the figure changing underneath it.
+   *
+   * **Optional, and the optionality is the `session` arm's own shape.**
+   * `session_composite_scores` stores the factor **answers** and no signed
+   * move — the ordinal, its `n` and the two endpoints live in
+   * `session_return_percentiles`, keyed by the same `observed_at`
+   * (`0017` §2 pairs them deliberately) — so the session arm reads the move
+   * from beside the score. A security scored on its excess factor alone would
+   * have a composite row and no percentile row, which is `0` of 485 measured
+   * and representable anyway: the glyph is then absent rather than invented,
+   * because a direction of `0` is the claim *nothing moved*.
+   */
+  readonly percent?: number;
 }
 
 /**
@@ -839,6 +896,59 @@ export interface WireUnusualBaseline {
   readonly minimumSampleCount: number;
   /** The generation these rows were ranked against, or absent where none was read. */
   readonly generation?: WireUnusualGeneration;
+}
+
+/**
+ * **The scale these scores are on, and how much was set aside to get it**
+ * (Task 5.6.7) — AC 3 arriving on the wire.
+ *
+ * Two composite scores are comparable **iff they were computed over the same
+ * factor set**: with unequal weights even a count-based cohort mixes scales,
+ * and a mixed ranking systematically promotes the worst-covered securities,
+ * because a score from fewer factors has the higher variance.
+ * `composite-cohort.ts` carries the argument and the two refused alternatives.
+ *
+ * So the section ranks within one cohort and this says **which**. Absent where
+ * nothing was scored at all — CI's permanent state — because a region with no
+ * scored security has no scale to name, and naming one would be ADR 0029's
+ * fully-formed record about zero rows.
+ *
+ * ## The factor SET, never a count
+ *
+ * AC 3's 2026-10-23 labelling note: with the volume factor permanently
+ * unrankable, `contributing.length` is `2`, `1` or `0` for every security for
+ * ever — so the count has lost its discriminating power while `2 of 3` still
+ * has three different maxima depending on **which** two. Both halves travel,
+ * and {@link max} is read off the score the producer minted rather than summed
+ * from this bundle's weights, for `0014` §5's reason.
+ */
+export interface WireUnusualCohort {
+  /**
+   * The contributing factors, in `COMPOSITE_FACTORS`' declared order — so two
+   * frames over the same set name it identically whatever order a producer
+   * built its record in.
+   */
+  readonly factors: readonly CompositeFactor[];
+  /** `Σ w` over those factors — the most this scale could have produced. */
+  readonly max: number;
+  /**
+   * How many of {@link WireUnusualCounts.scored} are in this cohort. The rows
+   * are a selection from **this** number, which is what makes the nesting
+   * chain `rows ≤ cohort.scored ≤ scored` rather than `rows ≤ scored`.
+   */
+  readonly scored: number;
+  /**
+   * **How many scored securities are on another scale and are therefore not
+   * ranked** — the figure that makes the restriction visible rather than
+   * silent.
+   *
+   * `0` in every state any machine can produce today: Task 5.6.6 measured 485
+   * scored securities and **0 single-factor scores**, because the price and
+   * excess factors refuse for the same root causes. Said on the wire anyway,
+   * so the day a third cohort appears the sentence changes with the data
+   * rather than with a deploy.
+   */
+  readonly others: number;
 }
 
 /**
@@ -959,13 +1069,32 @@ interface WireUnusualCounts {
    */
   readonly eligible: number;
   /**
-   * How many of those also held a comparable baseline, so the rows are a
-   * selection from **this** number.
+   * **How many of those got a composite score at all** — at least one
+   * contributing factor, which is `AnomalyScore`'s own non-empty tuple read as
+   * a count.
    *
-   * `eligible − scored` is the refused count, and
-   * {@link WireUnusualRefusals} says of what kind.
+   * ## Its MEANING changed at Task 5.6.7 and the nesting still closes
+   *
+   * It used to be *how many held a comparable price baseline*, because the
+   * ordinal was the figure and a refused baseline dropped the row. Under a
+   * composite a refused price factor is an **absent factor**, not a dropped
+   * row: a security whose price baseline is too short but whose excess move
+   * ranked is `1 of 3 · max 35`, honestly scored on a lower scale.
+   *
+   * So the rows are a selection from {@link WireUnusualCohort.scored} rather
+   * than from this, and the chain a reader checks is
+   * `rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`.
+   *
+   * `eligible − scored` is still the count that got **no** factor at all, and
+   * {@link WireUnusualRefusals} says of what kind — the price factor's own
+   * two refusal words, which are the only ones this section has ever counted.
    */
   readonly scored: number;
+  /**
+   * **Which scale the rows are on, and how many scored securities are on
+   * another one** — absent where nothing was scored.
+   */
+  readonly cohort?: WireUnusualCohort;
   /**
    * The measurement span each row's two endpoints are apart — **a different
    * quantity from {@link WireObservedUnusual.windowMinutes} that happens to
@@ -2466,15 +2595,32 @@ const returnEndpointFields: WireFields<WireReturnEndpoint> = {
  * map the per-symbol `return` frame uses — one answer to *what may a browser
  * see about an endpoint*, in both places it is asked.
  */
-const unusualRowFields: WireFields<WireUnusualRow> = {
+const unusualRowFields: WireFields<Omit<WireUnusualRow, "percent">> = {
   symbol: asIs,
-  rank: asIs,
-  aboveSample: asIs,
-  sampleCount: asIs,
-  percent: asIs,
-  from: (endpoint) => toWire(returnEndpointFields, endpoint),
-  to: (endpoint) => toWire(returnEndpointFields, endpoint),
-  observed: asIs,
+  score: asIs,
+  band: asIs,
+};
+
+/**
+ * **The row, with the move spread in a branch** — `encodeUnusualBaseline`'s
+ * idiom for its reason: `toWire` walks the map's keys, so a key in the map is a
+ * key on the wire whatever it holds, and `undefined` is not a JSON value.
+ *
+ * A `percent: null` would be worse than absent and in exactly this product's
+ * recorded way: a `null` under a `"number"` reaches a lenient reader as `0`,
+ * and `0` is the claim *this security did not move* — which draws an em dash
+ * where a direction belongs.
+ */
+const encodeUnusualRow = (row: WireUnusualRow): JsonValue => ({
+  ...toWire(unusualRowFields, row),
+  ...(row.percent === undefined ? {} : { percent: row.percent }),
+});
+
+const unusualCohortFields: WireFields<WireUnusualCohort> = {
+  factors: (factors) => [...factors],
+  max: asIs,
+  scored: asIs,
+  others: asIs,
 };
 
 const unusualGenerationFields: WireFields<WireUnusualGeneration> = {
@@ -2544,8 +2690,8 @@ const unusualRefusalFields: WireFields<WireUnusualRefusals> = {
  * Every field of both members is required, so there is no `Omit` here and a
  * field added to either member fails to compile naming itself.
  */
-const unusualCountFields: WireFields<WireUnusualCounts> = {
-  rows: (rows) => rows.map((row) => toWire(unusualRowFields, row)),
+const unusualCountFields: WireFields<Omit<WireUnusualCounts, "cohort">> = {
+  rows: (rows) => rows.map(encodeUnusualRow),
   tracked: asIs,
   eligible: asIs,
   scored: asIs,
@@ -2554,14 +2700,30 @@ const unusualCountFields: WireFields<WireUnusualCounts> = {
   refusals: (refusals) => toWire(unusualRefusalFields, refusals),
 };
 
-const observedUnusualFields: WireFields<WireObservedUnusual> = {
-  ...unusualCountFields,
+/**
+ * **The counts, with the cohort spread in a branch** — `encodeUnusualBaseline`'s
+ * idiom at a third grain, for its reason: `undefined` is not a JSON value and a
+ * key in the map is a key on the wire whatever it holds.
+ */
+const encodeUnusualCounts = (
+  section: WireUnusualCounts,
+): Record<string, JsonValue> => ({
+  ...toWire(unusualCountFields, section),
+  ...(section.cohort === undefined
+    ? {}
+    : { cohort: toWire(unusualCohortFields, section.cohort) }),
+});
+
+const observedUnusualFields: WireFields<
+  Omit<WireObservedUnusual, keyof WireUnusualCounts>
+> = {
   basis: asIs,
   windowMinutes: asIs,
 };
 
-const sessionUnusualFields: WireFields<WireSessionUnusual> = {
-  ...unusualCountFields,
+const sessionUnusualFields: WireFields<
+  Omit<WireSessionUnusual, keyof WireUnusualCounts>
+> = {
   basis: asIs,
   session: asIs,
 };
@@ -2594,10 +2756,16 @@ const encodeUnusual = (unusual: WireUnusualActivity): JsonValue | undefined => {
       // The window is what the sentence beside the counts is written from, so a
       // section with a non-finite one is a section no sentence can qualify.
       return Number.isFinite(unusual.windowMinutes)
-        ? toWire(observedUnusualFields, unusual)
+        ? {
+            ...encodeUnusualCounts(unusual),
+            ...toWire(observedUnusualFields, unusual),
+          }
         : undefined;
     case "session":
-      return toWire(sessionUnusualFields, unusual);
+      return {
+        ...encodeUnusualCounts(unusual),
+        ...toWire(sessionUnusualFields, unusual),
+      };
     default: {
       // Exhaustive: a third basis fails the build here rather than being
       // silently unserialisable, which is `encodeBreadth`'s own mechanism.
@@ -3416,30 +3584,85 @@ const readUnusualRow = (value: unknown): WireUnusualRow | undefined => {
   if (!isRecord(value)) return undefined;
   if (typeof value.symbol !== "string" || value.symbol === "") return undefined;
 
-  if (!finite(value.rank) || !Number.isInteger(value.rank)) return undefined;
-  if (value.rank < 0 || value.rank > 99) return undefined;
-  if (typeof value.aboveSample !== "boolean") return undefined;
-  // **`0` is NOT a legal sample on this arm**, unlike the refusal arm one
-  // module over where `0 of 2,500 returns` is the cold replica's own sentence:
-  // a row is a security that **was** ranked, and a rank taken against nothing
-  // is an ordinal over an empty distribution.
-  if (!finite(value.sampleCount) || value.sampleCount <= 0) return undefined;
-  if (!finite(value.percent)) return undefined;
-  if (!finite(value.observed) || value.observed <= 0) return undefined;
+  // **The bounds are the drawn figure's own, re-stated at the reader's end.**
+  // `0` is legal and is the most ordinary security on record; `100` is legal
+  // and is every factor at its own ceiling. Anything outside is not a score.
+  if (!finite(value.score) || !Number.isInteger(value.score)) return undefined;
+  if (value.score < 0 || value.score > 100) return undefined;
 
-  const from = readReturnEndpoint(value.from);
-  const to = readReturnEndpoint(value.to);
-  if (from === undefined || to === undefined) return undefined;
+  // **The band is read strictly rather than re-derived**, which is the whole
+  // reason it is on the wire: a chip drawn from this bundle's floors over the
+  // nightly pass's score would be two correct halves making one wrong claim.
+  // A word this bundle does not know is **no row** rather than a blank chip,
+  // because the chip's fill is the figure's second channel and a fifth band
+  // has no fill here.
+  if (
+    typeof value.band !== "string" ||
+    !(ANOMALY_BANDS as readonly string[]).includes(value.band)
+  ) {
+    return undefined;
+  }
+
+  const row = {
+    symbol: value.symbol,
+    score: value.score,
+    band: value.band as AnomalyBand,
+  };
+
+  // **Absent stays absent, and a malformed move is the same absence** — the
+  // glyph is a second channel over a figure that is already drawn, so a row
+  // whose move cannot be read is a row with no direction rather than a
+  // discarded one. A `0` substituted here would draw an em dash and claim
+  // *this security did not move*, which is `?? 0`'s whole failure mode.
+  if (value.percent === undefined) return row;
+  if (!finite(value.percent)) return row;
+
+  return { ...row, percent: value.percent };
+};
+
+/**
+ * **Which scale the rows are on, or `undefined`** (Task 5.6.7).
+ *
+ * `undefined` for an absent cohort **and** for an unreadable one, which is the
+ * same treatment `readUnusualBaseline` gives its generation and for the same
+ * reason: the section is honest without it — the rows and the three counts are
+ * still true — and the region's own sentence falls silent rather than stating a
+ * scale nobody produced.
+ *
+ * The factor words are checked against `COMPOSITE_FACTORS`, because the
+ * sentence on screen names them: a word this bundle has no name for would
+ * reach a reader as a slug.
+ */
+const readUnusualCohort = (value: unknown): WireUnusualCohort | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!Array.isArray(value.factors) || value.factors.length === 0)
+    return undefined;
+
+  const factors: CompositeFactor[] = [];
+  for (const factor of value.factors) {
+    if (
+      typeof factor !== "string" ||
+      !(COMPOSITE_FACTORS as readonly string[]).includes(factor)
+    ) {
+      return undefined;
+    }
+    factors.push(factor as CompositeFactor);
+  }
+
+  // A scale with no ceiling is a figure nothing bounds. `0` is not one: a
+  // cohort exists only where a factor contributed, and every weight is above
+  // zero.
+  if (!finite(value.max) || !Number.isInteger(value.max)) return undefined;
+  if (value.max <= 0 || value.max > 100) return undefined;
+
+  if (!population(value.scored)) return undefined;
+  if (!population(value.others)) return undefined;
 
   return {
-    symbol: value.symbol,
-    rank: value.rank,
-    aboveSample: value.aboveSample,
-    sampleCount: value.sampleCount,
-    percent: value.percent,
-    from,
-    to,
-    observed: value.observed,
+    factors,
+    max: value.max,
+    scored: value.scored,
+    others: value.others,
   };
 };
 
@@ -3531,21 +3754,24 @@ const readUnusualBaseline = (
  * is false **did not come from a producer this bundle understands**, and the
  * list it would draw is wrong rather than old.
  *
- * 1. **`rows ≤ scored ≤ eligible ≤ tracked`.** The three populations nest by
- *    construction (`tracked ⊇ eligible ⊇ scored`) and the rows are a selection
- *    from the last of them, so this is one chain rather than three checks. It
- *    is also the **only** arithmetic the region's own cut sentence rests on:
- *    `eligible − scored` is the refused count and a negative one is a number
- *    of securities that cannot exist.
- * 2. **Every row is a readable ordinal**, bounded `0`–`99` — see
- *    {@link readUnusualRow}, and it is the check with the least help from the
- *    screen, because no figure anywhere else on this page can contradict one.
+ * 1. **`rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`.** The populations
+ *    nest by construction and the rows are a selection from the **cohort**
+ *    rather than from `scored` — AC 3, since Task 5.6.7: `scored` counts every
+ *    security that got a composite at all, and a 1-of-3 score is honestly
+ *    scored and deliberately not ranked against a 2-of-3 one. One chain rather
+ *    than four checks. It is also the **only** arithmetic the region's own cut
+ *    sentence rests on: `eligible − scored` is the no-factor count and a
+ *    negative one is a number of securities that cannot exist.
+ * 2. **Every row is a readable score**, bounded `0`–`100` with a band word
+ *    this bundle has a fill for — see {@link readUnusualRow}, and it is the
+ *    check with the least help from the screen, because no figure anywhere
+ *    else on this page can contradict one.
  * 3. **The rows name distinct securities.** A symbol twice is the same list
  *    with a rank position invented, and a `Set` size is the only thing that
  *    sees it — `readMovers`' own third check, where it also guarded the hold's
  *    precondition.
- * 4. **The list is in the comparator's own order** — `isRankedByPercentile`,
- *    which is strictly stronger here than its movers equivalent: the ordinal
+ * 4. **The list is in the comparator's own order** — `isRankedByScore`, which
+ *    is strictly stronger here than its movers equivalent: the composite
  *    comparator breaks ties on ticker, so a correct frame admits exactly
  *    **one** order and a swapped pair is refused rather than tolerated.
  * 5. **The baseline and the two tallies are readable**, because the region's
@@ -3584,14 +3810,39 @@ const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
     scored: value.scored,
   };
 
-  if (rows.length > counts.scored) return undefined;
   if (counts.scored > counts.eligible) return undefined;
   if (counts.eligible > counts.tracked) return undefined;
+
+  // **The cohort is read before the rows are bounded**, because since Task
+  // 5.6.7 the rows are a selection from the **cohort's** count rather than
+  // from `scored` — see {@link WireUnusualCounts.scored}, whose meaning
+  // changed with the figure.
+  const cohort = readUnusualCohort(value.cohort);
+
+  // `rows ≤ cohort.scored ≤ scored ≤ eligible ≤ tracked`, as one chain. Where
+  // no cohort is readable the chain falls back to its own weaker form rather
+  // than being skipped: a section with rows and no scale is still a section
+  // whose rows cannot outnumber the securities that got a score.
+  if (cohort !== undefined) {
+    if (cohort.scored > counts.scored) return undefined;
+    if (cohort.others > counts.scored) return undefined;
+    if (cohort.scored + cohort.others > counts.scored) return undefined;
+    if (rows.length > cohort.scored) return undefined;
+  } else if (rows.length > counts.scored) {
+    return undefined;
+  }
 
   if (new Set(rows.map((row) => row.symbol)).size !== rows.length)
     return undefined;
 
-  if (!isRankedByPercentile(rows)) return undefined;
+  // **`isRankedByScore` rather than `isRankedByPercentile`** since Task 5.6.7:
+  // the figure changed, so the order did. Both comparators are total — ties
+  // break on ticker ascending — so a correct frame admits exactly **one**
+  // order and a swapped pair is refused rather than tolerated. Reading the
+  // composite's order with the ordinal's comparator would have been green on
+  // every frame, because `WireUnusualRow` no longer has a `rank` at all and
+  // `moveRankingKey`'s own trap is that an absent key sorts as unrankable.
+  if (!isRankedByScore(rows)) return undefined;
 
   if (!finite(value.spanMinutes) || value.spanMinutes <= 0) return undefined;
 
@@ -3609,6 +3860,7 @@ const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
   const section = {
     rows,
     ...counts,
+    ...(cohort === undefined ? {} : { cohort }),
     spanMinutes: value.spanMinutes,
     baseline,
     refusals: { figure, comparison },

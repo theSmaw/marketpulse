@@ -2179,6 +2179,47 @@ state is reached by keyboard" --repeat-each=24 --workers=4`, load ratio under
 arm that reaches it is `pnpm e2e` whole — which is the suite being its own
 plant, and is expensive.
 
+### Measured 2026-10-28 by Task 5.6.7, and the WORKER COUNT is the variable — in the OPPOSITE direction to every other flake in this file
+
+The entry's own re-measure, run verbatim at a load average of **3.67** read
+before the arm:
+
+```
+pnpm e2e overview-nothing-to-open.spec.ts -g "UN-PINNABLE hold state is reached by keyboard" --repeat-each=24 --workers=4
+  24 passed (18.1s)
+```
+
+**0 / 24 at four workers.** But the same test at **one** worker, immediately
+before:
+
+```
+pnpm e2e … -g "UN-PINNABLE hold state" --workers=1 --repeat-each=12
+  9 passed, 3 failed
+```
+
+**3 / 12 — 25% — at ONE worker, and 0 / 24 at FOUR.** It was seen once in a
+settled `--workers=2` full run on the same tree, which is consistent with a rate
+between the two.
+
+**This inverts the assumption every other entry in this file rests on.**
+`security-gap-fill` is **0% at one worker and 5.6% at four**;
+`market-gateway.process.test.ts` runs **0% quiet and 79% loaded**. Those get
+worse with contention. **This one gets worse with LESS of it**, and the
+mechanism in the entry above explains why: the failure is a **furnished frame
+that has not arrived, rendered and been read** when the assertion runs. At one
+worker the repeats run back to back in one browser with no scheduling slack
+between them; at four they are spread, and each gets more wall-clock between
+navigation and assertion than it does when it is the only thing running.
+
+**So the standing advice — _re-run a suspected flake alone to tell it from a
+regression_ — is exactly backwards for this one.** Running it alone is the arm
+most likely to fail it, and a developer who saw it red in a suite, re-ran it
+alone, saw it red again and concluded "regression" would be wrong twice.
+
+**Re-measure unchanged**, but take **both** arms: `--workers=4` and
+`--workers=1`, 24 executions each, counting failures per execution, with the
+load read before. **The figure to report is the pair**, not either alone.
+
 **Owner: Story 4.9, beside its `pnpm e2e` ×3 arm**, which is the only place in
 the epic already paying for whole-suite executions.
 
@@ -4399,7 +4440,9 @@ half that is a MEASUREMENT is not.**
 
 The clause was re-opened for an unrelated reason: `high` is one of the four
 `ANOMALY_BANDS`, and this sentence draws in the region Story 5.6 puts the band
-chip in, so `anomaly.ts`'s own reversal trigger — _"the first surface that needs
+**word** in (a per-row chip at Task 5.6.7, moved into that region's head slot
+the same day — the collision is with the word, and the word is still there), so
+`anomaly.ts`'s own reversal trigger — _"the first surface that needs
 to say **high** about something other than an anomaly score on the same
 screen"_ — had already fired on it, undetected, since 2026-10-14.
 
@@ -4915,3 +4958,47 @@ statements are 485 upserts and one pass row.
 `time node scripts/compute-baselines.mjs` twice — with no dev pair attached.
 **Owner: Task 5.6.7** for the reader, and **Task 5.6.8** for the cold figure at
 the story's close.
+
+---
+
+## The cohort rule is correct, invisible, and untested against a second cohort
+
+**Added 2026-10-28 by Task 5.6.7.** `/`'s `Unusual activity` ranks within one
+**cohort** — the set of factors a score was computed over — because two scores
+are comparable only if they were computed over the same set (AC 3). The
+machinery is complete: `selectLargestCohort` partitions, the largest is ranked
+within, the section names it on screen and counts the rest, and
+`a-ranked-score-list-is-one-cohort` in `pnpm invariants` fails the build on a
+ranked surface that skips the partition.
+
+**And it does nothing at all today.** Task 5.6.6 measured the local store: 501
+tracked, **485 scored, 0 single-factor scores**, `max = 75` on every row — so
+`{price, excess}` is not the dominant cohort, it is the **sole** one, and
+`others` is `0` in every state any machine can produce. The reason is structural
+rather than lucky: the price and excess factors refuse for the same root causes
+(no bar the span back, no stored generation), so a security whose price factor
+refuses has an excess factor that refuses too. The third factor is
+`no-distribution` **unconditionally**, everywhere, until a nightly pass stores a
+distribution of a volume rate.
+
+**So the partition has never separated anything, and nothing it ships can.**
+`composite-cohort.test.ts` exercises mixed cohorts over minted scores, which is
+the strongest thing available and is a statement about the function rather than
+about the product: no frame this product has ever built, on any machine,
+contained two cohorts. The first one will be built on the day a volume
+distribution exists, and the shapes that go wrong then — which cohort wins a
+size tie, whether `others` reads as a restriction or as an error, whether the
+footer's `2 of 3` sentence still fits at 308 px when it says `3 of 3` — are
+unexercised.
+
+**It is held by a CHECK rather than by a test for exactly this reason**, which
+is the part worth keeping: a test over today's fixtures is **green with the
+partition deleted**, so a test here would be a protection that certifies
+nothing and that the next author removes as dead code.
+
+**Re-measure:** after the first nightly pass that writes a volume distribution,
+read `cohort.others` off an `overview` frame on `/` and open the region at 390 —
+if `others` is still `0` the second cohort has not arrived; if it is not, the
+footer's arity and the size tie-break both need a person's eye.
+**Owner: the first story that gives the volume factor a distribution**, which
+fires `ANOMALY_BAND_FLOORS`' own reversal trigger 1 in the same commit.

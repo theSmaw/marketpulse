@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { UNUSUAL_ROWS } from "@marketpulse/shared";
 import type {
+  AnomalyBand,
   Bar,
   WireMarketOverview,
   WireUnusualActivity,
@@ -24,21 +25,22 @@ import {
 // restated track lists and the region's one-height claim are `pnpm probe`'s
 // and the browser suite's.
 
+/**
+ * One wire row — **a score and a band since Task 5.6.7**, where it was an
+ * ordinal and six figures behind it.
+ *
+ * The band is **passed** rather than derived from the score, which is the same
+ * discipline the reader keeps: `bandOf` is `ANOMALY_BAND_FLOORS`' and the word
+ * on the wire was minted against the **producer's** floors. Every score here
+ * is at or under 75, the two-factor maximum and the only scale any machine can
+ * produce today.
+ */
 const row = (
   symbol: string,
-  rank: number,
+  score: number,
   percent: number,
-  aboveSample = false,
-): WireUnusualRow => ({
-  symbol,
-  rank,
-  aboveSample,
-  sampleCount: 4620,
-  percent,
-  from: { at: "2026-10-15T17:55:00.000Z", price: 100, feed: "iex" },
-  to: { at: "2026-10-15T18:00:00.000Z", price: 100 + percent, feed: "iex" },
-  observed: 5,
-});
+  band: AnomalyBand = "elevated",
+): WireUnusualRow => ({ symbol, score, band, percent });
 
 const section = (
   rows: readonly WireUnusualRow[],
@@ -49,6 +51,12 @@ const section = (
   tracked: 501,
   eligible: 466,
   scored: Math.max(rows.length, 455),
+  cohort: {
+    factors: ["price", "excess"],
+    max: 75,
+    scored: Math.max(rows.length, 455),
+    others: 0,
+  },
   windowMinutes: 5,
   spanMinutes: 5,
   baseline: {
@@ -80,6 +88,7 @@ const onSession = (
   tracked: from.tracked,
   eligible: from.eligible,
   scored: from.scored,
+  ...(from.cohort === undefined ? {} : { cohort: from.cohort }),
   spanMinutes: from.spanMinutes,
   baseline: from.baseline,
   refusals: from.refusals,
@@ -141,12 +150,12 @@ const read = (
 describe("unusualActivity — the rows the region draws", () => {
   it("reads the frame's rows in the order the frame sent them", () => {
     // **The rank is a COUNT, never a comparison.** The producer's
-    // `selectByPercentile` is the one order and the decoder has already
-    // refused a frame whose order disagrees with it, so a comparison here
-    // would be the second comparator `one-comparator-for-the-order-of-a-
-    // percentile` refuses by name.
+    // `selectByScore` is the one order and the decoder has already refused a
+    // frame whose order disagrees with it, so a comparison here would be the
+    // second comparator `one-comparator-for-the-order-of-a-composite-score`
+    // refuses by name.
     const view = read(
-      frame(section([row("AVGO", 99, -4.1), row("NVDA", 97, 2)])),
+      frame(section([row("AVGO", 72, -4.1), row("NVDA", 61, 2)])),
     );
 
     expect(view?.rows.map((drawn) => [drawn.symbol, drawn.rank])).toEqual([
@@ -155,39 +164,127 @@ describe("unusualActivity — the rows the region draws", () => {
     ]);
   });
 
-  it("draws the ordinal short and hands a listener the whole phrase", () => {
-    const view = read(frame(section([row("NVDA", 99, 3.2, true)])));
+  it("draws the score as ONE string, because it has no long form", () => {
+    // The ordinal it replaced was drawn `>99th` and spoken `>99th percentile`
+    // because sixteen glyphs did not fit a 308 px row. `61` is `61`, so the
+    // cell renders one element rather than putting it in `textContent` twice
+    // (ADR 0029). The noun stays in the list heading.
+    const view = read(frame(section([row("NVDA", 61, 3.2, "elevated")])));
 
     expect(view?.rows[0]?.reading).toEqual({
-      drawn: ">99th",
-      spoken: ">99th percentile",
+      drawn: "61",
+      spoken: "61",
       direction: "positive",
     });
   });
 
-  it("carries the DIRECTION separately, because the ordinal ranks a magnitude", () => {
+  describe("the head slot's string: the bound, and today's band", () => {
+    // **The band is a property of the DAY**, so it is stated once rather than
+    // ten times down a 308 px column. The chip that said it per row lasted an
+    // afternoon and cost 76 px of a 308 px row, 25%, for a word that was the
+    // same on all ten rows — 1 distinct band in the top ten, measured.
+
+    it("says `all <band>` when every ranked row shares one", () => {
+      const view = read(
+        frame(
+          section([
+            row("CTSH", 75, -4.1, "extreme"),
+            row("NVDA", 74, 3.9, "extreme"),
+          ]),
+        ),
+      );
+
+      expect(view?.bound).toBe("Top 10 · all extreme");
+    });
+
+    it("names the LEADER's band when they do not", () => {
+      // Of the two honest endpoints the leader's is the one a ranked
+      // surface's heading carries: it is the row the reader's eye is on, and
+      // a two-band span does not fit — `Top 10 · extreme to elevated` is
+      // 201.28 px against the 171.7 the slot has at 308.
+      const view = read(
+        frame(
+          section([
+            row("CTSH", 75, -4.1, "extreme"),
+            row("NVDA", 61, 3.9, "elevated"),
+          ]),
+        ),
+      );
+
+      expect(view?.bound).toBe("Top 10 · led by extreme");
+    });
+
+    it("reads the band off the WIRE rather than deriving it from the score", () => {
+      // The word was minted against the **producer's** floors, which a
+      // rollback can put two values from this bundle's. A score of 75 is
+      // `extreme` under `ANOMALY_BAND_FLOORS`; the frame says `high`, and the
+      // frame wins.
+      const view = read(frame(section([row("CTSH", 75, -4.1, "high")])));
+
+      expect(view?.bound).toBe("Top 10 · all high");
+    });
+
+    it("falls silent when nothing was ranked", () => {
+      // `UnusualMeta`'s shipped rule: a bound stated over an empty list reads
+      // as a claim about a selection that selected nothing, and the band half
+      // would be a claim about rows that do not exist.
+      expect(read(frame(section([])))?.bound).toBeUndefined();
+    });
+
+    it("interpolates the bound rather than spelling it", () => {
+      // `the-population-is-never-a-literal`'s rule one scale down.
+      const view = read(frame(section([row("CTSH", 75, -4.1, "extreme")])));
+
+      expect(view?.bound).toContain(`Top ${String(UNUSUAL_ROWS)} `);
+    });
+  });
+
+  it("puts no band on the ROW, because the band is the region's", () => {
+    // The chip came off the row on a measurement: the top ten share one band,
+    // so 76 px of a 308 px row (25%) repeated one word ten times. The band is
+    // stated once in the head slot — see the `bound` block below, which also
+    // holds the rule that it is the PRODUCER's band and never `bandOf(score)`
+    // here: re-deriving it would be two correct halves making one wrong claim
+    // the day a rollback puts a runner and this bundle two floor sets apart.
+    const view = read(frame(section([row("NVDA", 61, 3.2, "high")])));
+
+    expect(view?.rows[0]).not.toHaveProperty("band");
+  });
+
+  it("carries the DIRECTION separately, because the score ranks a magnitude", () => {
     // Without it a −9% crash and a +9% spike draw the identical row — same
-    // ordinal, same rank — on the region a reader scans to decide where to
-    // look. `return-percentile.ts` ranks `Math.abs(percent)`.
+    // score, same rank — on the region a reader scans to decide where to look.
     const view = read(
-      frame(section([row("AVGO", 99, -9.1), row("NVDA", 99, 9.1)])),
+      frame(section([row("AVGO", 72, -9.1), row("NVDA", 61, 9.1)])),
     );
 
-    expect(view?.rows.map((drawn) => drawn.reading?.drawn)).toEqual([
-      "99th",
-      "99th",
-    ]);
     expect(view?.rows.map((drawn) => drawn.reading?.direction)).toEqual([
       "negative",
       "positive",
     ]);
   });
 
+  it("omits the direction where the frame holds NO move, rather than defaulting it", () => {
+    // `?? "unchanged"` draws the em dash, which is the claim *this security
+    // did not move* rather than *we do not hold its move*. The session arm
+    // reaches this state for a security scored on its excess factor alone.
+    const moveless: WireUnusualRow = {
+      symbol: "NVDA",
+      score: 61,
+      band: "elevated",
+    };
+    const view = read(frame(section([moveless])));
+
+    expect(view?.rows[0]?.reading?.drawn).toBe("61");
+    expect(view?.rows[0]?.reading?.direction).toBeUndefined();
+    expect("direction" in (view?.rows[0]?.reading ?? {})).toBe(false);
+  });
+
   it("has no `move` on a row, so nothing here is drawn as a price change", () => {
     // The tint is the difference. A `move` is drawn by `PriceChange` and
-    // tinted; a percentile has no direction of its own to encode, so a tinted
-    // ordinal would be decoration standing where meaning normally is.
-    const view = read(frame(section([row("NVDA", 99, 3.2)])));
+    // tinted; a score is unsigned and carries no direction of its own, so a
+    // tinted figure would be decoration standing where meaning normally is.
+    const view = read(frame(section([row("NVDA", 61, 3.2)])));
 
     expect(view?.rows[0]?.move).toBeUndefined();
     expect(view?.rows[0]?.absent).toBeUndefined();
@@ -370,6 +467,17 @@ describe("the footer — three populations, the cut and why the rest are not row
     ...section(rows),
     eligible: counts.eligible,
     scored: counts.scored,
+    // **The cohort tracks `scored`**, because the cut sentence counts the
+    // cohort's own members rather than every scored security: `scored` counts
+    // every security that got a composite at all and the rows are a selection
+    // from the cohort, so a sentence stating one beside the other's maximum
+    // would be two populations wearing one scale.
+    cohort: {
+      factors: ["price", "excess"],
+      max: 75,
+      scored: counts.scored,
+      others: 0,
+    },
     refusals: {
       figure: {
         "nothing-observed": 35,
@@ -403,9 +511,9 @@ describe("the footer — three populations, the cut and why the rest are not row
 
     expect(view?.claim?.drawn).toBe(
       "Of the 501 companies we track, 466 were heard from in the last 5 " +
-        "minutes and 455 have a long enough history to rank. 9 have too " +
-        "short a baseline and 2 cross an unadjusted price break. Nothing " +
-        "newer than Oct 15 · 14:01 EDT has reached us.",
+        "minutes and 455 have a score on 2 of 3 factors, to a maximum of " +
+        "75. 9 have too short a baseline and 2 cross an unadjusted price " +
+        "break. Nothing newer than Oct 15 · 14:01 EDT has reached us.",
     );
   });
 
@@ -430,9 +538,10 @@ describe("the footer — three populations, the cut and why the rest are not row
 
     expect(view?.claim?.drawn).toBe(
       "Of the 501 companies we track, 466 had a measurable 5-minute move " +
-        "into the close on 2026-10-15 and 455 have a long enough history to " +
-        "rank. 9 have too short a baseline and 2 cross an unadjusted price " +
-        "break. Nothing newer than Oct 15 · 14:01 EDT has reached us.",
+        "into the close on 2026-10-15 and 455 have a score on 2 of 3 " +
+        "factors, to a maximum of 75. 9 have too short a baseline and 2 " +
+        "cross an unadjusted price break. Nothing newer than Oct 15 · " +
+        "14:01 EDT has reached us.",
     );
 
     // And it never says *heard from in the last 5 minutes* about a session
@@ -485,7 +594,9 @@ describe("the footer — three populations, the cut and why the rest are not row
       ),
     );
 
-    expect(view?.claim?.drawn).toContain("1 has a long enough history to rank");
+    expect(view?.claim?.drawn).toContain(
+      "1 has a score on 2 of 3 factors, to a maximum of 75",
+    );
     expect(view?.claim?.drawn).toContain(
       "1 has too short a baseline and 1 crosses an unadjusted price break",
     );

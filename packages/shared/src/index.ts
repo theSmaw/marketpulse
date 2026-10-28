@@ -138,6 +138,7 @@ export type {
   WireUnknownFigure,
   WireUnusualActivity,
   WireUnusualBaseline,
+  WireUnusualCohort,
   WireUnusualGeneration,
   WireUnusualRefusals,
   WireUnusualRow,
@@ -195,8 +196,27 @@ export type {
 // `percentile-ranking.ts` rather than a widening of either, because neither
 // existing guard's pattern can see `a.score - b.score`.
 // `one-comparator-for-the-order-of-a-composite-score` holds it to one home.
-export { compareByScore, isRankedByScore } from "./score-ranking.js";
+export {
+  compareByScore,
+  isRankedByScore,
+  selectByScore,
+} from "./score-ranking.js";
 export type { ScoreRanked } from "./score-ranking.js";
+// **The cohort rule** (Task 5.6.7) — AC 3 arriving at a ranked surface: two
+// composite scores are comparable iff computed over the same factor set, so a
+// ranked region ranks within one cohort, names it, and counts the others. It is
+// the complement of `score-ranking.ts` rather than a part of it — that module
+// compares two scores on one scale, this one decides which scale.
+export {
+  cohortKeyOf,
+  cohortOf,
+  selectLargestCohort,
+} from "./composite-cohort.js";
+export type {
+  AnomalyCohort,
+  AnomalyCohortKey,
+  CohortSelection,
+} from "./composite-cohort.js";
 export { asInstant, asIs, toWire } from "./wire-serialiser.js";
 export type { JsonValue, WireFields } from "./wire-serialiser.js";
 // What a security IS in this product, and every vocabulary that describes one

@@ -5760,7 +5760,21 @@ const INVARIANTS = [
       // The phrase a re-implementer cannot avoid writing: *what the region
       // says about the securities it could rank*. Matched without its count,
       // because the count is the part that is read.
-      const CUT = /a long enough history to rank/u;
+      // **Re-pointed 2026-10-28 (Task 5.6.7), in the same change as the
+      // sentence.** The cut used to read *N have a long enough history to
+      // rank*, because the figure was a price percentile and a refused
+      // baseline dropped the row. Under a composite a refused price factor is
+      // an **absent factor**, so the clause now states how many got a score
+      // **and the scale it is on** — the cohort, which is what makes a raw
+      // comparison of two scores honest at all.
+      //
+      // A grep that matches nothing looks exactly like a pass, which is why
+      // the check below counts to one rather than asking whether the phrase
+      // is absent. The anchor is `a score on`, which is the clause's own
+      // irreducible middle: the counts either side of it are interpolated and
+      // the scale after it is three more, so a reworded sentence that still
+      // says this is still one home.
+      const CUT = /a score on \$\{/u;
 
       const homes = shippedSourceFiles()
         .filter(({ text }) => CUT.test(text))
@@ -8641,6 +8655,120 @@ const INVARIANTS = [
             "top ten, because a score computed from one factor has the higher " +
             "variance. `ScoreRanked` has no `max` member for that reason: a " +
             "comparator that wanted the ratio has nothing to divide by.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "a-ranked-score-list-is-one-cohort",
+    claim:
+      "Every shipped file that ranks composite scores also partitions them " +
+      "by cohort first — AC 3: two scores are comparable only if they were " +
+      "computed over the same factor set.",
+    check() {
+      // **Task 5.6.7, and the defect it refuses is a RANKING that is
+      // well-formed, correctly ordered and systematically wrong.**
+      //
+      // `compareByScore` compares two integers **raw**, maxima deliberately
+      // unreconciled — Story 5.6's Gate 1 decision 2, because ranking on
+      // `score ÷ max` is AC 3's renormalisation arriving at the comparator.
+      // That is only honest **over one scale**. A producer that ranks a
+      // 1-of-3 score of 40 beside a 2-of-3 score of 73 produces a list in the
+      // comparator's own order, passing `isRankedByScore`, passing every
+      // nesting check, and drawn with total confidence — while
+      // systematically promoting the **worst-covered** securities, because a
+      // score from fewer factors has the higher variance. That is the exact
+      // promotion `UNIVERSE.md` rule 4 spent ~19 discretionary curation slots
+      // preventing, arriving at a different layer.
+      //
+      // ## Nothing else can see it
+      //
+      // Not the type — `ScoreRanked` is a score and a symbol, as it must be,
+      // so a comparator cannot be told which scale it is on. Not the wire —
+      // `readUnusual` checks the chain `rows ≤ cohort.scored ≤ scored`, and a
+      // producer that ranked across cohorts while reporting the largest
+      // cohort's count would satisfy it whenever the cohort is large enough,
+      // which is every frame in this tree. Not a test over the shipped
+      // fixtures — `{price, excess}` is the **sole** cohort on every machine
+      // that exists (485 of 485 stored rows, 0 single-factor scores), so the
+      // partition is a no-op today and a test asserting the shipped output
+      // would be green with the partition deleted.
+      //
+      // **That last point is the whole reason this is a check rather than a
+      // test.** The machinery is invisible until the day a volume
+      // distribution exists, and a protection nothing exercises is one the
+      // next author deletes as dead code.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **Ranking.** A second ranked composite surface — Epic 6's topology,
+      // Epic 7's evidence list, a score column anywhere — reaches for
+      // `selectByScore` or `compareByScore`, because
+      // `one-comparator-for-the-order-of-a-composite-score` forbids writing
+      // its own. So the clause is: a shipped file outside the home that
+      // **orders** composite scores must also **partition** them.
+      //
+      // It deliberately does NOT check the shape of the partition — that the
+      // selection's own `members` are what is ranked — because the expression
+      // is a value a grep cannot follow, and a clause that tried would be red
+      // on the honest shapes and green on a `cohort.members.concat(others)`.
+      // What it holds is that a ranked surface has **asked the question**,
+      // which is the thing a re-implementer skips.
+      const HOME = "packages/shared/src/score-ranking.ts";
+      const COHORT = "packages/shared/src/composite-cohort.ts";
+
+      const ORDERS = /\b(?:selectByScore|compareByScore)\s*\(/u;
+      const PARTITIONS = /\bselectLargestCohort\s*\(/u;
+
+      const offenders = [];
+      let rankers = 0;
+
+      for (const { path, text } of shippedSourceFiles()) {
+        const file = relative(REPO_ROOT, path);
+        if (file === HOME || file === COHORT) continue;
+
+        // A declaration is not a call. `one-comparator-...` already holds the
+        // home to one, so anything matching here is a **use**.
+        if (!ORDERS.test(text)) continue;
+
+        rankers += 1;
+        if (PARTITIONS.test(text)) continue;
+
+        offenders.push(file);
+      }
+
+      // The anchor. A check that is vacuous when the producer is deleted is a
+      // check that reports a pass on the one state it cannot tolerate.
+      if (rankers === 0) {
+        throw new InvariantFailure(
+          "No shipped file outside `packages/shared` ranks composite scores " +
+            "at all, and this check has nothing to say. Either the ranked " +
+            "surface lost its producer — which means `/`'s `Unusual " +
+            "activity` ranks nothing — or the call moved behind a name this " +
+            "pattern cannot see. Repoint it in the same change.",
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} shipped file(s) order composite ` +
+            "scores without partitioning them by cohort first:\n      " +
+            offenders.join("\n      ") +
+            `\n    Two scores are comparable only if they were computed ` +
+            "over the same factor set (AC 3). `compareByScore` compares them " +
+            "**raw** on purpose — ranking on `score ÷ max` is the " +
+            "renormalisation that criterion refuses — so a raw order over a " +
+            "mixed set is a list in the right order over the wrong " +
+            "population: it lifts the **worst-covered** securities into the " +
+            `top-N, because a score from fewer factors has the higher ` +
+            "variance.\n    Partition with `selectLargestCohort` from " +
+            `${COHORT}, rank within its \`members\`, and state the cohort ` +
+            "beside the list so the restriction is visible rather than " +
+            "silent. Note that this is INVISIBLE in today's tree — " +
+            "`{price, excess}` is the sole cohort on every machine that " +
+            "exists — which is exactly why the partition is held by a check " +
+            "and not by a test.",
         );
       }
     },

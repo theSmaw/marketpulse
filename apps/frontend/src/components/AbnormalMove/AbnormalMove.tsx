@@ -295,13 +295,18 @@ function HeldRoom({
  * ## No new interaction and no new motion
  *
  * **No popover, no disclosure, no `Why this band?`, no tooltip, zero new tab
- * stops.** `SecurityRow` wraps `AnomalyBadge` in a `Popover` and `Popover.tsx`
- * says *"the first thing this seam carries is an anomaly score's
- * explanation"* — right for a dense table row and wrong here, because §11
- * requires every score to **carry** its explanation rather than to be able to
- * be asked for one, and AC 6's elements cannot be audited by walking a DOM
- * that does not contain them until a click. `SecurityRow`'s own disposition
- * is Task 5.6.6's and is deliberately untouched.
+ * stops.** `Popover.tsx` says *"the first thing this seam carries is an
+ * anomaly score's explanation"* — right for a dense table row and wrong here,
+ * because §11 requires every score to **carry** its explanation rather than to
+ * be able to be asked for one, and AC 6's elements cannot be audited by
+ * walking a DOM that does not contain them until a click.
+ *
+ * **`SecurityRow` — which wrapped `AnomalyBadge` in exactly that `Popover` —
+ * was DELETED at Task 5.6.7**, on this argument rather than for being unused.
+ * AC 8 required a recorded disposition for it and the disposition is a
+ * refusal: the shape it proposed is the one §11 forbids. What the landing page
+ * ships instead is the score and its band on the row, with the clause-per-
+ * factor ledger on the page every row's ticker opens.
  *
  * And a score is a **state**, so it persists: the shipped arrival disc means
  * *a bar arrived for this security* and already fires 200 px above, because a

@@ -1,7 +1,10 @@
 import {
   BASELINE_MINIMUM_SAMPLE,
+  FACTOR_WEIGHTS,
   UNUSUAL_ROWS,
-  compareByPercentile,
+  bandOf,
+  compareByScore,
+  scoreAnomaly,
   toMarketDate,
   toTicker,
 } from "@marketpulse/shared";
@@ -29,6 +32,18 @@ import type {
   StoredSessionPercentile,
   StoredSessionRanking,
 } from "./session-percentile-store.js";
+import type {
+  AnomalyScore,
+  CompositeFactor,
+  ExcessMoveReference,
+  FactorAnswer,
+} from "@marketpulse/shared";
+import type { StoredExcessBaseline } from "./excess-move-baseline-store.js";
+import type {
+  StoredCompositePass,
+  StoredCompositeRanking,
+  StoredCompositeScore,
+} from "./session-composite-store.js";
 
 // **No clock, no socket, no database** — `market-breadth.ts`' note unchanged.
 // Every input is an argument, including the instant, the windows and the
@@ -126,6 +141,47 @@ const baseline = (
 
 const GRID = { spanMinutes: 5, feed: "sip" } as const;
 
+/**
+ * **The benchmark every equity below is differenced against** — `XLK`, the
+ * technology SPDR, which is the one `excessMoveReference` resolves for `NVDA`.
+ *
+ * It is the default for every symbol in these fixtures rather than per-symbol,
+ * because what this module does with the answer is read it and hand it on: the
+ * resolver's own correctness is `excess-move-reference.test.ts`'.
+ */
+const BENCHMARK = toTicker("XLK");
+
+const REFERENCE: ExcessMoveReference = {
+  applies: true,
+  symbol: BENCHMARK,
+  sector: "technology",
+};
+
+/**
+ * An excess-move baseline whose breakpoints are `0 … 10` evenly, so a
+ * magnitude of `r` sits at the `10 r`th percentile and the arithmetic is
+ * checkable by eye — `excess-move-factor.test.ts`' own fixture.
+ */
+const excessBaseline = (
+  symbol: string,
+  sampleCount = BASELINE_MINIMUM_SAMPLE,
+): StoredExcessBaseline => ({
+  symbol: toTicker(symbol),
+  observedAt: new Date("2026-09-11T20:00:00.000Z"),
+  referenceKind: "sector_etf",
+  referenceSymbol: BENCHMARK,
+  lookbackSessions: 60,
+  sampleCount,
+  refusal: null,
+  breakpoints: Array.from({ length: 101 }, (_unused, rank) => rank / 10),
+});
+
+/** The price factor's own weight — read, never typed. */
+const PRICE_ONLY_MAX = FACTOR_WEIGHTS.price;
+
+/** `{price, excess}` — the cohort every machine that exists produces. */
+const TWO_FACTOR_MAX = FACTOR_WEIGHTS.price + FACTOR_WEIGHTS.excess;
+
 const OPEN = { asOf: ASOF, marketOpen: true } as const;
 const SHUT = { asOf: ASOF, marketOpen: false } as const;
 
@@ -139,9 +195,17 @@ const score = (
   over: {
     readonly windows?: Readonly<Record<string, readonly LiveObservation[]>>;
     readonly baselines?: Readonly<Record<string, StoredReturnBaseline>>;
+    readonly excess?: Readonly<Record<string, StoredExcessBaseline>>;
+    /**
+     * The resolver's answer per symbol. Defaults to {@link REFERENCE} for
+     * every symbol, which is what the shared pass's own population looks like
+     * — 501 curated equities, each with a sector.
+     */
+    readonly referenceOf?: (symbol: Ticker) => ExcessMoveReference | undefined;
     readonly marketOpen?: boolean;
     readonly rows?: number;
     readonly sessionRanking?: StoredSessionRanking;
+    readonly compositeRanking?: StoredCompositeRanking;
   } = {},
 ) =>
   unusualActivity({
@@ -151,13 +215,86 @@ const score = (
     }),
     windowOf: (symbol: Ticker) => over.windows?.[symbol] ?? [],
     baselineOf: (symbol: Ticker) => over.baselines?.[symbol],
+    excessBaselineOf: (symbol: Ticker) => over.excess?.[symbol],
+    referenceOf: over.referenceOf ?? (() => REFERENCE),
     grid: GRID,
     asOf: ASOF,
     ...(over.sessionRanking === undefined
       ? {}
       : { sessionRanking: over.sessionRanking }),
+    ...(over.compositeRanking === undefined
+      ? {}
+      : { compositeRanking: over.compositeRanking }),
     ...(over.rows === undefined ? {} : { rows: over.rows }),
   });
+
+/**
+ * **A score minted through the real scorer**, for the stored-composite
+ * fixtures below — never a typed object, because `AnomalyScore` is branded and
+ * unforgeable outside its own module and the store's own reader mints rather
+ * than reading the stored column (`0017` §5).
+ */
+const minted = (
+  answers: Readonly<Record<CompositeFactor, FactorAnswer>>,
+): AnomalyScore => {
+  const outcome = scoreAnomaly(answers);
+  if (!outcome.scored) throw new Error("the fixture produced no score");
+  return outcome;
+};
+
+const RANKED_AT = (rank: number): FactorAnswer => ({
+  state: "ranked",
+  rank,
+  aboveSample: false,
+  sampleCount: 4620,
+});
+
+const PRICE_REFUSED: FactorAnswer = {
+  state: "refused",
+  refusal: "too-few-samples",
+  sampleCount: 100,
+  minimumSampleCount: 2500,
+};
+
+/** One stored composite, as `readNewestSession` returns one. */
+const storedComposite = (
+  symbol: string,
+  rank: number,
+  factors: readonly CompositeFactor[] = ["price", "excess"],
+): StoredCompositeScore => {
+  const answers = {
+    price: factors.includes("price") ? RANKED_AT(rank) : PRICE_REFUSED,
+    excess: factors.includes("excess") ? RANKED_AT(rank) : PRICE_REFUSED,
+    volume: { state: "no-distribution" },
+  } satisfies Record<CompositeFactor, FactorAnswer>;
+
+  return { symbol: toTicker(symbol), outcome: minted(answers), answers };
+};
+
+/**
+ * **A stored composite ranking, as the nightly pass wrote one** (Task 5.6.7).
+ *
+ * `observedAt` matches `storedRanking`'s by default, because the producer
+ * refuses to mix two sessions' halves and the ordinary state is that they
+ * agree — `0017` §2 keys both tables on the same session's close for exactly
+ * that.
+ */
+const storedComposites = (
+  scores: readonly StoredCompositeScore[],
+  overrides: Partial<StoredCompositePass> = {},
+): StoredCompositeRanking => ({
+  pass: {
+    observedAt: new Date("2026-09-15T20:00:00.000Z"),
+    tracked: 501,
+    scored: 485,
+    unscored: 16,
+    weights: FACTOR_WEIGHTS,
+    floors: { elevated: 32, high: 63, extreme: 73 },
+    ...overrides,
+  },
+  scores,
+  disagreed: 0,
+});
 
 /**
  * **A stored session ranking, as the nightly pass wrote one** (Task 5.4.5).
@@ -236,40 +373,55 @@ describe("unusualActivity — the counts and the row", () => {
 
     // A +10% move against a baseline whose samples are 0…100 reaches the 10th
     // breakpoint and no higher — the ordinal is the input, which is what
-    // `ONE_PER_RANK` is for.
+    // `ONE_PER_RANK` is for. The price factor's contribution is therefore
+    // `round(40 × 10 / 100) = 4`, and with no excess baseline given the excess
+    // factor refuses: so the score is **4** on a one-factor scale.
     expect(row?.symbol).toBe("NVDA");
-    expect(row?.rank).toBe(10);
-    expect(row?.aboveSample).toBe(false);
-    expect(row?.sampleCount).toBe(BASELINE_MINIMUM_SAMPLE);
+    expect(row?.score).toBe(4);
+    expect(row?.band).toBe(bandOf(4));
     expect(row?.percent).toBeCloseTo(10, 10);
-    expect(row?.observed).toBe(RETURN_SPAN_MINUTES);
   });
 
-  it("carries both endpoints, with the instants they were measured between", () => {
+  it("carries the band the PRODUCER minted rather than one the row implies", () => {
     const section = score([live("NVDA")], {
-      windows: { NVDA: pair(100, 110) },
+      // A +90% move reaches the 90th breakpoint, so the price factor pays
+      // `round(40 × 90 / 100) = 36` of its 40 — which is above `elevated`'s
+      // floor of 32 and below `high`'s 63.
+      windows: { NVDA: pair(100, 190) },
       baselines: { NVDA: baseline() },
     });
 
     const [row] = section.rows;
 
-    // `MeasuredReturn`'s rule, in a list: the figure may not be read without
-    // the two instants it was measured between. They are the bars' own
-    // `startsAt` with nothing added — adding the observation interval would
-    // print a six-minute span for a five-minute return.
-    expect(row?.from.at).toBe(
-      new Date(
-        ASOF.getTime() - (1 + RETURN_SPAN_MINUTES) * MINUTE,
-      ).toISOString(),
-    );
-    expect(row?.to.at).toBe(new Date(ASOF.getTime() - MINUTE).toISOString());
-    expect(row?.from.price).toBe(100);
-    expect(row?.to.price).toBe(110);
+    expect(row?.score).toBe(36);
+    expect(row?.band).toBe("elevated");
+  });
 
-    // Invariant 6 per endpoint: the numerator is the live tape's, and the
-    // baseline's own tape is the section's.
-    expect(row?.from.feed).toBe("iex");
-    expect(row?.to.feed).toBe("iex");
+  it("carries the score, the band and the move, and NOTHING of the explanation", () => {
+    // **ADR 0031 at this grain, and the leak it prevents is the whole
+    // explanation**: the producer ranks on a minted `AnomalyScore` carrying a
+    // clause per factor with every figure behind it, and on a socket a field
+    // on the object and not on the type leaks. `Candidate` is a separate type
+    // for exactly this.
+    const section = score([live("NVDA")], {
+      windows: { NVDA: pair(100, 110) },
+      baselines: { NVDA: baseline() },
+      excess: { NVDA: excessBaseline("NVDA") },
+    });
+
+    const [row] = section.rows;
+    expect(row).toBeDefined();
+    if (row === undefined) return;
+
+    expect(Object.keys(row).toSorted()).toEqual([
+      "band",
+      "percent",
+      "score",
+      "symbol",
+    ]);
+
+    // And the baseline's own tape is still the section's — invariant 6 for the
+    // denominator, which no longer has a per-row numerator beside it.
     expect(section.baseline.feed).toBe("sip");
   });
 
@@ -358,20 +510,48 @@ describe("unusualActivity — a refused security is NOT a row", () => {
     expect(section.refusals.figure["no-basis"]).toBe(1);
   });
 
-  it("omits a security with no baseline at all, and counts it as too few samples", () => {
+  it("COUNTS a refused price baseline and no longer drops the row", () => {
+    // **The meaning change at the heart of Task 5.6.7.** Until then this
+    // `continue`d: the ordinal was the row's figure, so no baseline meant no
+    // figure meant no row. Under a composite a refused price factor is an
+    // **absent factor** — so a security whose excess move ranked is honestly
+    // scored on a lower scale, and the tally still counts the price factor's
+    // own refusal because the region's cut sentence is written from it.
+    const section = score([live("NVDA")], {
+      windows: { NVDA: pair(100, 110), XLK: pair(100, 101) },
+      excess: { NVDA: excessBaseline("NVDA") },
+    });
+
+    expect(section.eligible).toBe(1);
+    // It got a score, so it is **scored** — which is the count that changed
+    // meaning. The excess is `10 − 1 = 9` points, at the 90th breakpoint of a
+    // `0 … 10` distribution, so `round(35 × 90 / 100) = 32` of 35.
+    expect(section.scored).toBe(1);
+    expect(section.rows).toHaveLength(1);
+    expect(section.rows[0]?.score).toBe(32);
+    // And the cohort says which scale that is: the excess factor alone.
+    expect(section.cohort?.factors).toEqual(["excess"]);
+    expect(section.cohort?.max).toBe(FACTOR_WEIGHTS.excess);
+    // The refusal is still counted, so the footer can still say why.
+    expect(section.refusals.comparison["too-few-samples"]).toBe(1);
+  });
+
+  it("omits a security whose EVERY factor refused, with no score member at all", () => {
+    // `UnscoredAnomaly` has no `score` member, so there is no `?? 0` to write
+    // and no `rank: null` to leak — a `0` would be the most ordinary security
+    // on record drawn at the top of a region about unusual ones.
     const section = score([live("NVDA")], {
       windows: { NVDA: pair(100, 110) },
     });
 
-    // The figure exists, so it is **eligible** and not scored — which is the
-    // whole reason the two counts are separate numbers.
     expect(section.eligible).toBe(1);
     expect(section.scored).toBe(0);
     expect(section.rows).toEqual([]);
+    expect(section.cohort).toBeUndefined();
     expect(section.refusals.comparison["too-few-samples"]).toBe(1);
   });
 
-  it("omits a security whose baseline is too short to rank", () => {
+  it("counts a baseline too short to rank, and does not score on it", () => {
     const section = score([live("NVDA")], {
       windows: { NVDA: pair(100, 110) },
       baselines: {
@@ -384,7 +564,7 @@ describe("unusualActivity — a refused security is NOT a row", () => {
     expect(section.refusals.comparison["too-few-samples"]).toBe(1);
   });
 
-  it("omits a split-refused security, and does NOT count it as too few samples", () => {
+  it("counts a split-refused security separately from a short one", () => {
     const section = score([live("NVDA")], {
       windows: { NVDA: pair(100, 110) },
       baselines: {
@@ -406,7 +586,39 @@ describe("unusualActivity — a refused security is NOT a row", () => {
     expect(section.rows).toEqual([]);
   });
 
-  it("never carries a rank, a sentinel or a null for a refused security", () => {
+  it("omits a security with no resolvable benchmark rather than inventing one", () => {
+    // There is no honest `FactorAnswer` for *we did not ask*: `inapplicable`
+    // means the question does not arise and `refused` demands a word and two
+    // counts. So the security falls out unscored rather than being handed an
+    // answer nobody computed — and it is unreachable for the shared pass's own
+    // population, which is 501 curated equities.
+    const section = score([live("NVDA")], {
+      windows: { NVDA: pair(100, 110) },
+      baselines: { NVDA: baseline() },
+      referenceOf: () => undefined,
+    });
+
+    expect(section.eligible).toBe(1);
+    expect(section.scored).toBe(0);
+    expect(section.rows).toEqual([]);
+  });
+
+  it("scores an INAPPLICABLE security on its price factor alone", () => {
+    // A broad-market fund has no sector and a sector ETF is its own benchmark,
+    // so the excess question does not arise — which is a different thing from
+    // refusing it, and the score is honestly one-factor rather than absent.
+    const section = score([live("NVDA")], {
+      windows: { NVDA: pair(100, 110) },
+      baselines: { NVDA: baseline() },
+      referenceOf: () => ({ applies: false, because: "no-sector" }),
+    });
+
+    expect(section.scored).toBe(1);
+    expect(section.cohort?.factors).toEqual(["price"]);
+    expect(section.cohort?.max).toBe(PRICE_ONLY_MAX);
+  });
+
+  it("never carries a score, a sentinel or a null for a security with no factor", () => {
     const section = score(
       [live("AAA"), live("BBB"), live("CCC"), live("DDD")],
       {
@@ -419,19 +631,23 @@ describe("unusualActivity — a refused security is NOT a row", () => {
       },
     );
 
-    // Two scored, two refused — and the refused ones are **absent** rather
-    // than present with a `rank: 0`, which a lenient reader would draw as the
-    // most ordinary move on record at the top of a region about unusual ones.
+    // Two scored, two with no factor at all — and the latter are **absent**
+    // rather than present with a `score: 0`, which a lenient reader would draw
+    // as the most ordinary security on record at the top of a region about
+    // unusual ones.
     expect(section.rows.map((row) => row.symbol)).toEqual(["AAA", "BBB"]);
     expect(section.tracked).toBe(4);
     expect(section.eligible).toBe(2);
     expect(section.scored).toBe(2);
 
-    // The arithmetic the region's sentence depends on.
-    const refused =
-      Object.values(section.refusals.figure).reduce((sum, n) => sum + n, 0) +
-      Object.values(section.refusals.comparison).reduce((sum, n) => sum + n, 0);
-    expect(section.tracked - section.scored).toBe(refused);
+    // **The nesting chain, which gained a link.** The rows are a selection
+    // from the **cohort** rather than from `scored`.
+    expect(section.rows.length).toBeLessThanOrEqual(
+      section.cohort?.scored ?? 0,
+    );
+    expect(section.cohort?.scored ?? 0).toBeLessThanOrEqual(section.scored);
+    expect(section.scored).toBeLessThanOrEqual(section.eligible);
+    expect(section.eligible).toBeLessThanOrEqual(section.tracked);
   });
 });
 
@@ -461,14 +677,15 @@ describe("unusualActivity — the order and the tie-break", () => {
       "BBB",
       "DDD",
     ]);
-    expect(section.rows.map((row) => row.rank)).toEqual([50, 10, 3]);
+    // `round(40 × rank / 100)` at the 50th, 10th and 3rd breakpoints.
+    expect(section.rows.map((row) => row.score)).toEqual([20, 4, 1]);
   });
 
   it("breaks a tie on the ticker ascending, whatever order the join reported", () => {
     const given = score([live("BBB"), live("CCC")], { windows, baselines });
     const reversed = score([live("CCC"), live("BBB")], { windows, baselines });
 
-    // Both rows are the 10th percentile. The join's order is the universe's
+    // Both rows score 4. The join's order is the universe's
     // and re-orders under a live feed, so a `0` from the comparator — a stable
     // sort over the arrival order — would swap these two between frames with
     // nothing having changed.
@@ -514,7 +731,7 @@ describe("unusualActivity — the order and the tie-break", () => {
     });
 
     // The verification half beside the rule: the drawn order is the order
-    // `compareByPercentile` puts these rows in, and no second inequality is
+    // `compareByScore` puts these rows in, and no second inequality is
     // expressed here to drift from it.
     for (let at = 1; at < section.rows.length; at += 1) {
       const earlier = section.rows[at - 1];
@@ -522,8 +739,76 @@ describe("unusualActivity — the order and the tie-break", () => {
       expect(earlier).toBeDefined();
       expect(later).toBeDefined();
       if (earlier === undefined || later === undefined) return;
-      expect(compareByPercentile(earlier, later)).toBeLessThan(1);
+      expect(compareByScore(earlier, later)).toBeLessThan(1);
     }
+  });
+
+  it("ranks within ONE cohort and counts the securities on another scale", () => {
+    // **AC 3 arriving at a ranked surface.** A one-factor score of 32 would
+    // outrank a two-factor score of 20 on the raw scale — correctly, within a
+    // cohort — and ranking them together is the promotion of the worst-covered
+    // securities AC 3 refuses in terms: a score from fewer factors has the
+    // higher variance.
+    //
+    // `AAA` and `BBB` have both baselines; `CCC` has only the excess one. So
+    // `{price, excess}` is the larger cohort at two members and `CCC` is set
+    // aside — **counted**, so the restriction is visible rather than silent.
+    const section = score([live("AAA"), live("BBB"), live("CCC")], {
+      windows: {
+        AAA: pair(100, 150),
+        BBB: pair(100, 110),
+        CCC: pair(100, 190),
+        XLK: pair(100, 101),
+      },
+      baselines: { AAA: baseline(), BBB: baseline() },
+      excess: {
+        AAA: excessBaseline("AAA"),
+        BBB: excessBaseline("BBB"),
+        CCC: excessBaseline("CCC"),
+      },
+    });
+
+    expect(section.cohort?.factors).toEqual(["price", "excess"]);
+    expect(section.cohort?.max).toBe(TWO_FACTOR_MAX);
+    expect(section.cohort?.scored).toBe(2);
+    expect(section.cohort?.others).toBe(1);
+
+    // Three got a score; two are ranked. The chain closes.
+    expect(section.scored).toBe(3);
+    expect(section.rows.map((row) => row.symbol)).toEqual(["AAA", "BBB"]);
+
+    // And `CCC`'s score is the highest of the three — which is exactly why
+    // ranking across cohorts would have promoted it.
+    expect(section.rows.every((row) => row.symbol !== "CCC")).toBe(true);
+  });
+
+  it("reads the benchmark's leg ONCE however many securities share it", () => {
+    // ~512 walks a batch rather than ~1,002: 501 subjects plus the eleven
+    // sector SPDRs, each read once. A `Map` keyed on the **benchmark's**
+    // symbol is what makes 501 reads into 11, and it is the whole of this
+    // task's cost story.
+    const reads: string[] = [];
+    const entries = [live("AAA"), live("BBB"), live("CCC")];
+
+    unusualActivity({
+      moves: eligibleMoves(entries, OPEN),
+      windowOf: (symbol: Ticker) => {
+        reads.push(symbol);
+        return pair(100, 110);
+      },
+      baselineOf: () => baseline(),
+      excessBaselineOf: (symbol: Ticker) => excessBaseline(symbol),
+      referenceOf: () => REFERENCE,
+      grid: GRID,
+      asOf: ASOF,
+    });
+
+    expect(reads.filter((symbol) => symbol === BENCHMARK)).toHaveLength(1);
+    expect(reads.filter((symbol) => symbol !== BENCHMARK)).toEqual([
+      "AAA",
+      "BBB",
+      "CCC",
+    ]);
   });
 });
 
@@ -570,16 +855,21 @@ describe("unusualActivity — the basis gate", () => {
     expect(section.baseline.generation).toBeUndefined();
   });
 
-  it("draws the stored session's rows, ranked, with the PASS's own figures", () => {
+  it("draws the stored COMPOSITE's rows, ranked, with each pass's own figures", () => {
     const section = score([live("NVDA")], {
       marketOpen: false,
       // Ticker order in, ranked order out — the store never sorts, because
-      // `one-comparator-for-the-order-of-a-percentile` permits one home for
-      // that order and this is not it.
+      // `one-comparator-for-the-order-of-a-composite-score` permits one home
+      // for that order and this is not it.
       sessionRanking: storedRanking([
         storedScore("AMD", 71, -1.2),
         storedScore("MSFT", 99, 3.4),
         storedScore("NVDA", 88, -2.6),
+      ]),
+      compositeRanking: storedComposites([
+        storedComposite("AMD", 71),
+        storedComposite("MSFT", 99),
+        storedComposite("NVDA", 88),
       ]),
     });
 
@@ -590,16 +880,108 @@ describe("unusualActivity — the basis gate", () => {
       "AMD",
     ]);
 
-    // **The three counts are the pass's**, not this process's: the entries
-    // handed in are one security, and the figures are 501/466/455.
+    // **The scores are MINTED from the stored answers**, never read off the
+    // stored column (`0017` §5, and `a-stored-composite-is-minted-from-its-
+    // answers` in `pnpm invariants`). At rank 99 both factors pay nearly in
+    // full: `round(40 × 99/100) + round(35 × 99/100) = 40 + 35 = 75`.
+    expect(section.rows[0]?.score).toBe(75);
+    expect(section.rows[0]?.band).toBe(bandOf(75));
+
+    // **`tracked` and `eligible` are the PERCENTILE pass's** — the composite
+    // pass row has no `eligible` column, because `tracked = scored + unscored`
+    // is the only arithmetic that table closes.
     expect(section.tracked).toBe(501);
     expect(section.eligible).toBe(466);
-    expect(section.scored).toBe(455);
+    // **And `scored` is the COMPOSITE pass's**, which is a genuinely different
+    // figure: 485 against the percentile pass's 455.
+    expect(section.scored).toBe(485);
 
-    // **So are the five refusals**, which is what makes the footer out of
-    // hours the same sentence it is at 11:00.
+    // **The five refusals are the percentile pass's**, which is what makes the
+    // footer out of hours the same sentence it is at 11:00.
     expect(section.refusals.figure["nothing-observed"]).toBe(35);
     expect(section.refusals.comparison["too-few-samples"]).toBe(11);
+  });
+
+  it("reads the MOVE from beside the score, because the composite row has none", () => {
+    // `session_composite_scores` stores the factor answers and no signed move
+    // — the ordinal, its `n` and the two endpoints live in
+    // `session_return_percentiles`, keyed by the same `observed_at` (`0017`
+    // §2 pairs them deliberately). The glyph cannot do without it.
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+      compositeRanking: storedComposites([storedComposite("NVDA", 88)]),
+    });
+
+    expect(section.rows[0]?.percent).toBeCloseTo(-2.6, 10);
+  });
+
+  it("omits the move for a security with a composite row and no percentile row", () => {
+    // A security scored on its excess factor alone — `0` of 485 measured, and
+    // representable. The glyph is absent rather than invented, because a
+    // direction of `0` is the claim *this security did not move*.
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("AMD", 71, -1.2)]),
+      compositeRanking: storedComposites([storedComposite("NVDA", 88)]),
+    });
+
+    expect(section.rows.map((row) => row.symbol)).toEqual(["NVDA"]);
+    expect(section.rows[0]?.percent).toBeUndefined();
+    expect("percent" in (section.rows[0] ?? {})).toBe(false);
+  });
+
+  it("states the stored COHORT, which is `{price, excess}` on every machine", () => {
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+      compositeRanking: storedComposites([storedComposite("NVDA", 88)]),
+    });
+
+    expect(section.cohort?.factors).toEqual(["price", "excess"]);
+    expect(section.cohort?.max).toBe(TWO_FACTOR_MAX);
+    expect(section.cohort?.others).toBe(0);
+  });
+
+  it("DROPS the composite where the two tables are for different sessions", () => {
+    // **The defect this refuses is `last-closes-cache.ts`' recorded one**: the
+    // two caches memoise on their own pass rows' instants and read *the newest
+    // session at or before* independently, so a crash between the two writes —
+    // or a re-run that got through one — leaves them one session apart. Stating
+    // Friday's `eligible` beside Thursday's scores is a well-formed,
+    // correctly-dated wrong answer.
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+      compositeRanking: storedComposites([storedComposite("NVDA", 88)], {
+        observedAt: new Date("2026-09-14T20:00:00.000Z"),
+      }),
+    });
+
+    expect(section.rows).toEqual([]);
+    expect(section.scored).toBe(0);
+    expect(section.cohort).toBeUndefined();
+    // The percentile pass's own figures still travel, so the footer is honest
+    // about the population it heard from.
+    expect(section.tracked).toBe(501);
+    expect(section.eligible).toBe(466);
+    if (section.basis !== "session")
+      throw new Error("expected the session arm");
+    expect(section.session).toBe("2026-09-15");
+  });
+
+  it("draws no rows where the percentile pass is stored and the composite is not", () => {
+    // The state between the migration deploying and the next nightly run, and
+    // `scored: 0` is honest rather than conservative: none of these securities
+    // has a composite this process can draw.
+    const section = score([live("NVDA")], {
+      marketOpen: false,
+      sessionRanking: storedRanking([storedScore("NVDA", 88, -2.6)]),
+    });
+
+    expect(section.rows).toEqual([]);
+    expect(section.scored).toBe(0);
+    expect(section.eligible).toBe(466);
   });
 
   it("states the stored session rather than the one it asked about", () => {
@@ -637,23 +1019,31 @@ describe("unusualActivity — the basis gate", () => {
   });
 
   it("bounds the stored rows at the row budget", () => {
+    const symbols = Array.from(
+      { length: UNUSUAL_ROWS + 4 },
+      // Real ticker shapes, because `toTicker` refuses anything else — a
+      // fixture the domain would reject is a measurement of nothing.
+      (_unused, at) => `A${String.fromCharCode(65 + at)}`,
+    );
+
     const section = score([live("NVDA")], {
       marketOpen: false,
       sessionRanking: storedRanking(
-        // Real ticker shapes, because `toTicker` refuses anything else — a
-        // fixture the domain would reject is a measurement of nothing.
-        Array.from({ length: UNUSUAL_ROWS + 4 }, (_unused, at) =>
-          storedScore(
-            `A${String.fromCharCode(65 + at)}`,
-            Math.max(0, 99 - at),
-            1 + at,
-          ),
+        symbols.map((symbol, at) =>
+          storedScore(symbol, Math.max(0, 99 - at), 1 + at),
+        ),
+      ),
+      compositeRanking: storedComposites(
+        symbols.map((symbol, at) =>
+          storedComposite(symbol, Math.max(0, 99 - at)),
         ),
       ),
       rows: UNUSUAL_ROWS,
     });
 
     expect(section.rows).toHaveLength(UNUSUAL_ROWS);
+    // The cut is visible in the arithmetic rather than hidden.
+    expect(section.cohort?.scored).toBe(UNUSUAL_ROWS + 4);
   });
 });
 
@@ -689,6 +1079,8 @@ describe("unusualActivity — the shared pass is untouched", () => {
       moves: pass,
       windowOf: () => pair(100, 110),
       baselineOf: () => baseline(),
+      excessBaselineOf: () => undefined,
+      referenceOf: () => REFERENCE,
       grid: GRID,
       asOf: ASOF,
     });
@@ -718,6 +1110,8 @@ describe("unusualActivity — the shared pass is untouched", () => {
       moves: pass,
       windowOf: () => [],
       baselineOf: () => undefined,
+      excessBaselineOf: () => undefined,
+      referenceOf: () => REFERENCE,
       grid: GRID,
       asOf: ASOF,
     });
@@ -734,6 +1128,8 @@ describe("unusualActivity — the shared pass is untouched", () => {
       moves: pass,
       windowOf: () => pair(100, 110),
       baselineOf: () => baseline(),
+      excessBaselineOf: () => undefined,
+      referenceOf: () => REFERENCE,
       grid: GRID,
       asOf: ASOF,
     });

@@ -47,9 +47,9 @@ const OVERVIEW = "/";
 const RANKED = ["CTSH", "NVDA", "AVGO"] as const;
 
 const ROWS = [
-  unusualRow("CTSH", 99, -4.12, { aboveSample: true }),
-  unusualRow("NVDA", 99, 3.88),
-  unusualRow("AVGO", 98, -2.4),
+  unusualRow("CTSH", 75, "extreme", -4.12),
+  unusualRow("NVDA", 75, "extreme", 3.88),
+  unusualRow("AVGO", 68, "high", -2.4),
 ];
 
 const COUNTS = { scored: 455, eligible: 466, tracked: 501 } as const;
@@ -61,13 +61,21 @@ const COUNTS = { scored: 455, eligible: 466, tracked: 501 } as const;
  * importing its builder would make this spec agree with it by construction. If
  * the product's words change, these strings are supposed to need changing.
  */
+// **Updated 2026-10-28 by Task 5.6.7, which is this comment working as
+// designed.** The cut stopped being "a long enough history to rank" when the
+// region stopped ranking by one factor: it now states the COHORT — how many
+// factors scored and the maximum they can reach — because two scores are
+// comparable only if computed over the same factor set, and a reader cannot
+// read `75` without knowing it is out of 75 rather than 100.
 const SESSION_CLAIM =
   "Of the 501 companies we track, 466 had a measurable 5-minute move into " +
-  "the close on 2026-10-14 and 455 have a long enough history to rank.";
+  "the close on 2026-10-14 and 455 have a score on 2 of 3 factors, to a " +
+  "maximum of 75. 11 have too short a baseline.";
 
 const OBSERVED_CLAIM =
   "Of the 501 companies we track, 466 were heard from in the last 5 " +
-  "minutes and 455 have a long enough history to rank.";
+  "minutes and 455 have a score on 2 of 3 factors, to a maximum of 75. " +
+  "11 have too short a baseline.";
 
 const region = (page: Page) =>
   page.getByRole("region", { name: "Unusual activity" });
@@ -110,7 +118,9 @@ test("draws the last session's ranking, and names the session", async ({
   // **The ranking is drawn**, which is the whole of this task: out of hours
   // this region used to be `Nothing ranked while the market is shut.` over ten
   // held pads, for about 80% of the week.
-  expect(text).toContain("99th");
+  // The highest score the two-factor scale can produce, which is what a rank
+  // of 99 on both factors mints: `round(40 × 99/100) + round(35 × 99/100)`.
+  expect(text).toContain("75");
   expect(text).toContain(SESSION_CLAIM);
 
   // **And it is NOT the live sentence.** *Heard from in the last 5 minutes* is
@@ -125,7 +135,8 @@ test("draws the last session's ranking, and names the session", async ({
 test("the two bases are distinguishable on screen, in the same ten rows", async ({
   page,
 }) => {
-  // The rows, the ordinals, the glyphs and the counts are identical by
+  // The rows, the scores, the band in the head, the glyphs and the counts are
+  // identical by
   // construction; the sentence is the entire difference, and a region that
   // drew the same words for both would be claiming the market is doing now
   // what it did at Friday's close.

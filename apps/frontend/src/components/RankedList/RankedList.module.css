@@ -149,13 +149,15 @@
 }
 
 /*
- * --- The unusual row: four tracks, and the one that flexes is the NAME ---
+ * --- The unusual row: FOUR tracks, and the one that flexes is the NAME ---
  *
- * `Unusual activity on the landing page.dc.html` §02, Task 5.4.3. **The third
- * use of this component and the first one in the narrow column**: the region
- * resolves to 342 px at 1440 and 357 at 1024, so the row's content box is
- * **308 / 323 / 686 / 308** — non-monotonic, and the narrowest box sits at the
- * widest viewport. Designed at 308 first.
+ * `Unusual activity on the landing page.dc.html` §02, Task 5.4.3; **the score
+ * arrived at Task 5.6.7, and the band chip beside it lasted an afternoon**.
+ * **The third use of this component
+ * and the first one in the narrow column**: the region resolves to 342 px at
+ * 1440 and 357 at 1024, so the row's content box is **308 / 323 / 686 / 308**
+ * — non-monotonic, and the narrowest box sits at the widest viewport. Designed
+ * at 308 first.
  *
  * ## Why this is a third track list and not `.movers`
  *
@@ -168,25 +170,78 @@
  * screenshot of one state. `RankedListBar.figure` is what makes the anatomy a
  * decision rather than a consequence.
  *
- * ## The arithmetic, at each of the three wide widths
+ * ## THE ARITHMETIC, AND THE CHIP THAT GAVE THE NAME ITS SPACE BACK
  *
- * `15 (2ch) + 68 (ticker) + 64 (ordinal) + 3 × 12 (gaps) = 183` of fixed
- * width, so the name resolves to **125 px at 1440**, **140 at 1024** and
- * **503 at 768** — the only width at which the universe's longest name
- * (`Cognizant Technology Solutions Corporation Class A`, 50 characters) fits
- * whole. The three wide widths share one declaration because they share one
- * track list; the 390 band restates it below rather than inheriting it, which
- * is this file's rule 2.
+ * Fixed width is `15 (2ch) + 68 (ticker) + 44 (score) + 3 × 12 (gaps) = 163`,
+ * so the name resolves to **145 px at 1440**, **160 at 1024** and **523 at
+ * 768**.
  *
- * ## The 64 px ordinal track has no reversal trigger, which is rare
+ * **It was 57 px at 1440 for an afternoon, and that is why this comment is
+ * written in two layers.** Task 5.6.7 put a 76 px band chip in a fifth track,
+ * which is **25% of a 308 px row**, and the name took the whole of it:
+ * `Dominio…`, `The Kra…`, `3M Co…`, `ExxonM…` — about eight characters, which
+ * reads as broken rather than as designed. The owner removed it on a
+ * measurement: the top ten shared **exactly one** band (16 `extreme`
+ * securities in the whole universe), Task 5.6.3 had measured all ten sharing
+ * one in **35 of 77** instants, and the chip's own argument in `Unusual.tsx`
+ * said why — *the chip stops being a property of the selection and becomes a
+ * property of the day*. A property of the day is stated **once**, in the
+ * region's head slot (`unusual-activity.ts`' `boundOf`), where it costs the
+ * row nothing.
  *
- * `▼` + 4 px + `>99th`: `12 + 4 + 44.9 = 60.9 → 64`, where 44.9 is five
- * glyphs in the cold-load face. And the ceiling **cannot move**: `100th` is
- * never printed — above the highest order statistic there is no sample — so
- * `>99th` is the widest string this cell will ever hold, for ever.
+ * The owner's own hierarchy still governs what the name may do, and it is
+ * stated rather than assumed: **the ticker is the identifier and the name is
+ * the confirmation.** `NVDA` never ellipsises, every row's ticker opens that
+ * security's page, and `.unusual .label` has carried `text-overflow: ellipsis`
+ * since Task 5.4.3 — at 145 px it reaches about twenty characters and most
+ * names are written whole. At 390 the name gets **161 px** — more than at
+ * 1440, because the gaps step 12 → 8 and the ticker 68 → 64 — so this
+ * region's name track is non-monotonic across the four widths exactly as its
+ * box is.
+ *
+ * ## The 44 px score track, and why the ceiling is three glyphs rather than two
+ *
+ * `▲` + 4 px + three glyphs of `--font-data` at `--font-size-dense`:
+ * `12 + 4 + 26.9 = 42.9 → 44`, where 8.98 px a glyph is the cold-load face's
+ * own advance (five glyphs measured at 44.9 by Task 5.4.3).
+ *
+ * **Three glyphs and not two, deliberately.** `100` is structurally reachable
+ * — the score is a weighted sum and every factor can reach its own weight —
+ * and the drawn ceiling in this tree is only `75` because the volume factor is
+ * `no-distribution` for every security. A track sized to today's maximum is a
+ * column sized to today's **data**, which is the thing this row refuses twice
+ * over: it moves the layout the day a nightly pass stores a volume
+ * distribution, on a region that already re-orders under live data. Unlike the
+ * ordinal's ceiling, which could never move (`100th` is never printed), this
+ * one has a dated condition behind it.
+ *
+ * ## No chip track, and the measurement that closed it is kept
+ *
+ * The fifth track was a **fixed 76 px probed at `ELEVATED`** — measured in
+ * both faces, with the webfont aborted for the cold arm, at 11 px with
+ * `0.08em` tracking and `--space-4` either side:
+ *
+ * | band       | shipped | cold-load |
+ * | ---------- | ------- | --------- |
+ * | `normal`   |   57.14 |     60.78 |
+ * | `elevated` |   66.05 | **69.64** |
+ * | `high`     |   37.19 |     39.27 |
+ * | `extreme`  |   62.72 |     65.52 |
+ *
+ * Three things in that table outlive the track and are why it is kept rather
+ * than deleted with the cell. The widest band word is **`elevated`
+ * (8 glyphs)**, not `extreme` (7) — obvious only once counted, and it is what
+ * the head slot's own reserve is now measured against. The cold-load
+ * inflation is only **×1.045–1.064**, where `.ordinal`'s note records ×1.148
+ * for five glyphs of `--font-data`: the principle transfers and **the number
+ * does not**, because `microLabel` sets no `font-family` and the chip
+ * inherits `--font-sans`. And the **height was 18 px in both faces**, which
+ * is the figure the region's height rests on — the first draft's `--space-4`
+ * of vertical padding made it 24 in an 18 px line box, every row 33 px
+ * instead of 26, found by `pnpm probe` and by nothing else.
  */
 .unusual {
-  grid-template-columns: 2ch 68px minmax(0, 1fr) 64px;
+  grid-template-columns: 2ch 68px minmax(0, 1fr) 44px;
 }
 
 /*
@@ -1027,19 +1082,28 @@
    * overflowed into a 4 px gap and **touched the company name**.
    * `50.73 + 4 (gap) + 8 (mark slot) = 62.73` → **64**.
    *
-   * The ordinal keeps 64: `>99th` is the same five glyphs at this width and
-   * the cell does not step its size, so narrowing it would be buying the name
-   * sixteen pixels by clipping the only figure in the region.
+   * The score keeps its wide-width reserve — 44 — and does not step. The cell
+   * does not step its size either (see `.ordinal`), so narrowing it would be
+   * buying the name pixels by clipping the only figure in the region.
+   *
+   * **Four tracks here too, restated and not inherited** (rule 2) — and the
+   * restatement is the thing that cannot be skipped: the `<li>` is a `subgrid`
+   * and cannot grow columns beyond the range it adopts, so a fifth child
+   * against four tracks is placed in an implicit **row** of the `<li>`. That is
+   * 33 px instead of 26 on every row and the region 503 instead of 461, found
+   * by `pnpm probe /` at 390 and by nothing else. `.bar` and `.price` each paid
+   * for that lesson once, and a band chip in a fifth track paid for the
+   * vertical half of it for an afternoon.
    *
    * Arithmetic, against the **308 px** the grid resolves to at 390:
-   * `15 + 64 + 64 + 3 × 8 = 167`, so the name gets **141 px** — which is
+   * `15 + 64 + 44 + 3 × 8 = 147`, so the name gets **161 px** — which is
    * **more** than it gets at 1440, because the gaps step 12 → 8 and the ticker
    * 68 → 64. The region's width is non-monotonic across the four and so is its
    * name track; that is measured rather than an oversight, and is stated here
    * before somebody "fixes" it.
    */
   .unusual {
-    grid-template-columns: 2ch 64px minmax(0, 1fr) 64px;
+    grid-template-columns: 2ch 64px minmax(0, 1fr) 44px;
     column-gap: var(--space-8);
   }
 

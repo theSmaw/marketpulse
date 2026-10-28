@@ -1,7 +1,5 @@
 import { memo, useId } from "react";
 
-import { UNUSUAL_ROWS } from "@marketpulse/shared";
-
 import { cx } from "../../cx.js";
 import {
   NOTHING_RANKED,
@@ -30,11 +28,29 @@ import styles from "./Unusual.module.css";
 // cold-load face, which on a 308 px row leaves the company name about six
 // characters.
 //
-// The answer is that **the word moves to the list heading and the ordinal
-// stays on the row** — drawn short, spoken whole, one fact with two renderings
-// (ADR 0029) rather than a concession. See `return-percentile.ts`'
-// `percentileOrdinal`, which derives the short form from the long one so the
-// two cannot drift.
+// The answer is that **the noun moves to the list heading and the figure stays
+// on the row**, once for the region rather than ten times down the column.
+//
+// ## THE FIGURE IS THE COMPOSITE SCORE SINCE TASK 5.6.7
+//
+// It was the price percentile — one factor of three, drawn `>99th` and spoken
+// `>99th percentile`. It is now `scoreAnomaly`'s 0–100 score with its band as
+// a chip beside it, which is the region and the security page finally agreeing
+// about what is ranked. Three things followed and all three are measured:
+//
+//   - **The score is shorter than the ordinal**, so the figure track went
+//     64 → 44 — and that paid for less than half the chip. The rest came out
+//     of the **name**, which resolves to 57 px at 1440 against 125 before.
+//     `RankedList.module.css`' `.unusual` carries the arithmetic at all four
+//     widths and the hierarchy that makes it survivable: the ticker is the
+//     identifier and never ellipsises, the name is the confirmation and does.
+//   - **The drawn and spoken strings are now the same string**, because a
+//     score has no long form — so the cell renders one element rather than
+//     putting `61` in `textContent` twice. The scale a reader cannot see from
+//     the figure (`max 75`) is in the footer once, which is the cohort rule's
+//     own doing.
+//   - **The region's own heading changed with the figure**, because it names
+//     the comparison and the comparison is a different one.
 //
 // ## What this region has none of
 //
@@ -49,40 +65,73 @@ import styles from "./Unusual.module.css";
 //     and a day whose leader is `>99th` and a day whose leader is `71st` draw
 //     the identical picture, which costs a reader the only question this
 //     region exists to answer.
-//   - **No band chip** (Story 5.4's Gate 1 decision 1).
-//     `packages/shared/src/anomaly.ts` deliberately holds no score→band
-//     boundaries, the four bands are defined for the composite 0–100 score,
-//     and this ranks **one factor of four** — so a chip would read `extreme`
-//     on price alone, ten times over. It is also a worse picture than the bar
-//     it replaces: a top-N selected for extremity, bucketed by extremity,
-//     collapses to one bucket. **Reversal condition**: Story 5.6's composite
-//     with absolute thresholds, against which a quiet day's top five are all
-//     `elevated` and a wild day's all `extreme` — at which point the chip
-//     stops being a property of the selection and becomes a property of the
-//     day. One consequence travels with the refusal: `market.css` resolves
+//   - **No band chip on the row — the band is in the HEADING, once.** Story
+//     5.4's Gate 1 refused a chip because this region ranked one factor of
+//     four; Task 5.6.7 met that condition with the composite and drew one in
+//     a fifth track; **the owner removed it the same day, on a measurement,
+//     and the reasoning is the chip's own argument carried one step further.**
+//     Its stated condition was *a quiet day's top five all `elevated` and a
+//     wild day's all `extreme`* — at which point *the chip stops being a
+//     property of the selection and becomes a property of the day*. That is
+//     exactly what happened: **1 distinct band in the top ten** against the
+//     stored composites (16 `extreme` securities in the whole universe), all
+//     ten rows sharing one band in **35 of 77** instants and more than three
+//     sharing one in **77 of 77**. A property of the day is stated **once**,
+//     not ten times down a column — and at **76 px of a 308 px row, 25%**,
+//     the ten repetitions were paid for by the company name, which fell to
+//     57 px: `Dominio…`, `The Kra…`, `3M Co…`.
+//
+//     So the band word now sits in the head slot beside `Top 10` —
+//     `unusual-activity.ts`' `boundOf`, which carries the wording, the two
+//     sentences and the width measurement behind them — **written, never
+//     abbreviated** (the ramp's greyscale steps are 1.12 / 1.43 / 1.59,
+//     enough to see a change and nowhere near enough to name one) and **with
+//     no fill at all**. The second channel the chip provided is still there
+//     and is now the heading rather than a colour.
+//
+//     **And the consequence the original refusal recorded is withdrawn with
+//     it: there is no amber on `/` again.** `market.css` resolves
 //     `--anomaly-high`, `--feed-stale`, `--service-degraded` and
-//     `--provenance-synthetic` all to `--palette-amber`, and with no chip
-//     **no amber appears in this region**, so that collision stays Story
-//     5.6's and is unreachable from `/` today.
+//     `--provenance-synthetic` all to `--palette-amber`, so a chip here would
+//     put this region and the chrome's degraded words in one hue on one
+//     screen. The head slot carries the word in `--ink-secondary` and spends
+//     none of the ramp, which `amber-appears-once-in-the-rail` also enforces:
+//     `AnomalyBadge.module.css` is the only shipped stylesheet allowed to
+//     read it. **The collision stays Story 5.6's and is unreachable from `/`**
+//     — Task 5.6.8 photographs it on the security page, where the chip is.
 //   - **No quiet group and not even its reserve.** The list's set **is** the
 //     ranking's output — the producer builds no row for a refused security and
 //     carries no unranked tail — so the group has zero members in every state
 //     there is, and its 25 px heading would cost a row.
 //   - **No feed line, no tape and no instant of its own.** The footer states
-//     three populations, the cut and the age (Task 5.4.4) and says nothing
-//     about where the figures came from: the ordinal's numerator is `iex`
-//     and its baseline is `sip`, and that pair is the screen's source note's
-//     — one note for the screen, because a region-level feed line is the
-//     `BarSeriesPanel` duplicate this product deleted.
+//     three populations, the cut, the **scale** and the age (Task 5.4.4, with
+//     the scale added at 5.6.7) and says nothing about where the figures came
+//     from: the score's numerator is `iex` and both its baselines are `sip`,
+//     and that pair is the screen's source note's — one note for the screen,
+//     because a region-level feed line is the `BarSeriesPanel` duplicate this
+//     product deleted.
+//   - **No fourth footer line.** The footer reserves **four** micro lines and
+//     the lead clause plus the age line already fill them at 308 px, so the
+//     cohort's scale is absorbed into the **cut** sentence rather than given
+//     one of its own. A fifth line steps the whole lower page at 390, in the
+//     one region that must not step.
+//   - **No per-row scale, and no per-row explanation.** Every drawn row
+//     shares the ranked cohort by construction — that is what the cohort rule
+//     buys — so `2 of 3 · max 75` is a fact about the **region**. The
+//     clause-per-factor ledger is the security page's, which every row's
+//     ticker opens: §11's *a score carries its explanation* met at the grain
+//     each surface can hold, rather than by a popover a reader has to ask.
 //
 // ## And the arrival disc keeps its shipped meaning
 //
-// It fires when **a bar arrives for that security** and on nothing else. A
-// percentile is the first figure in this product that can change with **no bar
-// for its security at all** — its peers moved, or the window rolled — and a
-// second meaning for one mark is this product's most-repeated defect. The
-// right repair for *why did these rows move* is the `ORDER HELD` badge, which
-// is why this task repaired it; it is not the disc.
+// It fires when **a bar arrives for that security** and on nothing else. The
+// figure here was already the first in this product that can change with **no
+// bar for its security at all** — its peers moved, or the window rolled — and
+// the composite makes that **stronger**, not weaker: its excess factor is a
+// difference against a sector benchmark, so a security's score moves when the
+// benchmark prints a minute and the security does not. A second meaning for
+// one mark is this product's most-repeated defect. The right repair for *why
+// did these rows move* is the `ORDER HELD` badge; it is not the disc.
 
 /**
  * **The list's heading: what the rows are ranked by, named once.**
@@ -92,31 +141,44 @@ import styles from "./Unusual.module.css";
  * string some screen readers spell out a letter at a time.
  *
  * **It names the comparison rather than repeating the region's name**, which
- * is what the word `percentile` moving off the row bought. It is also what
- * makes the ordinary state readable: a full list of `62nd`, `59th`, `58th` is
- * the honest answer *nothing is unusual right now* (Gate 1 decision 1's own
- * words — a row reading `62nd percentile` is visibly ordinary), and a reader
- * can only take that from it if they know what the figures are percentiles
- * **of**.
+ * is what moving the noun off the row bought. It is also what makes the
+ * ordinary state readable: a full list of `18`, `14`, `11` is the honest
+ * answer *nothing is unusual right now*, and a reader can only take that from
+ * it if they know what the figures are **of** and what the scale **is**.
+ *
+ * **It states the range, where the percentile heading it replaced stated the
+ * history.** `0 to 100` is the structural ceiling rather than the one this
+ * tree reaches — two factors cap at 75 — and that is deliberate: the scale a
+ * row's score was actually computed over is the **cohort's** and belongs in the
+ * footer with its denominators, while the heading says what kind of figure this
+ * column holds. A heading reading `0 to 75` would be a constant that silently
+ * becomes false the day a volume distribution is stored, which is exactly the
+ * guess `AnomalyBadge` refused to make about the band boundaries.
+ *
+ * `to` rather than an en dash, because this string is spoken: a range written
+ * with a dash is read aloud as a subtraction or as nothing at all by different
+ * readers, and `0 to 100` is the one spelling every reader says the same way.
  *
  * **The long form is the string and the narrow widths are a rendering of it**
  * — one line, `text-overflow: ellipsis` — rather than two strings behind a
- * breakpoint, which is the same rule the ordinal itself follows one element
- * over.
+ * breakpoint.
  *
- * The named form rather than a paraphrase (`how far today's move is from this
- * company's own normal`, 48 characters): this product's rule is that a figure
- * is **named** rather than described, and the paraphrase belongs in the
- * security page's own explanation — which every row of this region links to.
+ * The named form rather than a paraphrase (`how unusual this is against the
+ * company's own normal`): this product's rule is that a figure is **named**
+ * rather than described, and the paraphrase belongs in the security page's own
+ * explanation — which every row of this region links to.
  */
-const RANKED_BY = "Percentile of its own 60-session history";
+const RANKED_BY = "Composite anomaly score, 0 to 100";
 
 /**
- * **Hoisted so the prop identity is stable**, and `figure: "ordinal"` is the
+ * **Hoisted so the prop identity is stable**, and `figure: "score"` is the
  * decision rather than a default — see `RankedListBar`, where the 92 px of
- * dead track it closes is measured.
+ * dead track it closes is measured, and where the rename from `"ordinal"` at
+ * Task 5.6.7 is argued: the same track now holds a different quantity, so the
+ * word changed to put a compile error at every call site rather than let one
+ * compile against a meaning that had moved underneath it.
  */
-const ORDINAL_AND_NO_BAR: RankedListBar = { kind: "none", figure: "ordinal" };
+const SCORE_AND_NO_BAR: RankedListBar = { kind: "none", figure: "score" };
 
 export interface UnusualProps {
   /** The ranked rows, from the unusual section of the overview frame. */
@@ -162,7 +224,7 @@ export const Unusual = memo(function Unusual({ view, pinned }: UnusualProps) {
       <div className={cx(styles.body)}>
         <RankedList
           rows={withHeldUnusualRows(rowsInPinnedOrder(view.rows, pinned))}
-          bar={ORDINAL_AND_NO_BAR}
+          bar={SCORE_AND_NO_BAR}
           name={{ labelledBy: headingId }}
           quietGroup="impossible"
         />
@@ -278,6 +340,18 @@ export const Unusual = memo(function Unusual({ view, pinned }: UnusualProps) {
  * reserves so neither moves the other: Task 4.3.6 measured a four-pixel-taller
  * badge moving eleven rows on pointer enter.
  *
+ * ## And since the chip came off the row it carries TODAY'S BAND beside it
+ *
+ * `Top 10 · all extreme`, or `Top 10 · led by extreme` where the ten do not
+ * share one. The string is the **view's** — `unusual-activity.ts`' `boundOf`,
+ * which carries the measurement that decided the wording and the width it had
+ * to fit — rather than derived here, for `UnusualActivity.nothing`'s reason:
+ * the reservation renders this component inside a hidden box and a hidden
+ * string is still in `textContent`.
+ *
+ * It is **a word and not a fill**: the band's name is the channel, the head
+ * spends none of the anomaly ramp, and `/` is back to having no amber on it.
+ *
  * **The ten is interpolated, never typed** — `the-population-is-never-a-
  * literal`'s rule one scale down: a badge saying ten over eleven rows is a lie
  * with no symptom.
@@ -299,10 +373,8 @@ export const UnusualMeta = memo(function UnusualMeta({
     <span className={cx(styles.slot)}>
       {held ? (
         <OrderHeldBadge />
-      ) : view.rows.length === 0 ? undefined : (
-        <span
-          className={cx(styles.bound)}
-        >{`Top ${String(UNUSUAL_ROWS)}`}</span>
+      ) : view.bound === undefined ? undefined : (
+        <span className={cx(styles.bound)}>{view.bound}</span>
       )}
     </span>
   );

@@ -15,8 +15,8 @@ import {
 //
 // ## What this file asserts, and why each one needs Chromium
 //
-//   - **The figure is not a link.** A reader dragging to select a percentile
-//     must not navigate, and the ordinal cell is 64 px of a 308 px row sitting
+//   - **The figure is not a link.** A reader dragging to select a score
+//     must not navigate, and the score cell is 44 px of a 308 px row sitting
 //     inside a `<li>` whose ticker **is** a link. Nothing below `pnpm e2e`
 //     knows which elements are activatable, because jsdom neither lays out nor
 //     hit-tests.
@@ -45,11 +45,11 @@ const OVERVIEW = "/";
 const RANKED = ["CTSH", "NVDA", "AVGO", "CRM", "MNST"] as const;
 
 const SECTION = unusualSection([
-  unusualRow("CTSH", 99, -4.12, { aboveSample: true }),
-  unusualRow("NVDA", 99, 3.88),
-  unusualRow("AVGO", 98, -2.4),
-  unusualRow("CRM", 97, 2.02),
-  unusualRow("MNST", 96, -1.77),
+  unusualRow("CTSH", 75, "extreme", -4.12),
+  unusualRow("NVDA", 75, "extreme", 3.88),
+  unusualRow("AVGO", 68, "high", -2.4),
+  unusualRow("CRM", 64, "high", 2.02),
+  unusualRow("MNST", 58, "elevated", -1.77),
 ]);
 
 const region = (page: Page): Locator =>
@@ -106,8 +106,8 @@ test("the ticker is the only activatable thing on a row, and a held pad is not o
   }
 
   // **The figure is NOT a link**, which is the claim this test exists for: a
-  // reader dragging to select a percentile must not navigate. Asserted by
-  // asking the DOM whether the ordinal cell has an anchor **ancestor**, which
+  // reader dragging to select a score must not navigate. Asserted by
+  // asking the DOM whether the score cell has an anchor **ancestor**, which
   // is the only shape that could make it activatable.
   const ordinalsInsideALink = await region(page).evaluate(
     (root) =>
@@ -190,37 +190,50 @@ test("the arrows move one stop and CLAMP rather than wrapping, and Enter opens t
   await expectNothingFailedToRender(page);
 });
 
-test("the ordinal is drawn short and spoken whole, and the region's name is not repeated in it", async ({
+test("the score is drawn bare and the band is named ONCE, in the head", async ({
   page,
 }) => {
   await open(page);
 
-  // **What is on the screen**: the ordinal alone, with the ceiling's `>` on
-  // the row the producer marked `aboveSample`. `100th` is never printed —
-  // above the highest order statistic there is no sample — so `>99th` is the
-  // widest string this cell can hold.
+  // **What is on the screen**: the composite score alone, two glyphs, no unit
+  // and no `%`. The ordinal this replaced was drawn `>99th` and spoken `>99th
+  // percentile`; `61` has no long form, so the cell renders ONE element and the
+  // noun stays in the list heading.
   const drawn = await region(page).evaluate((root) =>
     [...root.querySelectorAll('[class*="_value_"]')]
       .map((cell) => cell.textContent.trim())
       .filter((text) => text !== ""),
   );
-  expect(drawn).toEqual([">99th", "99th", "98th", "97th", "96th"]);
+  expect(drawn).toEqual(["75", "75", "68", "64", "58"]);
 
-  // **No `%` anywhere in the region's figures**, which is one of the four
-  // channels that tell a percentile from a price change and the one a reader
-  // meets first.
+  // **No `%` anywhere in the region's figures**, which is one of the channels
+  // that tell this figure from a price change and the one a reader meets
+  // first.
   expect(drawn.join(" ")).not.toContain("%");
 
-  // **What a listener is handed**: the whole phrase, from the visually-hidden
-  // sibling. The word moved to the list heading to buy the company name
-  // 125 px, and the spoken string did not change — one fact, two renderings.
-  await expect(region(page)).toContainText("99th percentile");
+  // **The band's own name, written out, in the region's HEAD and nowhere
+  // else.** The ramp's four amber steps are separated by 1.12, 1.43 and 1.59
+  // in greyscale — enough to see a change and nowhere near enough to name one
+  // — so the word is the channel and never an abbreviation, a dot or an
+  // initial.
+  //
+  // **Once rather than per row**, which a chip did for an afternoon: these
+  // five furnished rows span three bands and the top one leads, so the slot
+  // names the leader. It is ordinary text rather than a chip, so there is no
+  // amber on `/` at all — `amber-appears-once-in-the-rail` holds the
+  // stylesheet half of that and this holds the drawn half.
+  await expect(region(page).getByText("Top 10 · led by extreme")).toBeVisible();
 
-  // **And the heading names the comparison**, which is what makes a full list
-  // of ordinary ordinals readable as *nothing is unusual right now* rather
+  const chips = await region(page).evaluate(
+    (root) => root.querySelectorAll('[class*="_badge_"]').length,
+  );
+  expect(chips).toBe(0);
+
+  // **And the heading names the figure and its range**, which is what makes a
+  // full list of low scores readable as *nothing is unusual right now* rather
   // than as a region that broke.
   await expect(region(page).getByRole("heading", { level: 3 })).toHaveText(
-    /percentile of its own 60-session history/iu,
+    /composite anomaly score, 0 to 100/iu,
   );
 
   await expectNothingFailedToRender(page);
