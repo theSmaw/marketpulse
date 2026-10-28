@@ -143,3 +143,49 @@ export function isRankedByScore(rows: readonly ScoreRanked[]): boolean {
 
   return true;
 }
+
+/**
+ * **The most unusual `limit` rows by composite score, bounded rather than
+ * sorted** (Task 5.6.7) — `selectByPercentile`'s shape one quantity over, and
+ * a **third** instance of it rather than a widening of either.
+ *
+ * It lives here because the home of an order is the home of the selection that
+ * applies it: every comparison goes through {@link compareByScore}, so there is
+ * no second expression of *which of these two is more unusual* to drift from
+ * the first, and `one-comparator-for-the-order-of-a-composite-score` has one
+ * file to police rather than two.
+ *
+ * A full sort of ~485 rows is several times the work for an order nobody sees,
+ * on a path that runs on every applied batch inside the socket's own callback.
+ * The insertion is `O(n · limit)` with `limit` ten.
+ *
+ * It is a **selection**, so the rows it returns are exactly rows the caller
+ * handed it — never a padded list, never a placeholder. A region with fewer
+ * than `limit` scored securities draws fewer rows and reserves the room, which
+ * is `withHeldUnusualRows`' job and not a producer's.
+ */
+export function selectByScore<T extends ScoreRanked>(
+  rows: readonly T[],
+  limit: number,
+): readonly T[] {
+  if (limit <= 0) return [];
+
+  const top: T[] = [];
+
+  for (const row of rows) {
+    let at = top.length;
+    while (at > 0) {
+      const above = top[at - 1];
+      if (above === undefined) break;
+      if (compareByScore(above, row) !== WEAKER) break;
+      at -= 1;
+    }
+
+    if (at >= limit) continue;
+
+    top.splice(at, 0, row);
+    if (top.length > limit) top.pop();
+  }
+
+  return top;
+}

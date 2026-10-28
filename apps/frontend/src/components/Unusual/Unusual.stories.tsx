@@ -1,7 +1,11 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import { Component, type ReactNode } from "react";
 
-import type { WireMarketOverview, WireUnusualRow } from "@marketpulse/shared";
+import type {
+  AnomalyBand,
+  WireMarketOverview,
+  WireUnusualRow,
+} from "@marketpulse/shared";
 
 import { unusualActivity, type UnusualActivity } from "../../market/index.js";
 import { Region } from "../Region/Region.js";
@@ -37,21 +41,30 @@ import { Unusual, UnusualMeta, UnusualReservation } from "./Unusual.js";
 // itself out of frame, and ultimately a person with a public five-minute
 // chart.
 
+/**
+ * One wire row — **a score and a band since Task 5.6.7**, where it was an
+ * ordinal and six figures behind it.
+ *
+ * The band is **passed** rather than derived from the score, which is the same
+ * discipline the producer and the reader both keep: `bandOf` is
+ * `ANOMALY_BAND_FLOORS`' and a story that re-derived it would be a fourth copy
+ * of the thresholds. The stories below pass the band the floors give (32 / 63 /
+ * 73 on the raw scale), so a reader comparing a story with the shipped region
+ * is comparing like with like.
+ *
+ * **Every score below is at or under 75**, which is the two-factor maximum and
+ * the only scale any machine can produce today — Task 5.6.6 measured 485
+ * stored rows with `max = 75` on every one. A story drawing `91` would be a
+ * workshop fixture showing a state the product cannot reach, which is the
+ * *second, quieter copy of a live claim* `RegionPlaceholder.stories.tsx`' own
+ * comment warns about.
+ */
 const row = (
   symbol: string,
-  rank: number,
+  score: number,
+  band: AnomalyBand,
   percent: number,
-  aboveSample = false,
-): WireUnusualRow => ({
-  symbol,
-  rank,
-  aboveSample,
-  sampleCount: 4620,
-  percent,
-  from: { at: "2026-10-15T17:55:00.000Z", price: 100, feed: "iex" },
-  to: { at: "2026-10-15T18:00:00.000Z", price: 100 + percent, feed: "iex" },
-  observed: 5,
-});
+): WireUnusualRow => ({ symbol, score, band, percent });
 
 const frame = (
   rows: readonly WireUnusualRow[],
@@ -93,6 +106,22 @@ const frame = (
     tracked: 501,
     eligible: rows.length === 0 ? 0 : 466,
     scored: rows.length === 0 ? 0 : Math.max(rows.length, 455),
+    // **The ranked cohort, which is `{price, excess}` and `max 75` on every
+    // machine that exists** — Task 5.6.6 measured 485 stored rows and **0
+    // single-factor scores**, because the two scored factors refuse for the
+    // same root causes. `others: 0` is therefore the shipped value and not a
+    // simplification; a story with a non-zero one would show a state no
+    // producer can currently reach.
+    ...(rows.length === 0
+      ? {}
+      : {
+          cohort: {
+            factors: ["price", "excess"] as const,
+            max: 75,
+            scored: Math.max(rows.length, 455),
+            others: 0,
+          },
+        }),
     windowMinutes: 5,
     spanMinutes: 5,
     baseline: {
@@ -139,6 +168,7 @@ const read = (rows: readonly WireUnusualRow[], shut = false): UnusualActivity =>
     rows: [],
     claim: undefined,
     nothing: undefined,
+    bound: undefined,
   };
 
 /**
@@ -152,16 +182,16 @@ const read = (rows: readonly WireUnusualRow[], shut = false): UnusualActivity =>
  * this list reaches `96th`.
  */
 const FULL = read([
-  row("CTSH", 99, -4.12, true),
-  row("NVDA", 99, 3.88),
-  row("AVGO", 98, -2.4),
-  row("CRM", 97, 2.02),
-  row("GOOGL", 96, 1.4),
-  row("MNST", 96, -1.77),
-  row("FICO", 95, -1.22),
-  row("BRK.B", 94, 1.05),
-  row("CMCSA", 93, -0.98),
-  row("PSA", 92, 0.9),
+  row("CTSH", 75, "extreme", -4.12),
+  row("NVDA", 72, "high", 3.88),
+  row("AVGO", 68, "high", -2.4),
+  row("CRM", 64, "high", 2.02),
+  row("GOOGL", 61, "elevated", 1.4),
+  row("MNST", 58, "elevated", -1.77),
+  row("FICO", 54, "elevated", -1.22),
+  row("BRK.B", 49, "elevated", 1.05),
+  row("CMCSA", 44, "elevated", -0.98),
+  row("PSA", 40, "elevated", 0.9),
 ]);
 
 /**
@@ -173,10 +203,29 @@ const FULL = read([
  * recorded workaround: an inline arrow makes `tsc` reach for
  * `PartialStoryFn` from inside Storybook's internals to name the inferred
  * `meta` and fail with TS2883.
+ *
+ * **It reads the STORY's own view, and `held={false}`** — neither of which
+ * it did until the band moved into the slot. The head now carries the
+ * region's one statement of today's band, so a decorator pinned to one
+ * fixture would print `led by extreme` over ten `normal` rows: the two
+ * halves of the region would disagree in the workshop while agreeing in the
+ * product, which is the one thing a workshop must not do. The string is
+ * measured rather than admired: it has **171.7 px** at this width and the
+ * widest it can be is 166.5, with the title wrapping and the region growing
+ * if that is ever exceeded. `ORDER HELD` keeps its own stories file, where
+ * it is reviewed against the room `.slot` reserves.
  */
-const inTheRegion: Decorator = (Story) => (
+const inTheRegion: Decorator = (Story, context) => (
   <div style={{ width: 342 }}>
-    <Region name="Unusual activity" meta={<UnusualMeta view={FULL} held />}>
+    <Region
+      name="Unusual activity"
+      meta={
+        <UnusualMeta
+          view={(context.args as { view?: UnusualActivity }).view ?? FULL}
+          held={false}
+        />
+      }
+    >
       <Story />
     </Region>
   </div>
@@ -205,23 +254,24 @@ export const Ranked: Story = { args: { view: FULL } };
  * can only take *nothing is unusual right now* from these figures if they
  * know what the figures are percentiles **of**.
  *
- * With a chip this would read `normal` five times and announce itself; the
- * chip is refused for a different reason (there are no thresholds yet), and
- * this is the cost of refusing it, stated.
+ * **The head slot is what makes it readable**, and this is the story that
+ * shows why the band belongs there: ten `normal` rows would have carried ten
+ * identical chips, 76 px of a 308 px row each, saying one thing. The slot
+ * says it once — `Top 10 · all normal` — and the rows keep their names.
  */
 export const NothingUnusual: Story = {
   args: {
     view: read([
-      row("PSA", 62, 0.21),
-      row("MKC", 59, -0.18),
-      row("PEP", 58, 0.12),
-      row("MO", 54, -0.09),
-      row("L", 51, 0.05),
-      row("KO", 49, 0.04),
-      row("GIS", 47, -0.03),
-      row("CL", 44, 0.03),
-      row("K", 41, -0.02),
-      row("CPB", 38, 0.02),
+      row("PSA", 18, "normal", 0.21),
+      row("MKC", 16, "normal", -0.18),
+      row("PEP", 14, "normal", 0.12),
+      row("MO", 12, "normal", -0.09),
+      row("L", 11, "normal", 0.05),
+      row("KO", 9, "normal", 0.04),
+      row("GIS", 8, "normal", -0.03),
+      row("CL", 6, "normal", 0.03),
+      row("K", 4, "normal", -0.02),
+      row("CPB", 3, "normal", 0.02),
     ]),
   },
 };
@@ -237,7 +287,11 @@ export const NothingUnusual: Story = {
 export const ThreeRanked: Story = { args: { view: read(SHORT()) } };
 
 function SHORT(): readonly WireUnusualRow[] {
-  return [row("NVDA", 99, 3.88), row("AVGO", 97, -2.4), row("CRM", 91, 2.02)];
+  return [
+    row("NVDA", 72, "high", 3.88),
+    row("AVGO", 64, "high", -2.4),
+    row("CRM", 41, "elevated", 2.02),
+  ];
 }
 
 /**

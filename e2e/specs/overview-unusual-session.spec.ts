@@ -47,9 +47,9 @@ const OVERVIEW = "/";
 const RANKED = ["CTSH", "NVDA", "AVGO"] as const;
 
 const ROWS = [
-  unusualRow("CTSH", 99, -4.12, { aboveSample: true }),
-  unusualRow("NVDA", 99, 3.88),
-  unusualRow("AVGO", 98, -2.4),
+  unusualRow("CTSH", 75, "extreme", -4.12),
+  unusualRow("NVDA", 75, "extreme", 3.88),
+  unusualRow("AVGO", 68, "high", -2.4),
 ];
 
 const COUNTS = { scored: 455, eligible: 466, tracked: 501 } as const;
@@ -110,7 +110,9 @@ test("draws the last session's ranking, and names the session", async ({
   // **The ranking is drawn**, which is the whole of this task: out of hours
   // this region used to be `Nothing ranked while the market is shut.` over ten
   // held pads, for about 80% of the week.
-  expect(text).toContain("99th");
+  // The highest score the two-factor scale can produce, which is what a rank
+  // of 99 on both factors mints: `round(40 × 99/100) + round(35 × 99/100)`.
+  expect(text).toContain("75");
   expect(text).toContain(SESSION_CLAIM);
 
   // **And it is NOT the live sentence.** *Heard from in the last 5 minutes* is
@@ -125,7 +127,8 @@ test("draws the last session's ranking, and names the session", async ({
 test("the two bases are distinguishable on screen, in the same ten rows", async ({
   page,
 }) => {
-  // The rows, the ordinals, the glyphs and the counts are identical by
+  // The rows, the scores, the band in the head, the glyphs and the counts are
+  // identical by
   // construction; the sentence is the entire difference, and a region that
   // drew the same words for both would be claiming the market is doing now
   // what it did at Friday's close.

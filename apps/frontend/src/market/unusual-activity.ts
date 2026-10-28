@@ -1,4 +1,5 @@
 import {
+  COMPOSITE_FACTORS,
   PERCENTILE_REFUSALS,
   UNUSUAL_ROWS,
   directionOf,
@@ -15,11 +16,7 @@ import type {
 import { arrivalKey } from "./arrival.js";
 import { describeMeasuredReach, describeMeasuredSet } from "./measured-set.js";
 import { NAME_NOT_ARRIVED } from "./movers.js";
-import {
-  BASELINE_REFUSALS_COUNTED,
-  percentileOrdinal,
-  percentileReading,
-} from "./return-percentile.js";
+import { BASELINE_REFUSALS_COUNTED } from "./return-percentile.js";
 import type { SectorRow } from "./sector-performance.js";
 
 // **What the `Unusual activity` region reads as** (Task 5.4.3) — the rows it
@@ -28,38 +25,67 @@ import type { SectorRow } from "./sector-performance.js";
 //
 // ## Nothing here ranks and nothing here scores
 //
-// `movers.ts`' rule, and it is sharper here. The order is
-// `selectByPercentile`'s, server-side, and the ordinal is
-// `returnPercentileOf`'s against a 60-session distribution **no browser
-// holds** — 101 breakpoints × 501 securities, ~417 KB, which is never going on
-// this wire. So the rank below is the position in the array the frame sent,
-// and a comparison of two ordinals anywhere in this file would be the second
-// comparator `one-comparator-for-the-order-of-a-percentile` refuses by name.
+// `movers.ts`' rule, and it is sharper here. The order is `selectByScore`'s,
+// server-side, and the score is `scoreAnomaly`'s over two 60-session
+// distributions **no browser holds**. So the rank below is the position in the
+// array the frame sent, and a comparison of two scores anywhere in this file
+// would be the second comparator
+// `one-comparator-for-the-order-of-a-composite-score` refuses by name.
 //
 // That makes this region's figure the first on this screen that a reader
 // **cannot check against anything on the page**: a price has a chart beside
-// it, a sector move has ten siblings, and a percentile has a distribution
-// nobody can see. `readUnusual` is the only thing between a producer defect
-// and a confident, well-formed row — which is why its five cross-field checks
-// are the reader's half of the claim rather than belt and braces.
+// it, a sector move has ten siblings, and a composite has two distributions
+// and a weight set nobody can see. **Task 5.6.7 made that worse rather than
+// better** — the figure was one factor against one distribution and is now a
+// weighted sum of two, with a band word over it whose thresholds are a third
+// thing nothing on screen can check. `readUnusual` is the only thing between a
+// producer defect and a confident, well-formed row — which is why its
+// cross-field checks are the reader's half of the claim rather than belt and
+// braces.
 //
-// ## No band, no score, no chip
+// ## ~~No band, no score, no chip~~ — THE SCORE, AND THE BAND IN THE HEADING
 //
-// Story 5.4's Gate 1 decision 1. `packages/shared/src/anomaly.ts` deliberately
-// holds no score→band boundaries, the four bands are defined for the composite
-// 0–100 score, and this region ranks **one factor of four** — so a chip here
-// would read `extreme` on price alone, ten times over, in a column 74 px
-// wide. `AnomalyBadge` is imported by no shipped route and stays that way
-// until Story 5.6 has thresholds to put in it.
+// Story 5.4's Gate 1 decision 1 refused both, and its stated reason was that
+// this region ranked **one factor of three**, so a chip would have read
+// `extreme` on price alone, ten times over. **That expired with the
+// composite**: the score is the row's figure since Task 5.6.7.
 //
-// ## And the figure is drawn short and spoken whole
+// **The band is drawn once, in the head slot, and is not on the row.** A
+// per-row chip shipped for an afternoon and the owner took it out on a
+// measurement — the top ten shared exactly one band, so 76 px of a 308 px row
+// (25%) repeated one word ten times and left the company name eight
+// characters. See {@link boundOf}, which carries the measurement and the
+// wording.
 //
-// `>99th percentile` is sixteen glyphs — 143.6 px in the cold-load face, on a
-// row whose content box is **308 px at 1440** — which leaves the company name
-// about six characters. So the word moves to the list heading, once, and the
-// row draws the ordinal; the spoken string is unchanged. One fact, two
-// renderings (ADR 0029), and the derivation runs short-from-long in
-// `return-percentile.ts` so the two cannot drift.
+// Two claims this comment used to make are false and are corrected here rather
+// than quietly deleted, because one of them was a live claim about the tree:
+//
+//   - *"`AnomalyBadge` is imported by no shipped route and stays that way
+//     until Story 5.6 has thresholds to put in it."* It was false for an
+//     afternoon and is **true again**: the chip's one shipped consumer was
+//     this region's row, and with the chip gone `AnomalyBadge` is the
+//     security page's alone (`AbnormalMove`). Story 5.6's thresholds are
+//     `ANOMALY_BAND_FLOORS` — measured quantiles of 34,318 scores (32 / 63 /
+//     73) rather than invented ones.
+//   - *"`packages/shared/src/anomaly.ts` deliberately holds no score→band
+//     boundaries."* **Still true**, and still the right place for it to be
+//     true: the floors live in `composite-score.ts` beside the scorer that
+//     applies them, and the band this region names is the **producer's** —
+//     read off the wire, never re-derived here.
+//
+// ## The figure has no long form, so it is drawn and spoken as ONE string
+//
+// `>99th percentile` was sixteen glyphs — 143.6 px in the cold-load face, on a
+// row whose content box is **308 px at 1440** — so the word moved to the list
+// heading and the row drew the ordinal short with a visually-hidden sibling
+// carrying the phrase. `61` is `61`: there is nothing to defer to, so the cell
+// renders one element rather than putting the same string in `textContent`
+// twice (ADR 0029, and the branch `Unusual.claim` takes one element over).
+//
+// The noun is still in the heading and the **scale** is in the footer once —
+// `2 of 3 factors, to a maximum of 75` — rather than ten times down the
+// column, which is what the cohort rule buys: every drawn row shares the
+// ranked cohort by construction.
 
 /** Room and nothing else — see {@link withHeldUnusualRows}. */
 const NBSP = " ";
@@ -109,6 +135,19 @@ export interface UnusualActivity {
    * is true yet, one `expect` away from being asserted.
    */
   readonly nothing: string | undefined;
+  /**
+   * **The head slot's whole string: the bound, and today's band** —
+   * `Top 10 · all extreme`, or `Top 10 · led by extreme` (see
+   * {@link boundOf}).
+   *
+   * `undefined` where the slot falls silent: the reservation, and a section
+   * that ranked nothing. That is `UnusualMeta`'s shipped rule read off the
+   * view rather than re-derived from `rows.length` in the component —
+   * {@link UnusualActivity.nothing}'s argument at the grain of the head,
+   * and it is what lets the reservation render the real component with
+   * nothing in its slot.
+   */
+  readonly bound: string | undefined;
 }
 
 /**
@@ -215,8 +254,102 @@ export function unusualActivity(
     rows,
     claim: claimOf(unusual, overview?.observedAt),
     nothing: rows.length > 0 ? undefined : nothingRankedIn(unusual),
+    // **The bands are read off the WIRE rows rather than the drawn ones**, so
+    // the clause cannot be computed from a held pad: `withHeldUnusualRows`
+    // pads to ten with rows that carry no band at all, and a clause derived
+    // after the padding would have to decide what an invented row's band is.
+    bound: boundOf(unusual.rows),
   };
 }
+
+/**
+ * **The head slot's string: the bound, and the band the ten rows are in** —
+ * `Top 10 · all extreme`.
+ *
+ * ## The band is a property of the DAY, so it is stated ONCE
+ *
+ * This replaces a per-row chip that shipped for an afternoon and was taken
+ * out by the owner on a measurement: against the stored composites, the top
+ * ten shared **exactly one** band — ten `extreme` rows out of sixteen
+ * `extreme` securities in the whole universe — and Task 5.6.3 had already
+ * measured all ten rows sharing one band in **35 of 77** instants and more
+ * than three sharing one in **77 of 77**. A top-N selected for extremity and
+ * bucketed by extremity concentrates in the top bands by construction, which
+ * `Unusual.tsx` had written down as the chip's own argument: *the chip stops
+ * being a property of the selection and becomes a property of the day*. A
+ * property of the day is stated once, not ten times down a 308 px column —
+ * where it cost **76 px of a 308 px row, 25%**, and squeezed the company name
+ * to 57 px, about eight characters (`Dominio…`, `The Kra…`, `3M Co…`).
+ *
+ * ## Two sentences, and the one that is not `all` names the LEADER
+ *
+ * The rows arrive score-descending and the band is a monotone function of the
+ * score, so the drawn bands are a non-increasing run: the honest statements
+ * available are *they are all X*, *they run from X down to Y*, and *the
+ * leader is X*.
+ *
+ * **The span does not fit, measured rather than argued.** The head's content
+ * box is **308 px** at 1440 and at 390 — the binding width, because at 1024
+ * the region is wider and at 768 it is 686 — of which the region title takes
+ * **120.3** and `Panel.header`'s gap takes 16, leaving the slot **171.7**.
+ * Measured in the **cold-load face** (the webfont aborted, which is the wider
+ * one), in `.bound`'s own face at 1440:
+ *
+ * | string                         | px     |      |
+ * | ------------------------------ | ------ | ---- |
+ * | `Top 10 · all extreme`         | 141.31 | fits |
+ * | `Top 10 · all elevated`        | 145.45 | fits |
+ * | `Top 10 · led by extreme`      | 162.36 | fits |
+ * | `Top 10 · led by elevated`     | 166.48 | fits |
+ * | `Top 10 · extreme to high`     | 170.91 | fits |
+ * | `Top 10 · elevated to normal`  | 196.55 | OVER |
+ * | `Top 10 · extreme to elevated` | 201.28 | OVER |
+ *
+ * So a two-band span is reachable **and over the line by 25–30 px** for every
+ * span of more than one step, and the failure is not a clipped word: the
+ * title's `.headings` carries `min-width: 0`, so an oversized slot **wraps
+ * `Unusual activity` onto a second line** and takes the region's height — and
+ * at 768 and 390 the grid row is content-sized, so the whole lower page steps.
+ * A clause that fits on most days and steps the page on the rest is worse
+ * than one that never does.
+ *
+ * Of the two endpoints, the **leader's** band is the one a ranked surface's
+ * heading should carry: it is the row the reader's eye is already on, it is
+ * the answer to *is today worth looking at*, and a quiet day states itself
+ * (`led by elevated` is how a top ten says it found nothing extreme). The
+ * bottom row's band says less and costs the same.
+ *
+ * **`Top 10` stays.** It is the one thing about this region true in every
+ * state that is not a claim about data, and it is the only surface that says
+ * the list is a **selection** rather than everything there was.
+ *
+ * ## It is a word and never a fill
+ *
+ * The band word is written, never abbreviated — the ramp's four amber steps
+ * are separated by 1.12, 1.43 and 1.59 in greyscale, enough to see a change
+ * and nowhere near enough to name one — and the head carries **no fill at
+ * all**. Fewer amber positions is better, the word reads correctly without
+ * one, and `amber-appears-once-in-the-rail` would fail the build on a second
+ * stylesheet spending the ramp: the chip's own file is the only one allowed
+ * to. So `/` is back to having **no amber on it**, which is the state
+ * `Unusual.tsx` recorded before the chip and the collision Story 5.6 owns
+ * stays off this screen.
+ *
+ * **The ten is interpolated, never typed** — `the-population-is-never-a-
+ * literal`'s rule one scale down.
+ */
+const boundOf = (rows: readonly WireUnusualRow[]): string | undefined => {
+  const top = rows[0]?.band;
+  if (top === undefined) return undefined;
+
+  // **`all` is about the rows that are drawn**, which is what a reader sees:
+  // a short list of three that share a band says `all extreme` over three
+  // rows beside a `Top 10` that states the bound. The populations are the
+  // footer's job and it states three of them.
+  const shared = rows.every((row) => row.band === top);
+
+  return `Top ${String(UNUSUAL_ROWS)} · ${shared ? "all" : "led by"} ${top}`;
+};
 
 /**
  * **The three populations, the cut and the age** — one sentence from the one
@@ -270,7 +403,29 @@ function claimOf(
     qualifier: unusual,
     tracked: unusual.tracked,
     count: unusual.eligible,
-    ...(heardNothing ? {} : { ranked: unusual.scored }),
+    // **The cut, and the scale it is on** — absent together with the refusal
+    // clause, because a region that heard from nothing scored nothing and
+    // refused nothing. The scale comes off the **cohort** rather than off
+    // `scored`: `scored` counts every security that got a composite at all and
+    // the rows are a selection from the cohort, so a sentence stating `scored`
+    // beside the cohort's maximum would be two populations wearing one scale.
+    ...(heardNothing
+      ? {}
+      : {
+          cut: {
+            count: unusual.cohort?.scored ?? unusual.scored,
+            ...(unusual.cohort === undefined
+              ? {}
+              : {
+                  scale: {
+                    factors: unusual.cohort.factors.length,
+                    absent:
+                      COMPOSITE_FACTORS.length - unusual.cohort.factors.length,
+                    max: unusual.cohort.max,
+                  },
+                }),
+          },
+        }),
     // **Which move the count is of, where the basis names a measurement.**
     // The session grammar's default phrase is `Market breadth`'s figure — the
     // previous session's close against this one's — and these rows are a move
@@ -397,17 +552,37 @@ const rowOf = (
   rank: at + 1,
   move: undefined,
   reading: {
-    drawn: percentileOrdinal(row),
-    spoken: percentileReading(row),
     /*
-     * **`directionOf` decides on the ROUNDED figure**, which is the same value
-     * every other direction on this screen is decided by: a move that prints
-     * as `0.00%` draws an em dash rather than an arrow, here as everywhere
-     * else. The fallback is the renderer's rather than a count's — a
-     * non-finite percent cannot reach this row, because `readUnusual` refuses
-     * one, and `"unchanged"` is what the six other drawing sites do.
+     * **The score, drawn and spoken as ONE string** — there is no long form to
+     * defer to. The ordinal this replaced was drawn `>99th` and spoken `>99th
+     * percentile` because sixteen glyphs did not fit the row; `61` is `61`, so
+     * the cell renders one element rather than putting the same string in
+     * `textContent` twice (ADR 0029, and the branch `Unusual.claim` takes one
+     * element over).
+     *
+     * The noun stays in the list heading, which is where the word `percentile`
+     * went for the same arithmetic, and the **scale** is in the footer once —
+     * `2 of 3 · max 75` — rather than ten times down a 308 px column.
      */
-    direction: directionOf(row.percent) ?? "unchanged",
+    drawn: String(row.score),
+    spoken: String(row.score),
+    /*
+     * **The direction, where this basis holds a move** — absent rather than
+     * `"unchanged"` since Task 5.6.7, and the change is the `session` arm's.
+     *
+     * `directionOf` decides on the **rounded** figure, which is the value every
+     * other direction on this screen is decided by: a move that prints as
+     * `0.00%` draws an em dash rather than an arrow. What is new is that the
+     * move itself can be **absent** — `session_composite_scores` stores the
+     * factor answers and no signed move, so the session arm reads it from
+     * `session_return_percentiles` beside the score, and a security scored on
+     * its excess factor alone has a composite row and no percentile row. The
+     * old `?? "unchanged"` would draw an em dash there, which is the claim
+     * *this security did not move* rather than *we do not hold its move*.
+     */
+    ...(row.percent === undefined
+      ? {}
+      : { direction: directionOf(row.percent) ?? "unchanged" }),
   },
   /*
    * **No absence words.** A row in this list was ranked by construction — the
@@ -541,4 +716,9 @@ export const RESERVED_UNUSUAL: UnusualActivity = {
   // only value that is not one. The route draws the first-paint sentence as a
   // **sibling** of the held box, after `useWaited`'s floor.
   nothing: undefined,
+  // **No head slot either.** The bound is `UnusualMeta`'s shipped rule — it
+  // falls silent when nothing was ranked, because a bound stated over an
+  // empty list reads as a claim about a selection that selected nothing —
+  // and the band half of it would be a claim about rows that do not exist.
+  bound: undefined,
 };

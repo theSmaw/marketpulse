@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { compareByScore, isRankedByScore } from "./score-ranking.js";
+import {
+  compareByScore,
+  isRankedByScore,
+  selectByScore,
+} from "./score-ranking.js";
 import type { ScoreRanked } from "./score-ranking.js";
 
 const row = (symbol: string, score: number): ScoreRanked => ({ symbol, score });
@@ -97,5 +101,81 @@ describe("isRankedByScore", () => {
       row("MSFT", 40),
     ] as unknown as readonly ScoreRanked[];
     expect(isRankedByScore(holed)).toBe(false);
+  });
+});
+
+describe("selectByScore", () => {
+  // **A selection rather than a sort** (Task 5.6.7), and every comparison goes
+  // through `compareByScore` — so the assertions below are about the bound and
+  // the fidelity of the order, never about a second expression of it.
+
+  it("returns the strongest `limit` rows, strongest first", () => {
+    const rows = [
+      row("CCC", 40),
+      row("AAA", 75),
+      row("EEE", 3),
+      row("BBB", 61),
+      row("DDD", 32),
+    ];
+
+    expect(selectByScore(rows, 3).map((taken) => taken.symbol)).toEqual([
+      "AAA",
+      "BBB",
+      "CCC",
+    ]);
+  });
+
+  it("applies the declared tie-break rather than the arrival order", () => {
+    // The arrival order is the join's, filtered by a live eligibility pass that
+    // changes membership up to ~16 times a minute — so two securities on the
+    // same score would swap under a reader with nothing having changed, which
+    // ADR 0041 forbids in terms.
+    const forward = [row("ZZZ", 50), row("AAA", 50), row("MMM", 50)];
+    const backward = [...forward].reverse();
+
+    expect(selectByScore(forward, 2).map((taken) => taken.symbol)).toEqual([
+      "AAA",
+      "MMM",
+    ]);
+    expect(selectByScore(backward, 2).map((taken) => taken.symbol)).toEqual([
+      "AAA",
+      "MMM",
+    ]);
+  });
+
+  it("is a SELECTION: it returns the caller's own rows and never pads", () => {
+    // A region with fewer than `limit` scored securities draws fewer rows and
+    // reserves the room, which is `withHeldUnusualRows`' job and not a
+    // producer's.
+    const rows = [row("AAA", 61), row("BBB", 40)];
+
+    expect(selectByScore(rows, 10)).toHaveLength(2);
+    expect(selectByScore(rows, 10)[0]).toBe(rows[0]);
+  });
+
+  it("returns nothing at a non-positive limit", () => {
+    expect(selectByScore([row("AAA", 61)], 0)).toEqual([]);
+    expect(selectByScore([row("AAA", 61)], -1)).toEqual([]);
+  });
+
+  it("agrees with a full sort through the same comparator", () => {
+    // The strongest statement available about a bounded insertion: it is the
+    // prefix of the total order, for every prefix length.
+    const rows = Array.from({ length: 40 }, (_, at) =>
+      row(`S${String(at).padStart(2, "0")}`, (at * 7) % 76),
+    );
+    const sorted = [...rows].sort(compareByScore);
+
+    for (const limit of [1, 5, 10, 39, 40, 41]) {
+      expect(selectByScore(rows, limit)).toEqual(sorted.slice(0, limit));
+    }
+  });
+
+  it("puts the taken rows in the comparator's own order", () => {
+    expect(
+      isRankedByScore(
+        selectByScore([row("CCC", 1), row("AAA", 75), row("BBB", 40)], 3),
+      ),
+    ).toBe(true);
   });
 });

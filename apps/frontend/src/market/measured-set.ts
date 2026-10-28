@@ -76,8 +76,8 @@ export interface MeasuredSet {
   /** How many of it the region's own figures are about. */
   readonly count: number;
   /**
-   * **A THIRD population, where a region has one** — how many of
-   * {@link count} could also be ranked against their own history. Absent for
+   * **A THIRD population and the SCALE it was measured on, where a region has
+   * one** — how many of {@link count} got a figure, and what kind. Absent for
    * the two regions that have two populations, which is every caller but
    * `Unusual activity`.
    *
@@ -88,9 +88,11 @@ export interface MeasuredSet {
    * {@link describeMeasuredReach}'s line already fill them at 308 px — the
    * width this region draws at, at the widest viewport this product supports.
    * A second sentence is a fifth line, and at 390 the grid row is
-   * content-sized, so the whole lower page steps.
+   * content-sized, so the whole lower page steps. **The scale arrived at Task
+   * 5.6.7 and is absorbed into this same clause for the same reason**, which
+   * is why it is a member of this object rather than a fourth population.
    *
-   * ## Why it is a number here rather than a phrase from the call site
+   * ## Why it is numbers here rather than a phrase from the call site
    *
    * Because the words are this module's job and the agreement is the part
    * that gets written twice: `1 has` and `455 have`. A caller handing in its
@@ -98,11 +100,11 @@ export interface MeasuredSet {
    * standing where the duplication used to be visible.
    *
    * **It is the caller's job to omit it rather than this module's to guess**:
-   * a `ranked` clause over a {@link count} of zero is a fully-formed
-   * denominator about nothing, which is ADR 0029's false impression in one
-   * conjunct, and only the caller knows whether its producer ran at all.
+   * a cut clause over a {@link count} of zero is a fully-formed denominator
+   * about nothing, which is ADR 0029's false impression in one conjunct, and
+   * only the caller knows whether its producer ran at all.
    */
-  readonly ranked?: number;
+  readonly cut?: MeasuredCut;
 
   /**
    * **Which move the count is of**, where the region's is not a close-to-close
@@ -122,13 +124,48 @@ export interface MeasuredSet {
    *
    * ## Why it is a KIND here rather than a phrase from the call site
    *
-   * {@link MeasuredSet.ranked}'s argument unchanged: the words are this
+   * {@link MeasuredSet.cut}'s argument unchanged: the words are this
    * module's job, and a caller handing in its own clause would be the second
    * builder AC 3 refuses with one import standing where the duplication used
    * to be visible. What the caller supplies is which of two measurements it
    * counted and the span it read off its own section — never the sentence.
    */
   readonly move?: CountedMove;
+}
+
+/**
+ * **How many got a figure, and the scale it is on** (Task 5.4.4; the scale
+ * added at 5.6.7) — see {@link MeasuredSet.cut}.
+ */
+export interface MeasuredCut {
+  /** How many of the set's {@link MeasuredSet.count} got a figure. */
+  readonly count: number;
+  /**
+   * **What scale that figure is on**, or `undefined` where the producer sent
+   * none — a frame whose cohort this bundle could not read, which leaves the
+   * counts true and the scale unnameable.
+   *
+   * Two scores are comparable only over the same factor set, so a ranked
+   * region ranks within one cohort and states it: `composite-cohort.ts` holds
+   * the rule. The three figures are the cohort's own and none of them is
+   * derived here — `absent` is carried rather than computed from a constant,
+   * so the denominator counts to four the day a fourth factor exists.
+   */
+  readonly scale?: MeasuredScale;
+}
+
+/** See {@link MeasuredCut.scale}. */
+export interface MeasuredScale {
+  /** How many factors contributed. */
+  readonly factors: number;
+  /** How many did not, so `factors + absent` is the denominator. */
+  readonly absent: number;
+  /**
+   * `Σ w` over the contributing factors — **the producer's own figure**, never
+   * summed here, because `2 of 3` has three different maxima depending on
+   * which two and the weights a rollback applied may not be this bundle's.
+   */
+  readonly max: number;
 }
 
 /**
@@ -201,7 +238,7 @@ export function describeMeasuredSet(set: MeasuredSet): string {
       ? `${of}, ${countInWords(count)} had ${theMove(set.move)} on ${qualifier.session}`
       : `${of}, ${countInWords(count)} ${count === 1 ? "was" : "were"} heard from in ${measuredWindow(qualifier.windowMinutes)}`;
 
-  return `${lead}${theCut(set.ranked)}`;
+  return `${lead}${theCut(set.cut)}`;
 }
 
 /**
@@ -252,10 +289,35 @@ const theMove = (move: CountedMove | undefined): string => {
  * the security page's, where it stands beside a sample count a reader can act
  * on. Here there is no sample on screen for it to qualify.
  */
-const theCut = (ranked: number | undefined): string =>
-  ranked === undefined
-    ? ""
-    : ` and ${countInWords(ranked)} ${ranked === 1 ? "has" : "have"} a long enough history to rank`;
+const theCut = (cut: MeasuredCut | undefined): string => {
+  if (cut === undefined) return "";
+
+  const { count, scale } = cut;
+  const scored = `${countInWords(count)} ${count === 1 ? "has" : "have"}`;
+
+  // **No scale, so the clause says only how many got a figure** — a frame with
+  // rows and no readable cohort, which `readUnusual` tolerates because the
+  // counts are still true. The weaker sentence is the honest one: *scored* with
+  // no scale beside it says what happened without naming a scale nobody sent.
+  if (scale === undefined) return ` and ${scored} a score`;
+
+  // **The scale is a conjunct on THIS clause and never a fourth line.** The
+  // footer reserves four micro lines and the lead plus the age already fill
+  // them at 308 px, so a sentence of its own steps the whole lower page at 390.
+  //
+  // `of ${total}` rather than `of 3`: the denominator is `COMPOSITE_FACTORS`'
+  // own length, read from the cohort's own arity plus what it is missing, so
+  // the day a fourth factor exists this sentence counts to four without being
+  // edited. And the maximum travels beside the count because `2 of 3` has
+  // three different maxima depending on **which** two — AC 3's own labelling
+  // note, which is why the count alone is not the fact.
+  const total = scale.factors + scale.absent;
+
+  return (
+    ` and ${scored} a score on ${String(scale.factors)} of ` +
+    `${String(total)} factors, to a maximum of ${String(scale.max)}`
+  );
+};
 
 /**
  * **How old the two regions' figures are, beside the denominator they already

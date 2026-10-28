@@ -399,13 +399,29 @@ export interface RankedReading {
   /** What a listener is handed — `99th percentile`. */
   readonly spoken: string;
   /**
-   * Which way the move went, as a tinted glyph beside an untinted figure.
+   * Which way the move went, as a tinted glyph beside an untinted figure —
+   * **absent where this basis holds no move for the security**.
    *
    * It is on the reading rather than beside it because the two are one cell:
    * a direction with no figure is a glyph standing alone, and a figure with no
    * direction is the identical row for a crash and a spike.
+   *
+   * ## Why it became optional at Task 5.6.7, which is a real state and not a
+   * ## relaxation
+   *
+   * The figure in this cell is now the composite score, and the move beside it
+   * is a **second** fact that can be absent on its own:
+   * `session_composite_scores` stores the three factor answers and no signed
+   * move, so the session arm reads the move from `session_return_percentiles`
+   * beside the score — and a security scored on its excess factor alone has a
+   * composite row and no percentile row. `0` of 485 measured, and
+   * representable.
+   *
+   * **The absence may not be defaulted to `"unchanged"`.** That draws the em
+   * dash, which is the claim *this security did not move* rather than *we do
+   * not hold its move* — `?? 0`'s failure mode wearing a glyph.
    */
-  readonly direction: PriceDirection;
+  readonly direction?: PriceDirection | undefined;
 }
 
 /** A move, formatted, with the direction and the raw percentage together. */

@@ -616,18 +616,29 @@ export type RankedListBar =
        *
        * `"change"` is a signed percentage against a close, drawn by
        * `PriceChange`, **tinted**, in a 78 px reserve beside an 80 px price.
-       * `"ordinal"` is a position in one security's own history —
+       * `"score"` is a composite anomaly score `0`–`100` —
        * {@link SectorRow.reading} — untinted, with a tinted direction glyph
-       * beside it, in 64 px with no price track at all. Two different
-       * quantities, two different last tracks, two different row widths.
+       * beside it and nothing else. Two different quantities, two different
+       * last tracks, two different row widths.
        *
        * The component's own recorded reversal trigger — *the first use that
        * wants the bar off **and** the label leading* — did **not** fire on
        * this use, because this use wants the ticker leading. The trigger that
        * should have existed is the one restated here: **the first use that
        * wants the bar off and a figure track that is not a price change.**
+       *
+       * ## It was `"ordinal"` until Task 5.6.7, and the RENAME is the point
+       *
+       * The same track now holds a different quantity: the region ranked and
+       * drew the price percentile — one factor of three — and now ranks and
+       * draws the composite that Story 5.4's Gate 1 refused over a single
+       * factor. Widening the existing word
+       * would have left every call site compiling against a value whose
+       * meaning had changed underneath it; the rename puts a compile error at
+       * each one, which is this component's own *a third use decides rather
+       * than inherits* rule applied to a use changing its mind.
        */
-      readonly figure: "change" | "ordinal";
+      readonly figure: "change" | "score";
     };
 
 export interface RankedListProps {
@@ -777,7 +788,7 @@ export const RankedList = memo(function RankedList({
    */
   const layout: RowAnatomy = signed
     ? "sector"
-    : bar.figure === "ordinal"
+    : bar.figure === "score"
       ? "unusual"
       : "mover";
 
@@ -1316,11 +1327,33 @@ const Row = memo(function Row({
          * selector keyed on the attribute picks up both and an assertion
          * written that way reads `▼` as a figure — which is how the first
          * draft of `overview-unusual-keyboard.spec.ts` failed.
+         *
+         * ## ONE element where the two renderings agree (Task 5.6.7)
+         *
+         * ADR 0029's *one fact, one home* at the grain of a cell, and the
+         * same branch `Unusual.claim` and `BreadthLedger` already take. The
+         * ordinal was drawn short (`>99th`) and spoken whole (`>99th
+         * percentile`) because sixteen glyphs did not fit a 308 px row. **A
+         * score has no long form** — `61` is `61` — so the drawn half has
+         * nothing to defer to, and splitting an identical string across an
+         * `aria-hidden` span and a visually-hidden one would put it in
+         * `textContent` twice for a listener to meet twice.
+         *
+         * The noun is where it was: the list heading names what the figure
+         * is, which is what moved the word `percentile` off this row and is
+         * why the score needs no per-row scale either — the cohort's `max`
+         * is stated once in the footer.
          */}
-        <span className={cx(styles.value)} aria-hidden="true">
-          {ordinal}
-        </span>
-        <span className={cx(styles.spoken)}>{spoken}</span>
+        {ordinal === spoken ? (
+          <span className={cx(styles.value)}>{ordinal}</span>
+        ) : (
+          <>
+            <span className={cx(styles.value)} aria-hidden="true">
+              {ordinal}
+            </span>
+            <span className={cx(styles.spoken)}>{spoken}</span>
+          </>
+        )}
       </span>
     );
 
@@ -1366,11 +1399,28 @@ const Row = memo(function Row({
     >
       {layout === "unusual" ? (
         /*
-         * **Four children against four tracks** — rank, ticker, name,
-         * ordinal. No price cell and no bar cell: a `bar: "none"` use renders
-         * no `barCell` at all (`scale` is `undefined`), and a price would be a
-         * fifth grid item with nowhere to go, which in a `subgrid` is a second
-         * row of the `<li>` and the measured 7 px defect `.bar` paid for once.
+         * **FOUR children against four tracks** — rank, ticker, name, score.
+         *
+         * It was five for an afternoon: Task 5.6.7 added a band chip in a
+         * fifth track and the owner took it out, because the top ten share
+         * one band (measured: 1 distinct band in the top 10, and all ten
+         * sharing one in 35 of 77 instants), so 76 px of a 308 px row
+         * repeated one word ten times and left the company name 57 px. The
+         * band is now stated **once**, in the region's head slot — see
+         * `unusual-activity.ts`' `boundOf`.
+         *
+         * **The count is load-bearing in a way nothing below `pnpm probe`
+         * can see**: the `<li>` is a `subgrid`, which **cannot grow columns
+         * beyond the range it adopts**, so a grid item with no track is
+         * placed in an implicit **row** of the `<li>` — 33 px instead of 26
+         * on every row. `.bar` and `.price` each paid for that lesson once,
+         * at 390, found by `pnpm probe /` and by nothing else. So the track
+         * list is restated in **both** width bands of
+         * `RankedList.module.css` in the same change as this cell.
+         *
+         * Still no price cell and no bar cell: a `bar: "none"` use renders no
+         * `barCell` at all (`scale` is `undefined`), and a price would be a
+         * fifth grid item with nowhere to go.
          */
         <>
           {rankCell}

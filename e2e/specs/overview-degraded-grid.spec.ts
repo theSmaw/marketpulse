@@ -339,16 +339,16 @@ const SESSION_BREADTH: WireMarketBreadth = {
  * draws with a `>` and is legal at the ceiling alone.
  */
 const UNUSUAL_RANKED = [
-  unusualRow("AVGO", 99, -8.42, { aboveSample: true }),
-  unusualRow("CTSH", 99, 7.91),
-  unusualRow("GOOGL", 99, -7.44),
-  unusualRow("NVDA", 99, 6.88),
-  unusualRow("ADBE", 98, 5.12),
-  unusualRow("APH", 98, -4.76),
-  unusualRow("MNST", 98, 4.4),
-  unusualRow("CRWD", 97, -3.68),
-  unusualRow("MSFT", 97, 3.2),
-  unusualRow("TSLA", 96, -2.85),
+  unusualRow("AVGO", 75, "extreme", -8.42),
+  unusualRow("CTSH", 75, "extreme", 7.91),
+  unusualRow("GOOGL", 75, "extreme", -7.44),
+  unusualRow("NVDA", 75, "extreme", 6.88),
+  unusualRow("ADBE", 68, "high", 5.12),
+  unusualRow("APH", 68, "high", -4.76),
+  unusualRow("MNST", 68, "high", 4.4),
+  unusualRow("CRWD", 64, "high", -3.68),
+  unusualRow("MSFT", 64, "high", 3.2),
+  unusualRow("TSLA", 58, "elevated", -2.85),
 ];
 
 /**
@@ -369,16 +369,16 @@ const UNUSUAL_RANKED = [
  * this surface, the ordinals have stopped reaching the screen.
  */
 const UNUSUAL_ORDINARY = [
-  unusualRow("NVDA", 62, 0.31),
-  unusualRow("GOOGL", 61, -0.28),
-  unusualRow("CTSH", 60, 0.25),
-  unusualRow("AVGO", 59, -0.22),
-  unusualRow("MSFT", 58, 0.2),
-  unusualRow("MNST", 57, -0.18),
-  unusualRow("CRWD", 56, 0.15),
-  unusualRow("APH", 55, -0.12),
-  unusualRow("ADBE", 54, 0.1),
-  unusualRow("TSLA", 53, -0.08),
+  unusualRow("NVDA", 32, "elevated", 0.31),
+  unusualRow("GOOGL", 31, "normal", -0.28),
+  unusualRow("CTSH", 30, "normal", 0.25),
+  unusualRow("AVGO", 29, "normal", -0.22),
+  unusualRow("MSFT", 28, "normal", 0.2),
+  unusualRow("MNST", 27, "normal", -0.18),
+  unusualRow("CRWD", 26, "normal", 0.15),
+  unusualRow("APH", 25, "normal", -0.12),
+  unusualRow("ADBE", 24, "normal", 0.1),
+  unusualRow("TSLA", 23, "normal", -0.08),
 ];
 
 /**
@@ -407,9 +407,9 @@ const UNUSUAL_ORDINARY = [
  * `Market breadth`'s 466 on the same frame rather than equal to it.
  */
 const UNUSUAL_SHORT = [
-  unusualRow("AVGO", 99, -8.42, { aboveSample: true }),
-  unusualRow("NVDA", 97, 6.88),
-  unusualRow("TSLA", 96, -2.85),
+  unusualRow("AVGO", 75, "extreme", -8.42),
+  unusualRow("NVDA", 64, "high", 6.88),
+  unusualRow("TSLA", 58, "elevated", -2.85),
 ];
 
 /** What a healthy gateway mid-session sends: every section furnished. */

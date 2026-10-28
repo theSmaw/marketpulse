@@ -889,6 +889,100 @@ is worth recording so nobody re-prices it: out of hours the region reads a
 per-batch work than the observed arm it replaces. That is **reasoned rather than
 measured**, and is recorded as the weaker claim.
 
+## The re-take you asked for — 2026-10-28, Task 5.6.7
+
+**Your condition fired** — _the next story that changes the per-batch path on
+`/` at all_ — and the arm was re-taken rather than estimated from. Task 5.6.7
+re-ranks `Unusual activity` by the **composite score** instead of the price
+percentile, which puts a second scored factor on that path: the excess move,
+which differences the security's five-minute return against its **sector
+benchmark's** over the same five minutes.
+
+**Measured on the production artefact** (`apps/backend/dist`), 501 equities
+inside the cutoff with a six-bar window each, all 501 scorable, 400 samples
+after 300 warm-up, **three runs, arms rotated and interleaved**, load average
+read **before** the run at **3.69**:
+
+| arm                                             | run 1    | run 2    | run 3    |
+| ----------------------------------------------- | -------- | -------- | -------- |
+| the whole unusual pass, p50                     | 0.300 ms | 0.282 ms | 0.309 ms |
+| breadth + movers, the work already on that path | 0.166 ms | 0.156 ms | 0.166 ms |
+| calibrator, in its **own** loop, p50            | 1.466 ms | 1.497 ms | 1.462 ms |
+| per security                                    | 599 ns   | 564 ns   | 616 ns   |
+
+So **0.282–0.309 ms p50 a batch, 564–616 ns a security, 1.8× the
+breadth-plus-movers work the path already does.** The **nothing-observed
+floor** — CI, every gated run, the first five minutes of every deployment — is
+**0.009 ms p50, 19 ns a security**.
+
+**No `PRODUCT_SPEC.md` §28 clause is breached**: this is not a 50 ms task, and
+the screen's own per-batch cost was measured not in breach with a control in
+Story 4.8.
+
+### The cross-run comparison is a RATIO, and the absolute is not comparable
+
+Task 5.4.2 reported **0.474–0.509 ms and 946–1,015 ns a security at 2.8×**, so
+this reads as the pass getting **cheaper while gaining a factor**. **Do not take
+that as a measurement.** The two runs used **different calibrators** — 5.4.2's
+read 0.572–0.602 ms standing alone and this one reads 1.462–1.497 ms, a 2.5×
+difference in the control itself — so the two absolutes are measurements of two
+machine states and the difference between them is not attributable to the code.
+
+What **is** comparable is the ratio to breadth-plus-movers, because that arm is
+the same code in both: **2.8× → 1.8×**. Even that is reported as a reading
+rather than explained: the plausible causes include a different sample shape
+(5.4.2 had 490 rankable of 501 against this run's 501) and an instrument
+difference, and nothing here separates them. **Re-measure rather than subtract**
+applies to this paragraph as much as to any other.
+
+### Four caveats, and they are not optional
+
+1. **Tight loop.** A gapped Node sample on this machine inflates and the
+   calibrator **does not divide out** (Task 4.8.11: 2.29× against 4.38× on the
+   same bursts). So this bounds the **shape** and is **not** what the
+   computation costs at production's measured 6.8–16.1 batches a minute.
+2. **The calibrator ran in its own loop**, never inside the measured one —
+   Task 5.2.5's **7.2×** in-loop artefact, which cost two complete runs. It
+   read 1.462–1.497 ms across three runs with **0 samples discarded**.
+3. **Local, one laptop, synthetic entries**, and no real feed has ever driven
+   this pass.
+4. **The 1.521 ms reference was still not re-taken**, so the new per-batch
+   total for `/` remains unmeasured and is deliberately **not** reported by
+   subtraction.
+
+### One caveat from Task 5.6.7's own brief is WITHDRAWN
+
+That task was handed the note _the volume factor refuses on every machine that
+exists, so a composite measured locally is a two-of-three composite and the
+figure is a **lower** bound on the deployed cost._ **That is no longer true and
+the reason is structural rather than local.** Since Task 5.6.4
+`volumeFactorAnswer()` takes **no argument at all** and returns
+`no-distribution` unconditionally — `0015` stores a median and a dispersion
+rather than a distribution, so no security has a rankable volume figure
+anywhere, including the deployment. The factor costs the same nothing on every
+machine, and the figures above are not a lower bound on that account. They
+become one the day a nightly pass stores a distribution of a volume rate, which
+fires `ANOMALY_BAND_FLOORS`' own trigger 1 in the same commit.
+
+### Your `/` FRONTEND clause was evaluated and did NOT fire — the fifth consecutive non-firing
+
+The clause, verbatim: _the first surface on `/` that renders one element per
+tracked security._ `Unusual activity` renders **ten rows**, bounded by
+`UNUSUAL_ROWS`, and this task added **one cell per row** — ten band chips, not
+516 elements. The region's DOM is the same shape it was; the row went from four
+grid items to five.
+
+Measured rather than asserted: `pnpm probe / --all` at four widths, 2026-10-28,
+the region is **491 / 491 / 458 / 458 px** and the list **269 px** in every
+state, identical to its pre-change figures. Nothing about the node count moved
+with the universe.
+
+**The fifth consecutive non-firing is evidence the wording works**, which is
+worth saying in its own sentence: a clause that had to be re-read and re-argued
+each time would be a clause doing no work. This one has been applied to a
+ranked list, a second ranked list, a re-ranked list and now a re-ranked list
+with an extra cell, and the answer has been obvious each time.
+
 ## Handed here by Story 5.5's close — 2026-10-20: your backend condition did NOT re-fire, and this story does not owe your `/` re-take
 
 **Said explicitly so the next reader does not assume it was skipped.** Story 5.5

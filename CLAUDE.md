@@ -655,11 +655,17 @@ entry on any machine not serving a real market. `LIVE-REHEARSAL.md` carries row
 **And since 2026-10-17 `/`'s LAST reserved region draws, which is Story 5.4 —
 so five of the seven hold figures and the landing page is finished.**
 `Unusual activity` lists the **ten** securities whose last five-minute move sits
-furthest out in **their own 60-session history**, ranked by the price percentile
-and drawn as an **ordinal** (`99th`) with the word `percentile` in the list
-heading and spoken whole — **no band chip**, because
+furthest out in **their own 60-session history**, ~~ranked by the price
+percentile and drawn as an **ordinal** (`99th`) with the word `percentile` in
+the list heading and spoken whole — **no band chip**, because
 `packages/shared/src/anomaly.ts` deliberately holds no score→band boundaries and
-the four bands belong to Story 5.6's **composite**.
+the four bands belong to Story 5.6's **composite**~~ — **false since
+2026-10-28: Task 5.6.7 re-based the region on the composite.** The figure is a
+score and the band is drawn — **in the region's HEADING rather than on the
+row**, which is the paragraph below this story's six. The struck text is left
+standing because the refusal it records is why the chip had a stated reversal
+condition to fire, and because that condition's own wording is what later
+argued the chip back off the row.
 
 Six things from it are load-bearing. **The figure it ranks is a MAGNITUDE**
 (`Math.abs`), so a **−9% crash and a +9% spike drew an identical row** until a
@@ -698,6 +704,77 @@ provider, so only the **session** basis has ever been seen, on one laptop.
 `LIVE-REHEARSAL.md` carries row **5.4 unwatched** — the fourth this epic owes and
 the first on the landing page — and `pnpm invariants` refuses Epic 5's close until
 it is filled.
+
+**And since 2026-10-28 that region ranks and draws the COMPOSITE, which is Task
+5.6.7 and is the two surfaces finally agreeing about what is ranked.** The row
+is `61` where it was `99th`, and the region's head says `TOP 10 · ALL EXTREME`
+where it said `TOP 10`. **Both arms moved in one change and the coupling is the point**: a
+composite in the comparator with an ordinal in the column draws row 1 at `85th`
+above row 2 at `97th` — a visibly mis-ordered list with every figure on it
+individually correct — and the `session` arm runs about 80% of the week and
+permanently on CI, so that would have been the deployment's ordinary evening
+state rather than an edge case. The session arm reads
+`session_composite_scores` **beside** `session_return_percentiles`, which
+`0017` §2 keys on the same session's close for exactly that, and it **refuses to
+mix two sessions' halves** rather than dating one pass's counts with another's
+scores.
+
+Five things from it are load-bearing. **The COHORT rule is AC 3 arriving at a
+ranked surface** — two scores are comparable **iff computed over the same factor
+set**, so the region ranks within the largest cohort, names it on screen (`a
+score on 2 of 3 factors, to a maximum of 75`) and **counts** the rest; ranking
+across cohorts systematically promotes the **worst-covered** securities, because
+a score from fewer factors has the higher variance. It is **correct and
+invisible**: `{price, excess}` is the sole cohort on every machine that exists
+(485 of 485 stored rows, **0 single-factor scores**), so it is held by a check —
+`a-ranked-score-list-is-one-cohort` — rather than by a test, because **a test
+over today's fixtures is green with the partition deleted**. **`scored` changed
+meaning and the nesting chain gained a link**: a refused price factor is an
+**absent factor** rather than a dropped row, so it is `rows ≤ cohort.scored ≤
+scored ≤ eligible ≤ tracked`. **The band is a property of the DAY, so it is
+stated ONCE in the heading** — and that is the owner's change on top of this
+task, taken by looking at the rendered page rather than by any check. A chip
+shipped in a fifth track for an afternoon, 76 px of a 308 px row — **25%** —
+which squeezed the name to **57 px**: `Dominio…`, `The Kra…`, `3M Co…`. The
+measurement is why it went: **1 distinct band in the top ten**, against 16
+`extreme` securities in the whole universe, with Task 5.6.3 having already
+measured all ten rows sharing one band in **35 of 77** instants — which is the
+chip's own argument (_it stops being a property of the selection and becomes a
+property of the day_) carried one step further. The head slot now reads
+`Top 10 · all extreme`, or `Top 10 · led by extreme` where the ten do not share
+one; the **span** (`extreme to elevated`) was refused on a measurement, at
+201.28 px against the **171.7** the slot has at 308 — and the failure there is
+not a clipped word but the region title **wrapping**, because `.headings`
+carries `min-width: 0`. The row is **four tracks** again and probes
+`15 68 145 44` at 1440 and `15 64 161 44` at 390, so the **name is 145 px**
+against 57. **A chip taller than the row's line box steps the whole lower page,
+and only `pnpm probe` can see it** — the first draft gave it `--space-4`
+vertically, 24 px in an 18 px line box, and every row came out **33 px instead
+of 26** with the list **329 instead of 269**, **green on all 3,652 unit
+tests**; `.bar` and `.price` each paid for that class once at 390 and this time
+it left a **check** rather than a comment. And **there is still no amber on
+`/`** — `market.css` resolves `--anomaly-high`, `--feed-stale`,
+`--service-degraded` and `--provenance-synthetic` all to `--palette-amber`, so
+a chip here would have put this region and the chrome's degraded words in one
+hue on one screen; the heading carries the **word** and spends none of the
+ramp, which `amber-appears-once-in-the-rail` also enforces. The collision stays
+Story 5.6's, on the security page, where Task 5.6.8 photographs it.
+
+**The per-batch cost was re-taken rather than estimated from**, which is Epic
+14's own condition firing: **0.282–0.309 ms p50 a batch and 564–616 ns a
+security over three interleaved runs**, against breadth-plus-movers at
+0.156–0.166 ms on the same path — **1.8×**, where the percentile-only pass was
+2.8× in its own run. The absolute is **not** comparable across the two runs
+(the calibrators differ by 2.5×) and every figure is a **tight-loop upper
+bound**. Epic 14's `/` **frontend** clause was evaluated a **fifth** time and
+did not fire — ten rows, not 516 elements.
+
+**What no gated machine and no person has ever seen is a single drawn row.**
+CI's store has zero bars, no provider and **no composite generation**, and the
+local store has no `iex` row and no provider either — so **the only place a
+score has ever been drawn is Storybook**. `LIVE-REHEARSAL.md` carries row **5.6
+unwatched**, the sixth this epic owes and strictly more unwatched than 5.4's,
+which at least had the session basis on one laptop.
 
 **`Relative performance` draws, which is Story 5.1 (Epic 5's first story).** The
 security's own move, its **sector benchmark ETF's** and the **broad market's**,

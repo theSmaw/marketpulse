@@ -5631,6 +5631,34 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-comparator-for-the-order-of-a-composite-score",
   },
+  {
+    name: "a-ranked-score-list-with-no-cohort",
+    proves:
+      "`a-ranked-score-list-is-one-cohort` goes red on a second ranked " +
+      "composite surface that orders scores without partitioning them by " +
+      "factor set first. Nothing else can see it: the list is in the " +
+      "comparator's own order, `isRankedByScore` passes, every nesting check " +
+      "passes, and the region draws it with total confidence — while " +
+      "systematically lifting the WORST-COVERED securities into the top-N, " +
+      "because a score computed from fewer factors has the higher variance. " +
+      "And a test over the shipped fixtures is green with the partition " +
+      "deleted, because `{price, excess}` is the sole cohort on every " +
+      "machine that exists (485 of 485 stored rows, 0 single-factor " +
+      "scores) — which is exactly why this is a check and not a test.\n" +
+      "The plant is the file the NEXT story writes: a second top-N over " +
+      "composite scores, in the module that already holds this product's " +
+      "other top-N, with no cohort question asked anywhere in it.",
+    file: "apps/backend/src/market-movers.ts",
+    find: 'import { MOVERS_PER_SIDE, selectMoversBy } from "@marketpulse/shared";',
+    replace:
+      'import { MOVERS_PER_SIDE, selectMoversBy } from "@marketpulse/shared";\n' +
+      "// pnpm break: reverted automatically\n" +
+      'import { selectByScore } from "@marketpulse/shared";\n' +
+      "export const topScored = (rows: { score: number; symbol: string }[]) =>\n" +
+      "  selectByScore(rows, 10);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-ranked-score-list-is-one-cohort",
+  },
   // ## Task 5.6.4's, on the two figures that are SUBTRACTED from each other
   //
   // Both of these are about a defect that is invisible to every other level:

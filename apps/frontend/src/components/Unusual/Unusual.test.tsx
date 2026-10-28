@@ -87,24 +87,32 @@ const FIVE: UnusualActivity = {
   ],
   claim: CLAIM,
   nothing: undefined,
+  // **The whole head-slot string, as `boundOf` builds it** — written out
+  // rather than imported, which is `CLAIM`'s rule: the builder is the module
+  // under test one level down, so importing it would make this fixture agree
+  // with it by construction.
+  bound: `Top ${String(UNUSUAL_ROWS)} · all extreme`,
 };
 
 const THREE: UnusualActivity = {
   rows: FIVE.rows.slice(0, 3),
   claim: CLAIM,
   nothing: undefined,
+  bound: `Top ${String(UNUSUAL_ROWS)} · led by extreme`,
 };
 
 const NOTHING: UnusualActivity = {
   rows: [],
   claim: NOTHING_CLAIM,
   nothing: "Nothing ranked yet.",
+  bound: undefined,
 };
 
 const SHUT: UnusualActivity = {
   rows: [],
   claim: NOTHING_CLAIM,
   nothing: "Nothing ranked while the market is shut.",
+  bound: undefined,
 };
 
 describe("the ranked list", () => {
@@ -173,7 +181,7 @@ describe("the ranked list", () => {
     renderWithContext(<Unusual view={FIVE} />);
 
     const heading = screen.getByRole("heading", { level: 3 });
-    expect(heading.textContent).toMatch(/percentile of its own 60-session/iu);
+    expect(heading.textContent).toMatch(/composite anomaly score/iu);
     expect(screen.getByRole("list").getAttribute("aria-labelledby")).toBe(
       heading.id,
     );
@@ -184,14 +192,15 @@ describe("the ranked list", () => {
     // letter at a time.
     renderWithContext(<Unusual view={FIVE} />);
     expect(screen.getByRole("heading", { level: 3 }).textContent).toBe(
-      "Percentile of its own 60-session history",
+      "Composite anomaly score, 0 to 100",
     );
   });
 
-  it("draws no band, no chip and no score", () => {
-    // Gate 1 decision 1 as markup. The four bands are defined for the
-    // composite 0–100 score and this ranks one factor of four, so a chip
-    // would read `extreme` on price alone, ten times over.
+  it("draws no band word anywhere in the LIST", () => {
+    // The band is the head slot's, once. A per-row chip shipped for an
+    // afternoon and was removed on a measurement: the top ten share one
+    // band, so 76 px of a 308 px row (25%) repeated one word ten times and
+    // left the company name eight characters.
     renderWithContext(<Unusual view={FIVE} />);
 
     const text = screen.getByRole("list").textContent;
@@ -245,9 +254,28 @@ describe("the honest-nothing states", () => {
 });
 
 describe("the head slot", () => {
-  it("states the bound when the list is full", () => {
+  it("states the bound and TODAY'S BAND when the list is full", () => {
+    // The band is a property of the day rather than of a row, so it is
+    // stated once here instead of ten times down a 308 px column — see
+    // `unusual-activity.ts`' `boundOf`, which carries the measurement.
     renderWithContext(<UnusualMeta view={FIVE} held={false} />);
-    expect(screen.getByText(`Top ${String(UNUSUAL_ROWS)}`)).toBeDefined();
+    expect(
+      screen.getByText(`Top ${String(UNUSUAL_ROWS)} · all extreme`),
+    ).toBeDefined();
+  });
+
+  it("writes the band word out, never an abbreviation or a fill", () => {
+    // The ramp's four amber steps separate by 1.12, 1.43 and 1.59 in
+    // greyscale — enough to see a change and nowhere near enough to name one
+    // — so the word is the channel. And the head spends no amber at all:
+    // `amber-appears-once-in-the-rail` holds the stylesheet half, and this
+    // holds the string half.
+    const { container } = renderWithContext(
+      <UnusualMeta view={FIVE} held={false} />,
+    );
+
+    expect(container.textContent).toContain("extreme");
+    expect(container.querySelectorAll('[class*="_badge_"]')).toHaveLength(0);
   });
 
   it("keeps the bound while the list is short, and states NO count", () => {
@@ -263,7 +291,7 @@ describe("the head slot", () => {
     // answer, and the bound is what tells a reader the list is not truncated.
     renderWithContext(<UnusualMeta view={THREE} held={false} />);
 
-    expect(screen.getByText(`Top ${String(UNUSUAL_ROWS)}`)).toBeDefined();
+    expect(screen.getByText(/^Top 10 · /u)).toBeDefined();
     expect(screen.queryByText(/of \d+ ranked/u)).toBeNull();
   });
 
@@ -284,14 +312,16 @@ describe("the head slot", () => {
     // reading. They are mutually exclusive in room `.slot` reserves.
     renderWithContext(<UnusualMeta view={FIVE} held />);
     expect(screen.getByText(/order held/iu)).toBeDefined();
-    expect(screen.queryByText(`Top ${String(UNUSUAL_ROWS)}`)).toBeNull();
+    expect(screen.queryByText(/^Top 10 · /u)).toBeNull();
   });
 
   it("interpolates the bound rather than spelling it", () => {
     // `the-population-is-never-a-literal`'s rule one scale down: a badge
     // saying five over six rows is a lie with no symptom.
     renderWithContext(<UnusualMeta view={FIVE} held={false} />);
-    expect(screen.getByText(`Top ${String(UNUSUAL_ROWS)}`)).toBeDefined();
+    expect(
+      screen.getByText(new RegExp(`^Top ${String(UNUSUAL_ROWS)} · `, "u")),
+    ).toBeDefined();
   });
 });
 

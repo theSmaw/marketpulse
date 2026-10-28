@@ -1,4 +1,6 @@
 import type {
+  AnomalyBand,
+  CompositeFactor,
   WireMarketOverview,
   WireUnusualActivity,
   WireUnusualRow,
@@ -29,35 +31,27 @@ import type {
 // is honest is `overview-unusual-ranking.spec.ts`', which furnishes nothing
 // and grounds itself **out of frame**.
 
-/** The tape both endpoints came from. The move is `iex`-over-`iex` by construction. */
+/** The tape the live move came from. It is `iex`-over-`iex` by construction. */
 const NUMERATOR = "iex" as const;
 
 /**
- * One furnished row.
+ * One furnished row — **a score and a band since Task 5.6.7**.
  *
- * The endpoints are real fields rather than filler: `WireUnusualRow` requires
- * them, because an ordinal with no instant is a claim about a move nobody can
- * date — and `readUnusual` refuses a row without them, so a helper that
- * elided them would furnish a frame the browser throws away.
+ * The band is a **parameter** rather than `bandOf(score)`, which is the same
+ * discipline the producer and the reader both keep: the word on the wire was
+ * minted against the **producer's** floors, and a helper that derived it would
+ * be a fourth copy of the thresholds — one that could never disagree, and so
+ * could never catch the rollback the column exists to detect.
+ *
+ * Callers pass a band consistent with `ANOMALY_BAND_FLOORS` (32 / 63 / 73 on
+ * the raw scale) unless a spec is deliberately furnishing a disagreement.
  */
 export const unusualRow = (
   symbol: string,
-  rank: number,
+  score: number,
+  band: AnomalyBand,
   percent: number,
-  options: {
-    readonly aboveSample?: boolean;
-    readonly sampleCount?: number;
-  } = {},
-): WireUnusualRow => ({
-  symbol,
-  rank,
-  aboveSample: options.aboveSample ?? false,
-  sampleCount: options.sampleCount ?? 4620,
-  percent,
-  from: { at: "2026-10-15T17:55:00.000Z", price: 100, feed: NUMERATOR },
-  to: { at: "2026-10-15T18:00:00.000Z", price: 100 + percent, feed: NUMERATOR },
-  observed: 5,
-});
+): WireUnusualRow => ({ symbol, score, band, percent });
 
 /**
  * A whole section around a set of rows.
@@ -85,6 +79,10 @@ export const unusualSection = (
     readonly scored?: number;
     readonly eligible?: number;
     readonly tracked?: number;
+    /** The cohort's factor set. `{price, excess}` is the only live one. */
+    readonly factors?: readonly CompositeFactor[];
+    readonly max?: number;
+    readonly others?: number;
   } = {},
   generationSession = "2026-10-14",
 ): WireUnusualActivity => {
@@ -98,6 +96,16 @@ export const unusualSection = (
     tracked,
     eligible,
     scored,
+    // **The cohort the rows are ranked within** — AC 3. `readUnusual` refuses
+    // a section whose rows outnumber it, so this tracks `scored` by default
+    // for the same reason the three counts nest: a helper mostly used to build
+    // frames the browser drops is a helper nobody can read a spec through.
+    cohort: {
+      factors: counts.factors ?? ["price", "excess"],
+      max: counts.max ?? 75,
+      scored,
+      others: counts.others ?? 0,
+    },
     windowMinutes: 5,
     spanMinutes: 5,
     baseline: {
@@ -153,6 +161,9 @@ export const sessionUnusualSection = (
     readonly scored?: number;
     readonly eligible?: number;
     readonly tracked?: number;
+    readonly factors?: readonly CompositeFactor[];
+    readonly max?: number;
+    readonly others?: number;
   } = {},
   session = "2026-10-14",
 ): WireUnusualActivity => {
@@ -167,6 +178,7 @@ export const sessionUnusualSection = (
     tracked: observed.tracked,
     eligible: observed.eligible,
     scored: observed.scored,
+    ...(observed.cohort === undefined ? {} : { cohort: observed.cohort }),
     spanMinutes: observed.spanMinutes,
     baseline: observed.baseline,
     refusals: observed.refusals,
@@ -193,6 +205,10 @@ export const sessionUnusualSection = (
  *   The decoder tolerates it on purpose (the identity is an inequality), which
  *   is exactly why a harness must not lean on that tolerance.
  * - **`eligible: 0` and `scored: 0`** rather than the helper's floors.
+ * - **No `cohort`** (Task 5.6.7). A region with no scored security has no
+ *   scale to name, and naming one would be the same false impression one
+ *   object over: the cohort is the scale the rows were ranked on, and there
+ *   are no rows.
  *
  * The two arms differ in the discriminant and its companion field alone,
  * which is {@link sessionUnusualSection}'s rule: the region's honest-nothing
