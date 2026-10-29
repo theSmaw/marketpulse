@@ -91,7 +91,38 @@ will be on one screen and Epic 5's files are not where this epic reads.**
 
 Epic 5 ships an **anomaly band** — `normal / elevated / high / extreme`, four
 members, ordered, rendered as a chip with **the band's name written inside an
-amber fill**. Invariant 5 ships a **confidence level** —
+amber fill**.
+
+**The PREMISE is dated 2026-10-29 by Task 5.7.5 at Epic 5's close; all three
+rules below are unchanged and correct.** The chip is real and is what you will
+sit beside — but it exists on **one** surface, `/securities/:symbol`, and
+`AnomalyBadge` is imported by exactly one shipped component. **On `/` the band
+is a WORD in the region's heading spending none of the amber ramp**, since Task
+5.6.7, and the measurement behind that move is directly useful to you:
+
+- A per-row chip cost **76 px of a 308 px row — 25%** — squeezing company names
+  to `Dominio…`, `The Kra…`, `3M Co…`.
+- There was **1 distinct band in the top ten**, against 16 `extreme` securities
+  in the whole universe, with all ten rows sharing one band in **35 of 77**
+  measured instants. So a per-row chip **stops being a property of the selection
+  and becomes a property of the day**.
+- A chip taller than the row's line box **steps the whole lower page**, and only
+  `pnpm probe` can see it: the first draft gave it 24 px of vertical space in an
+  18 px line box and every row came out **33 px instead of 26**, with the list
+  **329 instead of 269** — **green on all 3,652 unit tests.**
+
+**Read that as a reason the rules below are right rather than as a reason to
+relax them.** The two vocabularies are still four ordered members each, they
+will still be on one screen here, and the reason a confidence level must never
+be four amber fills is unaffected by how many surfaces draw the band today.
+
+**And one thing is now measured that was not when this section was written**:
+`market.css` resolves `--anomaly-high`, `--feed-stale`, `--service-degraded` and
+`--provenance-synthetic` **all to one amber**, so the ramp is already carrying
+four meanings before confidence arrives as a fifth. Epic 5 photographed the
+collision and routed it rather than repairing it.
+
+Invariant 5 ships a **confidence level** —
 `CONFIRMED / SUPPORTED / POSSIBLE / UNKNOWN`, four members, ordered, and this
 epic is where it first reaches a screen.
 

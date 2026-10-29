@@ -70,3 +70,31 @@ pass is cheap now and load-bearing the moment this epic ships.**
 It needs a person with VoiceOver or NVDA. `e2e/README.md`'s own words: a green
 axe run is not an accessibility review — and this epic's gate is not a check
 that can be added.
+
+## Handed here by Epic 5's close — 2026-10-29 (Task 5.7.5): three new things a listener cannot read from a DOM
+
+`CLAUDE.md`'s standing open item — _a listening pass with a real screen
+reader_ — names **this epic** as its deadline: _before Epic 11 hands this
+surface to an agent_. Epic 5 added three entries to it, and none is answerable
+from a DOM, a timing or by an agent. They are recorded here because the deadline
+is this epic's and the item is otherwise a list nobody owns.
+
+- **The score's explanation is a real `<table>` whose last column SUMS to the
+  figure above it.** Whether an addition is _read_ — rather than heard as four
+  unrelated cells — is a listener's question. The ledger carries one row per
+  factor in every state, so a fully-refused security produces four rows of
+  reasons and no figure.
+- **The band is stated ONCE for ten rows.** On `/`, `TOP 10 · ALL EXTREME` sits
+  in the region's heading rather than on each row, measured and deliberate — the
+  per-row chip cost 25% of a 308 px row and all ten rows share one band in 35 of
+  77 instants. **A listener who arrives at row 7 has no band at all**, which a
+  sighted reader does not experience.
+- **Six refusal sentences can occur in one region.** Whether that reads as
+  thoroughness or as noise is the same question for a listener as for a reader,
+  and the answers may differ.
+
+**And the security page acquired a SECOND `<table>` in Epic 5** — the ledger,
+beside the tracked universe. `docs/GAPS.md` records what that cost: every bare
+`getByRole("table")` on that route became ambiguous, which reached `main` and
+**skipped a deploy**. Any agent-driven navigation of this surface needs the same
+care: _the table_ is no longer a unique thing to ask for.

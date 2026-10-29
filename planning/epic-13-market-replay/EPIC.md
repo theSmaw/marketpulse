@@ -575,3 +575,68 @@ ranking computes over today's roster while claiming to describe a past session,
 exactly as invariant 4's qualification describes. `security_memberships` begins
 **2026-10-12** and says nothing about any earlier session, so **a replayed
 ranking before that date must refuse rather than fall back.**
+
+## Handed here by Task 5.7.5 — 2026-10-29, at Epic 5's close: `0015`'s key has a THIRD column and it is the TAPE, so narrowing `observed_at` covers half of it
+
+**This epic had no section from Story 5.5 at all before 2026-10-29**, and the
+section above glosses the family as _"all four … keyed by the session it is FOR
+with its window-end column named `observed_at`"_. **That gloss is true and it
+hides the one property that will break a generic temporal plugin.**
+
+**`apps/backend/migrations/0015_volume_baselines.sql` is keyed
+`unique (security_id, observed_at, feed)`** — line 326, as
+`constraint volume_baselines_unique_generation` — and its companion
+`volume_baseline_passes` is keyed `unique (observed_at, feed)` (line 443).
+**It is the only table in that family where the TAPE is a key column.** `0013`'s
+`return_baselines` records no tape at all; `0014`'s
+`session_return_percentiles` records it as an **attribute of the pass**. Here it
+is part of the natural key, and the migration's §4 says so under the heading
+_"THE TAPE IS IN THE KEY, WHICH IS WHERE `0013` AND `0014` DIFFER FROM THIS"_.
+
+**What that does to your plugin, stated as the gap rather than as a fault.** A
+plugin that narrows `observed_at <= $clock` covers the **temporal** half of this
+table correctly — `observed_at` is the window's end, takes **no default**, and
+the naming is deliberate so your plugin needs no table-specific knowledge. But
+`observed_at <= $clock` on this table can return **two rows per security for one
+session**, one per tape, and **narrowing them is not a temporal question at
+all.** So the plugin leaves a replay with **no stated rule for which tape to
+read**, and the tie-break it falls into is whatever the query's ordering
+happens to be — which is the exact shape of the live defect
+`excess-move-baseline-store.ts` carried until 2026-10-23: it did not pin every
+key column and returned rows from a vocabulary it had not asked for, with no
+defined tie-break.
+
+**And the reason the column is there is a reason it will one day hold two
+generations at once.** `VOLUME_BASELINE_FEED` is `'iex'` today because the
+numerator is the live IEX socket's own volume, and an IEX numerator over a
+consolidated-tape baseline is systematically far below 1 however unusual the
+volume is. **That choice carries a stated reversal trigger** — _the first
+session on which the counted `n` meets the floor for fewer securities than the
+previous session_ — and §4 records exactly why the tape went into the key rather
+than beside it: a flip against a session-only key would **silently update every
+row in place with nothing recording that the distribution underneath changed
+tape.** With `feed` in the key the two generations coexist and no widening
+migration is ever needed. **So this is not a hypothetical second dimension: the
+schema was built on the assumption that the tape flips, and when it does, a
+replay of a session spanning the flip has two honest answers and must choose
+one.**
+
+**What this epic has to decide, in words it can act on.** Either **pin the tape
+explicitly** at every read of `volume_baselines` and `volume_baseline_passes` —
+treating the tape as part of the replay's own configuration, which makes the
+replay say which tape it is replaying — or **grow the plugin a second
+dimension**, a declared tape beside the declared clock, so the narrowing is
+`(observed_at <= $clock) and (feed = $tape)` and the plugin keeps its property
+of needing no table-specific knowledge. **The first is cheaper and the second is
+the one that survives the next keyed-by-tape table.** What is not an option is
+leaving it to ordering: a replayed figure whose tape was chosen by a query plan
+is present information reaching a replayed past by a route invariant 4 does not
+describe, and `0015` §4 ends by saying invariant 6 is satisfied **in a column**
+rather than by a constant in the serving path — a read that ignores the column
+gives that guarantee back.
+
+**One thing you will meet before any of this matters.** On every machine that
+exists the `iex` tape begins **2026-09-23**, so a replay of any earlier session
+has **no volume baseline of any tape** and must refuse rather than fall back —
+the same shape as the `security_memberships` bound this epic already carries,
+with a different start date.

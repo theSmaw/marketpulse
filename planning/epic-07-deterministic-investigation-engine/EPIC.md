@@ -300,3 +300,63 @@ be _askable_ for one — and AC 6's nine required elements **cannot be audited b
 walking a DOM that does not contain them until a click**. So a popover is right
 for a dense table row and wrong for a figure whose explanation is the point.
 **That distinction is the test to apply when you reach for it.**
+
+## Handed here by Task 5.7.5 — 2026-10-29, at Epic 5's close: §17's four tool names do NOT exist, here are the six that do, and one of them has no implementation at all
+
+**This section corrects point 3 of _Handed here by Epic 5's decomposition_
+above, which is wrong in a way that costs this epic a search rather than a
+read.** That point tells you to **expect to find already written**
+`calculate_return_percentile`, `calculate_volume_ratio`, `get_market_breadth`
+and `compare_securities`. **Verified 2026-10-29 by `grep -rl` over `apps/` and
+`packages/`: none of the four exists.** `calculate_return_percentile` matches
+exactly two files and **both matches are comments quoting `PRODUCT_SPEC.md`**
+(`packages/shared/src/market-calendar.ts:137` and
+`packages/shared/src/return-baseline.ts:33`); the other three return **nothing
+at all** from any source file. The arithmetic was built — Epic 5 just never
+named it for §17.
+
+**The real surface, with each function's module and signature, so this epic can
+call rather than hunt.** Verified against the tree on 2026-10-29.
+
+| §17's name                    | What actually ships                                                                                                                                                                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `calculate_return_percentile` | `returnPercentileOf(percent: number, baseline: ReturnBaselineDistribution): ReturnPercentile \| undefined` — `apps/backend/src/return-percentile.ts`                                                                                                                                       |
+| `calculate_volume_ratio`      | **nothing that produces a rankable ratio** — see below                                                                                                                                                                                                                                     |
+| `get_market_breadth`          | `marketBreadth(eligible: EligibleMoves): WireMarketBreadth` — `apps/backend/src/market-breadth.ts`                                                                                                                                                                                         |
+| `compare_securities`          | `excessMoveReference(security: Security): ExcessMoveReference` — `packages/shared/src/excess-move.ts` — picks the sector benchmark; the rendered comparison is `relativePerformance(...)` in `apps/frontend/src/market/relative-performance.ts` and is a **frontend** function, not a tool |
+
+And the three the decomposition section did not name, which are the ones an
+investigation actually wants:
+
+- **`scoreAnomaly(answers: Readonly<Record<CompositeFactor, FactorAnswer>>): AnomalyOutcome`**
+  — `packages/shared/src/composite-score.ts`. **The only mint for a score**, and
+  the one place invariant 1 is enforced structurally.
+- **`compositeAnomaly(input: CompositeInput): AnomalyOutcome`** —
+  `apps/backend/src/market-composite.ts`. The pair in front of the mint:
+  `compositeAnswers` translates, `scoreAnomaly` mints. **`CompositeInput` has
+  two members for three factors** (`price: PriceFactorInput`,
+  `excess: ExcessMoveFactor`) — which is the volume absence arriving in a type.
+- **`excessFactorAnswer(factor: ExcessMoveFactor): FactorAnswer`** and
+  **`volumeFactorAnswer(): FactorAnswer`** — same module. These map a factor's
+  own three arms onto the scorer's vocabulary.
+
+**The one that is not a naming difference at all: `calculate_volume_ratio` has
+no implementation producing a rankable ratio for ANY security, and that is
+structural rather than unfinished.** `apps/backend/migrations/0015_volume_baselines.sql`
+stores a **median and a dispersion**, not a distribution — so there is nothing
+to rank a volume figure against anywhere in this product.
+**`volumeFactorAnswer()` takes NO PARAMETERS** and returns
+`{ state: "no-distribution" }` **unconditionally**. An investigation tool
+written on the assumption that it can ask for a security's volume percentile has
+nothing to call, and no argument it could pass would change the answer.
+
+**Two consequences for this epic.** A tool named `calculate_volume_ratio` in an
+investigation's tool list would be a tool that always refuses — so either do not
+publish it, or publish it as an explicit refusal with the reason, which is
+invariant 5's _"not enough evidence"_ as a first-class outcome rather than a
+failure. And the reversal is written where the absence is: that arm is
+**deleted rather than widened** the day a nightly pass stores a distribution of
+this quantity, and `volumeFactorAnswer`'s own docblock says the deletion fires
+in the same commit as `ANOMALY_BAND_FLOORS`' trigger 1. **Until then, a
+composite is at most 2 of 3 factors to a maximum of 75**, and any tool that
+reports a score has to carry that maximum rather than imply 100 was reachable.

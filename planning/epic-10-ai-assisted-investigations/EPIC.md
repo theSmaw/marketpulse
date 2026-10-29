@@ -165,3 +165,68 @@ meaning, and _one compute, one broadcast_ stops being true).
 
 **And invariant 1 still binds**: the agent never computes these figures. They
 come from the deterministic join or they are not shown.
+
+## Handed here by Epic 5's close — 2026-10-29 (Task 5.7.5): the BRAND DIES AT `JSON.parse`, and what stands in its place is the only thing between a model and an invented score
+
+**This epic is where a model first touches these numbers, and it is the first
+boundary Epic 5's strongest guarantee does not cross.** The sentence above —
+_the agent never computes these figures_ — is invariant 1 and it still binds.
+What this section adds is the **mechanism** that makes it enforceable here
+rather than instructed, because Epic 5 built one and this file did not know it
+exists.
+
+**In-process, a composite score cannot be constructed without its
+explanation.** `AnomalyScore` carries a real non-exported `Symbol` brand, so
+only `packages/shared/src/composite-score.ts` can mint one, and its
+`contributing` field is typed `[T, ...T[]]` — **a score with no contributing
+clause does not typecheck.** `pnpm invariants`'
+`two-mint-sites-for-an-anomaly-score` holds the count at two.
+
+**Across a wire, none of that survives, and the module says so in terms:**
+
+> **The brand dies at `JSON.parse`, and the repair is stronger than the brand.**
+> `JSON.stringify` drops symbol keys, so a score that has crossed a wire carries
+> no brand at all — the type survives the process and not the socket.
+
+**What replaces it is a claim about the VALUE rather than about the module**, and
+it is the thing to design your tool layer around. `readAnomalyScore`
+**re-adds the published contributions and refuses the whole explanation when the
+sum is not the score it was sent**, and **re-derives each contribution from the
+published weight and the drawn figure**. A fabricated score does not merely fail
+a type check it was never subject to — it **fails arithmetic**, and the surface
+draws nothing rather than drawing a plausible number.
+
+**Three things follow for this epic, and the third is the one that bites.**
+
+**1. Every score reaching a model, and every score coming back from one, goes
+through that reader.** Not a schema check and not a prompt instruction: the
+re-addition. A model asked to summarise an explanation can be given one that has
+already been proved internally consistent, which is a much narrower thing to
+trust than a number in a JSON blob.
+
+**2. The guarantee ends at the wire and ADR 0046 §3 says where.** Read it before
+designing the tool boundary — the decision is _the score and its explanation are
+ONE OBJECT, and the guarantee ENDS AT THE WIRE_, which is a bound on Epic 5's
+claim rather than a gap in it.
+
+**3. Epic 5 proved, by experiment, that the checks you would reach for first do
+not see a lying producer.** Story 5.4 planted a producer that invented an `NVDA`
+row and ran the browser specs: **both frame-derived arms were green on the
+fabricated row, and only an arm grounded outside the frame saw it.** `CLAUDE.md`
+carries the general form — _a pass-through spec proves fidelity, never
+correctness_. An agentic layer is a pass-through by construction, so **a check
+that asks "does the page agree with what the model was given" is green on a
+model that invented the figure**. The question has to be answerable from
+something the model never touched.
+
+### And one quantity this epic will want that does not exist
+
+**There is no rankable volume figure for any security.**
+`0015_volume_baselines.sql` stores a **median and a dispersion**, not a
+distribution, so the volume factor is `no-distribution` **unconditionally** and
+`volumeFactorAnswer()` takes no parameters. Any tool contract written around
+_how unusual is this volume_ has nothing to call, on any store, today. Its
+reversal condition is _the first nightly pass that stores a distribution of a
+factor's own quantity_ — and when it fires, the composite's band floors move in
+the same commit, because every quantile behind `32 / 63 / 73` was measured on a
+**two-factor, max-75** scale.
