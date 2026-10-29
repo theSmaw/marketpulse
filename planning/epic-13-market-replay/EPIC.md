@@ -543,3 +543,35 @@ not silently mix tapes — but a replay that rebuilds it from `market_bars` must
 make the same choice explicitly. And **11 of 511 securities have no percentile
 at all** at any date, because their sample is below the derived floor of 2,500;
 a replay must carry the refusal rather than compute around it.
+
+## Handed here by Story 5.6's close — 2026-10-29: a FOURTH derived table, and your plugin covers it only because it was named for you
+
+**`0017_session_composite_scores.sql`** joins `0013`, `0014`, `0015` and `0016`
+as a nightly derived aggregate, and like all four it is **keyed by the session it
+is FOR** with its window-end column named **`observed_at`** and **no default on
+that column**.
+
+**That name is deliberate and it is for you.** ADR 0044 records the divergence
+from ADR 0042's `effective_from`: a generic temporal plugin that narrows
+`observed_at` covers these tables **structurally**, where a column named anything
+else would need this epic to know each table exists. `0017` follows it, so the
+count of tables your plugin must know about **by name** is still zero.
+
+**What a replayed composite must refuse, and why it is not a figure problem.**
+The score is computed from two factors, both of which are **percentiles of a
+security's own history** — and the baselines behind them are keyed to a session.
+So a replay of a past session must read the generation keyed to **that** session
+rather than the newest one. **The frontier read is the trap**: both
+`volume-baseline-store.ts` and `excess-move-baseline-store.ts` take `atOrBefore`
+rather than _newest_, and `excess-move-baseline-store.ts` had a live defect fixed
+on 2026-10-23 where it did not pin every key column and returned rows from a
+vocabulary it had not asked for, **with no defined tie-break**. A replay reading
+these tables inherits that shape; pin every key column.
+
+**And the membership bound this epic already carries applies to the composite's
+RANKED surface.** `/`'s `Unusual activity` ranks a composite over the tracked
+universe, which is a computation over _the market we track now_ — so a replayed
+ranking computes over today's roster while claiming to describe a past session,
+exactly as invariant 4's qualification describes. `security_memberships` begins
+**2026-10-12** and says nothing about any earlier session, so **a replayed
+ranking before that date must refuse rather than fall back.**

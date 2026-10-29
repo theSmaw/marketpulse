@@ -443,7 +443,7 @@ puts two of them in one frame.** Verified 2026-10-15: `market.css` resolves
 **`--anomaly-high`, `--feed-stale`, `--service-degraded` and
 `--provenance-synthetic` all to `--palette-amber: #e2b544`**. The status bar is
 **sticky**, so a drawn `high` chip and a `STALE` feed cell are always in the
-viewport together — directly adjacent at 390, ~700 px apart at 1440. It stays
+viewport together — directly adjacent at 390, ~700 px apart at 1440. **— and _adjacent at 390_ is FALSE, measured 2026-10-29: the gap is 467–574 px at 390 and 564–1107 px at 1440, because the chip is in the rail and the chrome is in a sticky foot. They are never adjacent at any width; the two CHROME marks are, at 44–117 px.** It stays
 **correct**, because neither is colour-only (the chip writes its band name
 inside the fill, the cell writes the word), but it is not **coherent**, and the
 deferred-versus-degraded hatch collision `MARKET-OVERVIEW.md` already records is

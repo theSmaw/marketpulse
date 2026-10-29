@@ -4,6 +4,7 @@ import {
 } from "@marketpulse/shared";
 import type {
   MarketFeed,
+  ReturnMessage,
   WireFeedState,
   WireMarketBreadth,
   WireMarketOverview,
@@ -138,6 +139,27 @@ export interface ProducedFeed {
    * in when the rollback is **not** what a spec meant to model.
    */
   readonly sendOverview: (overview: WireMarketOverview) => void;
+  /**
+   * Send the fifth frame type — the one-symbol `return` (Task 5.6.8).
+   *
+   * **Scoped to one symbol, which is the whole reason it is a frame rather
+   * than a field**: the gateway answers the `focus` the subscribe carried, so
+   * this is the only frame on this wire whose content depends on which
+   * security a browser is looking at.
+   *
+   * **A furnished score is one keystroke from furnishing nothing**, which is
+   * this harness's standing hazard and is sharper here than anywhere else:
+   * `readAnomalyScore` **re-adds the published contributions** and refuses the
+   * whole explanation when `Σ contribution !== score`, re-derives each
+   * contribution from `round(weight × rank / 100)`, requires
+   * `Σ weight === max`, and recomputes the band from **this bundle's**
+   * `ANOMALY_BAND_FLOORS`. A frame that fails any of those draws the
+   * *deferred* state — no ink at all — which is indistinguishable on screen
+   * from a gateway that sent no score, so a spec meaning to photograph a chip
+   * silently photographs an empty rail. {@link ServeFeedOptions.symbolReturn}
+   * is where the arithmetic is spelled out.
+   */
+  readonly sendReturn: (message: ReturnMessage) => void;
   /** Say the connection has gone quiet, which the gateway does say. */
   readonly goStale: () => void;
   /** Kill it. The browser concludes `disconnected` from the close itself. */
@@ -262,6 +284,30 @@ export interface ServeFeedOptions {
   readonly overviewOnReconnect?: WireMarketOverview;
 
   /**
+   * **The one-symbol `return` frame, sent beside the snapshot on connect**
+   * (Task 5.6.8) — `WireSymbolReturn`, the volume comparison and the composite
+   * score, which are the three figures `Abnormal-move indicators` draws.
+   *
+   * Omit it to model a gateway that sends none, which is what a browser
+   * holding a bundle across a deploy gets and is the region's **deferred**
+   * state: no ink at all, headings included (ADR 0029's defer rule).
+   *
+   * **Sent on connect rather than in answer to the `subscribe`'s `focus`,
+   * and that is the one way this differs from the shipped gateway.** The
+   * reducer keys `symbolReturn` on the frame's own `symbol` and not on the
+   * subscription, so the ordering is invisible to every surface; what a spec
+   * using this may **not** claim is anything about the focus round-trip, which
+   * is `security-abnormal-move.spec.ts`' pass-through and is the only thing
+   * that can.
+   *
+   * **A spec that asserts a figure serves its own answer.** CI's store is 516
+   * securities and zero bars with `provider=none`, so the real gateway there
+   * sends a refusal on every member of this frame, for ever — and a composite
+   * score has never been drawn on any gated machine or seen by any person.
+   */
+  readonly symbolReturn?: ReturnMessage;
+
+  /**
    * **What the browser's own retry is answered with.** Defaults to `"served"`,
    * which is this harness's behaviour since Task 3.10.2.
    *
@@ -375,6 +421,11 @@ export async function serveFeed(
     );
   };
 
+  /** The one-symbol frame, from the shipped encoder, at its one send site. */
+  const sendReturn = (message: ReturnMessage): void => {
+    socket?.send(encodeMarketStreamMessage(message));
+  };
+
   await page.routeWebSocket(/\/market-stream$/u, (ws) => {
     connections += 1;
 
@@ -406,10 +457,15 @@ export async function serveFeed(
       ? (options.overviewOnReconnect ?? options.overview)
       : options.overview;
     if (aggregate !== undefined) sendOverview(aggregate);
+
+    // **Beside the snapshot too** — see `ServeFeedOptions.symbolReturn` for
+    // the one way this differs from the gateway, which answers a `focus`.
+    if (options.symbolReturn !== undefined) sendReturn(options.symbolReturn);
   });
 
   return {
     sendOverview,
+    sendReturn,
     connections: () => connections,
     refusals: () => refusals,
     overviews: () => overviews,
