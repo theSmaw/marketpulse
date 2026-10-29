@@ -1,6 +1,6 @@
 # Task 5.7.6 — `docs/GAPS.md`, four mechanisations, and the ADR nobody wrote
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-29**
 **Story:** [5.7 The Rehearsal, the Sweep, & Epic 5's Close](STORY.md)
 **Depends on:** —
 
