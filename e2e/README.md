@@ -87,6 +87,25 @@ correct throughout, the feed was rendered and labelled in the footer, and it was
 the spec that was stale. All 18 deployed specs pass against the live site with
 the one word changed.
 
+**And it happened AGAIN on 2026-10-29, to the same person who had just repaired
+the same defect twice in `specs/`.** Story 5.6 gave the score ledger a real
+`<table>`, which broke every bare `getByRole("table")` on the security page.
+That was repaired as an **instance** (one spec), then CI found eleven more sites
+across three files, then a proper grep found two further shapes
+(`querySelector("table")` taking the first table, `getByRole("row")` counting
+both) — and the sweep that found all of those was scoped to **`e2e/specs/`**, so
+`specs-deployed/security-explorer-journey.spec.ts:232` survived untouched.
+`verify` and `e2e` were green, the merge landed, and `check-deployed` went red
+**after** it, which skipped that story's deploy.
+
+So the habit above — **grep `e2e/`, never `e2e/specs/`** — now has three
+datings, and the strongest form of it is a rule about **class rather than
+instance**: when a change to a shipped component breaks a locator, the first
+question is _how many sites use this locator_, across both directories, before
+any single one is edited. The repository's own warning was already written here
+and was not enough, because what fails is the **scope of the grep** rather than
+the knowledge that two directories exist.
+
 ## Where it runs in CI
 
 It is a **second job named `e2e` in `.github/workflows/verify.yml`**, alongside
@@ -647,6 +666,50 @@ Playwright's per-test timeout is 30 s and is deliberately left there; the
 `expect` timeout is 10 s rather than the default 5 s, because 5 s _is_ the
 request deadline. A test that waits out a poll raises its own timeout and
 derives it.
+
+## A fixture instant evaluated at MODULE LOAD ages across the suite
+
+**Added 2026-10-29, after it went red twice in CI and passed every scoped run
+locally.** `security-amber-conjunction.spec.ts` furnishes a snapshot whose bar
+is meant to be a few seconds old, so the feed reads `LIVE` and draws no stale
+mark. It was written as a `const` at module scope:
+
+```ts
+const LIVE_PRICE = {
+  NVDA: { startsAt: new Date(Date.now() - 5_000).toISOString(), ... },
+};
+```
+
+That instant is evaluated **once, when the module is loaded** — not when the
+route is served. The spec walks seven states in one test, so by row 06 the
+"five seconds ago" observation was **minutes** old, `feedStatusFrom` read the
+feed as stale, and the row found an **extra** amber mark it had not declared:
+
+```
+  "amber fill chip (encloses its own name) @ region · Abnormal-move indicators",
++ "amber fill disc @ status bar · feed cell",
+  "amber fill square @ status bar · feed cell",
+```
+
+The cure is one character's worth of shape: **a furnished instant is a
+function**, evaluated at serve time.
+
+```ts
+const livePrice = () => ({
+  NVDA: { startsAt: new Date(Date.now() - 5_000).toISOString(), ... },
+});
+```
+
+Three things worth carrying from it. **It is invisible to a scoped run**:
+`--repeat-each=4` on the one spec passes, because the module is loaded moments
+before the test; the failure needs the spec to run **minutes into a whole
+suite**, which is why it reproduced on CI and on `main` and not on a developer's
+machine. So the honest reproduction for a time-dependent spec is `pnpm e2e`, not
+the spec alone. **A longer wait makes it worse, not better** — the first repair
+attempted here replaced a 300 ms settle with a wait on the band word, which
+gives the fixture more time to age. And **it is the same class of defect as a
+spec furnishing its own answer**: a fixture that encodes _now_ at authoring time
+is a constant pretending to be an observation.
 
 ## No `visibilityState` workaround, and none is needed
 
