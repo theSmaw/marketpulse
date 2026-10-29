@@ -216,9 +216,37 @@ What you add is the **orchestration**, not the arithmetic.
 its alternatives at Epic 5's Gate 1:**
 
 - **It is absolutely calibrated** against each security's own history, not a
-  cross-sectional rank against the day's universe. So **a quiet day produces no
+  cross-sectional rank against the day's universe. ~~So **a quiet day produces no
   high scores**, and an investigation triggered by a score cannot be
-  manufactured for a demo.
+  manufactured for a demo.~~
+
+  **The struck half is FALSE and was falsified by measurement — amended
+  2026-10-29 by Task 5.7.3 at Epic 5's close, on the owner's decision to amend
+  the promise rather than the score.** The calibration sentence above the strike
+  is unchanged and correct; what does not follow from it is the consequence this
+  file drew.
+
+  **The reason is arithmetic rather than empirical: a percentile is uniform on
+  its own sample by construction.** So at every instant of every session, calm
+  or violent, about 1% of securities sit at their own 99th. Measured over 484
+  scored securities per instant: `normal` **219.2**, `elevated` **179.4**,
+  `high` **39.3**, `extreme` **7.74**. A quiet day produces `high` about forty
+  times and `extreme` about eight times, and **that is the correct answer** to
+  the question the score asks — _how unusual is this **for this security**_ —
+  rather than a calibration fault. The only thing that would make a quiet day
+  quiet in the cross-section is a **cross-sectional reference**, which Epic 5's
+  Gate 1 decision 5 refused in terms and which ADR 0046's whole family argument
+  rests on not having.
+
+  **So the second half is false too, and it is the half that matters to you: an
+  investigation triggered by a score CAN be manufactured for a demo**, on any
+  day including a dead one. Plan for that rather than discovering it — if an
+  investigation needs a genuinely unusual market to be worth watching, the
+  trigger cannot be _the score is high_ alone. `packages/shared/src/composite-score.ts`
+  carries the measurement and names this as a product claim routed to the owner;
+  `PRODUCT_SPEC.md` §11 carries its own dated amendment of the same prediction
+  from 2026-10-22, which this file did not receive for a week.
+
 - **`AnomalyScore` cannot be constructed without its explanation**, and the
   explanation cannot hold a figure that was not produced by a named
   calculation — a type rather than a test. Your findings inherit a structure
