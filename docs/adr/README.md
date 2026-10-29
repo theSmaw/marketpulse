@@ -65,6 +65,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0044](0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)                 | A derived aggregate is computed nightly and keyed by the session it is for                           | Accepted |
 | [0045](0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)                                     | A cross-tape comparison, and what a ratio is a ratio OF                                              | Accepted |
 | [0046](0046-what-a-composite-score-is-what-it-refuses-and-where-its-guarantee-ends.md)                     | What a composite score is, what it refuses, and where its guarantee ends                             | Accepted |
+| [0047](0047-a-derived-statistic-reads-the-raw-store-and-refuses-rather-than-adjusts.md)                    | A derived statistic reads the raw store and refuses rather than adjusts                              | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

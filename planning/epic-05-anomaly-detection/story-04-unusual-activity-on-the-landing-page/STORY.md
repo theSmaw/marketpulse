@@ -382,3 +382,22 @@ that silently drops a refused security is `Movers`' own lesson one surface over:
 the two sufficient shapes and Story 5.3 proved they are not interchangeable: a
 planted `rank × 0.8 when n > 500` left the **golden sample green** and was caught
 only by an independent recompute.
+
+## Gate 2 — the acceptance criteria, verdicted — reconstructed 2026-10-29 at Epic 5's close
+
+**This story closed without a per-criterion verdict table, and so did Stories
+5.5 and 5.6.** Stories 5.1, 5.2 and 5.3 each published one; three of six did not,
+and they are the three most recent — so the practice got **worse** across the
+epic rather than better, which is the same thing Epic 4's close found (three of
+eight) and wrote down.
+
+**The table for this story's thirteen criteria is in
+[Task 5.7.2's record](../story-07-the-rehearsal-the-sweep-and-the-epic-close/TASK-02-the-fifty-nine-criteria-verdicted.md).** It is there rather than here deliberately: it
+was **reconstructed from this story's task files** rather than written at this
+story's own close, and a verdict written weeks later by somebody re-reading the
+record is a different artefact from one written by the people who did the work.
+Putting it here would disguise that. Each row names its instrument, says whether
+it is a **re-take** (a command a clean clone can run) or a **dated reading**, and
+— new at this close — **which store the reading came from**, because "verified"
+in this epic frequently means verified in the **refusal arm** on a machine with
+no bars.

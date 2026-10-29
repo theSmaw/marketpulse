@@ -288,11 +288,22 @@ const REHEARSAL_LEDGER_EPICS = [
   // finding: a ledger row written at the close is a row written after the only
   // sittings that could have filled it, and the row this epic owes
   // (`Relative performance` against a real feed) is unobtainable from anything
-  // but a session. `rowFloor` is 1 and is taken from the file as it stands.
+  // but a session.
+  //
+  // **`rowFloor` was 1 and is 6 since 2026-10-29 (Task 5.7.6).** It was taken
+  // from the file as it stood when Story 5.1 wrote it — one row — and nothing
+  // raised it as 5.2 through 5.6 added theirs, so **five of Epic 5's six rows
+  // could have been deleted and this anchor would still have passed**, which
+  // is the exact state it exists to refuse: *a reformatted or relocated table
+  // makes this check pass without reading anything.* Six is the count in the
+  // file today (5.1–5.6, one per story that owes a sitting), and Epic 3 and
+  // Epic 4 both carry 7 against seven rows for the same reason. **A floor is
+  // raised in the change that adds the row** — the only reason this one went
+  // stale is that each story added its row and left the anchor alone.
   {
     epic: "5",
     rowPattern: /^\|\s*5\.\d+\s*\|/u,
-    rowFloor: 1,
+    rowFloor: 6,
     closeStoryPath:
       "planning/epic-05-anomaly-detection/" +
       "story-07-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
@@ -8648,7 +8659,11 @@ const INVARIANTS = [
             "second one silently un-holds the rule it carries: **score " +
             "descending, then ticker ascending**. Rank through " +
             "`compareByScore`. And note the order that is NOT permitted " +
-            "anywhere: `score / max`. A reduced-factor score lives on a lower " +
+            "anywhere: `score / max` — held since 2026-10-29 by " +
+            "`no-renormalised-score`, which is keyed on the **division** " +
+            "rather than on the order, because this message had been " +
+            "claiming `anywhere` while this check could only see a " +
+            "comparator. A reduced-factor score lives on a lower " +
             "scale deliberately (Story 5.6's Gate 1 decision 2), and ranking " +
             "on the ratio is AC 3's renormalisation arriving at the " +
             "comparator — it lifts the **worst-covered** securities into the " +
@@ -9379,6 +9394,770 @@ const INVARIANTS = [
             "\n    It measures under 2.2:1 on both page grounds and is a " +
             "fill-or-icon colour only. The band's name is what carries the " +
             "band; the fill is the redundancy behind it.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "a-factor-reads-no-clock",
+    claim:
+      "Every anomaly factor module the composite's translation site imports " +
+      "reads NO clock — `Date.now()` and a zero-argument `new Date()` appear " +
+      "in none of them, so every instant a factor works from is an argument.",
+    check() {
+      // **Task 5.7.6, and it discharges the surviving half of a `docs/GAPS.md`
+      // entry that had been open since Story 5.5's close**: *no backend factor
+      // has ever been mechanically pure.* The four clock rules in
+      // `eslint.config.mjs` are `no-restricted-syntax` entries scoped to
+      // `packages/shared/src/**` — deliberately, that being the package both
+      // sides of the wire share — and five of the six factors live in
+      // `apps/backend/src`, where no rule reaches them. Their purity is real
+      // and was held by **prose and unit tests**.
+      //
+      // ## Why the entry stayed open for nine days, and why that was avoidable
+      //
+      // Its own text says the repair is *widening the lint rules to
+      // `apps/backend/src`*, which would catch `index.ts` and
+      // `market-gateway.ts` — both of which read the clock **legitimately** —
+      // and therefore *needs an argued, stated exemption list rather than a
+      // blind widening, which is work, not a line*. That framing is what kept
+      // it open, and it is a framing error: **the corpus does not have to be
+      // the package.** A factor is not *a file in a directory*; it is a module
+      // whose answer the composite translates. Keyed that way there is nothing
+      // to exempt, because the gateway and the process entrypoint are not in
+      // the corpus at all — they are the callers, not the factors.
+      //
+      // ## Why a clock in a factor is a defect nothing else can see
+      //
+      // Invariant 4: temporal isolation belongs in the data and tool layers so
+      // future-information leakage is **structurally impossible**. A factor
+      // that reads the process clock computes against *now* while the
+      // generation it is answering for is addressed as-of a past session, so
+      // Epic 13 replays a session and gets today's answer — correctly shaped,
+      // correctly signed, re-adding to its own contributions, and wrong. Every
+      // one of `readAnomalyScore`'s five wire checks passes on it, and so does
+      // every unit test, because a test furnishes the instant it then asserts
+      // on.
+      //
+      // ## The corpus is DERIVED, and the clause is the import
+      //
+      // `market-composite.ts` is the one translation site in front of the
+      // mint: its `Record<CompositeFactor, FactorAnswer>` is keyed on the
+      // factor union, so **a fourth factor is a compile error here naming the
+      // missing member**, and its answer mapper has to import that factor's
+      // vocabulary at the top of this file. That import is the clause a
+      // re-implementer cannot avoid writing — unlike a filename, a directory
+      // or a naming convention, none of which a new factor is obliged to
+      // follow.
+      //
+      // **The draft this replaced was keyed on the five filenames
+      // `docs/GAPS.md` prints**, which is the obvious draft precisely because
+      // that list is printed. Proved rather than argued (Task 5.7.6): against
+      // a plant — `apps/backend/src/breadth-factor.ts` holding
+      // `const asOf = new Date();`, imported into the translation site as a
+      // fourth factor's type — the filename draft reported `75 invariants
+      // hold.` This clause reports the file.
+      //
+      // ## Its honest limit
+      //
+      // **The volume factor has no module in this corpus**, because
+      // `volumeFactorAnswer()` takes **no argument** — Story 5.6's decision 1,
+      // stated as a signature: `0015` stores a median and a dispersion rather
+      // than a distribution, so the answer is `no-distribution` for every
+      // security at every instant and depends on nothing. There is nothing to
+      // import and so nothing to check. It joins the corpus on the day its arm
+      // gains a distribution, which is the same commit as
+      // `ANOMALY_BAND_FLOORS`' trigger 1, and it joins by the import that day
+      // requires rather than by anybody remembering this comment.
+      //
+      // The imports read are **direct** rather than transitive: what this
+      // holds is that the modules the composite translates are pure, not that
+      // everything they reach is. Both baseline stores are clock-free today
+      // (verified), and a store is where a legitimate clock read would first
+      // be reasonable — which is why widening to the transitive closure would
+      // re-introduce the exemption-list problem this keying exists to avoid.
+      const SITE = "apps/backend/src/market-composite.ts";
+
+      // Named, because they are the two factors with modules today and a
+      // corpus that silently loses one is a corpus that checks nothing.
+      const NAMED = ["return-percentile.ts", "excess-move-factor.ts"];
+
+      const site = withoutComments(readAnchored(resolve(REPO_ROOT, SITE)));
+
+      // Every `./`-relative module the translation site imports, as a path.
+      // `import type` and a value import are the same thing here: a factor's
+      // vocabulary arrives either way.
+      const local = [
+        ...new Set(
+          [...site.matchAll(/from\s+"\.\/([\w.-]+)\.js"/gu)].map(
+            (match) => `${match[1]}.ts`,
+          ),
+        ),
+      ];
+
+      // The anchor, and it has two conjuncts because a derived corpus fails
+      // two ways. It can go EMPTY — the site renamed, moved, or its imports
+      // rewritten to a bare specifier — in which case this check passes over
+      // nothing. And it can go SHALLOW: resolve to one module while a factor
+      // the composite still translates has dropped out of the pattern, which
+      // reads exactly like a pass.
+      if (local.length < 2) {
+        throw new InvariantFailure(
+          `${SITE} resolves to ${String(local.length)} local module(s), and ` +
+            "this check needs at least two. The corpus is derived from that " +
+            "file's own `./`-relative imports, so either the translation " +
+            "site moved, or the factors it translates now arrive through a " +
+            "specifier this pattern cannot see. Repoint it in the same " +
+            "change — a corpus of nothing is a check that passes on every " +
+            "clock in the tree.",
+        );
+      }
+
+      const missing = NAMED.filter((name) => !local.includes(name));
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          `${SITE} no longer imports ${missing.join(", ")}, which this ` +
+            "check is anchored on. Either a factor lost its module — in " +
+            "which case the composite is scoring something that is not that " +
+            "factor — or the import moved. The anchor is here because a " +
+            "derived corpus that quietly shrinks is indistinguishable from " +
+            "a tree that holds.",
+        );
+      }
+
+      // `Date.now()` and a zero-argument `new Date()` — `eslint.config.mjs`'
+      // own two clock rules, in the same shape, over a corpus the lint rule
+      // does not reach. A `new Date(instant)` is not a clock read: it is a
+      // conversion of a value somebody passed in, which is the whole idiom
+      // these factors use.
+      const CLOCK = /\bDate\s*\.\s*now\s*\(\s*\)|\bnew\s+Date\s*\(\s*\)/u;
+
+      const offenders = [];
+
+      for (const file of [SITE, ...local.map((n) => `apps/backend/src/${n}`)]) {
+        const path = resolve(REPO_ROOT, file);
+        if (!existsSync(path)) continue;
+
+        // Trailing comments stripped too: this check treats a MATCH as the
+        // failure, so a `// new Date()` in prose is a false red. Blanked
+        // rather than removed, newlines kept, so the line number reported is
+        // the line in the file — `withoutComments` deletes whole lines, and
+        // this repository writes more prose than code, so a position taken
+        // after the cut sends a reader 70 lines short of the defect.
+        const text = readFileSync(path, "utf8")
+          .replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+            comment.replace(/[^\n]/gu, " "),
+          )
+          .replace(/(^|[^:])\/\/[^\n]*/gu, "$1");
+        const line = text
+          .split("\n")
+          .findIndex((candidate) => CLOCK.test(candidate));
+
+        if (line >= 0) {
+          offenders.push(`${file}:${String(line + 1)}`);
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} module(s) the composite translates ` +
+            "read a clock:\n      " +
+            offenders.join("\n      ") +
+            "\n    A factor takes its instants as ARGUMENTS. One that reads " +
+            "`Date.now()` or a zero-argument `new Date()` computes against " +
+            "*now* while the generation it answers for is addressed as-of a " +
+            "session, so Epic 13 replays a past session and gets today's " +
+            "score — invariant 4's leak, in the one place that invariant " +
+            "promises it is structurally impossible. Nothing downstream can " +
+            "see it: the score re-adds to its own contributions, so all five " +
+            "of `readAnomalyScore`'s checks pass, and a unit test furnishes " +
+            "the instant it then asserts on.\n    Take the instant as a " +
+            "parameter from the one caller that legitimately holds a clock " +
+            "— `index.ts` or `market-gateway.ts`, which are the callers and " +
+            "deliberately NOT in this corpus.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "no-renormalised-score",
+    claim:
+      "No shipped file outside `composite-score.ts` divides a composite " +
+      "score by its own maximum — ADR 0046 §2's no-renormalisation, held " +
+      "wherever the division could be written rather than only in a " +
+      "comparator.",
+    check() {
+      // **Task 5.7.6, and it exists because a failure message was claiming a
+      // prohibition no check carried.**
+      //
+      // `one-comparator-for-the-order-of-a-composite-score` says, in as many
+      // words, *note the order that is NOT permitted **anywhere**:
+      // `score / max`*. What that check actually holds is lines putting two
+      // `.score` reads either side of a relational or subtraction operator —
+      // an ORDER. A renormalisation that orders nothing is outside it
+      // entirely, which is this repository's own recorded class: *a claim
+      // about a mechanism reads identically whether the mechanism is there or
+      // not.* Proved rather than argued (Task 5.7.6): with
+      // `Math.round((100 * score.score) / score.max)` live in
+      // `apps/frontend/src/market/anomaly-score.ts`, every invariant was
+      // green — `75 invariants hold.`
+      //
+      // ## Why renormalisation is a decision and not a taste
+      //
+      // ADR 0046 §2 gives it two independent arguments, and the second is the
+      // one a reader does not expect.
+      //
+      //   1. **It promotes the worst-covered securities.** A score from fewer
+      //      factors has the higher variance, so `score ÷ max` lifts a
+      //      one-factor security's lucky rank over a three-factor security's
+      //      measured one. `UNIVERSE.md` rule 4 spent ~19 discretionary
+      //      curation slots preventing that promotion at a different layer.
+      //   2. **`ANOMALY_BAND_FLOORS` are measured quantiles of a max-75
+      //      scale.** `32 / 63 / 73` came from 34,318 scores taken on a
+      //      two-factor tree. Renormalising to 100 invalidates **all three**
+      //      floors the day it ships, silently: every drawn band moves, no
+      //      figure contradicts another, and the words `extreme` and `normal`
+      //      quietly stop meaning what they were measured to mean.
+      //
+      // Neither is visible downstream. A renormalised figure is a plausible
+      // percentage, and `readAnomalyScore`'s five wire checks are about the
+      // score's own re-addition, not about anything a reader divides it by
+      // afterwards.
+      //
+      // ## The clause is THE DIVISION, and it is literal here
+      //
+      // This repository prefers a clause the re-implementer cannot avoid —
+      // *the division, not the type name* — and for once the division IS the
+      // defect rather than a proxy for it. `ScoreRanked` deliberately has no
+      // `max` member, so anything wanting the ratio has to reach for
+      // `AnomalyScore.max` **by name**: the divisor is the fingerprint.
+      //
+      // Three divisor shapes, because three are reachable: a `max` property
+      // read (`score.max`, `outcome.max`, `value.max`); a constant whose name
+      // pairs a maximum with a score (`MAX_SCORE`, `ANOMALY_SCORE_MAX`); and
+      // a `FACTOR_WEIGHTS` total, which is the same quantity derived instead
+      // of read.
+      //
+      // ## What it deliberately does NOT flag, so that it never cries wolf
+      //
+      // `Math.max(…)` as a divisor — a clamp, and `chart-time-axis.ts` and
+      // `chart-geometry.ts` are full of them. And a division by a `max` whose
+      // line says nothing about a score, because a chart axis legitimately
+      // normalises a value against `bounds.max`: `MAX_HOURLY_TICKS` is
+      // divided by in the shipped tree today, and a clause blind to the
+      // subject would be red on an axis stride. The cost is a false negative
+      // — a renormalisation written as `points / scale.max` with the word
+      // `score` nowhere on the line — which is the direction that leaves a
+      // reader reading rather than a check being disabled.
+      const HOME = "packages/shared/src/composite-score.ts";
+      const RANKED = "packages/shared/src/score-ranking.ts";
+
+      // The anchor, and both conjuncts are the names the clause reaches for.
+      // A "must find nothing" assertion over a division passes vacuously the
+      // day the member it divides by is renamed.
+      const home = readAnchored(resolve(REPO_ROOT, HOME));
+
+      if (!/\breadonly max:\s*number;/u.test(home)) {
+        throw new InvariantFailure(
+          `${HOME} no longer declares a \`readonly max: number\` member, ` +
+            "and this clause is keyed on the divisor a renormaliser reaches " +
+            "for by name. Either the score stopped carrying its own maximum " +
+            "— in which case `2 of 3 · max 75` is drawn from something else " +
+            "and ADR 0046's reduced-factor account needs re-reading — or it " +
+            "was renamed. Repoint this check in the same change.",
+        );
+      }
+
+      const ranked = readAnchored(resolve(REPO_ROOT, RANKED));
+      const scoreRanked = /export interface ScoreRanked\s*\{([^}]*)\}/u.exec(
+        ranked,
+      );
+
+      if (!scoreRanked) {
+        throw new InvariantFailure(
+          `${RANKED} no longer declares \`ScoreRanked\`, which is the ` +
+            "premise this check and its sibling's message both rest on: the " +
+            "ranked row has no maximum to divide by.",
+        );
+      }
+
+      if (/\bmax\b/u.test(withoutComments(scoreRanked[1]))) {
+        throw new InvariantFailure(
+          `${RANKED}'s \`ScoreRanked\` has grown a \`max\` member. That is ` +
+            "the type ADR 0046 §2 kept narrow on purpose — a comparator " +
+            "that wanted `score ÷ max` had nothing to divide by — and a row " +
+            "carrying one makes the renormalisation a one-line edit at every " +
+            "ranked surface. This check is still keyed on the division, but " +
+            "the guard rail in front of it is gone.",
+        );
+      }
+
+      // A `max` property read as the divisor, with `Math.max` excluded below.
+      const BY_MAX = /\/\s*(?:[A-Za-z_$][\w$]*\s*(?:\?\.|\.)\s*)*max\b/u;
+      const BY_MATH_MAX = /\/\s*Math\s*(?:\?\.|\.)\s*max\b/u;
+
+      // A maximum named for the thing it bounds, and the weight total that
+      // derives the same number instead of reading it.
+      const BY_SCORE_MAX =
+        /\/\s*(?:[A-Za-z_$][\w$]*\s*\.\s*)*(?:[A-Z0-9_]*(?:SCORE|ANOMALY)[A-Z0-9_]*MAX[A-Z0-9_]*|MAX[A-Z0-9_]*(?:SCORE|ANOMALY)[A-Z0-9_]*|[\w$]*FACTOR_WEIGHTS)\b/u;
+
+      const SUBJECT = /score/iu;
+
+      const offenders = [];
+
+      for (const { path, text } of shippedSourceFiles()) {
+        const file = relative(REPO_ROOT, path);
+        if (file === HOME) continue;
+
+        // Trailing comments too: a match is the failure here, so a `//
+        // score / max` written in prose beside code would be a false red.
+        const lines = withoutTrailingComments(text).split("\n");
+
+        for (const [index, line] of lines.entries()) {
+          const byScoreMax = BY_SCORE_MAX.test(line);
+          const byMax = BY_MAX.test(line) && !BY_MATH_MAX.test(line);
+
+          if (!byScoreMax && !(byMax && SUBJECT.test(line))) continue;
+
+          offenders.push(
+            `${file}:${String(index + 1)}\n        ${line.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} shipped line(s) divide a composite ` +
+            "score by its own maximum:\n      " +
+            offenders.join("\n      ") +
+            "\n    ADR 0046 §2 refuses renormalisation for two independent " +
+            "reasons and the second is the expensive one. It promotes the " +
+            "WORST-COVERED securities, because a score from fewer factors " +
+            "has the higher variance. And `ANOMALY_BAND_FLOORS` — " +
+            "`32 / 63 / 73` — are measured quantiles of a **max-75** scale " +
+            "over 34,318 scores, so a ratio scaled back to 100 invalidates " +
+            "all three floors the day it ships: every band a reader sees " +
+            "moves, and no figure on the screen contradicts another.\n    A " +
+            "reduced-factor score means *at least this unusual, on the " +
+            "evidence we have* — which is why the count AND the maximum " +
+            "travel beside it rather than being folded into it. Draw the " +
+            "two numbers (`61` and `max 75`); never their quotient. If what " +
+            "you want is comparability, that is " +
+            "`selectLargestCohort` — a partition, not a rescale.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "a-var-read-resolves-to-a-declared-token",
+    claim:
+      "Every `var(--x)` read in a CSS Module resolves to a custom property " +
+      "this product declares somewhere — a token layer, another module, or a " +
+      "`setProperty` — so no rule can resolve to nothing.",
+    check() {
+      // **Task 5.7.6.** `styles/tokens.ts` throws at startup if a **declared**
+      // token is missing from the stylesheet, and that is the only mechanism
+      // this product has had in this direction. It is keyed on `TOKEN_NAMES`,
+      // which is a **list**, and two of Epic 5's five ambers —
+      // `--service-degraded` and `--provenance-synthetic` — are not in it
+      // (verified 2026-10-29). So the throw does not reach them, and the
+      // failure it cannot see is the one that matters: a `var()` naming a
+      // property nothing declares is **invalid at computed-value time**, so
+      // the declaration is dropped and the property takes its inherited or
+      // initial value. A marker's fill becomes `transparent`; an ink becomes
+      // whatever it inherited; `background: var(--service-degraded)` paints
+      // nothing at all. Nothing in `pnpm verify` can see any of it — jsdom
+      // applies no stylesheet, no test in this product asserts a colour
+      // (structurally: `getTokens()` throws in the test environment), and axe
+      // reads a DOM.
+      //
+      // ## Why this rather than two more names in `TOKEN_NAMES`
+      //
+      // Because the list is the defect. `TOKEN_NAMES` is maintained by hand
+      // and names what a reader has to **read in JavaScript**, which is a
+      // different and much smaller set than what the stylesheets **spend** —
+      // so the two sets drift, in the direction of the list. Epic 6 adds a
+      // topology palette and Epic 9 a filings surface; each is a tranche of
+      // new properties and new consumers, and nobody adding one is obliged to
+      // touch a TypeScript array. This is keyed on the **read** instead, so a
+      // new token is covered by being spent and a renamed one is caught by
+      // the consumer left behind.
+      //
+      // Proved rather than argued: with `--service-degraded` renamed to
+      // `--service-degraded-ink` in `market.css` and three consumers left
+      // reading the old name — one of them a `background` — the run reported
+      // `76 invariants hold.` **Writing it found a live defect**:
+      // `SourceNote.module.css`' `.live` read `--color-ink-secondary`, which
+      // this product has never declared (the token is `--ink-secondary`, used
+      // six times in that same file). It is invisible today only by luck —
+      // `.note` sets the same ink and `.live` inherits it — which is the
+      // shape `a-compose-never-carries-an-override` also found twice: a rule
+      // that is **there**, reads correctly, and does nothing.
+      //
+      // ## Three declaration sources, and a fallback is not a defect
+      //
+      // A property is declared if a token layer declares it, if any module
+      // declares it — four do, and two of those are set by a **parent**
+      // component for a child's module to read (`--marker-color`,
+      // `--metric-columns`), which is this product's idiom and not a smell —
+      // or if a component publishes it with `setProperty`, which is how
+      // `--sticky-footer-height` exists. And a read supplying a **fallback**
+      // is exempt, because it resolves to the fallback: there is one in the
+      // tree and it is the JS-published one, read before the effect that
+      // publishes it has run.
+      //
+      // ## What it does not hold
+      //
+      // Reads inside `styles/*.css` itself, where a token legitimately
+      // resolves another token, and reads assembled in JavaScript
+      // (`var(${name})`), which a grep cannot follow. The corpus is the
+      // modules because that is where a component spends a token, and it is
+      // **derived** — a new module is in it by existing.
+      const frontend = resolve(REPO_ROOT, "apps/frontend/src");
+      const files = sourceFilesUnder(frontend);
+
+      const modules = files.filter(({ path }) => path.endsWith(".module.css"));
+
+      if (modules.length === 0) {
+        throw new InvariantFailure(
+          "No `.module.css` files under apps/frontend/src — have they moved?",
+        );
+      }
+
+      const DECLARATION = /(--[\w-]+)\s*:/gu;
+
+      const declared = new Set();
+
+      // The token layers, and every module — the second because a parent
+      // component declaring a property for a child's module to read is this
+      // product's own idiom.
+      for (const { path, text } of files) {
+        if (
+          !/[/\\]styles[/\\][^/\\]+\.css$/u.test(path) &&
+          !path.endsWith(".module.css")
+        ) {
+          continue;
+        }
+
+        for (const match of text
+          .replace(/\/\*[\s\S]*?\*\//gu, "")
+          .matchAll(DECLARATION)) {
+          declared.add(match[1]);
+        }
+      }
+
+      // And anything a component publishes on an element at runtime.
+      for (const { path, text } of files) {
+        if (!/\.tsx?$/u.test(path)) continue;
+
+        for (const match of text.matchAll(
+          /setProperty\(\s*["'`](--[\w-]+)["'`]/gu,
+        )) {
+          declared.add(match[1]);
+        }
+      }
+
+      // The anchor, and it is keyed on the READS rather than on the
+      // declarations, because that is the direction that fails quietly: a
+      // regex that stops matching `var(` reports a clean tree, while a token
+      // layer that stops parsing reports a hundred offenders. Two conjuncts
+      // — a floor taken from the tree as it stands (107 distinct names read
+      // on 2026-10-29), and two named tokens every page spends, so a pattern
+      // that half-works is loud.
+      const READ = /var\(\s*(--[\w-]+)\s*([,)])/gu;
+
+      const reads = [];
+
+      for (const { path, text } of modules) {
+        // Comments blanked rather than removed, newlines kept, so the line
+        // number in the failure message is the line in the file — a reported
+        // position that is off by the length of the file's prose is a
+        // message that sends a reader to the wrong rule.
+        const body = text.replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+          comment.replace(/[^\n]/gu, " "),
+        );
+
+        for (const match of body.matchAll(READ)) {
+          const before = body.slice(0, match.index ?? 0);
+          reads.push({
+            path,
+            name: match[1],
+            fallback: match[2] === ",",
+            line: before.split("\n").length,
+          });
+        }
+      }
+
+      const names = new Set(reads.map((read) => read.name));
+
+      if (names.size < 80) {
+        throw new InvariantFailure(
+          `Only ${String(names.size)} distinct custom properties are read ` +
+            "across apps/frontend/src' CSS Modules, against 107 when this " +
+            "check was written and a floor of 80. The modules do not spend " +
+            "fewer tokens than they did, so this is the read pattern having " +
+            "stopped matching — and a `var()` pattern that matches nothing " +
+            "reports a clean tree. Repoint it in the same change.",
+        );
+      }
+
+      for (const anchor of ["--ink-secondary", "--space-8"]) {
+        if (!names.has(anchor)) {
+          throw new InvariantFailure(
+            `No CSS Module reads \`${anchor}\`, which every page in this ` +
+              "product spends. Either the token was renamed — in which case " +
+              "this check's own anchor needs moving with it — or the read " +
+              "pattern only half-works, which is indistinguishable from a " +
+              "tree that holds.",
+          );
+        }
+      }
+
+      const offenders = reads
+        .filter((read) => !read.fallback && !declared.has(read.name))
+        .map(
+          (read) =>
+            `${relative(REPO_ROOT, read.path)}:${String(read.line)}  ` +
+            `var(${read.name})`,
+        );
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} \`var()\` read(s) name a custom ` +
+            "property nothing declares:\n      " +
+            offenders.join("\n      ") +
+            "\n    An undeclared `var()` is invalid at computed-value time, " +
+            "so the whole declaration is DROPPED and the property takes its " +
+            "inherited or initial value — a fill becomes `transparent`, an " +
+            "ink becomes whatever it inherited, and the rule sits in the " +
+            "file reading correctly. Nothing else in `pnpm verify` can see " +
+            "it: `styles/tokens.ts` throws only for the names in its own " +
+            "`TOKEN_NAMES` list, jsdom applies no stylesheet, and a test " +
+            "cannot assert a colour at all.\n    Declare it in the layer " +
+            "that owns the meaning (`tokens.css` → `brand.css` → " +
+            "`market.css`), or spell the name the layer already uses. If it " +
+            "is published at runtime, publish it with `setProperty` and " +
+            "give the read a fallback.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "an-arrival-mark-is-keyed-on-the-arrival",
+    claim:
+      "Every arrival mark in this product is keyed on `arrivalKey`'s or " +
+      "`observationIdentity`'s answer — the observation's own content — and " +
+      "never on a figure.",
+    check() {
+      // **Task 5.7.6, and it is Story 5.4's AC 6 given a holder.** The
+      // criterion is *the arrival disc keeps its shipped meaning and is not
+      // re-pointed at the figure*; it was mentioned by number nowhere in its
+      // own story's directory, and the only instrument was a grep over one
+      // file.
+      //
+      // ## The defect class, which this repository has met three times
+      //
+      // The disc means **a bar arrived for this security**, and it has been
+      // decided three times that it does not mean *this number changed* —
+      // `▲` already says that (Task 3.4.4, the motion vocabulary: *work in
+      // progress LOOPS, a state PERSISTS, a fact arriving DECAYS*). Task
+      // 3.4.6 then moved the key off `startsAt` onto the observation's
+      // **content**, because §7.8 measured 14 revisions in one session of
+      // which **three changed the close** — so a figure could move with
+      // nothing marking it, the exact inverse of the decision.
+      //
+      // Keyed on a figure, the mark is wrong in both directions at once and
+      // **neither direction is visible on screen**: a revision that corrects
+      // a bar without changing the figure draws no mark, and a re-ranking,
+      // re-render or basis change that moves the figure with no bar behind it
+      // draws one. A reader cannot tell a mark that lied from a quiet minute.
+      //
+      // **And since Task 5.6.7 it is cheaper to write than when the AC was
+      // drafted**: the score is the `Unusual activity` row's ONLY figure, so
+      // `arrival: String(row.score)` is the shortest thing an author reaches
+      // for, and it type-checks — the key is a `string | undefined`, which is
+      // what makes a React `key` restart the decay.
+      //
+      // ## The corpus is every shipped file, and that is the load-bearing part
+      //
+      // A region is a directory by this repository's convention, so a
+      // directory list is green on the file the next story writes — which is
+      // not a hypothesis: the first `one-home-for-imperative-navigation` was
+      // four tokens over the four directories that draw rows and passed on
+      // Epic 5's new one. Proved again here (Task 5.7.6): the draft keyed on
+      // the four row-drawing directories plus `src/market/` reported `78
+      // invariants hold.` against
+      // `apps/frontend/src/components/AnomalyHistory/AnomalyHistory.tsx`
+      // holding `arrival: String(row.score)` — the region Epic 5 defers and
+      // somebody writes next.
+      //
+      // ## Two clauses, because there are two ways to key one
+      //
+      // The **assignment** — a producer's `arrival:` property or a JSX
+      // `arrival={…}` — and the **hook**, `useArrival`, which
+      // `SecurityIdentity` needs because it must survive the route changing
+      // symbol underneath it without re-mounting. A clause on the assignment
+      // alone is green on `useArrival(symbol, String(price), …)`.
+      //
+      // Forwarding is permitted and has to be: `arrival={row.arrival}` and
+      // `arrival={arrival}` are the shipped shape at every drawing site, and
+      // the value they pass came from the producer this check already read.
+      // So what is refused is an arrival **minted** from anything but the one
+      // producer — which is the operation, and the thing a re-implementer
+      // cannot avoid.
+      const HOME = "apps/frontend/src/market/arrival.ts";
+
+      const home = readAnchored(resolve(REPO_ROOT, HOME));
+
+      if (
+        !/export function arrivalKey\(/u.test(home) ||
+        !/export const observationIdentity/u.test(home)
+      ) {
+        throw new InvariantFailure(
+          `${HOME} no longer declares both \`arrivalKey\` and ` +
+            "`observationIdentity`, which are the two names this clause " +
+            "permits. Either the one home for *what counts as an arrival* " +
+            "has moved — and the vocabulary now has two policies that agree " +
+            "today and disagree invisibly, which is the shape Task 3.5.2 " +
+            "removed from the subscription — or they were renamed. Repoint " +
+            "this check in the same change.",
+        );
+      }
+
+      // The minters, and a forwarding of a value already minted.
+      const KEYED = /\barrivalKey\s*\(|\bobservationIdentity\s*\(/u;
+      const FORWARDED = /^[\w$]+(?:\??\.[\w$]+)*$/u;
+
+      const offenders = [];
+      let assignments = 0;
+      let hooks = 0;
+
+      for (const { path, text } of shippedSourceFiles()) {
+        const file = relative(REPO_ROOT, path);
+        if (file === HOME) continue;
+
+        // An `arrival:` property or an `arrival={…}` prop, and the expression
+        // it is given. A JSX prop's value may run over several lines — every
+        // shipped one does, because `arrivalKey` takes two arguments — so the
+        // window runs to the end of the statement rather than the line.
+        for (const match of text.matchAll(
+          /(?<![\w$.])arrival(?::|=\{)([^;}\n]*)/gu,
+        )) {
+          const value = (match[1] ?? "").trim();
+          const index = match.index ?? 0;
+          const before = text.slice(Math.max(0, index - 12), index);
+
+          // A TYPE is not an assignment. `readonly arrival: string |
+          // undefined` is the prop's declaration at four drawing sites, and a
+          // check that read it as a keying would be red on correct code.
+          if (/readonly\s+$/u.test(before)) continue;
+          if (/^(?:string|number|boolean|undefined|null)\b/u.test(value)) {
+            continue;
+          }
+
+          assignments += 1;
+
+          if (KEYED.test(value)) continue;
+          if (FORWARDED.test(value) && /arrival$/iu.test(value)) continue;
+
+          offenders.push(
+            `${file}:${String(text.slice(0, index).split("\n").length)}  ` +
+              `arrival ← ${value === "" ? "(nothing on this line)" : value}`,
+          );
+        }
+
+        // And the hook, whose second argument is the key. Read to the call's
+        // own closing paren rather than to a fixed window, so a call
+        // reformatted over four lines is still one expression.
+        for (const match of text.matchAll(/\buseArrival\s*\(/gu)) {
+          const from = (match.index ?? 0) + match[0].length;
+          let depth = 1;
+          let at = from;
+
+          while (at < text.length && depth > 0) {
+            const character = text[at];
+            if (character === "(") depth += 1;
+            else if (character === ")") depth -= 1;
+            at += 1;
+          }
+
+          const argumentList = text.slice(from, at - 1);
+
+          // A declaration is not a call.
+          if (
+            /\bfunction\s+$/u.test(
+              text.slice(
+                Math.max(0, (match.index ?? 0) - 20),
+                match.index ?? 0,
+              ),
+            )
+          ) {
+            continue;
+          }
+
+          hooks += 1;
+
+          if (KEYED.test(argumentList)) continue;
+
+          offenders.push(
+            `${file}:${String(text.slice(0, match.index ?? 0).split("\n").length)}  ` +
+              `useArrival(${argumentList.replace(/\s+/gu, " ").trim()})`,
+          );
+        }
+      }
+
+      // The anchor, and both counts are taken from the tree as it stands
+      // (2026-10-29: eleven assignments across five surfaces and their four
+      // producers, and one hook). A "must find nothing" clause over a
+      // property name passes vacuously the day the property is renamed, and
+      // the mark would then be keyed on anything at all with this check
+      // reporting a clean tree.
+      if (assignments < 8) {
+        throw new InvariantFailure(
+          `Only ${String(assignments)} arrival assignment(s) across the ` +
+            "three shipped trees, against eleven when this check was " +
+            "written and a floor of eight. Either the mark has left several " +
+            "surfaces — in which case a decided piece of the motion " +
+            "vocabulary has gone quiet — or the property was renamed and " +
+            "this pattern no longer sees it.",
+        );
+      }
+
+      if (hooks === 0) {
+        throw new InvariantFailure(
+          "No shipped file calls `useArrival`, and this check's second " +
+            "clause has nothing to say. `SecurityIdentity` needs the hook " +
+            "rather than the pure function because it must survive the " +
+            "route changing symbol underneath it without re-mounting — so " +
+            "either that surface stopped marking arrivals, or the hook was " +
+            "renamed.",
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} arrival mark(s) are keyed on ` +
+            "something other than the arrival:\n      " +
+            offenders.join("\n      ") +
+            "\n    The disc means **a bar arrived for this security**, which " +
+            "is a decision taken three times and never *this number " +
+            "changed* — the `▲` already says that. Key it on " +
+            `\`arrivalKey(bar, fromSnapshot)\` from ${HOME}, whose identity ` +
+            "is the observation's own content " +
+            "(`startsAt:close:volume`).\n    Keyed on a figure it is wrong " +
+            "in both directions and neither is visible on screen: a " +
+            "revision that corrects a bar without moving the figure draws " +
+            "NO mark — §7.8 measured 14 revisions in one session, three of " +
+            "them changing the close — and a re-render, a re-ranking or a " +
+            "basis change that moves the figure with no bar behind it draws " +
+            "one. A snapshot is not an arrival either, which is why " +
+            "`fromSnapshot` is a parameter rather than an inference: without " +
+            "it, 518 marks fire on first paint.",
         );
       }
     },

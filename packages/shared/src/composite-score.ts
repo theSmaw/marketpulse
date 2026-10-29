@@ -478,6 +478,33 @@ export type FactorInapplicability = ExcessMoveInapplicability;
  * figure and what is missing is the **history to rank it against**, which is a
  * fact about this product's stored aggregates rather than about this security's
  * coverage. See the arm.
+ *
+ * ## The owner's sentence for this arm is WITHDRAWN — 2026-10-29, Task 5.7.6
+ *
+ * `Measured, but no history to rank it against.` was approved at Story 5.6's
+ * Gate 1 as this arm's sentence and is **drawn nowhere**: the ledger cell is
+ * ~34 characters and the sentence is 43, so what renders is
+ * `no history to rank it`. The owner withdrew it at Epic 5's close rather than
+ * leaving it owed, and the reasoning is recorded here because a sentence
+ * silently dropped looks identical to one nobody got round to.
+ *
+ * **The fact is not about the security.** No security in the universe has a
+ * volume distribution — `0015` stores a median and a dispersion — so a
+ * per-security sentence describes the **product** rather than the subject,
+ * which is this arm's own argument two paragraphs up. What the sentence says is
+ * already drawn, in one home, inside the cell's budget. And its only honest
+ * alternative home — the volume band beside a **drawn** multiple — exists on
+ * **4 of 39,936** `(security, bucket)` pairs, so it would ship unseen and
+ * unverifiable: nobody could tell a correct one from a missing one. ADR 0029's
+ * one-fact-one-home rule refuses the second copy on the same screen.
+ *
+ * **And its subject is scheduled for deletion.** This arm's reversal condition
+ * is *the first nightly pass that stores a distribution of a factor's own
+ * quantity*, and on firing the arm is **deleted rather than re-purposed** —
+ * with `ANOMALY_BAND_FLOORS`' own trigger firing in the same commit, because
+ * every quantile behind `32 / 63 / 73` was measured on a two-factor, max-75
+ * scale. So this would be copy written for a state the product intends to
+ * remove.
  */
 export type FactorAnswer =
   | {
