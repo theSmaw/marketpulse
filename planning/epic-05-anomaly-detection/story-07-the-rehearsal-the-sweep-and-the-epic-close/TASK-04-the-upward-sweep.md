@@ -275,6 +275,44 @@ with an identifier on it and goes stale the day that epic closes. The two things
 the rule was written against are unchanged: **never a date, never a story
 number.**
 
+### The SIXTH occasion of the grep-scope defect, found by CI, and this time the damage was SILENT
+
+**I wrote the fifth occasion up this morning and then committed the sixth before
+lunch.** Changing the placeholder string, I grepped `apps/frontend/src` — and
+**not `e2e/`**, which is the one thing the rule I had just written says to do.
+`pnpm e2e` went red on PR #625.
+
+Three sites, and **only one of them was the red one**:
+
+- `e2e/specs/security-explorer-shell.spec.ts` asserted
+  `getByText("Filled by Epic 5 — Anomaly Detection")` **`.toHaveCount(1)`**.
+  That failed, loudly and correctly.
+- `e2e/specs/security-abnormal-move.spec.ts` and
+  `security-relative-performance.spec.ts` each asserted that their region does
+  **not** contain `Filled by Epic 5`. **Those two passed — and had become
+  VACUOUS.** The literal they test for can no longer appear anywhere on any
+  page, so the assertions could never fail again, and nothing anywhere would
+  have said so.
+
+**That is the half of a string change nobody looks for, and it is worth more
+than the red one.** A **negative** assertion about a literal is silently
+disarmed the day that literal stops existing. The suite stays green, the
+coverage is gone, and the only trace is that two regions are no longer checked
+for the thing those checks were written to catch — _a placeholder that survives
+the thing it was waiting for_, which is a real defect this product has shipped
+before.
+
+Both are re-pointed at the **shape** rather than the literal — the prefix
+`Filled by `, which `RegionPlaceholder` supplies itself precisely so that five
+call sites cannot drift into five phrasings. That is the clause a re-implementer
+cannot avoid writing, and it survives the next rename.
+
+Proved: `pnpm e2e security-explorer-shell.spec.ts security-abnormal-move.spec.ts
+security-relative-performance.spec.ts` → **15 passed (14.1s)**. Load read
+**before** the run at `8.71`, which is **above** this repository's own stated
+threshold of 7 — recorded rather than glossed; the run was fourteen seconds and
+three scoped specs, so the contention risk was accepted knowingly.
+
 ### Gates
 
 ```
