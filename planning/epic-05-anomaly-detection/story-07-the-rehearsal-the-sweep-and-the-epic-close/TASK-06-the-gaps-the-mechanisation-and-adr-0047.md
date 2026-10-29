@@ -105,6 +105,51 @@ condition beside it — _the first nightly pass that stores a distribution of a
 factor's own quantity_, on which firing the arm is deleted rather than
 re-purposed, and the band floors' own trigger fires in the same commit.
 
+## Amended by Task 5.7.2 — 2026-10-29: two more checks, and both come from verdicting the criteria
+
+**5. `an-arrival-mark-is-keyed-on-the-arrival`** — Story 5.4's **AC 6** turned
+out to have **no mechanical holder at all**. The criterion is _the arrival disc
+keeps its shipped meaning and is not re-pointed at the figure_, it is mentioned
+by number **nowhere** in its own story's directory, and the only instrument is a
+grep over one file. Two things make it worth a check rather than prose. Its
+subject is this repository's **most-repeated defect class** — a mark that says
+_a bar arrived_ being quietly re-pointed at _this number changed_. And since
+Task 5.6.7 the score is the row's **only** figure, so the defect is now
+**cheaper to write** than when the AC was drafted.
+
+The clause: no shipped file keys an arrival mark on anything but `arrivalKey`'s
+answer — whose identity is the observation's own content,
+`` `${startsAt}:${close}:${volume}` ``. The corpus is every shipped source file
+in the three trees, not the four directories that draw rows, because a new
+region is a new directory by this repository's convention and the first version
+of `one-home-for-imperative-navigation` was **green on the file Epic 5 would
+write** for exactly that reason. The plant is the defect the next author
+actually writes: `arrival: String(row.score)`. Confirm the naive draft passes
+wrongly on it **first**.
+
+**6. `every-story-publishes-a-per-criterion-verdict`** — and this is the check
+that would have prevented half of Task 5.7.2's work. Epic 5 has **59**
+acceptance criteria and **33 had no verdict**, because 5.4, 5.5 and 5.6 each
+closed without the `## Gate 2 — the acceptance criteria, verdicted` table that
+5.1, 5.2 and 5.3 published. Epic 4's close found the same thing (three of eight)
+and wrote it down, and the practice then got **worse**, not better: the three
+stories that skipped it are the three most recent in this epic.
+
+The clause keys on the thing a re-implementer cannot avoid: a story whose
+`**Status:**` says complete carries a section naming its criteria and their
+verdicts. The corpus must be `epicsWithStories()`' walk — every
+`story-NN-*/STORY.md` under every `epic-NN-*` — and **never a list**, which is
+the corpus failure this repository has recorded four times. Note the awkward
+half honestly in the check's comment: it can see that a **table exists**, never
+that its verdicts are **true** — which is the cheapest honest proxy and is how
+`pnpm invariants`' own docblock describes every entry in it.
+
+**It will go red on existing stories the moment it lands**, which is the point
+and also the cost: either this close writes the three missing tables (Task 5.7.2
+does, for Epic 5) or the check is scoped to stories closing after a stated date,
+and a date is not a condition. Resolve that before writing it rather than
+discovering it in the red.
+
 ## Done when
 
 1. The two-tape entry exists; the three named candidates carry prose, a
