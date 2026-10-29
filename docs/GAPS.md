@@ -4373,7 +4373,7 @@ first is the one that says the tape is empty.
 
 **Re-measure:** `curl "$BACKEND/diagnostics/baseline-cost?symbol=NVDA"` against
 the deployment and read `volumeDispersion[tape=iex].relativeStandardError`
-against `TARGET_RELATIVE_STANDARD_ERROR`. **Owner: Epic 5, condition — the first
+against `TARGET_RELATIVE_STANDARD_ERROR`. **Owner (re-owned 2026-10-29 by Task 5.7.6, because AC 8 forbids an epic number and Epic 5 is now closed): a condition — the first
 session on which any security's `iex` bucket clears the floor.**
 `LIVE-REHEARSAL.md` row 5.5 carries the sitting it owes, as **unwatchable**
 rather than unwatched.
@@ -4925,6 +4925,31 @@ unit tests. **Owner: unchanged — the next story that adds a factor**, and the
 cheapest discharge is now _put it in `packages/shared/src` too_, which is a
 precedent rather than a widening.
 
+**DISCHARGED 2026-10-29 by Task 5.7.6 — the purity half is now mechanical, and
+the framing above is what had kept it open.** This entry argued that widening
+the clock lint rules to `apps/backend/src` would catch `index.ts` and
+`market-gateway.ts`, which read the clock legitimately, so it needed an argued
+exemption list nobody wanted to write. **The corpus did not have to be the
+package.** `a-factor-reads-no-clock` keys on `market-composite.ts` **plus the
+local modules it imports** — the one translation site in front of the mint — so
+the clause a re-implementer cannot avoid is the **import**, and no exemption
+list is needed because the corpus contains only factors by construction.
+
+Two things about it to know rather than assume. Its **plant was the draft this
+entry's own text invites**: a check keyed on the five filenames printed above,
+which is green on `apps/backend/src/breadth-factor.ts` holding
+`const asOf = new Date();` — confirmed passing wrongly before it was fixed. And
+it reads **direct** imports only, which is a stated false negative: a factor
+reached through a third module is outside it. Break:
+`a-factor-that-reads-the-clock`.
+
+**The `?? 0` half of this entry's title was already discharged** by Task 5.6.3's
+`no-imputed-zero-in-a-figure`, which is why the title carries a strike. So
+nothing in this entry is now prose-only, and it is kept rather than deleted for
+its argument: **a corpus does not have to be the directory the subject lives
+in**, and the exemption list that blocks a check is often a sign the corpus is
+drawn in the wrong place.
+
 **Re-measure:** `grep -rn '?? 0' apps/backend/src packages/shared/src
 apps/frontend/src --include='*.ts' | grep -v '\.test\.'`, and
 `grep -n 'no-restricted-syntax' -A 40 eslint.config.mjs` for the clock rules'
@@ -4976,7 +5001,7 @@ a value**: `RETURN_SPAN_MINUTES` is `TRAILING_WINDOW_SPAN_MS / MS_PER_MINUTE`, a
 derived number, and a grep would have to re-implement that arithmetic.
 
 **Re-measure:** `grep -rn "excessMoveFactor" apps/ packages/ e2e/` — today it
-matches one declaration and one test file. **Owner: Task 5.6.3** (the scorer)
+matches one declaration and one test file. ~~**Owner: Task 5.6.3** (the scorer)~~ **DISCHARGED 2026-10-29 by Task 5.7.6 at Epic 5's close, on this entry's own terms.** Its text says _"this entry is discharged the day a frame carries it"_, and a frame does — Task 5.6.4 shipped it. The 2026-10-26 amendment recording the span defect (mean rank 91.37 against the repaired 46.08, reproducing an independent instrument's 46.09) is **kept as a standing record** rather than deleted with the entry. The original owner (the scorer)
 and **5.6.4** (the figure on screen), which are the two tasks that make it
 reachable. This entry is discharged the day a frame carries it.
 
@@ -4997,7 +5022,7 @@ five-minute pair by hand from two public charts. `LIVE-REHEARSAL.md` carries no
 row for this task because it draws nothing; **row 5.6 is owed by Task 5.6.4.**
 
 **Re-measure:** `pnpm store:bare`, then `pnpm baselines` — the pass reports
-`no pairs 516 (no row written)`. **Owner: Task 5.6.4, and then a person.**
+`no pairs 516 (no row written)`. ~~**Owner: Task 5.6.4, and then a person.**~~ **RE-OWNED 2026-10-29 by Task 5.7.6: Task 5.6.4 is merged, and an owner who can never act is worse than an epic number.** The task half is discharged — the frame exists. **Owner: a person, condition — the first sitting on a store holding both bars and a baseline generation**, which is `LIVE-REHEARSAL.md` row 5.6 and is watchable today. The former owner
 
 ## A security the store holds and the curated universe does not describe is counted ABSENT, silently
 
@@ -5063,7 +5088,7 @@ statements are 485 upserts and one pass row.
 
 **Re-measure:** `pnpm db down && pnpm db`, wait for health, then
 `time node scripts/compute-baselines.mjs` twice — with no dev pair attached.
-**Owner: Task 5.6.7** for the reader, and **Task 5.6.8** for the cold figure at
+~~**Owner: Task 5.6.7** for the reader, and **Task 5.6.8** for the cold figure~~ — **SPLIT AND RE-OWNED 2026-10-29 by Task 5.7.6, because both tasks are merged.** The **reader half is discharged**: Task 5.6.7 built it, and `/`'s `Unusual activity` reads `session_composite_scores` on roughly 80% of the week. The **cold-figure half stands**, re-owned to a condition — **the first measurement of this pass on a store that has not already served it**, because a figure taken after the pass has warmed its own cache is not a cold figure and no amount of re-running on this machine makes it one. The former owners, at
 the story's close.
 
 ---
@@ -5109,3 +5134,116 @@ if `others` is still `0` the second cohort has not arrived; if it is not, the
 footer's arity and the size tie-break both need a person's eye.
 **Owner: the first story that gives the volume factor a distribution**, which
 fires `ANOMALY_BAND_FLOORS`' own reversal trigger 1 in the same commit.
+
+## `pnpm links` runs `git ls-files`, so a NEW document's links are unchecked until it is staged
+
+**Added 2026-10-29 by Task 5.7.6, found by watching the count rather than the
+verdict.** `scripts/check-links.mjs` builds its corpus with
+`execFileSync("git", ["ls-files", "*.md"])`. An **untracked** Markdown file is
+therefore invisible to it, and `pnpm links` reports **0 broken** over a tree
+containing a brand-new document whose every link is unchecked.
+
+Produced while writing ADR 0047: the run said `600 documents, 1907 cross-file
+links, 0 broken` **before** the ADR existed, and said exactly the same thing
+after it was written. One `git add` later it said `601 documents, 1911
+cross-file links, 0 broken` — four links that had never been checked.
+
+**Only the count betrays it.** The verdict line is identical in both states, so
+a reader checking that `links` passed learns nothing about the file they just
+wrote. The failure direction is the dangerous one: it is **silent, and it
+affects precisely the document most likely to contain a wrong relative path**,
+because a new file is the one whose `../..` depth nobody has got right yet.
+
+It is arguably correct behaviour — `verify` runs in CI against a committed
+tree, where nothing is untracked — so the gap is **local only**, and that is
+exactly when a human is iterating on a new document.
+
+**And a second mechanism in the same direction stopped being the only one on the
+same day.** `apps/frontend/src/styles/tokens.ts` throws at startup if a
+**declared** token is missing from the stylesheet, and `TOKEN_NAMES` was the
+only thing in that direction — it does not reach a `var()` read naming a token
+nothing declares. `a-var-read-resolves-to-a-declared-token` now does, over every
+CSS module in the frontend, and **it found a live defect on `main` while being
+proved**: `SourceNote.module.css` read `--color-ink-secondary`, a name this
+product has never declared, six lines from six correct spellings of
+`--ink-secondary` in the same file. It was a **visual no-op** and the reason is
+worth knowing: an undeclared `var()` is invalid at computed-value time, so
+`color` inherited — and `.note` sets the very same token, so the two agreed by
+accident. It would have bitten the first day those two inks differed.
+
+**Re-measure:** write a Markdown file with a deliberately broken relative link,
+run `pnpm links` before and after `git add`, and compare the **document count**,
+not the verdict. **Mechanisable?** Probably not worth it: making the corpus
+`git ls-files` **plus** untracked non-ignored Markdown would make the check
+disagree with CI, which is a worse property than this one. **Owner: a
+condition — the next time a new document ships with a broken link that CI
+catches and a local run did not.**
+
+## Three claims Epic 5 leaves standing that are NOT a single grep, and should not be made into one
+
+**Added 2026-10-29 by Task 5.7.6.** Story 5.7's AC 6 names three candidates for
+mechanisation. **All three are prose, and the honest answer is that none of them
+is a check** — recorded here so the next reader does not spend the effort
+discovering it.
+
+**1. The two-tape row inflation is ~25% of steady state, and it was never
+written down at all.** `market_bars` keeps both tapes, so a minute may hold an
+`iex` row and a `sip` row — and a 60-session baseline window exposes roughly 15
+sessions of `iex`, because the live writer started **2026-09-23**. Any row count
+over that window is therefore inflated against its own steady state, and the
+figure moves every session until the window is wholly post-writer.
+
+**This entry is the third recorded occasion of a claim handed to this file and
+never arriving.** Task 5.3.5's record states that this inflation _was_ written
+here; it was not. Its two siblings from the same list are both present, which is
+what makes the absence invisible — a reader checking that the sweep happened
+finds two of three and stops.
+
+It needs a store with `iex` rows: the local store holds **48,449,712** `sip` and
+**zero** `iex`, and CI holds zero bars. **Re-measure, deployed only:**
+`count(*) filter (where feed = 'iex')` against `count(*)` over the baseline
+window, index-only. **Owner: a condition — the first session on which the
+60-session window contains no pre-2026-09-23 sessions**, at which point the
+inflation is zero by construction and the entry can be deleted rather than
+re-measured.
+
+**2. The pooled distribution's open-reads-unusual bias has no magnitude, and its
+mechanisable half already shipped.** The grep-able part — that the bias clause is
+read off **the figure's own instants** rather than a wall clock — is held by
+`the-opening-bias-is-read-off-the-figure`. What remains is a **number**: the 99th
+percentile of the first six minute-of-session buckets against the rest, over
+2.19 M samples on a real store. That is a reading, not a shape. Its owner is
+already a condition and is correctly written; **leave it.**
+
+**3. The relative-move weighting effect is unquantified, and the clause is
+already one home.** `one-home-for-the-cap-weighting-clause` holds the sentence
+saying a benchmark ETF is capitalisation-weighted. What nothing has measured is
+the **effect**: that cap weighting correlates a group's scores, so a ranked list
+may fill with one sector. That is a cross-sectional measurement over scored
+securities on a store with baselines — no grep can see it. **Owner: a
+condition — the first ranked anomaly list drawn against a store with a baseline
+generation and more than one sector represented.**
+
+## Nothing checks that every `pnpm invariants` entry OWES a break, and a grep cannot audit it
+
+**Added 2026-10-29 by Task 5.7.6.** `CLAUDE.md` states _"Every one is
+break-verified by a `pnpm break` entry"_ and this file states _"Every one is
+break-verified through `pnpm break`"_. **Nothing asserts either sentence**, and
+it is `every-break-can-still-land` with the arrow turned: that check holds each
+**break's** `find` text still lands in its file, and nothing holds that each
+**invariant** still has a break at all.
+
+**And it cannot be audited by grep**, which is why it is prose rather than a
+check. A break's `expect` is sometimes the invariant's **id** and sometimes a
+substring of its **failure message** — so a naive pass over `scripts/breaks.mjs`
+reported 29 invariant ids as unproven, and spot-checking two of them found
+breaks keyed on messages instead. **The real coverage number is unknown to
+everything, including this entry.**
+
+The repair is a `provesInvariant: "<id>"` field on each registry entry, making
+it one grep and one anchor — and it is a touch on every invariant-facing entry
+in a ~6,000-line registry, which is why it is recorded rather than taken here.
+**Re-measure:** nothing cheap exists; that is the finding. **Owner: a
+condition — the next change that touches `scripts/breaks.mjs`' entry shape for
+any other reason**, so the field arrives as part of work already opening the
+file rather than as a sweep of its own.

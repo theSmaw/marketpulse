@@ -228,7 +228,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-4);
-  color: var(--color-ink-secondary);
+  color: var(--ink-secondary);
   white-space: nowrap;
 }
 

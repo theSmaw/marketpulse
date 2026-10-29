@@ -5899,4 +5899,145 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-instant-for-a-subject-and-its-benchmark",
   },
+  // ## Task 5.7.6's, on the purity a lint rule cannot reach
+  {
+    name: "a-factor-that-reads-the-clock",
+    proves:
+      "`a-factor-reads-no-clock` goes red on an anomaly factor module that " +
+      "reads the process clock instead of taking its instant as an " +
+      "argument. **Nothing else in the repository can**: the four " +
+      "`no-restricted-syntax` clock rules in `eslint.config.mjs` are scoped " +
+      "to `packages/shared/src/**`, and this file is " +
+      "`apps/backend/src/return-percentile.ts` — so `pnpm lint` is green on " +
+      "the plant, `tsc` is green on it, and every unit test is green on it " +
+      "because a test furnishes the instant it then asserts on. The score " +
+      "it produces re-adds to its own contributions, so all five of " +
+      "`readAnomalyScore`'s wire checks pass too.\n\n" +
+      "The defect is invariant 4's leak in the one place that invariant " +
+      "promises it is structurally impossible: a factor reading *now* while " +
+      "the generation it answers for is addressed as-of a past session makes " +
+      "Epic 13 replay a session and get today's answer.\n\n" +
+      "**What this break does NOT prove, and was proved separately.** It " +
+      "lands inside the corpus, so it exercises the clause and not the " +
+      "corpus's DERIVATION. The derivation was proved by a one-off plant " +
+      "(Task 5.7.6): a fourth factor module, " +
+      "`apps/backend/src/breadth-factor.ts` holding " +
+      "`const asOf = new Date();`, imported into `market-composite.ts` as " +
+      "the type its answer mapper needs. The draft keyed on the five " +
+      "filenames `docs/GAPS.md` prints reported `75 invariants hold.` on " +
+      "it; the shipped clause reported the file and the line.",
+    file: "apps/backend/src/return-percentile.ts",
+    find: "  const { breakpoints, sampleCount, spanMinutes, feed } = baseline;",
+    replace:
+      "  const { breakpoints, sampleCount, spanMinutes, feed } = baseline;\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const rankedAt = new Date();\n" +
+      "  void rankedAt;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-factor-reads-no-clock",
+  },
+
+  {
+    name: "a-renormalised-score",
+    proves:
+      "`no-renormalised-score` goes red on a score divided by its own " +
+      "maximum **where nothing is being ordered** — a `%`-of-maximum label " +
+      "beside the figure, which is the shape the next author actually " +
+      "reaches for.\n\n" +
+      "**Every other guard is green on it, and one of them SAYS it is not.** " +
+      "`one-comparator-for-the-order-of-a-composite-score`'s own failure " +
+      "message asserts that `score / max` is *the order that is NOT " +
+      "permitted anywhere*, and that check holds only lines putting two " +
+      "`.score` reads either side of a relational or subtraction operator — " +
+      "so a renormalisation that orders nothing was outside it entirely. " +
+      "Measured before this clause existed (Task 5.7.6): with " +
+      "`Math.round((100 * score.score) / score.max)` live in " +
+      "`anomaly-score.ts`, the run reported `75 invariants hold.`\n\n" +
+      "What ships wrong if it lands: `ANOMALY_BAND_FLOORS` are measured " +
+      "quantiles of a **max-75** scale, so a ratio rescaled to 100 moves " +
+      "every band a reader sees — `32 / 63 / 73` were taken over 34,318 " +
+      "two-factor scores — and nothing on the screen contradicts anything " +
+      "else. The plant is in the **view builder** rather than in a " +
+      "comparator for exactly that reason.",
+    file: "apps/frontend/src/market/anomaly-score.ts",
+    find: "    summary: summaryOf(score.contributing.length, score.max),",
+    replace:
+      "    summary: summaryOf(score.contributing.length, score.max),\n" +
+      "    // pnpm break: reverted automatically\n" +
+      "    percentOfMaximum: Math.round((100 * score.score) / score.max),",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no-renormalised-score",
+  },
+
+  {
+    name: "a-var-read-with-no-declared-token",
+    proves:
+      "`a-var-read-resolves-to-a-declared-token` goes red on a rule that " +
+      "spends a custom property this product does not declare — the shape a " +
+      "renamed token leaves behind in the consumer nobody grepped for.\n\n" +
+      "**Nothing else in the repository can see it.** An undeclared `var()` " +
+      "is invalid at computed-value time, so the declaration is DROPPED and " +
+      "the property inherits: the rule is there, reads correctly, and does " +
+      "nothing. `styles/tokens.ts` throws only for the names in its own " +
+      "hand-maintained `TOKEN_NAMES`, and two of Epic 5's five ambers — " +
+      "`--service-degraded`, `--provenance-synthetic` — are not in it. jsdom " +
+      "applies no stylesheet, `getTokens()` throws in the test environment " +
+      "so no test can assert a colour, and axe reads a DOM.\n\n" +
+      "Measured before this clause existed (Task 5.7.6): with " +
+      "`--service-degraded` renamed in `market.css` and three consumers " +
+      "left reading the old name — one of them a `background` — the run " +
+      "reported `76 invariants hold.` Writing the clause found a live " +
+      "instance: `SourceNote.module.css`' `.live` read " +
+      "`--color-ink-secondary`, a name this product has never declared, in " +
+      "a file that spells `--ink-secondary` six times.",
+    file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.module.css",
+    find: '  composes: dataCell from "../../styles/type.module.css";\n  margin-left: var(--space-12);',
+    replace:
+      '  composes: dataCell from "../../styles/type.module.css";\n' +
+      "  margin-left: var(--space-12);\n" +
+      "  /* pnpm break: reverted automatically */\n" +
+      "  background: var(--anomaly-score-fill);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-var-read-resolves-to-a-declared-token",
+  },
+
+  {
+    name: "an-arrival-mark-keyed-on-the-figure",
+    proves:
+      "`an-arrival-mark-is-keyed-on-the-arrival` goes red on a row whose " +
+      "arrival disc is keyed on its **score** rather than on the " +
+      "observation — Story 5.4's AC 6, which had no mechanical holder at all " +
+      "until 2026-10-29 and whose only instrument was a grep over one " +
+      "file.\n\n" +
+      "The plant is the defect the next author actually writes, and since " +
+      "Task 5.6.7 it is the shortest thing available: the score is the " +
+      "row's ONLY figure. It type-checks — an arrival key is a " +
+      "`string | undefined`, because what it does is restart a React " +
+      "`key` — so `tsc`, `pnpm lint` and every test are green on it, and so " +
+      "is the browser suite: a disc that fires on the wrong event is a disc, " +
+      "and no spec can tell a mark that lied from a quiet minute.\n\n" +
+      "What ships wrong is wrong in BOTH directions. A revision that " +
+      "corrects a bar without moving the figure draws no mark (§7.8: 14 " +
+      "revisions in one session, **three** changed the close), and a " +
+      "re-ranking or a basis change that moves the figure with no bar " +
+      "behind it draws one — which is the inverse of the decision taken " +
+      "three times, most recently in the motion vocabulary: *a fact " +
+      "arriving DECAYS*, and `▲` is what says the number moved.\n\n" +
+      "**The corpus was proved separately and is the load-bearing half.** " +
+      "The draft keyed on the four row-drawing directories plus " +
+      "`src/market/` reported `78 invariants hold.` against a one-off plant " +
+      "in `components/AnomalyHistory/AnomalyHistory.tsx` — a region is a " +
+      "directory by this repository's convention, so a directory list is " +
+      "green on the file the next story writes, exactly as the first " +
+      "`one-home-for-imperative-navigation` was.",
+    file: "apps/frontend/src/market/unusual-activity.ts",
+    find: "  absent: undefined,\n  basis,",
+    replace:
+      "  absent: undefined,\n" +
+      "  basis,\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  arrival: String(row.score),",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "an-arrival-mark-is-keyed-on-the-arrival",
+  },
 ];

@@ -1,6 +1,6 @@
 # Task 5.7.6 — `docs/GAPS.md`, four mechanisations, and the ADR nobody wrote
 
-**Status:** **In progress — 2026-10-29**
+**Status:** **Complete — 2026-10-29. Four new checks, 74 → 78 invariants, and one of them found a LIVE DEFECT on `main` while being proved** — `SourceNote.module.css` read `--color-ink-secondary`, a token this product has never declared. AC 6's three named candidates are **0 for 3** and that is the honest answer. ADR 0047 written for a decision that had none. And `pnpm links` turns out to be **blind to an untracked document**.
 **Story:** [5.7 The Rehearsal, the Sweep, & Epic 5's Close](STORY.md)
 **Depends on:** —
 
@@ -164,6 +164,226 @@ discovering it in the red.
 
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-10-29
 
-## For a stakeholder — a status report, YYYY-MM-DD
+### AC 6's three named candidates are 0 for 3, and that is the answer
+
+Story 5.7 names three claims for mechanisation. **None of them is a check**, and
+saying so plainly is the deliverable rather than a shortfall:
+
+- **The two-tape row inflation** needs a store with `iex` rows. The local store
+  holds **48,449,712** `sip` and **zero** `iex`; CI holds zero bars. **And it
+  was never written down at all** — Task 5.3.5's record says it was handed to
+  `docs/GAPS.md` and it is not there, while its two siblings from the same list
+  both are, which is what makes the absence invisible. **Third recorded occasion
+  of a claim handed to that file and never arriving.** Written now, with an
+  index-only re-measure, the store named, and a condition that **deletes** the
+  entry rather than re-measuring it.
+- **The pooled distribution's bias** — its mechanisable half already shipped
+  (`the-opening-bias-is-read-off-the-figure`); what remains is a **magnitude**
+  over 2.19 M samples. Left alone, owner already a condition.
+- **The relative-move weighting effect** — the clause is already one home; the
+  **effect** is a cross-sectional measurement. No grep can see it.
+
+### Four checks that ARE a single grep: 74 → 78, each proved wrongly-passing first
+
+Plus one one-line repair. Every one was **confirmed green on its own plant
+before being fixed**, which is the step this repository shipped four guards
+without in a single story.
+
+**`the-epic-5-rehearsal-floor-is-current` — the repair, and it protects tonight.**
+Epic 5 was registered with **`rowFloor: 1`** against **six** rows, so five could
+be deleted and the anti-vacuity anchor would still pass — against an anchor whose
+own purpose is _"a reformatted or relocated table makes this check pass without
+reading anything."_ Raised to 6. Proved by removing five rows from a copy:
+
+```
+  ✗ the-epic-close-cannot-outrun-the-rehearsal-ledger
+    LIVE-REHEARSAL.md's ledger has 1 rows for Epic 5; it had 6 when this check
+    last read the file and the list only grows.
+```
+
+**`a-factor-reads-no-clock` — and the framing in `docs/GAPS.md` is what had kept
+it open.** That entry argued the clock lint rules could not be widened to
+`apps/backend/src` without an exemption list for `index.ts` and
+`market-gateway.ts`. **The corpus did not have to be the package.** It is keyed
+on `market-composite.ts` **plus the local modules it imports** — the one
+translation site in front of the mint — so the clause is the **import**, and no
+exemption list is needed because the corpus contains only factors by
+construction. The plant was **the draft that entry's own text invites**: a check
+keyed on the five filenames it prints, green on a new `breadth-factor.ts`
+holding `const asOf = new Date();`.
+
+**`no-renormalised-score` — and a sibling's failure message was claiming a
+prohibition nothing held.** `one-comparator-for-the-order-of-a-composite-score`
+asserts _"the order that is NOT permitted **anywhere**: `score / max`"_ while
+holding it only on lines putting two `.score` reads either side of an operator.
+The clause was **added** rather than the message narrowed, and the sibling's
+message now names its holder. The plant is the one both existing checks were
+green on: **a renormalisation that orders nothing** — `Math.round((100 *
+score.score) / score.max)` as a `%`-of-maximum label. Measured: `75 invariants
+hold.` with it live.
+
+**`a-var-read-resolves-to-a-declared-token` — and it found a live defect on
+`main`.** `tokens.ts` throws if a **declared** token is missing from the
+stylesheet, and two of Epic 5's five ambers are not in `TOKEN_NAMES` at all. The
+check asserts the other direction: every `var(--x)` read resolves to something
+declared. Alongside the plant it reported **`SourceNote.module.css:231`**
+reading **`--color-ink-secondary`** — a name this product has never declared,
+six lines from six correct spellings of `--ink-secondary` in the same file.
+
+**It was a visual no-op, and the reason matters more than the repair.** An
+undeclared `var()` is invalid at computed-value time, so `color` **inherited** —
+and `.note` sets the very same token, so the two agreed **by accident**. It
+would have bitten the first day those two inks differed, which is the
+content-of-a-kind-the-rule-has-never-held failure this repository already
+records for `composes:`.
+
+**`an-arrival-mark-is-keyed-on-the-arrival` — Story 5.4's AC 6, which had no
+holder at all.** Two clauses, because there are two ways to mint one (a property
+and a `useArrival(` argument list — a clause on assignments alone is green on
+`useArrival(symbol, String(price), …)`). The corpus is **every shipped source
+file in three trees**, and the plant proves why: the naive draft keyed on the
+four row-drawing directories was green on
+`AnomalyHistory/AnomalyHistory.tsx` holding `arrival: String(row.score)` — **the
+region Epic 5 defers and the next story writes.**
+
+**All four breaks run by me rather than taken on report:**
+
+```
+✓ apps/backend/src/return-percentile.ts broken → red → restored byte-identical.
+  matched: a-factor-reads-no-clock
+✓ apps/frontend/src/market/anomaly-score.ts broken → red → restored byte-identical.
+  matched: no-renormalised-score
+✓ apps/frontend/src/components/AbnormalMove/AbnormalMove.module.css broken → red → restored byte-identical.
+  matched: a-var-read-resolves-to-a-declared-token
+✓ apps/frontend/src/market/unusual-activity.ts broken → red → restored byte-identical.
+  matched: an-arrival-mark-is-keyed-on-the-arrival
+```
+
+**Two stated false negatives, chosen over false reds.** `no-renormalised-score`
+ignores a `max` divisor on a line that never mentions a score, because
+`chart-time-axis.ts` divides by `MAX_HOURLY_TICKS` and a subject-blind clause
+would be red on an axis stride. `a-factor-reads-no-clock` reads **direct**
+imports only. Both limits are in the checks' own comments — a check that cries
+wolf is disabled by the next person who trips over it.
+
+### A gap found by watching a count rather than a verdict
+
+**`pnpm links` is blind to an untracked document.** `check-links.mjs` builds its
+corpus with `git ls-files`, so a brand-new Markdown file is invisible to it.
+Writing ADR 0047: the run said `600 documents, 1907 cross-file links, 0 broken`
+**before** the ADR existed and said **exactly the same** after it was written.
+One `git add` later: `601 documents, 1911 cross-file links, 0 broken` — four
+links that had never been checked.
+
+**Only the count betrays it**, and the failure direction is the dangerous one —
+silent, and affecting precisely the document most likely to have a wrong
+relative path, because a new file is the one whose `../..` depth nobody has got
+right yet. Recorded rather than repaired: making the corpus disagree with CI's
+committed tree would be a worse property than this one.
+
+### ADR 0047, for a decision that had no record
+
+**A derived statistic reads the raw store and refuses rather than adjusts.** It
+reverses Story 5.1's Gate 1 decision 1, answers `PROVIDER.md` §3.1's standing
+rule, and is why 5 of 516 securities draw no percentile — and it lived in a task
+file, a story file, a `PROVIDER.md` blockquote and a **measurement note inside
+ADR 0044's amendment**. `grep -n "provider" docs/adr/0044*.md` returns **zero**,
+and 0044's four rejected alternatives do not include _ask the vendor_, because
+that is a different question answered in the same task.
+
+Three alternatives rejected by name, the consequences including that
+`split-adjusted` now has **one** reader, and a reversal trigger that is a
+condition: **the first reader that needs a total return rather than a price
+return** — because a split is a discontinuity with no economic content and a
+**dividend** is not, and the vendor's `split` parameter does not supply it.
+
+**Not** new ADRs: the cohort rule, no-renormalisation and
+score-with-its-explanation are all already in ADR 0046 §2 and §3 — checked in
+the text, not the index.
+
+### Four owners AC 8 forbids, and the withdrawn sentence
+
+Three `docs/GAPS.md` entries named a **merged task** — worse than an epic number,
+because the owner can never act. Two are **discharged on their own terms** (one
+says _"discharged the day a frame carries it"_, and a frame does); the third is
+**split**, its reader half discharged and its cold-figure half re-owned to _the
+first measurement of this pass on a store that has not already served it_. One
+named an epic and is re-owned to a condition. All four struck rather than
+deleted, so the record survives.
+
+And the owner's sentence `Measured, but no history to rank it against.` is
+**recorded as withdrawn** in the arm it belonged to, with the reasoning — the
+fact is about the **product**, not the security; what it says is already drawn in
+one home inside the cell's budget; its only honest alternative home exists on 4
+of 39,936 pairs so it would ship unseen and unverifiable; and the arm itself is
+scheduled for **deletion** when its condition fires. A sentence silently dropped
+looks identical to one nobody got round to.
+
+### And the three stories whose verdicts live in the close
+
+5.4, 5.5 and 5.6 each gained a dated `## Gate 2` section saying **where** their
+table is and **why it is not here**: it was reconstructed from task files weeks
+later, and a verdict written by somebody re-reading the record is a different
+artefact from one written by the people who did the work. Putting it in the
+story would disguise that.
+
+### Gates
+
+```
+pnpm build         exit 0
+pnpm lint          exit 0
+pnpm format:check  All matched files use Prettier code style!
+pnpm links         601 documents, 1914 cross-file links, 39 anchor links, 0 broken.
+pnpm invariants    78 invariants hold.        (74 before)
+pnpm test:scripts  pass 21, fail 0
+pnpm --filter @marketpulse/frontend test SourceNote
+                   4 files, 68 tests passed  (the live CSS repair)
+pnpm break × 4     all red on the intended check, all restored byte-identical
+```
+
+Load read **before** the invariants run: `2.75 3.61 4.39`. One warning prints by
+design and will until somebody clears it:
+`⚠ Epic 4's rehearsal row 4.7 is WAIVED 2026-10-13`.
+
+**And a process note worth carrying.** A git hook in this working tree
+auto-stages edited files, so a **planted** file turned up in the index during the
+break proofs. It was cleared, and the tree was checked for every planted string
+afterwards — `breadth-factor.ts` and `AnomalyHistory/` do not exist, and the
+remaining matches are the checks' own comments and the break registry's
+substitutions. Worth knowing before any future break: **a plant can ride along
+into a commit.**
+
+## For a stakeholder — a status report, 2026-10-29
+
+This repository keeps a list of things it believes about itself that no automated
+check can confirm. The rule is that anything which _can_ become a check _should_,
+and this task worked through Epic 5's share.
+
+Three claims the story nominated turned out to be unmechanisable, and the useful
+part was saying so clearly rather than building something that looks like a
+check. One of those three had never actually been written onto the list at all,
+despite a record saying it was — the third time that has happened here, and it
+stays invisible because a reader who checks finds the two neighbours and stops.
+
+Four new checks did land. One of them **found a real defect in shipped code while
+being tested**: a stylesheet referred to a colour this product has never defined.
+It had no visible effect, for a slightly alarming reason — the browser silently
+ignored the instruction and inherited a colour that happened to be identical. It
+would have become visible the first time those two colours differed, which could
+have been any future change by anybody.
+
+A second finding is about the checks themselves. One existing check's failure
+message claimed to forbid something **everywhere** while actually only looking in
+one place, so the prohibition had a hole exactly where the next person would walk
+into it. And a check that validates document links turns out to be unable to see
+a **brand-new** document at all — it reports success over a file whose links have
+never been examined, which is precisely the file most likely to have one wrong.
+
+Finally, a significant decision made a fortnight ago had never been written down
+as a decision — only as a side-note in work about something else. It is the
+reason five securities out of 516 show no figure rather than a wrong one, and it
+reversed an earlier decision in the opposite direction. It now has its own record,
+with the alternatives that were rejected and the condition under which it should
+be reconsidered.
