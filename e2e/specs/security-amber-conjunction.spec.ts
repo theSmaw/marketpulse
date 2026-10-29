@@ -575,18 +575,50 @@ interface State {
   readonly drive: (page: Page, width: number) => Promise<void>;
 }
 
-/** Scroll the chip's region into view, which is where a reader puts it. */
-async function reveal(page: Page): Promise<void> {
+/**
+ * Scroll the chip's region into view, which is where a reader puts it.
+ *
+ * **`band` is REQUIRED for every state that serves a score, and that is the
+ * repair for a race this spec shipped with** (2026-10-29). The first version
+ * waited only for the region to be **visible** — but the region is visible
+ * before its score arrives, because the score rides a frame the harness sends
+ * **after** navigation. So the mark sweep could run against a rail still
+ * drawing its deferred state, and the failure's shape is the one this spec's
+ * own error text predicts: *a mark declared and not found is most likely a
+ * REFUSED frame drawing the deferred state, which looks exactly like a correct
+ * absence.*
+ *
+ * It went red on `main` at **390 only** — the width where the rail is last in
+ * the column and therefore last to lay out — while passing on the pull request
+ * and on a developer's machine, which is the signature of a race rather than a
+ * defect. **Waiting for the band word is the condition the sleep below was
+ * standing in for**, and a condition cannot be outrun by a slow runner.
+ */
+async function reveal(page: Page, band?: string): Promise<void> {
   const region = page.getByRole("region", {
     name: "Abnormal-move indicators",
   });
   await expect(region).toBeVisible();
+
+  // **The chip itself, not the region that will hold it.** A state serving a
+  // score is not ready to be photographed until its band word is on screen;
+  // the control serves none and passes `undefined` deliberately.
+  if (band !== undefined) {
+    await expect(region.getByText(band, { exact: false })).toBeVisible();
+  }
+
   await region.scrollIntoViewIfNeeded();
   // The sticky bar republishes its own height when the feed cell grows to a
   // second row, and the page's `scroll-padding-bottom` follows it — so the
-  // scroll has to settle before a box is worth reading.
+  // scroll has to settle before a box is worth reading. **This one is a
+  // LAYOUT settle rather than a data wait**, which is why it survives the
+  // repair above: there is no condition to wait for, only a reflow.
   await page.waitForTimeout(300);
 }
+
+/** The band word a served score will draw, or `undefined` for the control. */
+const bandOf = (score: WireAnomalyOutcome): string | undefined =>
+  score.scored ? score.band : undefined;
 
 const CHIP = (band: string) =>
   `${band === "extreme" ? "deep" : "amber"} fill chip (encloses its own name) @ region · Abnormal-move indicators`;
@@ -608,7 +640,27 @@ const PROVENANCE_SYNTHETIC = "amber fill square @ status bar · feed cell";
  * were written to be the comparison for, and the declared mark set is the only
  * thing that saw it.
  */
-const LIVE_PRICE = {
+/**
+ * **A FUNCTION, not a constant, and that is the repair for a defect this spec
+ * shipped with** (2026-10-29).
+ *
+ * It was `const LIVE_PRICE = { … startsAt: Date.now() - 5_000 … }`, evaluated
+ * **once at module load**. By the time row 06 ran — the sixth of seven states,
+ * minutes into the suite — that *"five seconds ago"* observation was minutes
+ * old, so `feedStatusFrom` read the feed as **stale** and drew an amber disc
+ * beside the synthetic square. The row then found THREE amber marks where it
+ * declared two, and the sweep failed with an **extra** mark rather than a
+ * missing one.
+ *
+ * It is the same shape as the `serveFeed` defect this spec already records —
+ * *a row written to isolate one mark, silently inside the conjunction it was
+ * the control for* — arriving through **time** rather than through a missing
+ * snapshot, and only on a runner slow enough for the clock to matter.
+ *
+ * **Evaluated at serve time**, the observation is always five seconds old when
+ * the gateway sends it, whatever the suite has been doing.
+ */
+const livePrice = () => ({
   NVDA: {
     startsAt: new Date(Date.now() - 5_000).toISOString(),
     open: 186.1,
@@ -617,7 +669,7 @@ const LIVE_PRICE = {
     close: 186.64,
     volume: 412_000,
   },
-};
+});
 
 /** Serve a frame, open the page, and make the feed say it has gone quiet. */
 const withStaleFeed =
@@ -625,7 +677,7 @@ const withStaleFeed =
   async (page: Page): Promise<void> => {
     const produced = await serveFeed(page, {
       feed,
-      snapshot: LIVE_PRICE,
+      snapshot: livePrice(),
       symbolReturn: returnFrame(score),
     });
     await page.goto(EXPLORER, { waitUntil: "domcontentloaded" });
@@ -637,7 +689,7 @@ const withStaleFeed =
     // assert nothing about the path a real outage travels.
     produced.goStale();
     await expect(page.locator("footer").first()).toContainText(/stale/iu);
-    await reveal(page);
+    await reveal(page, bandOf(score));
   };
 
 /** Serve a frame, and make the backend answer badly. */
@@ -657,9 +709,9 @@ const withDegradedBackend =
 
     const produced = await serveFeed(page, {
       feed: VENUE,
-      // **See `LIVE_PRICE`.** Without it the feed cell is amber too and this
+      // **See `livePrice`.** Without it the feed cell is amber too and this
       // row stops being the one-mark comparison it is declared as.
-      snapshot: LIVE_PRICE,
+      snapshot: livePrice(),
       symbolReturn: returnFrame(score),
     });
     await page.goto(EXPLORER, { waitUntil: "domcontentloaded" });
@@ -669,7 +721,7 @@ const withDegradedBackend =
       produced.goStale();
       await expect(page.locator("footer").first()).toContainText(/stale/iu);
     }
-    await reveal(page);
+    await reveal(page, bandOf(score));
   };
 
 const STATES: readonly State[] = [
@@ -728,16 +780,16 @@ const STATES: readonly State[] = [
     drive: async (page) => {
       await serveFeed(page, {
         feed: "synthetic",
-        // **See `LIVE_PRICE`.** This row is about the provenance square, so
+        // **See `livePrice`.** This row is about the provenance square, so
         // the connection must be LIVE — and without an observation it is not.
-        snapshot: LIVE_PRICE,
+        snapshot: livePrice(),
         symbolReturn: returnFrame(HIGH),
       });
       await page.goto(EXPLORER, { waitUntil: "domcontentloaded" });
       await expect(page.locator("footer").first()).toContainText(
         "Generated test data",
       );
-      await reveal(page);
+      await reveal(page, bandOf(HIGH));
     },
   },
   {

@@ -229,7 +229,20 @@ test("the exit criterion, deployed: search NVDA, open it, read both plots, chang
   // Search, and open
   // ---------------------------------------------------------------------
   await page.goto(SECURITIES);
-  await expect(page.getByRole("table")).toBeVisible();
+  // **Named rather than bare since 2026-10-29**, and the rename is the point.
+  // Story 5.6 gave the anomaly score a LEDGER, which is a real `<table>` — so
+  // the security page holds two, and a bare `getByRole("table")` is a
+  // strict-mode violation rather than an assertion.
+  //
+  // **This file was missed when the sibling specs were corrected**, because
+  // that sweep grepped `e2e/specs/` and this is `e2e/specs-deployed/`. It went
+  // unnoticed until `check-deployed` ran — which is the one gate that runs
+  // AFTER a merge, so the defect reached `main` and skipped a deploy to be
+  // found. A grep scoped to a directory is a grep that answers about a
+  // directory.
+  await expect(
+    page.getByRole("table", { name: "Tracked universe" }),
+  ).toBeVisible();
 
   await page.getByRole("combobox").fill(QUERY);
   await page.getByRole("option").first().click();
