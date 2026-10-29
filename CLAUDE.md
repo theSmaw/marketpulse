@@ -487,7 +487,15 @@ top of the screen was a column of prose beside a void. That screen is `PRODUCT_S
 ~~**three hold something**: the identity block, the **Price** region and the
 **Volume** region. The other four are placeholders naming the epic that fills
 them, and that is on purpose.~~ — **false since 2026-10-13: four do, and the
-fourth is Epic 5's first figures on any screen.**
+fourth is Epic 5's first figures on any screen.** ~~four do~~ — **FIVE do,
+corrected 2026-10-29 by Task 5.7.4.** The sentence above was written for Story
+5.1's `Relative performance` on 2026-10-13 and went false the **next day**, when
+Story 5.2 filled `Abnormal-move indicators`. Counted from
+`SecurityExplorer.tsx`: the identity block, `Price`, `Abnormal-move indicators`,
+`Volume` and `Relative performance` hold something; `Connected securities`,
+`Relevant filings` and `Anomaly history` are placeholders — and since today
+**only two of those three name an epic**, because `Anomaly history` names a
+condition instead.
 
 **And since 2026-10-28 that region leads with a SCORE, which is the sentence this
 epic exists for and the first 0–100 figure this product has ever drawn.**
@@ -817,10 +825,26 @@ did not fire — ten rows, not 516 elements.
 
 **What no gated machine and no person has ever seen is a single drawn row.**
 CI's store has zero bars, no provider and **no composite generation**, and the
-local store has no `iex` row and no provider either — so **the only place a
-score has ever been drawn is Storybook**. `LIVE-REHEARSAL.md` carries row **5.6
-unwatched**, the sixth this epic owes and strictly more unwatched than 5.4's,
-which at least had the session basis on one laptop.
+local store has no `iex` row and no provider either ~~— so **the only place a
+score has ever been drawn is Storybook**~~. `LIVE-REHEARSAL.md` carries row
+**5.6 unwatched**, the sixth this epic owes and strictly more unwatched than
+5.4's, which at least had the session basis on one laptop.
+
+**The struck clause is FALSE and was corrected 2026-10-29 by Task 5.7.2.** A
+composite **draws on an ordinary laptop** and did: Task 5.6.5 read `score 35 ·
+band elevated · max 35` off the running backend on `/securities/NVDA`, probed on
+the route at four widths, with the frame quoted verbatim at **625 B** — not a
+furnished frame and not Storybook. The excess factor needs only **stored daily
+closes**, which is why. `LIVE-REHEARSAL.md` had already carried this correction
+and **this file did not**, which is the sentence above it being true of its own
+author: recording a correction and propagating it are two obligations.
+
+**What remains true is the first sentence, and it is the one that matters**: no
+**ranked row** on `/` has been drawn by any machine or any person, and the
+deployed common case — `2 of 3 factors · max 75` — has never been drawn
+anywhere. `high`, `extreme` and any three-factor score are unseen, the last
+being structurally unreachable while `0015` stores a median and a dispersion
+rather than a distribution.
 
 **`Relative performance` draws, which is Story 5.1 (Epic 5's first story).** The
 security's own move, its **sector benchmark ETF's** and the **broad market's**,
@@ -876,8 +900,15 @@ reads it until Epic 13.
 
 The other three regions are placeholders naming the epic that fills them, and
 that is on purpose — though **`Anomaly history` is filled by no story in Epic 5**:
-it was deferred at that epic's Gate 1 with a condition, _the first surface that
-needs a score older than the process_.
+it was deferred at that epic's Gate 1 with a condition, ~~_the first surface
+that needs a score older than the process_~~ **_the first story that needs a
+score for this security from more than one past session_** — **re-worded
+2026-10-29 by Task 5.7.4, because the original had FIRED without filling
+anything**: Task 5.6.7's `session` arm reads a nightly table on roughly 80% of
+the week, which is a score older than the process read by a shipped surface. And
+**that region's placeholder now states the condition rather than naming an
+epic**, which is the first one on any screen that does — it said `Epic 5 —
+Anomaly Detection` while Epic 5 closed without filling it.
 
 Both plots draw real minute or daily bars on **one shared time axis**, answer
 **one reading** from one crosshair, and can be driven by pointer or keyboard from

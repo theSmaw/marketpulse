@@ -684,7 +684,35 @@ export function SecurityExplorer({
             name="Anomaly history"
             filledBy="Every earlier occasion this security behaved unusually, so today can be read against its own past."
           >
-            <RegionPlaceholder filledBy="Epic 5 — Anomaly Detection" />
+            {/*
+             * **This region names a CONDITION rather than an epic, and it is
+             * the only one on this screen that does** (Task 5.7.4, at Epic 5's
+             * close, on the owner's decision).
+             *
+             * It read `Epic 5 — Anomaly Detection` until today, and **Epic 5
+             * closed without filling it** — deferred at that epic's Gate 1 with
+             * a condition rather than a slot. So the shipped product was
+             * telling every reader of this route that the epic about to be
+             * marked complete fills a region it never will, which is ADR 0029's
+             * defer rule pointing at a date that has passed and the exact shape
+             * of the `BarSeriesPanel` duplicate this product has already
+             * deleted once.
+             *
+             * **And the original condition had stopped discriminating.** It was
+             * *the first surface that needs a score older than the process* —
+             * which Task 5.6.7 then satisfied without filling anything, because
+             * `/`'s `Unusual activity` reads `session_composite_scores`, a
+             * nightly table, on roughly 80% of the week and permanently on CI.
+             * Scores written before this process started, read by a shipped
+             * surface. Re-worded so it discriminates again: what this region
+             * needs is not *a* stored score but **a series of them for one
+             * security**, which is the thing no table holds.
+             *
+             * An epic number goes stale the day that epic closes; a condition
+             * does not, which is why `RegionPlaceholder`'s own rule is widened
+             * rather than broken here.
+             */}
+            <RegionPlaceholder filledBy="the first story that needs a score for this security from more than one past session" />
           </Region>
 
           {/*

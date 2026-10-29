@@ -152,6 +152,38 @@ activity` and any Epic 7 investigation list will be ranked by a live value on
   That is the intent; the risk is that a region whose rows a reader is expected
   to **compare over time** rather than **look at now** would want a different
   answer, and nothing will stop it inheriting this one.
+
+  > **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — the prediction came
+  > exactly true, including the risk, and the bullet above is now FUTURE-TENSE
+  > STALENESS rather than a forecast.** `Unusual activity` shipped on 2026-10-17
+  > (Story 5.4) and re-based on the composite on 2026-10-28 (Task 5.6.7).
+  > `Unusual.tsx` imports `RankedList`, and its own comment calls itself _"the
+  > third use of `RankedList`, and the first one in the narrow column"_ — so it
+  > took the travel, the hold, the symbol keys and the clamping exactly as this
+  > bullet said it would, **and nobody re-took the argument**, which was the
+  > intent. The _will be_ / _will get_ tense is what dates this: a prediction
+  > that has happened reads to the next person as a thing still to come, which
+  > is the same class of staleness Story 5.1's own sweep found and named.
+  >
+  > **The stated risk landed too, and it is still open.** _A region whose rows a
+  > reader is expected to compare over time rather than look at now would want a
+  > different answer_ is a description of an anomaly list: the whole point of
+  > `Unusual activity` is which securities are unusual **today**, held and
+  > compared, not glanced at. The routed defect this ADR already records —
+  > `ORDER HELD` staying on while a **re-taken** pin moves every row, so one
+  > `ArrowDown` can re-order all five and take the reader one row up the
+  > screen — is **unrepaired at Epic 5's close** and now reaches a second
+  > region. The decision above is **unchanged** and this amendment proposes no
+  > different answer; it records that the condition the risk was written against
+  > now exists on the shipped page, so the next person weighing it is weighing a
+  > real surface rather than a hypothetical one.
+  >
+  > One thing this bullet did not predict and `Unusual activity` did not inherit:
+  > the **band chip** on the row. It shipped for an afternoon and was taken off by
+  > measurement — 76 px of a 308 px row, squeezing the name to 57 px — so the
+  > band is stated once in the region's heading. That is a column decision rather
+  > than a re-ordering decision and nothing in this ADR governed it.
+
 - **What a green run does not certify.** **No gated machine has ever seen a
   row move**: CI's store has zero bars, so the frame carries `eligible: 0` and
   two empty lists for ever, and every assertion about the treatment is made

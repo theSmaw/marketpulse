@@ -541,6 +541,31 @@ const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
  * of this docblock is unchanged and is the half that was always right — this
  * constant is a statement about what this table holds.
  *
+ * **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — the correction above
+ * is itself a live, present-tense, FALSE description of shipped code, and the
+ * struck clause it replaced is now closer to the truth than the sentence that
+ * replaced it.** Story 5.3 **reversed** Story 5.1's decision 1 on 2026-10-14:
+ * the baseline reads the **raw** store and a **split guard detects a
+ * discontinuity and refuses that security** rather than asking a provider for
+ * anything. Verified 2026-10-29 — `return-baseline.ts` and
+ * `compute-baselines.ts` contain **zero** provider imports and zero provider
+ * calls, so _"the baseline fetches a `split-adjusted` series for its window"_
+ * describes nothing that exists, and **Epic 5 is not a reader of
+ * `split-adjusted` at all**. The guard refused **5 of 516** securities on the
+ * real store, four on exact split factors — `CRWD` 0.2501, `APH` 0.5017,
+ * `MNST` 0.5084, `DD` 3.0639 — **two of them above 1.0**, which is why the
+ * bound is a ratio and its reciprocal rather than a percentage.
+ *
+ * **The struck clause stays struck and is not restored**, but a reader should
+ * know which half of each sentence was right: the strike was right about the
+ * **computation** (nothing here computes an adjustment, and `raw` is still
+ * what this table holds) and wrong about the **fetch** — so the struck text is
+ * nearer the shipped behaviour than the correction that superseded it, because
+ * Epic 5's percentile windows do deal with corporate actions themselves, by
+ * **refusing** rather than by adjusting. `PROVIDER.md` §3.5 carries the
+ * reversal and the two reasons behind it; §3.1 and §3.4 carry amendments of
+ * this same date.
+ *
  * **Why the struck clause was the expensive mistake to leave standing**, which
  * is `PROVIDER.md` §3.5: a series spanning no corporate action returns
  * identical numbers in both modes, so an adjustment we compute ourselves is
@@ -549,6 +574,13 @@ const SOURCE_OF_NOTHING: SeriesSource = { provider: "alpaca", feed: "sip" };
  * 10-for-1 split is a −90% return at the 100th percentile of every
  * distribution it touches. `PROVIDER.md` §3.1 carries the decision and points
  * back here.
+ *
+ * **Amended 2026-10-29 by Task 5.7.4: `100th percentile` above is never
+ * printed.** Task 5.3.3 established that the shipped surface draws `>99th` and
+ * never `100th`, because above the highest order statistic there is no sample.
+ * The −90% argument's force is unchanged; only its last two words are wrong,
+ * and the same two words appear in `market-provenance.ts` and in
+ * `PROVIDER.md` §3.4.
  *
  * **Exported since Task 2.9.5**, which is the reader that makes it load-bearing
  * rather than local: the stitch asks a provider for the uncovered tail and

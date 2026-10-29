@@ -525,6 +525,46 @@ The desktop layout should approximately consist of:
 
 The visualization should be the product's visual centre of gravity.
 
+> **Amended 2026-10-29 by Task 5.7.3 at Epic 5's close — the `Unusual Activity`
+> panel above is falsified FOUR ways, and §9 had received no Epic 5 amendment at
+> all until today.** The sketch stands as the record of what was asked for; the
+> shipped region differs in every particular, and this is the section a reader
+> building it works from.
+>
+> **1. Three rows against ten, and the ten cannot grow.** The shipped region
+> lists **ten** securities, fixed by `UNUSUAL_ROWS`, because the region could not
+> hold even one row where it was reserved — its own chrome is 161 px against a
+> row-1 track resolving to 161 px, so **zero rows fitted at every viewport
+> height** and Task 5.4.1 re-areaed the whole landing grid to make room.
+>
+> **2. `91`, `84` and `79` are ARITHMETICALLY UNREACHABLE, which is stronger
+> than §11's _not producible on demand_.** `FACTOR_WEIGHTS` is `price 40 ·
+excess 35 · volume 25`, and the volume arm is `no-distribution`
+> **unconditionally** — `0015` stores a median and a dispersion, **not** a
+> distribution, so no security has a rankable volume figure anywhere. The
+> ceiling is **75**. All three sketched figures are above it, and `91` is not
+> reachable on any machine by any security on any day. Epic 5's own exit
+> criterion carries the same correction.
+>
+> **3. A bare integer with no band, no population and no cut.** The shipped
+> region states **three populations and a cut** from one builder — `Of the 501
+companies we track, 466 were heard from in the last 5 minutes and 455 have a
+long enough history to rank. 9 have too short a baseline and 2 cross an
+unadjusted price break.` — and names the **cohort** it ranks within (`a score
+on 2 of 3 factors, to a maximum of 75`), because two scores are comparable
+> only if computed over the same factor set. The band is stated **once, in the
+> region's heading** (`TOP 10 · ALL EXTREME`), never per row: measured, all ten
+> rows share one band in **35 of 77** instants, so a per-row chip stops being a
+> property of the selection and becomes a property of the day — and it cost
+> **25% of a 308 px row**, squeezing company names to `Dominio…`.
+>
+> **4. `[Investigate]` is not there, and was refused by name.** Epic 5's Gate 1
+> refused it in any form on the ground that a row has **one** activatable thing
+> and a second is _two answers to what does Enter do_. The reasoning is in
+> `planning/epic-07-deterministic-investigation-engine/EPIC.md`, which owns the
+> button and the surface it belongs on — the security page, beside the factors
+> an investigation automates, not a list row.
+
 > **Amended 2026-10-07 by Story 4.4 — the breadth sketch above draws three
 > percentages and no denominator, and the shipped region draws neither.**
 >
@@ -839,6 +879,17 @@ returns` — and the direction lives in the glyph, as amendment 1 below already
 > the score.** _"Normalize the preceding factors"_ reads over all four
 > preceding clauses; the shipped score is **three** scored factors — price
 > percentile, volume ratio, relative move — with breadth stated beside them.
+>
+> **Corrected 2026-10-29 by Task 5.7.4: three factor SLOTS, two scored
+> factors.** `volumeFactorAnswer()` takes **no parameters** — `0015` stores a
+> median and a dispersion rather than a distribution, so there are no
+> breakpoints to rank a rate against **for any security**, and the volume arm is
+> `no-distribution` unconditionally. The measured cohort is `{price, excess}` on
+> **485 of 485** stored rows, with **0** single-factor scores. This section's own
+> 2026-10-22 amendment three lines below already says **34,318 two-factor
+> scores**, so §11 had been disagreeing with itself across two amendments. The
+> clause about breadth is unaffected and correct; it is the count beside it that
+> was wrong.
 > The reason is structural rather than a preference: **breadth is a property of
 > a group, so it is identical for every member of that group.** It cannot order
 > securities within a sector, and weighting it correlates the whole group's
@@ -939,6 +990,32 @@ The user sees:
 > **NVDA — anomaly 91**
 
 and selects **Investigate**.
+
+> **Amended 2026-10-29 by Task 5.7.4 at Epic 5's close — the figure above is
+> unreachable and the control is on a different surface.** The workflow is
+> unaffected; both particulars are wrong, and this is the section Epic 7 builds
+> its flow from, so it is worth a reader knowing before they design against it.
+>
+> **`91` cannot be produced by any security on any day.** `FACTOR_WEIGHTS` is
+> `price 40 · excess 35 · volume 25` and the volume arm is `no-distribution`
+> **unconditionally**, so the ceiling is **75**. §9's sketch and Epic 5's exit
+> criterion carry the same correction, with the arithmetic stated once in the
+> exit criterion's rewritten shape.
+>
+> **And a reader does not meet `Investigate` on a list row.** Epic 5's Gate 1
+> refused it there in any form — a row has one activatable thing and a second is
+> _two answers to what does Enter do_ — so the control belongs on the security
+> page beside the factors an investigation automates.
+> `planning/epic-07-deterministic-investigation-engine/EPIC.md` owns it and
+> carries the reasoning.
+>
+> **One thing to carry into this flow that this section cannot show.** The score
+> is **absolutely calibrated** against each security's own history, so a `high`
+> or an `extreme` is available on **any** day including a dead one — measured,
+> `high` **39.3** and `extreme` **7.74** of 484 scored securities at every
+> instant of every session. A trigger of the form _the score is high_ therefore
+> selects something every day, which is a property this workflow has to want
+> rather than inherit by accident.
 
 MarketPulse creates an Investigation.
 
