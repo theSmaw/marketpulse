@@ -575,18 +575,50 @@ interface State {
   readonly drive: (page: Page, width: number) => Promise<void>;
 }
 
-/** Scroll the chip's region into view, which is where a reader puts it. */
-async function reveal(page: Page): Promise<void> {
+/**
+ * Scroll the chip's region into view, which is where a reader puts it.
+ *
+ * **`band` is REQUIRED for every state that serves a score, and that is the
+ * repair for a race this spec shipped with** (2026-10-29). The first version
+ * waited only for the region to be **visible** — but the region is visible
+ * before its score arrives, because the score rides a frame the harness sends
+ * **after** navigation. So the mark sweep could run against a rail still
+ * drawing its deferred state, and the failure's shape is the one this spec's
+ * own error text predicts: *a mark declared and not found is most likely a
+ * REFUSED frame drawing the deferred state, which looks exactly like a correct
+ * absence.*
+ *
+ * It went red on `main` at **390 only** — the width where the rail is last in
+ * the column and therefore last to lay out — while passing on the pull request
+ * and on a developer's machine, which is the signature of a race rather than a
+ * defect. **Waiting for the band word is the condition the sleep below was
+ * standing in for**, and a condition cannot be outrun by a slow runner.
+ */
+async function reveal(page: Page, band?: string): Promise<void> {
   const region = page.getByRole("region", {
     name: "Abnormal-move indicators",
   });
   await expect(region).toBeVisible();
+
+  // **The chip itself, not the region that will hold it.** A state serving a
+  // score is not ready to be photographed until its band word is on screen;
+  // the control serves none and passes `undefined` deliberately.
+  if (band !== undefined) {
+    await expect(region.getByText(band, { exact: false })).toBeVisible();
+  }
+
   await region.scrollIntoViewIfNeeded();
   // The sticky bar republishes its own height when the feed cell grows to a
   // second row, and the page's `scroll-padding-bottom` follows it — so the
-  // scroll has to settle before a box is worth reading.
+  // scroll has to settle before a box is worth reading. **This one is a
+  // LAYOUT settle rather than a data wait**, which is why it survives the
+  // repair above: there is no condition to wait for, only a reflow.
   await page.waitForTimeout(300);
 }
+
+/** The band word a served score will draw, or `undefined` for the control. */
+const bandOf = (score: WireAnomalyOutcome): string | undefined =>
+  score.scored ? score.band : undefined;
 
 const CHIP = (band: string) =>
   `${band === "extreme" ? "deep" : "amber"} fill chip (encloses its own name) @ region · Abnormal-move indicators`;
@@ -637,7 +669,7 @@ const withStaleFeed =
     // assert nothing about the path a real outage travels.
     produced.goStale();
     await expect(page.locator("footer").first()).toContainText(/stale/iu);
-    await reveal(page);
+    await reveal(page, bandOf(score));
   };
 
 /** Serve a frame, and make the backend answer badly. */
@@ -669,7 +701,7 @@ const withDegradedBackend =
       produced.goStale();
       await expect(page.locator("footer").first()).toContainText(/stale/iu);
     }
-    await reveal(page);
+    await reveal(page, bandOf(score));
   };
 
 const STATES: readonly State[] = [
@@ -737,7 +769,7 @@ const STATES: readonly State[] = [
       await expect(page.locator("footer").first()).toContainText(
         "Generated test data",
       );
-      await reveal(page);
+      await reveal(page, bandOf(HIGH));
     },
   },
   {
