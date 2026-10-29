@@ -1,6 +1,22 @@
 # Story 5.6 — The Composite Score, & Its Explanation
 
-**Status:** **In progress — Gate 1 taken 2026-10-21; six tasks.** Four decisions and **five false premises corrected**, three of them in this story's own text.
+**Status:** **Complete — 2026-10-29.** Accepted by the Product Owner at Gate 2.
+**Eight tasks, not the six Gate 1 approved**, and the invisible run reached
+**five** against a stated limit of three — both recorded rather than smoothed
+over, because each growth was a developer **stopping before building on a false
+premise** rather than scope drifting. PRs #610, #611, #612, #613, #614, #615,
+#616, #617, #618.
+
+**What the story found rather than what it shipped:** a **live correctness
+defect in its own merged code** — the excess factor ranked a **session-to-date**
+move against a **five-minute** distribution, putting **58.8% of the universe** at
+its own 99th percentile, and nothing compared the numerator's span to the
+baseline's; the measurement that set the band floors **contradicted the
+intuition** (the median security scores 32, because a percentile is uniform on
+its own sample); and **three of my own Gate 1 premises were false** — the live
+cohort, the reversal trigger I wrote, and a cold-load figure measured on the
+wrong typeface.
+
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.4, 5.5
 **Epic scope covered:** composite anomaly score, human-readable anomaly explanation
