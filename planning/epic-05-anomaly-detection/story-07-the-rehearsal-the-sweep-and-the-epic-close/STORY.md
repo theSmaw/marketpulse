@@ -1,6 +1,6 @@
 # Story 5.7 — The Rehearsal, the Sweep, & Epic 5's Close
 
-**Status:** Not started
+**Status:** **In progress — 2026-10-29.** Gate 1 settled four decisions and found AC 1's own premise false: Epic 5 has **59 acceptance criteria and 33 carry no per-criterion verdict**. The sideways walk is **7 missing of 10**, making the record 1, 6, 3, 6, 2, 8, 7.
 **Epic:** [Epic 5 — Anomaly Detection](../EPIC.md)
 **Depends on:** 5.6
 **Epic scope covered:** the close
@@ -27,8 +27,19 @@ be checked as written**, because of decisions this epic took deliberately:
   volume section's own example says `typical`.
 - **`Underperforming semiconductor peers`** asks for a comparison the taxonomy
   deliberately does not support: semiconductors is an **industry group of 20
-  members with no benchmark ETF**, and `UNIVERSE.md` §5 says this epic must not
-  assume one. Reachable as a peer median or a count; not as _relative move vs
+  members with no benchmark ETF**, and `UNIVERSE.md` says this epic must not
+  assume one.
+
+  **Citation corrected 2026-10-29 by Task 5.7.1; the claim itself is
+  unaffected.** This read `UNIVERSE.md` §5, which is _Where sector and industry
+  come from: a curated file in this repository_ — it holds the **drift table**
+  AC 4 names, which is a different claim this same story sweeps. The
+  no-benchmark rule is **§1** (industry _"has no benchmark attached"_) and
+  **§7** (_"ETF and therefore no benchmark; it is a coverage rule, not a
+  comparison rule"_). Corrected here rather than at the close because Task 5.7.3
+  rewrites the exit criterion **from this paragraph**, so a mis-citation left
+  standing is one a later reader follows to the wrong section and finds a table
+  that does not say it. Reachable as a peer median or a count; not as _relative move vs
   sector_. And `Underperforming` is a judgement word where §11's own composite
   example says `Move substantially exceeds related securities` — a measurement
   word, and the one to keep.

@@ -11,6 +11,7 @@ import type {
   ExcessMoveReference,
   MarketSession,
   PercentileRefusal,
+  Ticker,
 } from "@marketpulse/shared";
 import { RETURN_SPAN_MINUTES } from "./five-minute-return.js";
 import type { ReturnRefusal } from "./five-minute-return.js";
@@ -59,6 +60,7 @@ import {
   comparableVolumeBaseline,
   volumeBaselineOf,
 } from "./volume-baseline.js";
+import type { VolumeBaselineOutcome } from "./volume-baseline.js";
 import { createVolumeBaselineStore } from "./volume-baseline-store.js";
 import type {
   VolumeBaselineStore,
@@ -219,7 +221,7 @@ interface ExcessTally {
  * `volume_baseline_passes_securities_partition` holds the arithmetic in the
  * database.
  */
-interface VolumeTally {
+export interface VolumeTally {
   tracked: number;
   measured: number;
   splitDiscontinuity: number;
@@ -227,7 +229,62 @@ interface VolumeTally {
   absent: number;
   samples: number;
   buckets: VolumeBucketTally;
+  /**
+   * **A bounded SAMPLE of the drawable pairs, for a person in a chair** (Task
+   * 5.7.1) — never the population, and never the count.
+   *
+   * `buckets.measured` is the exact figure and stays the only one the summary
+   * states as a number; this is a list of up to
+   * {@link DRAWABLE_PAIRS_NAMED} `(symbol, bucket)` pairs so somebody can
+   * **open one**. At 4 drawable of 39,928 (the deployed pass for session
+   * 2026-10-20, 0.010%) the figure is unfindable by browsing, and nothing else
+   * in this product can answer *which four*.
+   *
+   * It is **not** stored. `VolumeBaselinePassWrite` is the row the pass writes
+   * and this is a line in a log — a sample of a derived population belongs in
+   * neither a column nor a constraint.
+   */
+  drawable: DrawableBucket[];
 }
+
+/**
+ * One drawable `(symbol, bucket)` pair, as the summary names it.
+ *
+ * The bucket is carried as the **index** and rendered as an index plus an
+ * offset from the session open. There is deliberately **no wall-clock time and
+ * no timezone here**: `Intl.DateTimeFormat` and the market's timezone
+ * identifier are confined to `packages/shared/src/market-time.ts` by lint, and
+ * a hand-rolled offset is exactly the conversion that rule exists to prevent.
+ */
+interface DrawableBucket {
+  readonly symbol: Ticker;
+  /** The grid bucket — `volumeBucketOf`'s answer, bucket 0 first. */
+  readonly bucket: number;
+}
+
+/**
+ * **How many drawable pairs the summary NAMES — a cap rather than a
+ * population** (Task 5.7.1).
+ *
+ * The list is bounded because the count is not: it was **4** on the deployment
+ * for session 2026-10-20 and its ceiling is the whole grid, **39,928** pairs,
+ * which arrives on its own as the `iex` tape accumulates depth — 132 sessions
+ * for `NVDA`'s best bucket. A pass that prints one line per drawable pair would
+ * one day print tens of thousands of them into a nightly log.
+ *
+ * **20**, because this is read by a person choosing a page to open: it is
+ * enough to offer several securities at several times of day even when the
+ * first few share one, and it is one screen. It is not a number anything
+ * computes with — `tally.buckets.measured` stays the exact count, and what the
+ * cap elides is reported as a remainder off that figure.
+ */
+const DRAWABLE_PAIRS_NAMED = 20;
+
+/** The one arm of {@link VolumeBaselineOutcome} that has buckets to tally. */
+export type MeasuredVolumeOutcome = Extract<
+  VolumeBaselineOutcome,
+  { kind: "measured" }
+>;
 
 /**
  * **The session ranking's tally — the three populations and the five refusals**
@@ -304,7 +361,7 @@ const noExcessTally = (): ExcessTally => ({
   largestSample: 0,
 });
 
-const noVolumeTally = (): VolumeTally => ({
+export const noVolumeTally = (): VolumeTally => ({
   tracked: 0,
   measured: 0,
   splitDiscontinuity: 0,
@@ -317,6 +374,7 @@ const noVolumeTally = (): VolumeTally => ({
     zeroVolume: 0,
     empty: 0,
   },
+  drawable: [],
 });
 
 export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
@@ -436,6 +494,11 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
         `${String(tally.volume.buckets.empty)} empty; ` +
         `${String(tally.volume.samples)} minute samples, target ` +
         `${String(TARGET_RELATIVE_STANDARD_ERROR * 100)}% relative SE`,
+      // **Which buckets draw, not only how many** (Task 5.7.1). The line above
+      // is the count and it is exact; this one is a bounded sample a person can
+      // open — at 0.010% of the grid, a reader cannot find a drawn multiple by
+      // browsing, and no other surface in this product can answer *which*.
+      `drawable volume buckets — ${describeDrawableBuckets(tally.volume)}`,
       // **The excess-move baseline's two lines.** The first is the security
       // partition — four populations that sum to `tracked`, which the database
       // refuses a row that violates — and the second is the depth, because
@@ -873,6 +936,27 @@ async function computeVolumeBaseline(
 
   tally.measured += 1;
 
+  tallyVolumeBuckets(subject, volume, tally);
+}
+
+/**
+ * **One measured generation's buckets, partitioned — and a bounded sample of
+ * the drawable ones** (Task 5.5.3; the sample is Task 5.7.1).
+ *
+ * Exported for its test rather than for a second caller: the pass around it
+ * needs a pool, a store and a window, and the two properties worth holding —
+ * that the sample names **only** drawable pairs, and that the cap changes the
+ * list without changing `buckets.measured` — are properties of this loop alone.
+ *
+ * Every verdict here comes from `comparableVolumeBaseline`, the one narrowing
+ * the reader also goes through, so the pass cannot drift into a second answer
+ * to *is this bucket printable*.
+ */
+export function tallyVolumeBuckets(
+  subject: BaselineSubject,
+  volume: MeasuredVolumeOutcome,
+  tally: VolumeTally,
+): void {
   for (let bucket = 0; bucket < volume.bucketCount; bucket += 1) {
     const held = volume.buckets[bucket];
 
@@ -888,8 +972,20 @@ async function computeVolumeBaseline(
 
     const comparable = comparableVolumeBaseline(volume, bucket);
 
-    if (comparable.comparable) tally.buckets.measured += 1;
-    else if (comparable.refusal === "zero-volume-baseline") {
+    if (comparable.comparable) {
+      tally.buckets.measured += 1;
+
+      // **The count is exact and the list is a sample.** `measured` is
+      // incremented above unconditionally; the push below stops at the cap, and
+      // what it drops is recovered as a remainder when the line is rendered.
+      // Taking the first `n` rather than a spread across the universe is
+      // deliberate: the loop runs securities in universe order, so the sample
+      // is reproducible between two passes over the same store, which a
+      // reservoir would not be.
+      if (tally.drawable.length < DRAWABLE_PAIRS_NAMED) {
+        tally.drawable.push({ symbol: subject.symbol, bucket });
+      }
+    } else if (comparable.refusal === "zero-volume-baseline") {
       tally.buckets.zeroVolume += 1;
     } else tally.buckets.tooFewSessions += 1;
   }
@@ -1330,6 +1426,37 @@ const COMPARISON_REFUSAL_FIELD: Record<
 };
 
 /**
+ * **The bounded sample of drawable pairs, as a line somebody can act on** (Task
+ * 5.7.1).
+ *
+ * `NVDA bucket 31 (open+155m)` — the **index** and the minutes from the session
+ * open, and nothing else. A wall-clock time would be more useful in the chair
+ * and is deliberately not computed here: `Intl.DateTimeFormat` and the market's
+ * timezone identifier live in `packages/shared/src/market-time.ts` by lint
+ * rule, and a hand-rolled offset is the conversion that rule exists to prevent.
+ * The clock reading is stated once, in Story 5.7's sitting protocol.
+ *
+ * The remainder is computed from `buckets.measured` rather than counted here,
+ * so the exact figure has one home: a cap that elides nothing prints no
+ * remainder at all.
+ */
+export function describeDrawableBuckets(volume: VolumeTally): string {
+  if (volume.buckets.measured === 0) return "none";
+
+  const named = volume.drawable
+    .map(
+      ({ symbol, bucket }) =>
+        `${symbol} bucket ${String(bucket)} ` +
+        `(open+${String(bucket * SAMPLE_SPAN_MINUTES)}m)`,
+    )
+    .join(", ");
+
+  const elided = volume.buckets.measured - volume.drawable.length;
+
+  return elided > 0 ? `${named}, … and ${String(elided)} more` : named;
+}
+
+/**
  * **The factor sets a pass produced, counted**, in descending order of how many
  * securities were in each — `price+excess 485` — or `—` where nothing scored,
  * which is CI's permanent state.
@@ -1338,6 +1465,7 @@ const COMPARISON_REFUSAL_FIELD: Record<
  * stored row's three states, so this is a measurement of the pass rather than a
  * figure anything stores. `0017` §5's *the factor set IS the set of states*.
  */
+
 function describeSets(sets: ReadonlyMap<string, number>): string {
   if (sets.size === 0) return "—";
 
