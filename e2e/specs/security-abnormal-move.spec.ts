@@ -382,7 +382,21 @@ test("the region draws what the SERVER sent, figure or refusal", async ({
   // The region it replaced said this, and a placeholder that survives the
   // thing it was waiting for is a screen holding a plan while holding the
   // plan's output.
-  expect(lines).not.toContain("Filled by Epic 5");
+  // **Re-pointed 2026-10-29 by Task 5.7.4, because this assertion had become
+  // VACUOUS and nothing would have said so.** It tested that the region draws
+  // its content rather than still showing a placeholder — true and useful while
+  // `Filled by Epic 5 — Anomaly Detection` was a string this product emitted.
+  // Task 5.7.4 changed that placeholder to name a **condition** instead, so the
+  // literal above can no longer appear anywhere on any page and a `not`
+  // assertion against it could never fail again. It is now keyed on the
+  // **shape** every placeholder shares, which is the clause a re-implementer
+  // cannot avoid: `RegionPlaceholder` supplies the words `Filled by` itself so
+  // that five call sites cannot drift into five phrasings.
+  //
+  // The general form, and it is the half of a string change nobody looks for: a
+  // NEGATIVE assertion about a literal is silently disarmed the day that
+  // literal stops existing, and every suite stays green.
+  expect(lines).not.toContain("Filled by ");
 
   await expectNothingFailedToRender(page);
 });

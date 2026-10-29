@@ -666,12 +666,17 @@ describe("the Security Explorer shell", () => {
       expect(screen.getByText(plan)).toBeTruthy();
     }
 
-    // **One of Epic 5's three since Task 5.2.3.** `Relative performance` draws
-    // and `Abnormal-move indicators` draws; `Anomaly history` is the deferral
-    // Gate 1 decision 7 recorded with a condition, and it is the only region on
-    // this screen still naming this epic.
+    // **`Anomaly history` names a CONDITION rather than an epic, and it is
+    // the only region on this screen that does** (Task 5.7.4). It named Epic 5
+    // until that epic closed **without filling it** — a placeholder promising a
+    // region to an epic goes stale the day the epic ships, and this one did.
+    // The condition is asserted rather than the epic for the same reason the
+    // product states it: there is no later date at which this sentence becomes
+    // false by itself.
     expect(
-      screen.getByText("Filled by Epic 5 — Anomaly Detection"),
+      screen.getByText(
+        "Filled by the first story that needs a score for this security from more than one past session",
+      ),
     ).toBeTruthy();
   });
 

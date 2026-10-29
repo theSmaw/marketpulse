@@ -88,7 +88,28 @@ exposed to.
   fires Epic 14's original trigger is twenty minutes long. The refusal is
   recorded in Story 5.1 with its reason.
 - **`Anomaly history`** — deferred at Gate 1 with a condition rather than a
-  slot: _the first surface that needs a score older than the process_. It is
+  slot: ~~_the first surface that needs a score older than the process_~~
+  ****the first story that needs a score for this security from more than one past session****.
+
+  **Re-worded 2026-10-29 by Task 5.7.4 at this epic's close, because the
+  original condition HAD FIRED without filling anything.** Task 5.6.7 re-based
+  `/`'s `Unusual activity` on the composite, and its `session` arm reads
+  `session_composite_scores` — a **nightly** table, on roughly 80% of the week
+  and permanently on CI. Those are scores written before the process started,
+  read by a shipped surface, which satisfies the old wording exactly. A
+  condition that is met by something other than the thing it was guarding has
+  stopped discriminating, and this repository's rule is that a trigger written
+  against something which has already happened will never fire.
+
+  What this region actually needs is not **a** stored score but **a series of
+  them for one security**, which is the thing no table holds: `0017` keys one
+  row per security per session, so reading a security's history means a range
+  scan nothing asks for yet. The deferral itself is unchanged and accepted; it
+  is the condition that was wrong. **And the shipped placeholder now states this
+  condition rather than naming this epic** — it said `Epic 5 — Anomaly
+Detection` until today, on a region this epic is closing without filling.
+
+  It is
   the only surface needing scores written down, which means a new table and a
   migration against a store with a live per-minute writer. **Its shape is
   nevertheless drawn** (Story 5.1, `The rail that says how unusual.dc.html`
@@ -98,6 +119,7 @@ exposed to.
   the **one-height rule**, which this region is the one place in the rail that
   could drift without cost and is therefore the one place it has to be written
   down.
+
 - **`Investigate`** — not in this epic in any form, not even disabled. A
   natively disabled control is not focusable, so anything `aria-describedby`
   hangs off it is unreachable, and this product has shipped that defect once

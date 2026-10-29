@@ -222,6 +222,36 @@ unadjusted 10-for-1 is _"a −90% return sitting at the 100th percentile of ever
 distribution it touches, producing a permanent, confident and entirely false
 anomaly."_
 
+> **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — THE TRIGGER FIRED, by its
+> own named candidate, on 2026-10-14.** Epic 5's return percentiles are the
+> candidate this section names, and Story 5.3's baseline pass over the deployed
+> store found a session-boundary discontinuity inside the 60-session window in **5
+> of 516** securities, four of them on exact split factors — `CRWD` 0.2501, `APH`
+> 0.5017, `MNST` 0.5084, `DD` 3.0639 — **two of them above 1.0**, which is why the
+> bound is a ratio and its reciprocal rather than a percentage. So _the first
+> window this product offers that spans a corporate action in a security it tracks_
+> is no longer a condition awaiting an event.
+>
+> **What the product does instead is neither the louder disclosure this trigger
+> predicted nor the quiet wrong figure it feared: it REFUSES, visibly, by
+> construction.** Epic 5 reads the **raw** store — Story 5.1's own decision to
+> fetch a `split-adjusted` series from a provider was reversed on the same date,
+> `PROVIDER.md` §3.5 — and a split guard detects the discontinuity and withholds
+> that security's percentile rather than publishing one. The −90%-at-the-100th
+> hazard quoted above therefore never reaches a reader's eye on those five names;
+> the figure is absent and stated as absent, which is this ADR's first rule
+> (_a claim about data requires data_) arriving at a derived aggregate rather than
+> at a series. Two notes a reader should carry: `100th percentile` in the quotation
+> is never printed, because Task 5.3.3 established that `>99th` is drawn and above
+> the highest order statistic there is no sample; and **the disclosure itself did
+> not get louder** — this ADR's §6 decision, one `adjustment` per series and
+> unrepresentable per source, is **unchanged**, because the thing that fired was
+> answered one layer up in the aggregate rather than in the provenance record. What
+> is **not** established here is what the drawn chart does on those five names:
+> Story 5.3 measured the baseline, not the series, so whether the cliff is visible
+> beside a `raw` label on `/securities/CRWD` today is unmeasured and remains
+> `PROVIDER.md` §3.6's gap.
+
 ### 7. The two empty answers are told apart on the screen, not on the wire — and the general rule is degradation
 
 _We hold nothing for this security_ and _we hold nothing in this window_ are the

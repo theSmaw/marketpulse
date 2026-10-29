@@ -405,6 +405,35 @@ restated at that weight in ADR 0015 rather than left where it was.
 - **Epic 5** computes baselines from these rows and inherits decision 4's density finding —
   364.3 bars a security-session against a nominal 390 — so a volume baseline that treats a thin
   minute as an outage is wrong about most securities on most days.
+
+  > **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — both halves of that bullet
+  > are inaccurate as live description, and the second was right in direction and
+  > off by an order of magnitude in consequence.**
+  >
+  > **_"from these rows"_ is half true.** Epic 5 ships three factors. The price
+  > baseline (`return_baselines`, Story 5.3) and the excess baseline
+  > (`excess_move_baselines`, Story 5.6) do read these SIP rows. The **volume**
+  > baseline deliberately does **not**: Story 5.5 built it on `iex` rows with the
+  > tape in the key — `unique (security_id, observed_at, feed)` in
+  > `0015_volume_baselines.sql` — because a level compared across tapes is not a
+  > comparison at all, and
+  > [ADR 0045](0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md) is
+  > that decision. So this table is the substrate of two of Epic 5's three
+  > factors, not of its baselines in general.
+  >
+  > **And the density handed over understates the consequence by an order of
+  > magnitude, for the one factor the warning was aimed at.** Decision 4's figure
+  > is **364.3 bars a security-session against a nominal 390 — 93.4%** — which is
+  > the right warning about the wrong tape: the volume baseline does not rest on
+  > these rows, and on the tape it does rest on, `NVDA`, the universe's best case,
+  > has **80 samples a bucket at 10.65% relative standard error**, and **39,924 of
+  > 39,928 buckets — 99.990% — refuse for too few sessions.** The direction of the
+  > bullet is vindicated — a baseline that treats thin data as an outage is wrong
+  > about most securities on most days — and the magnitude is not 6.6% of minutes
+  > missing but 99.990% of _buckets_ unanswerable. What Epic 5 did with that is a
+  > **stated refusal** rather than an imputation: no `× 5/k`, no `/ k`, no `/ 5`,
+  > and a partial span is declined.
+
 - **Epic 13** inherits the seam gap above, and the correction gap in decision 1's honest limit.
 
 ## Related

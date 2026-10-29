@@ -128,8 +128,16 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   // **Three since Task 5.2.3 filled `Abnormal-move indicators`** — and one of
   // Epic 5's three, because two of the epic's reserved regions now draw. The
   // last is `Anomaly history`, which NO story in Epic 5 fills: it was deferred
-  // at that epic's Gate 1 with a condition, _the first surface that needs a
-  // score older than the process_.
+  // at that epic's Gate 1 with a condition, ~~_the first surface that needs a
+  // score older than the process_~~.
+  //
+  // **And since 2026-10-29 that last one names a CONDITION rather than an
+  // epic** (Task 5.7.4), which is why the assertion below changed. Epic 5
+  // closed **without filling it**, so `Filled by Epic 5 — Anomaly Detection`
+  // was a shipped page promising a region from work being declared finished —
+  // and the old deferral condition had itself **fired** without filling
+  // anything, because Task 5.6.7 reads a nightly table on ~80% of the week.
+  // An epic name goes stale the day that epic closes; a condition does not.
   //
   // **Four since Task 5.1.3 filled `Relative performance`** — three of the
   // five later-epic placeholders were Epic 5's and two are, because the first
@@ -147,7 +155,9 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   // holds a plan while holding the plan's output.
   await expect(page.getByText(/^Filled by /)).toHaveCount(3);
   await expect(
-    page.getByText("Filled by Epic 5 — Anomaly Detection"),
+    page.getByText(
+      "Filled by the first story that needs a score for this security from more than one past session",
+    ),
   ).toHaveCount(1);
   await expect(
     page.getByText("Filled by Epic 6 — Market Topology"),

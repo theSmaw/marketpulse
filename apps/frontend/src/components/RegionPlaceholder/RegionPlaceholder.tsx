@@ -24,6 +24,21 @@ import styles from "./RegionPlaceholder.module.css";
 // what happens otherwise: the 2.11 design deliverable labelled its placeholder
 // cards Stories 2.12 to 2.16, and Epic 2 ends at 2.14.
 //
+// **WIDENED 2026-10-29 by Task 5.7.4, and the rule's reason is what widened
+// it.** An epic name is better than a story number because a story number
+// moves — but it is still a promise with an identifier on it, and it goes
+// stale **the day that epic closes without filling the region**. That happened:
+// `Anomaly history` read `Epic 5 — Anomaly Detection` while Epic 5 closed
+// without filling it, so the shipped page told every reader that the epic being
+// marked complete fills a region it never will.
+//
+// So the label may also name a **condition** — what has to become true for the
+// region to fill — and `Anomaly history` is the first and so far only one that
+// does. A condition cannot go stale by the passage of time, which is the
+// property the epic name was reaching for and did not have. The prohibition is
+// unchanged for the two things it was written against: **never a date, and
+// never a story number.**
+//
 // ## The silhouette is `dashed`, and it is the one already in use
 //
 // `Marker`'s dashed ring is this language's existing mark for *not yet* — the

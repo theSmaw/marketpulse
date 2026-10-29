@@ -140,6 +140,46 @@ runs 09:30–16:00.
 > to be systematically unexplainable without extended hours. `CALENDAR.md` §2.4 carries the
 > re-stated trigger; this note exists so a reader of the ADR is not left with the premise.
 
+> **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close), in two directions at once —
+> the 2026-09-09 withdrawal is itself falsified for ONE factor, and the trigger it
+> re-stated is recorded here as NOT FIRED.** The decision — pre- and post-market
+> are out for V1 — stands in both.
+>
+> **First: the withdrawn sentence is correct again, for the volume factor, and now
+> carries a figure.** The 2026-09-09 note withdrew _"an Epic 5 volume baseline
+> built on [IEX] measures the venue rather than the market"_ on the premise that
+> every bar this product stores comes from SIP, so a volume baseline would rest on
+> the consolidated tape. **That premise is falsified by Story 5.5 (2026-10-20):
+> Epic 5's volume baseline is built on `iex` deliberately**, with the tape in the
+> key — `unique (security_id, observed_at, feed)` in `0015_volume_baselines.sql` —
+> and [ADR 0045](0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md) is
+> the decision, taken because a ratio within one tape is scale-free while a level
+> across tapes is not. So for that one factor the original objection holds, and
+> what 2026-09-09 could only assert is now measured: **IEX's share of volume is
+> 3.54%–15.19% across six securities, running inversely with liquidity, against a
+> minute presence of 81.6%.** The volume factor is therefore a same-tape comparison
+> by construction rather than by accident, and the thin-venue objection is a reason
+> for that design rather than an argument against the baseline. The price and
+> excess factors are unaffected: they read the stored SIP rows, as 2026-09-09
+> assumed all three would.
+>
+> **Second, the verdict this trigger has been owed, in writing: it did NOT fire.**
+> The trigger is _"Epic 5's measurement alone — opening-gap anomalies turning out
+> to be systematically unexplainable without extended hours"_, and Epic 5 is its
+> **only named owner**, so an epic closing without a verdict leaves a condition
+> nobody will ever evaluate — which is this repository's own recorded failure mode
+> for a trigger read at any moment other than the one it would fire at. Epic 5
+> measured an **adjacent** thing rather than this one: the open is the
+> **fattest-tailed** five-minute bucket, pooled, which is a statement about the
+> distribution's shape and **not** a finding that opening gaps are systematically
+> unexplainable — nothing in Epic 5 attempted to explain one, and the composite
+> carries no explanatory arm at all. Epic 5 gave its own finding a **different
+> condition** rather than this one. So: **not fired, and the trigger stays live
+> with no owner now that Epic 5 has closed** — the next epic that tries to
+> _explain_ an opening gap rather than rank it inherits it, and whoever that is
+> should know that the fat tail at the open is already measured and is not by
+> itself evidence for extended hours.
+
 **`minuteBars` is derived from the session's own bounds** rather than stored beside them, so
 the count and the times cannot disagree and Story 2.8 never re-derives it.
 

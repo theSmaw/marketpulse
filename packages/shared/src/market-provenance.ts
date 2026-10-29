@@ -319,6 +319,30 @@ export const MARKET_FEED_DESCRIPTIONS: Record<
  *   sitting at the 100th percentile of every distribution it touches,
  *   producing a permanent, confident and entirely false anomaly.
  *
+ * **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — Epic 5 is NOT a reader
+ * of `split-adjusted`, and the bullet above is the third live copy of one false
+ * claim.** Story 5.3 reversed Story 5.1's decision 1 on 2026-10-14: the
+ * baseline reads the **raw** store and a **split guard detects a discontinuity
+ * and refuses that security**, so nothing in Epic 5 asks a provider for an
+ * adjusted series. Verified 2026-10-29 — `return-baseline.ts` and
+ * `compute-baselines.ts` hold **zero** provider imports and zero provider
+ * calls. The guard refused **5 of 516** securities on the real store, four on
+ * exact split factors (`CRWD` 0.2501, `APH` 0.5017, `MNST` 0.5084, `DD`
+ * 3.0639), **two of them above 1.0** — which is why the bound is a ratio and
+ * its reciprocal rather than a percentage. The `100th percentile` in that
+ * bullet is wrong for a second reason: Task 5.3.3 established that `>99th` is
+ * drawn and `100th` is **never printed**, because above the highest order
+ * statistic there is no sample.
+ *
+ * **The consequence reaches this module's own rule, stated two paragraphs
+ * above — _ours needs a reader per member_.** With Epic 5 removed,
+ * `split-adjusted` has **one** reader left: Story 2.12's multi-year chart.
+ * That is a live member with a single reader rather than none, so **nothing is
+ * removed here and the vocabulary is unchanged** — whether a two-member
+ * vocabulary still earns its second member on one reader is a decision for the
+ * architect and the owner, not for an upward sweep, and this amendment
+ * deliberately only records the count.
+ *
  * **Dividend adjustment is declined, with a trigger.** A dividend gap is a real
  * observed price move of typically well under 1%, it is not a cliff, and a
  * dividend-adjusted price *is not a price anybody saw*. Nothing in V1 computes

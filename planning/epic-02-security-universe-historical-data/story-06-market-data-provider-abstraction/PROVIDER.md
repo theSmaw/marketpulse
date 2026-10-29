@@ -311,6 +311,26 @@ exactly when the series is empty — which `toBarSeries` enforces in both direct
 > that compares two securities' _total_ return rather than their price return, which needs
 > `dividend` and so needs an adjustment the vendor's `split` parameter does not supply.
 
+> **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — the confirmation above is
+> REVERSED as a description of Epic 5, and the four bullets of §3.1 are
+> untouched.** Story 5.3 reversed Story 5.1's decision 1 on 2026-10-14: Epic 5's
+> baseline reads the **raw** store and a **split guard detects a discontinuity and
+> refuses that security**, so it does not ask a provider for a `split-adjusted`
+> series and **Epic 5 is not a reader of that member at all**. Verified
+> 2026-10-29 — `return-baseline.ts` and `compute-baselines.ts` contain **zero**
+> provider imports and zero provider calls. The guard refused **5 of 516**
+> securities on the real store, four on exact split factors (`CRWD` 0.2501, `APH`
+> 0.5017, `MNST` 0.5084, `DD` 3.0639), **two of them above 1.0** — which is why
+> the bound is a ratio and its reciprocal rather than a percentage. §3.5 already
+> carries this, dated 2026-10-14; **§3.1 did not, so this document's Decision
+> subsection and its Consequence subsection disagreed for fifteen days and the
+> Decision one is what a reader reaches first.** Note the shape: _recording a
+> correction and propagating it are two obligations_, and here the document that
+> recorded the first correction is the one that missed the second. The decision
+> itself — an adjusted series is obtained by asking a provider for one — is
+> **unchanged**; what is withdrawn is only the claim that Epic 5 is an instance
+> of it.
+
 ### 3.2 Why store raw — and the argument is invariant 4, not tidiness
 
 The task file names three shapes and the second is the trap. **Store adjusted, and a later
@@ -367,6 +387,28 @@ each member needs a reader — `API_ERROR_CODES`' rule, one layer up.
 - **`spin-off` / `all`** — declined; no reader, and `all` in particular is a vendor
   convenience that hides which adjustments were applied, which is the opposite of what the
   provenance record is for.
+
+> **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — Epic 5 is NOT a reader of
+> `split-adjusted`, so this section's own rule leaves that member with ONE reader.**
+> Story 5.3 reversed Story 5.1's decision 1 on 2026-10-14: the baseline reads the
+> **raw** store and a **split guard detects a discontinuity and refuses that
+> security**. Verified 2026-10-29 — `return-baseline.ts` and
+> `compute-baselines.ts` hold **zero** provider imports and zero provider calls.
+> The guard refused **5 of 516** securities on the real store, four on exact split
+> factors (`CRWD` 0.2501, `APH` 0.5017, `MNST` 0.5084, `DD` 3.0639), **two of them
+> above 1.0** — which is why the bound is a ratio and its reciprocal rather than a
+> percentage. So the second bullet's _"and by **Epic 5**, which is the stronger
+> reader"_ is withdrawn, and against this section's opening rule — _each member
+> needs a reader_ — `split-adjusted` is left with **Story 2.12's multi-year chart
+> alone**. One reader is not none, so **the vocabulary is unchanged and nothing is
+> removed here**: whether a member on a single reader still earns its place is a
+> decision for the architect and the owner rather than for an upward sweep.
+>
+> **And `100th percentile` in that bullet is never printed.** Task 5.3.3
+> established that the shipped surface draws `>99th` and never `100th`, because
+> above the highest order statistic there is no sample. The −90% argument stands;
+> its last two words do not. §3.5 carries the 2026-10-14 reversal and its two
+> reasons, and §3.1 carries an amendment of this same date.
 
 ### 3.5 The consequence to write down, because it is the thing that will actually happen
 
@@ -425,6 +467,30 @@ _likely_, not hypothetical, at any realistic history depth across ~86 large-cap 
 **Until then the product is not lying**, and that is the point of §2: `provenance.adjustment`
 reads `raw`, and Story 2.14 renders it. A visible step beside a label saying `raw` is an
 honest chart. A visible step beside no label at all is §35's "hide data provenance".
+
+> **Amended 2026-10-29 by Task 5.7.4 (Epic 5's close) — THE TRIGGER HAS FIRED, and
+> it was measured rather than predicted.** _The first split inside the stored
+> window_ fired on 2026-10-14: Story 5.3's baseline pass over the deployed store
+> found a session-boundary discontinuity inside the 60-session window in **5 of
+> 516** securities, four of them on exact split factors — `CRWD` 0.2501, `APH`
+> 0.5017, `MNST` 0.5084, `DD` 3.0639 — **two of them above 1.0**, which is why the
+> bound is expressed as a ratio and its reciprocal rather than as a percentage.
+> The paragraph above was right that it was _likely, not hypothetical_; it took
+> five weeks of stored history at 60 sessions to arrive.
+>
+> **Two corrections in the same lines.** `~86 large-cap equities` is stale — the
+> tracked universe is **516**, and `UNIVERSE.md` §17 is the only place to take that
+> count from, because it is printed from the curated file. And the bounded-ness
+> argument now **understates Epic 5 in its own favour**: _a visible step beside a
+> label saying `raw` is an honest chart_ was the floor this section promised, and
+> Epic 5 does not draw the cliff at all — **it refuses the figure for that
+> security**, visibly, by construction, which is a strictly better outcome than
+> §3.6 predicted. Neither named repair was built: Epic 5 took **neither** the
+> provider fetch nor a corporate-actions table, and §3.5's 2026-10-14 amendment
+> carries why. What is **not** established by this sweep is what the _chart_ does
+> on those five names — §3.6's own subject is the drawn series, and Story 5.3
+> measured the baseline rather than the chart, so the cliff a reader of
+> `/securities/CRWD` sees today is unmeasured and stays this section's open gap.
 
 ---
 
