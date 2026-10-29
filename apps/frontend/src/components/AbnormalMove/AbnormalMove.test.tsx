@@ -822,6 +822,67 @@ describe("AbnormalMove", () => {
       expect(readable(container)).not.toContain("factors contributing");
     });
 
+    // --- A revision replaces, and the instants are the return's (AC 10) ---
+    //
+    // **The naming half of AC 10 is the sibling return's.** The score rides
+    // `ReturnMessage` beside the five-minute return it is partly computed
+    // from, so the two travel on one atomic per-symbol frame and cannot
+    // disagree about which bar they describe — `WireAnomalyScore` carries no
+    // instant of its own, deliberately. What is left to assert is the half
+    // that is observable here: a revision **replaces** the figure rather than
+    // appending a second one, and the instants beside it do not move when
+    // only the score does.
+    const ENDPOINTS =
+      "Oct 14 · 14:01 EDT → Oct 14 · 14:06 EDT · observed 3 of 5 minutes";
+
+    const frame = (
+      score: WireAnomalyOutcome,
+      over: Partial<WireMeasuredReturn> = {},
+    ) => (
+      <AbnormalMove
+        {...DEFAULTS}
+        symbolReturn={{ ...view({ ...MEASURED, ...over }), score }}
+      />
+    );
+
+    it("replaces the score on a revision, leaving the instants where they were", () => {
+      const { rerender } = render(frame(scored(ranked(95), ranked(66))));
+
+      expect(screen.getAllByText("61")).toHaveLength(1);
+
+      // The same two endpoints, a revised score — which is every applied
+      // batch that does not advance the window.
+      rerender(frame(scored(ranked(95), ranked(90))));
+
+      // **Exactly one**, and the old one gone: a revision that appended would
+      // leave two figures on screen for one security.
+      expect(screen.getAllByText("70")).toHaveLength(1);
+      expect(screen.queryByText("61")).toBeNull();
+      // And the instants did not move, because the score did not carry any.
+      expect(screen.getAllByText(ENDPOINTS)).toHaveLength(1);
+    });
+
+    it("moves the instants when the frame advances to NEW endpoints", () => {
+      // **The mirror, and it is what makes the assertion above a claim rather
+      // than a tautology**: a component ignoring the frame entirely would
+      // pass the first test.
+      const { rerender } = render(frame(scored(ranked(95), ranked(66))));
+
+      rerender(
+        frame(scored(ranked(95), ranked(90)), {
+          from: { ...MEASURED.from, at: "2026-10-14T18:06:00.000Z" },
+          to: { ...MEASURED.to, at: "2026-10-14T18:11:00.000Z" },
+        }),
+      );
+
+      expect(screen.queryByText(ENDPOINTS)).toBeNull();
+      expect(
+        screen.getAllByText(
+          "Oct 14 · 14:06 EDT → Oct 14 · 14:11 EDT · observed 3 of 5 minutes",
+        ),
+      ).toHaveLength(1);
+    });
+
     it("says what the figure is not, above it and beneath it", () => {
       // AC 11, two channels: a reader meets the denial in the same glance as
       // the figure, and again as a sentence at the foot of the band.

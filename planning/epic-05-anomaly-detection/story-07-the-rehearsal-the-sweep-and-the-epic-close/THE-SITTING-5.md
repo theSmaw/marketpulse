@@ -255,6 +255,22 @@ cells at opposite corners** of the viewport. **Do you consult both?**
 Otherwise: re-waive it with a new dated owner, or record it as inherited and
 unmet. Either is a decision; letting it pass unmentioned is not.
 
+**And if you do have the phone out, read one number off it** — added 2026-10-29
+by Task 5.7.2, which found the gap while verdicting Story 5.4's AC 1. That
+criterion asks for _the shortest supported viewport height_ to be **declared**,
+and **no file in this repository declares one, product-wide**. The row count it
+also asks for was measured twice and is fine; the declaration was never made.
+UX recommended **700** and was explicit that it could not be answered from a
+development machine. So:
+
+```
+In the phone's address bar, or from a desktop devtools remote inspection:
+  window.innerHeight
+```
+
+One number, written into row 4.7's account, turns an unanswerable clause into a
+measurement — and it is the only instrument anybody has proposed for it.
+
 ---
 
 ## Writing the rows

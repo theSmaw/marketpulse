@@ -309,6 +309,58 @@ of 4,620 five-minute returns` rather than `Extreme` — because `extreme` is
     revision for that instant **recomputes in place** — the crosshair's own
     decision (Task 3.9.6), because a mark behaving differently from the
     crosshair on the same axis would be two answers about one bar.
+
+    **Amended 2026-10-29 by Task 5.7.2 at Epic 5's close, and the finding is
+    that this criterion had NO RECORD ANYWHERE.** It is the only one of this
+    story's twelve that no task file mentions: `grep -n "AC 10"` across all
+    eight returns **zero**, and the string `re-based` occurs only in this line
+    (the other hits are Task 5.6.7 re-basing a _region_, a different sense of
+    the word). So nothing asserted it, under any wording, at any level — and it
+    shipped that way through a review, a Gate 2 and an accepted story.
+
+    **The second clause is amended; the first is now asserted.** _It names the
+    bar instant it was computed from_ is **not satisfied by the score's own
+    payload and deliberately so**: `WireAnomalyScore` carries `scored`, `score`,
+    `band`, `max`, `contributing` and `absent`, and **no instant**. What
+    satisfies the clause is the frame rather than the field — the score rides
+    `ReturnMessage` as a **sibling** of the five-minute return it is partly
+    computed from, so the figure and the two instants travel on **one atomic
+    per-symbol frame** and cannot disagree about which bar they describe. There
+    is no append path and no second copy, which is why _two answers about one
+    bar_ is **unrepresentable** here rather than prevented. The owner took that
+    amendment at this story's close in preference to widening the wire with a
+    second instant and drawing a line the region's `one height in every state`
+    rule would have to pay for.
+
+    **The rest of the criterion — a revision recomputes IN PLACE — is the half
+    that is observable, and it is asserted as of today** in
+    `AbnormalMove.test.tsx`: a revised frame for the **same** return endpoints
+    replaces the figure rather than appending a second one and leaves the
+    instants where they were, with the mirror beside it (an advance to **new**
+    endpoints **does** move them), because without the mirror a component that
+    ignored the frame entirely would pass. The structural argument above was
+    true the whole time and was never evidence: **a claim about a mechanism
+    reads identically whether the mechanism is there or not**, and this
+    criterion is that rule's cleanest instance in the epic — the shape really
+    was correct, and nobody could have known it from the tree.
+
+    **One precision, found while writing the assertion and worth stating
+    because the loose version of this amendment would be false.** The score
+    band is **not** a pure function of one frame. `anomalyScoreBand(symbol,
+held, overview)` takes **two** inputs, and the second is the
+    market-overview aggregate, which supplies the **breadth** clause — so one
+    line inside the band is sourced from a frame that arrives **independently**
+    of the return frame, and a breadth clause can re-render beside a score
+    computed from a slightly earlier return. That does not touch this criterion
+    as worded: breadth is _stated as context, never a weight_ (Story 5.1
+    decision 4), it carries no instant, and it is not the score. **What is a
+    pure function of one frame is the pair this criterion is about** — the
+    figure and the two instants are derived from the same single `symbolReturn`
+    prop in adjacent lines, with no state, no ref and no memo of a prior value
+    anywhere in the component. That is why the plant that proved the assertion
+    had to **add** a `useRef` to produce the defect at all: a stale pairing is
+    unrepresentable rather than unlikely.
+
 11. One sentence, once, on the security page and not on the list: **the score
     does not represent risk or investment opportunity.** A 0–100 figure on an
     amber ramp beside a price is read as a risk meter by every stranger, and
