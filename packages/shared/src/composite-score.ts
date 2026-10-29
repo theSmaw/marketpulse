@@ -330,6 +330,30 @@ export const FACTOR_WEIGHTS: Readonly<Record<CompositeFactor, number>> = {
  * (*absolutely calibrated against each security's own history*). The two
  * sentences cannot both hold. Routed rather than repaired: it is a product
  * claim, recorded in this task's record for the owner.
+ *
+ * **Resolved 2026-10-29 at Epic 5's close, and the routing had gone to the
+ * wrong document.** The owner's decision is to **amend the promise**: an
+ * `extreme` on a calm day is the *correct* answer to _how unusual is this for
+ * this security_, and the alternative — a cross-sectional reference — reverses
+ * Gate 1 decision 5 and would make ADR 0046's whole family argument need
+ * re-deriving. Two corrections to this note's own bookkeeping, neither of which
+ * changes the finding:
+ *
+ * **The quoted sentence is not §11's, verbatim.** §11's prediction is _"on a
+ * quiet day the highest score in the universe may be 40"_, which already
+ * carries its own dated amendment from 2026-10-22 — so the site this note
+ * pointed at had been repaired and the note read as though nothing had
+ * happened. The sentence quoted above, almost word for word, lives in
+ * **`planning/epic-07-deterministic-investigation-engine/EPIC.md`**, where it
+ * was a hand-off to the epic that orchestrates investigations, and where it
+ * carried a second clause this note never mentioned: _"an investigation
+ * triggered by a score cannot be manufactured for a demo"_, which is false for
+ * the same reason and matters more.
+ *
+ * **So *routed to the owner* was true and *recorded where the owner would find
+ * it* was not.** The record went into a task file, the measurement went into a
+ * docblock, and the governing document that actually carried the claim went
+ * unamended for a week. Both halves are amended there now, with these figures.
  */
 export const ANOMALY_BAND_FLOORS: Readonly<
   Record<Exclude<AnomalyBand, "normal">, number>

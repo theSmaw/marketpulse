@@ -783,8 +783,20 @@ returns` — and the direction lives in the glyph, as amendment 1 below already
 > standing where a figure belongs**, and `related securities` is a population
 > with no stated count, which §9's own dated amendment refuses on the ground
 > that a figure hiding its denominator is not a figure. The shipped clause is
-> `behind by 2.20 pts against XLK`, with the reference named and the units
-> stated in percentage points.
+> `behind by 2.20 pts`, under the label `Against its sector`, with the
+> benchmark's ticker on the row beside it and the units stated in percentage
+> points.
+>
+> **Corrected 2026-10-29 by Task 5.7.3 — this sentence named a string that does
+> not exist.** It read _"the shipped clause is `behind by 2.20 pts against
+XLK`"_. `git grep "against XLK"` over `apps/` and `packages/` returns
+> **nothing**: the ticker is never inlined into the clause. It is named **one
+> row away**, on the reference row, and in the label — which satisfies the
+> requirement that a reference be named, and avoids a second copy of a fact the
+> adjacent row already carries. The requirement is unchanged; only the
+> quotation was wrong, and a governing document quoting a string the product does
+> not emit is this repository's most-recorded class: **a claim about a mechanism
+> reads identically whether the mechanism is there or not.**
 >
 > **And this section's breadth example is the third of the three.**
 > `82% of semiconductor securities currently negative` is a **percentage**, which

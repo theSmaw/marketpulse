@@ -51,9 +51,20 @@ be checked as written**, because of decisions this epic took deliberately:
   where a figure belongs, and `related securities` is a population with no
   stated count, which §9 refuses. So when you rewrite the exit criterion as a
   shape, the shape for this line is **`exceeds` + a figure + a named
-  reference** — the shipped clause is `behind by 2.20 pts against XLK` — and
-  **not** the §11 sentence quoted verbatim. `PRODUCT_SPEC.md` §11 now carries a
-  dated amendment saying the same thing, so the two documents agree.
+  reference** — and **not** the §11 sentence quoted verbatim.
+  `PRODUCT_SPEC.md` §11 carries a dated amendment saying the same thing, so the
+  two documents agree.
+
+  **Corrected 2026-10-29 by Task 5.7.3: this line said the shipped clause is
+  `behind by 2.20 pts against XLK`, and that string exists nowhere in the
+  product.** `git grep "against XLK"` over `apps/` and `packages/` returns
+  **nothing** — the ticker is never inlined into the clause. The shipped clause
+  is `behind by 2.20 pts` under the label `Against its sector`, with the
+  benchmark's ticker on the row beside it. The requirement the line states is
+  unchanged and is **met**; only its quotation was invented. It had been
+  asserted as _the shipped clause_ in two governing documents —
+  `PRODUCT_SPEC.md` §11 and this file — and found by going to verdict it rather
+  than by reading it, which is the only way this class is found.
 
 **So this story rewrites the exit criterion as a shape rather than a number**,
 and verdicts the epic against the rewrite with the original left standing as

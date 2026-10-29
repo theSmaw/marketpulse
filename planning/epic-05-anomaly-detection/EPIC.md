@@ -175,6 +175,123 @@ MarketPulse can surface securities such as:
 
 Every score can be explained from deterministic calculations.
 
+### The exit criterion as a SHAPE — rewritten 2026-10-29 by Task 5.7.3
+
+**The example above is quoted and left standing as the record of what was asked
+for, and FIVE of its five clauses cannot be checked as written.** Story 5.7's
+own description said four; that was true when written and became false on
+2026-10-21, when Story 5.6's Gate 1 established that `Extreme short-term move`
+uses a **band name** as a factor adjective. Only the trailing sentence — _Every
+score can be explained from deterministic calculations_ — survives intact.
+
+**One arithmetic fact first, because it is stronger than the reason this rewrite
+was originally proposed.** `91` is not merely _not producible on demand_ under
+absolute calibration: on the shipped scale it is **unreachable**.
+`FACTOR_WEIGHTS` is `price 40 · excess 35 · volume 25` and the volume arm is
+`no-distribution` **unconditionally** — `0015` stores a median and a dispersion,
+not a distribution, so no security has a rankable volume figure anywhere — which
+puts the ceiling at **75**. `PRODUCT_SPEC.md` §9's sketch draws `91`, `84` and
+`79`; all three are above it.
+
+**The shape, eight clauses.** A verdict follows each.
+
+**0 — The frame.** _For any tracked security whose recent behaviour is unlike
+its own history, the product draws a composite figure with its band and a
+complete account of how it was reached; for a security it cannot score, it draws
+the same account with one row per factor it lacked, naming the lack._ No
+security, no figure and no band is named: a named value is not producible on
+demand under absolute calibration, and a named security makes the criterion a
+claim about the market on the day it runs.
+
+**1 — The subject.** _A tracked security, identified by its ticker, resolved from
+the row's own identity rather than from a search term or a fixture._
+**Met.** `anomalyScoreBand` compares the symbol rather than trusting it —
+`if (held?.symbol !== symbol) return RESERVED_SCORE;` — and on `/` the
+destination is resolved at render from the row's own identity, so the activation
+race on a re-ordering surface is unrepresentable rather than managed. Holds on
+every store.
+
+**2 — The figure.** _An integer on a stated 0–100 scale, with (a) a band word
+drawn from exactly `normal · elevated · high · extreme`, (b) the scale, (c) the
+count of factors in the sum, and (d) the maximum those factors could have
+produced._
+**Met.** `HOW UNUSUAL · NOT A RISK MEASURE`, the figure, `/ 100`, the chip, and
+`2 of 3 factors contributing · max 75`. The scale and the maximum are
+**deliberately different numbers** — `/ 100` is the scale, `max 75` is what the
+present factors can reach — which is (c) and (d) met exactly rather than
+collapsed. The band word is the **figure's** classification and appears once.
+
+**3 — The price factor.** _A figure, never an adjective: a percentile ordinal of
+the magnitude of the security's own 5-minute return, with the counted sample
+size, the span the samples are of, and the pooling stated; direction carried by a
+glyph and a sign rather than a word._
+**Met.** `99th percentile` beside `of 4,620 5-minute returns · all times of day
+pooled`, with `>99th` above the highest order statistic and `100th` never
+printed. The original's `Extreme` is gone. **Reachable on a store with bars
+only** — CI exercises the refusal path alone.
+
+**4 — The volume factor.** _A rate, stated as a multiple of a typical **minute**,
+labelled as a per-minute quantity, with the baseline's lookback in sessions, its
+bucket width, its exclusion of today, and the tape of **both** halves named and
+the same; or, where the rate cannot be ranked or measured, a named refusal
+distinguishing a wait from a gap in our own listening._
+**Met in form; the shipped product is the refusal.** `VOLUME PER MINUTE`,
+`4.1× typical`, `median minute of 60 sessions · same 5-minute bucket · today
+excluded`, `Measured on IEX · baseline on IEX`. `normal → typical` is met and the
+rate labelling is met (ADR 0045 decision 2: `5 × median` is _the typical
+five-minute volume_, and the median of a sum is not five times the median of its
+parts). But the figure draws on **4 of 39,936** `(security, bucket)` pairs —
+0.010% — and **has never been drawn for anybody**; what a deployed reader meets
+is `Too little history — 80 IEX minutes at this time of day` at **99.990%** of
+buckets.
+
+**5 — The relative move.** _`exceeds`, or its shipped antonym pair, plus a figure
+in percentage points, plus a **named** reference._
+**Met in a different form, and the divergence is stated rather than hidden.**
+Three things are refused by name: the adverb `substantially` (an intensity word
+where a figure belongs), the uncounted population `related securities`, and any
+industry-group reference with no benchmark ETF behind it — semiconductors is 20
+members with no ETF, which `UNIVERSE.md` §1 and §7 forbid assuming. The shipped
+clause is `behind by 2.20 pts` under the label `Against its sector`, with the
+benchmark's ticker on the adjacent row. **`exceeds` is not the shipped verb** —
+`ahead` / `behind` / `level` are, from one `directionOf` so the three channels
+cannot disagree, and they survive the _ahead while falling_ case that a tinted
+cell would get wrong. That is a measurement word too and is strictly better here;
+recorded as a divergence rather than smoothed over.
+
+**6 — Breadth.** _Counts with the population they were counted over and the
+window they were counted in, stated as context beside the score and never as a
+weighted term in it._
+**Met.** `Breadth: 312 of 466 advancing, heard from in the last 5 minutes.`,
+read off the frame and never spelled, with `measured: 0` drawing `nothing heard
+from in the last 5 minutes.` rather than `0 of 0`. It is context, never a term:
+the ledger's weight column carries **blank room** rather than a dash for it.
+§11's own `82% of semiconductor securities currently negative` is superseded — a
+percentage hides its denominator, and the denominator is our reach rather than
+the market.
+
+**7 — The account closes.** _Every drawn score carries its explanation on the
+same surface, without an interaction; the explanation's contributions re-add to
+the figure above them; and the clause set is total over the factors, so a
+fully-scored and a fully-refused security produce the same shape._
+**Met, and this is the strongest clause in the epic.** A real `<table>` with
+`<caption>How this score was reached</caption>`, one row per factor in **every**
+state, so `3 of 3` and `0 of 3` are byte-identical in height. The addition closes
+by construction — the score **is** the sum of the rounded contributions — and
+across the wire `readAnomalyScore` **re-adds the published contributions and
+refuses the explanation when the sum is not the score it was sent**, which is
+stronger than the type claim it replaces because the brand dies at `JSON.parse`.
+No popover and no disclosure: `SecurityRow` was deleted on the argument that §11
+requires a score to **carry** its explanation rather than to be able to be asked
+for one. The original's surviving sentence is strengthened from _can be
+explained_ to _carries its explanation_.
+
+**What no machine and no person has seen.** `high`, `extreme`, any three-factor
+score (structurally unreachable while `0015` stores a median and a dispersion),
+and a single **ranked row** on `/`. A score **has** been drawn on a real route —
+`score 35 · band elevated · max 35`, local store, 2026-10-23 — so the clauses
+above are not all paper; the common deployed case `2 of 3 · max 75` is.
+
 ## A condition this epic is most likely to fire, written here so it arrives rather than being rediscovered
 
 **Added 2026-09-15 by Task 2.14.8.** Epic 2 ships a measured breach of
