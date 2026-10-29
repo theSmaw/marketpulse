@@ -2197,9 +2197,18 @@ pnpm e2e … -g "UN-PINNABLE hold state" --workers=1 --repeat-each=12
   9 passed, 3 failed
 ```
 
-**3 / 12 — 25% — at ONE worker, and 0 / 24 at FOUR.** It was seen once in a
-settled `--workers=2` full run on the same tree, which is consistent with a rate
-between the two.
+**3 / 12 — 25% — at ONE worker, and 0 / 24 at FOUR.**
+
+**And a THIRD arm, taken the same day and corroborating it.** Two settled full
+suites at `--workers=2` on the same tree each failed it **once**, and the
+four-worker arm was then re-run and gave **0 / 24 a second time** (29.5 s). So
+the three arms line up monotonically — **worse with fewer workers, every time:**
+
+| workers | result                          |
+| ------- | ------------------------------- |
+| 1       | 3 / 12 failed (25%)             |
+| 2       | 1 failure per full suite, twice |
+| 4       | **0 / 24, reproduced twice**    |
 
 **This inverts the assumption every other entry in this file rests on.**
 `security-gap-fill` is **0% at one worker and 5.6% at four**;
@@ -4615,6 +4624,98 @@ correctness rests on the producer's own unit tests, the decoder's five
 cross-field checks, and **a person with a public five-minute chart**, which is
 `LIVE-REHEARSAL.md` row 5.4's sixth item and which **no sitting in that ledger
 has ever taken**.
+
+## FIVE tokens resolve to one amber, the chip-against-chrome greyscale step is 1.000, and the repair is DEFERRED with a condition
+
+**Added 2026-10-29 by Task 5.6.8, with 56 photographs on file rather than an
+argument.** `--anomaly-high`, `--feed-stale`, `--service-degraded`,
+`--provenance-synthetic` and `UniverseTable`'s own `.markerAttention` all resolve
+to **`--palette-amber: #e2b544`**. **Five positions, not the four every previous
+record of this said** — the fifth was found by walking the stylesheets rather
+than by reading the earlier note.
+
+### The measurement, in this repository's own unit
+
+The method was **calibrated against a figure this repository already records**:
+linearRGB greyscale (≡ WCAG relative luminance) reproduces `market.css`'s
+**1.12 / 1.43 / 1.59** to three decimals. The sRGB-space alternative gives
+1.13 / 1.49 / 1.65 and **does not**, so every figure below is in the unit the
+rest of the product is measured in, and the calibrator is asserted in the spec.
+
+| pair                               | greyscale step |
+| ---------------------------------- | -------------- |
+| chip `high` → **any** chrome amber | **1.000**      |
+| chip `extreme` → any chrome amber  | 1.587          |
+| chip `elevated` → any chrome amber | 1.426          |
+| ramp `normal → elevated`           | 1.120          |
+| ramp `elevated → high`             | 1.426          |
+| ramp `high → extreme`              | 1.587          |
+
+**The collision is larger than the ramp it sits inside**: `high` against the
+chrome is **1.000**, while `high` against its own neighbour `elevated` is 1.426.
+
+### What is NOT true, and was asserted by four documents
+
+**They are never adjacent.** Every previous record of this said _"adjacent at
+390, roughly 700 px apart at 1440"_. **Measured centre to centre, the chip↔chrome
+gap is 467–574 px at 390 and 564–1107 px at 1440** — the chip is in the rail and
+the chrome is in a sticky foot, so they are never near each other **at any
+width**. What _is_ 44–117 px apart, at 768 and 390, is the two **chrome** marks.
+
+### Why it is correct and merely incoherent — which is why it is deferred
+
+**Four channels separate the two marks and none of them is hue.**
+
+- **ENCLOSURE, and it is the strongest by far** — the chip **contains its own
+  band name** (`high`, `extreme`); the chrome marks contain nothing and are
+  `aria-hidden` silhouettes beside a _sibling_ word.
+- **SIZE** — `112 × 24` against `8 × 8`, at every width.
+- **POSITION** — the rail against a sticky foot.
+- **SHAPE** — square (`degraded`, `synthetic`) against disc (`stale`) — **and
+  this one is weaker than `market.css` claims.** At 8 px in the 390 photographs
+  the square and the disc are very hard to tell apart, **and it does not apply to
+  the feed pair at all**: `live` and `stale` are **both discs**, separated by hue
+  and the written word alone.
+
+### The frame worth looking at first
+
+**Row 06.** `SIMULATED · Generated test data. Not a market feed.` in amber at the
+bottom-left, and `HIGH` in the same amber at the top-right. **Invented prices and
+a genuine anomaly band in one hue on one screen** — the worst reading in the set.
+
+Its mitigation is real but narrow: **production never ships synthetic data**, so
+a frame holding both exists only on a fixture-backed deployment, **where the
+scores are themselves synthetic** and the two amber meanings therefore agree.
+`--provenance-synthetic`'s amber is also the one placement in `market.css` with a
+**safety** argument rather than a legibility one — it must stay loud.
+
+### The decision, and the condition
+
+**Deferred by the owner on 2026-10-29, with the photographs in hand rather than
+before them.** The repair — moving the chrome meanings off the ramp — is
+architecturally free at the token layer (every consumer reads the semantic name,
+and `market.css` says the indirection exists for exactly this move), but it needs
+**a new value found and measured against both page grounds**, and it would
+re-photograph the status bar **on all five routes** plus the kept degraded grid
+plus this new spec.
+
+**Condition for forcing it, rather than a story number:** _the first surface on
+which an anomaly mark and a chrome amber mark fall within one glance of each
+other_ — which the 467 px minimum says is not true of any surface today.
+
+**Re-measure:** `AMBER_CONJUNCTION_PHOTOS=1 pnpm e2e security-amber-conjunction.spec.ts`,
+then read `.capture/security-amber-conjunction/readings-<width>.json` for the
+steps and the centre-to-centre gaps. **56 photographs, 7 states × 4 widths ×
+colour and greyscale.**
+
+### And a smaller thing this found, left alone on its own condition
+
+**Neither `--service-degraded` nor `--provenance-synthetic` is in
+`TOKEN_NAMES`** — nor is any `--service-*`, `--provenance-*` or `--market-*`
+name. The startup throw does not cover them, so **a `var()` resolving to nothing
+renders an invisible marker with correct DOM and a green `verify`**. Left alone
+because it is conditional on one of them moving; **the day either does, both
+names are owed to `TOKEN_NAMES` in the same change.**
 
 ## The volume factor is drawn by no machine and no person, and that is arithmetic rather than access
 

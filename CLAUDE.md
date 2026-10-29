@@ -489,6 +489,52 @@ top of the screen was a column of prose beside a void. That screen is `PRODUCT_S
 them, and that is on purpose.~~ — **false since 2026-10-13: four do, and the
 fourth is Epic 5's first figures on any screen.**
 
+**And since 2026-10-28 that region leads with a SCORE, which is the sentence this
+epic exists for and the first 0–100 figure this product has ever drawn.**
+`Abnormal-move indicators` opens with `61 / 100` beside a band chip, `2 of 3
+factors contributing · max 75`, and a **ledger** — one row per factor carrying
+its **weight**, its **contribution**, and a ≤24-character reason for an absence —
+whose column **sums to the figure above it on screen**. `/`'s `Unusual activity`
+ranks by the same score, with the day's band stated **once** in the region's head
+(`TOP 10 · ALL EXTREME`). [ADR 0046](docs/adr/0046-what-a-composite-score-is-what-it-refuses-and-where-its-guarantee-ends.md)
+is the decision.
+
+**Six things from it are load-bearing.** **The explanation is a LEDGER rather
+than prose**, because the factor figures are already drawn ~100 px below and
+restating them is two homes for one fact — so it carries only what the factor
+bands cannot. **Fixed arity is how a variable account is reserved**: one row per
+factor in **every** state, so a 3-of-3 and a 0-of-3 are byte-identical in height
+— `Movers`' held-row lesson generalised from rows to clauses. **The band floors
+are DERIVED** — `32 / 63 / 73` from 34,318 measured scores, selected by the
+inequality `elevated ≤ 40 < high` because a one-factor score caps at 40 and
+_less evidence must mean less claim_; that inequality rejected p75 = 49, which
+would have made every reduced-factor score `normal` for ever. **No imputation and
+no renormalisation**, so a reduced-factor score means _at least this unusual, on
+the evidence we have_ and both the count **and** the maximum travel. **The volume
+factor is a STATED ABSENCE, unconditionally** — `0015` stores a median and a
+dispersion, **not a distribution**, so no security has a rankable volume figure
+anywhere. And **a score cannot be constructed without its explanation** — a
+compile error about which module minted it, a **test** that the number is right,
+and across the wire **a reader that re-adds the published contributions and
+refuses the section when they disagree**, which is stronger than the type claim
+it replaces.
+
+**What no gated machine has ever seen is a score at all** — CI has zero bars, no
+provider and no composite generation, so `0 of 3` is its permanent state. **But a
+score DRAWS on an ordinary laptop**, which no earlier figure in this epic did:
+the excess factor needs only **stored daily closes**, so `LIVE-REHEARSAL.md` row
+**5.6** is the first row in that ledger a sitting can actually clear.
+
+**And one defect in this epic's own shipped code was found by building on it.**
+The excess factor had been ranking a **session-to-date** move against a
+**five-minute** distribution — `58.8%` of the universe sat at its own 99th
+percentile, and the error **grew through each session** because `changeFromClose`
+does. The price factor beside it was span-consistent; **nothing compared the
+numerator's span to the baseline's**, which is why it survived a review, a
+migration, a nightly pass and two merges. Repaired, with the guard it was
+missing, and the repaired distribution reproduces an independent instrument's
+mean rank **46.08 against 46.09**.
+
 **And since 2026-10-20 that region carries a SECOND band — and on every machine
 that exists it draws a refusal, which is Story 5.5 and is the point rather than a
 shortfall.** `Abnormal-move indicators` gained

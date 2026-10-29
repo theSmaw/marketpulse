@@ -356,3 +356,31 @@ silence stops being an oversight and becomes a convention nobody wrote down. The
 check now reads `udt_name`, sees every array, and holds a **named allowlist**
 with a reason beside each column and a non-vacuity guard; the break
 `an-approximate-array-escapes-the-allowlist` proves it.
+
+## Amended 2026-10-29 by Story 5.6 — the FOURTH application, and the first that stores a POLICY rather than a measurement
+
+`0017_session_composite_scores.sql` joins `0013`, `0014`, `0015` and `0016`. The
+shape held without modification — keyed by the session it is **for**, window-end
+column named `observed_at` with **no default**, and a companion `*_passes` row —
+so this is an **instantiation rather than an extension** on every point but one.
+
+**The one that is new: a stored composite is a cache of a POLICY, not of a
+measurement.** The four tables before it store numbers derived from bars; this
+one stores a number derived from **weights and band floors that carry reversal
+triggers**. Two consequences fall out, and both are in the migration:
+
+- **The weights and the floors go on the PASS row**, so a rollback cannot leave a
+  runner and a reader two values apart — `0014` §5's argument for
+  `minimum_sample_count`, pointed at a policy instead of a bound.
+- **The row stores the factor ANSWERS, not just the minted score.** Storing the
+  score _instead_ would leave 60 sessions of stale numbers after a weight change
+  with nothing recording that the meaning changed — `0015`'s `feed`-in-the-key
+  argument. Storing it _as well_ makes a producer/reader disagreement
+  **detectable** rather than silent. It does both.
+
+**And the companion-row convention is now four for four**, which is the point at
+which this amendment's own 2026-10-16 note said the generalisation would be worth
+more than the table. It is still prose. **Condition for making it mechanical:**
+the first DERIVED table keyed on `(…, observed_at[, …])` that ships **without** a
+sibling `*_passes` table — at which point the convention is a check in
+`apps/backend/migrations/README.md`'s own terms rather than a habit.

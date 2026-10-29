@@ -318,3 +318,48 @@ decision 3. `volume_baselines` is keyed `(security_id, observed_at, feed)` where
 ADR 0044's earlier tables key on the session alone, because a tape choice that
 carries a reversal trigger can flip, and **a flip against a session-only key
 rewrites every row with nothing recording that the meaning changed.**
+
+## Handed here by Story 5.6's close — 2026-10-29: the score you will colour nodes by, and the test that governs every factor you weight
+
+**Story 5.6 shipped the composite anomaly score**, so the figure this epic will
+colour a graph by now exists, is drawn on two surfaces, and has a decided
+vocabulary. Four things it owes you, in words this epic can act on.
+
+**1. The band floors are DERIVED and they are a two-factor, max-75 scale.**
+`ANOMALY_BAND_FLOORS` are `elevated 32 · high 63 · extreme 73`, taken from the
+measured distribution of **34,318 scores** rather than chosen — and the
+inequality that selected them is `elevated ≤ 40 < high`, because a one-factor
+score caps at 40 and _less evidence must mean less claim_. **Those quantiles
+describe a scale whose maximum is 75**, not 100, because the volume factor is
+`no-distribution` for every security until a nightly pass stores a distribution
+of a volume rate. The constant carries a reversal trigger as a condition: _the
+first score computed over a factor set this derivation did not measure._ **A
+topology that colours nodes by band fires it the day volume contributes.**
+
+**2. `--anomaly-normal` exists FOR YOU and is the one band with no fill.**
+`AnomalyBadge` draws `normal` as a bordered chip with no fill, deliberately —
+its step to `elevated` is the ramp's weakest at **1.12** in greyscale, so the two
+states hardest to tell apart by colour are the two not distinguished by colour at
+all. **A canvas cannot do that**: it colours every node whether interesting or
+not and cannot render _no chip_. That is why the token exists, and
+`anomaly.ts` records it. **You will need a fourth visible treatment where the
+chip has three**, and it cannot be hue alone — the ramp's internal steps are
+1.12 / 1.43 / 1.59.
+
+**3. ADR 0045's test governs every factor you weight, and it was restated on
+2026-10-21 because its original wording refused a figure this product ships
+everywhere.** The test is now **extensive versus intensive** — _does the quantity
+scale with the tape's share of the market?_ Volume, share counts, trade counts
+and **traded value** do, and are refused across tapes; a price, a return, a
+percentage change and a **rank** do not, and are permitted. **A traded-value edge
+weight is extensive and is refused**; a correlation of returns is intensive and
+is permitted. The identity is the discriminant: `venue share × coverage`
+factorises for an extensive quantity and is **meaningless** for an intensive one.
+
+**4. And the permission is CONDITIONAL on how you map a factor.** The composite
+is tape-safe only because every factor is a **percentile of its own same-tape
+history**, which quotients the tape out. **An invented curve — a log cap, a
+sigmoid, a chosen knee — is calibrated in one tape's units and breaks it**: a
+knee at `3× typical` means a different thing at 3.54% venue share than at 15.19%,
+and that spread is measured. So _no invented constant_ and ADR 0045's invariance
+test are **the same rule arriving from two directions**.

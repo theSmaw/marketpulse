@@ -188,3 +188,53 @@ which hold **zero `iex` rows** and can reach **exactly one** of six refusals. **
 taxonomy cannot be ranked from a machine that can only produce one of its
 members** — so when this story sweeps Epic 5's claims, check which **store** each
 one was measured on before trusting it.
+
+## Handed here by Story 5.6's close — 2026-10-29: the score exists, and what you must sweep, watch and decide
+
+Story 5.6 shipped the composite. Five things this story owns that it does not yet
+carry.
+
+**1. `LIVE-REHEARSAL.md` row 5.6 is the sixth this epic owes, and it is the FIRST
+that is fully watchable.** Rows 5.1–5.5 are unwatched and row 5.5 is
+**unwatchable** for its figure — it waits on a date nobody controls. **Row 5.6 is
+not.** A composite score draws on an ordinary laptop today, because the excess
+factor needs only stored daily closes, and it draws on the deployment on both
+bases. **So this is the row a sitting can actually clear**, and it should be
+taken first rather than last.
+
+What a person must judge, none of it answerable from a DOM: whether `61 / 100`
+beside a ledger reads as **an instrument showing its working** or as a debug
+panel; whether `TOP 10 · ALL EXTREME` on `/` reads as _today was wild_ or as
+_something is broken_; and whether a region drawing **four refusal rows and no
+score** — which is CI's permanent state and every cold laptop's — reads as a
+product being careful or a product being empty.
+
+**2. The band distribution is measured and may not survive contact with a
+reader.** Per instant over 484 scored securities: `normal` 219.2, `elevated`
+179.4, `high` 39.3, **`extreme` 7.74**. And on `/`'s top ten the band is
+**identical on all ten rows in 35 of 77 instants**, with more than three sharing
+in **77 of 77** — which is why the chip left the row and became a heading. **If a
+sitting says `extreme` fires too often to mean anything, the floors are the
+lever, and they carry a reversal trigger as a condition.**
+
+**3. The exit criterion's rewrite inherits two corrections.** `Extreme short-term
+move` uses a **band name** as a factor adjective, which AC 7 forbids —
+`PRODUCT_SPEC.md` §11 and both copies of the criterion carry dated notes. And
+your own keeper claim was refined on 2026-10-21: **`exceeds` is the measurement
+word and is right**; what AC 7 forbids is the **adverb** `substantially` and the
+uncounted population `related securities`.
+
+**4. The volume factor ships as a STATED ABSENCE and that is not a defect to
+close.** It is `no-distribution` **unconditionally** — `0015` stores a median and
+a dispersion, **not a distribution**, so there are no breakpoints to rank a rate
+against for any security. The arm's reversal trigger is a condition: _the first
+nightly pass that stores a distribution of a factor's own quantity._ **When it
+fires, the band floors' own trigger fires in the same commit**, because every
+quantile behind them was measured on a two-factor, max-75 scale.
+
+**5. What Story 5.6 leaves open for you to verdict.** The owner's sentence
+`Measured, but no history to rank it against.` is **drawn nowhere** — the ledger
+cell is ~34 characters and the sentence is 43, so the cell reads `no history to
+rank it`. The honest home for the full sentence is the volume band beside a
+**drawn** multiple, which needs `iex` depth no machine has. **Decide whether it
+is owed or withdrawn.**

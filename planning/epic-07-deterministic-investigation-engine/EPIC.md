@@ -239,3 +239,36 @@ and confidence must never be rendered as four amber fills** — the amber ramp i
 anomaly intensity, and a band says _how unusual the behaviour is_ while
 confidence says _how well evidenced an explanation is_. A band and a confidence
 chip must never sit in one row without their labels.
+
+## Handed here by Story 5.6's close — 2026-10-29: the score's explanation is complete only BESIDE its factors, and a seam is waiting for you with no consumer
+
+**Story 5.6 shipped the composite anomaly score and its explanation**, and two
+things about it are this epic's to inherit rather than rediscover.
+
+**1. The ledger is a complete explanation ONLY where the factor bands are.** The
+score draws as the first band of `Abnormal-move indicators`, and its explanation
+is a **ledger** — the weight, the contribution, and a ≤24-character reason for an
+absence — **not** a paragraph. That is deliberate: the factor figures, their
+definitions, their counted samples and their tapes are already drawn ~100 px
+below, and restating them would be **two homes for one fact**, which ADR 0029
+forbids by name and `pnpm invariants` has failed a build over.
+
+**So any surface that draws this score WITHOUT those bands owes its own
+account.** An investigation panel showing `61 / 100` beside a ledger reading
+`Price 40 → 38` gives a reader a contribution with no figure to check it against.
+Either draw the factors too, or write the fuller explanation — but do not assume
+the ledger travels.
+
+**2. `Popover` is yours, deferred by name rather than orphaned by accident.**
+Story 5.6 deleted `SecurityRow`, which was `Popover`'s only shipped consumer, so
+**the component now has none.** It was kept rather than deleted because it is
+probably the right primitive for **this epic's dense surfaces**, and its own
+docblock argues the case: a popover rather than a tooltip, because its content is
+in the accessibility tree and it opens on Enter or Space rather than on hover.
+
+**Why the score did NOT use it, which is the part that matters to you.**
+`PRODUCT_SPEC.md` §11 requires every score to **carry** its explanation, not to
+be _askable_ for one — and AC 6's nine required elements **cannot be audited by
+walking a DOM that does not contain them until a click**. So a popover is right
+for a dense table row and wrong for a figure whose explanation is the point.
+**That distinction is the test to apply when you reach for it.**
