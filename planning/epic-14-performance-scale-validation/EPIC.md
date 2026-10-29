@@ -1017,3 +1017,58 @@ went **59.86 → 922.34** and `sharedReadBlocks` **332 → 562** with
 second and **`check-deployed.mjs` does not call it** — but it is no longer the
 cheap read it was, and anything that starts calling it per security at universe
 scale should price that first.
+
+## Handed here by Task 5.7.5 — 2026-10-29, at Epic 5's close: Story 5.2's explicit `Owner: Epic 14` line, unpropagated since 2026-10-14
+
+**This is a hand-off that was written down correctly and still did not arrive.**
+`planning/epic-05-anomaly-detection/story-02-the-trailing-window-and-the-five-minute-return/STORY.md`,
+under _What shipped open, with an owner and a condition_, carries an explicit
+**`Owner: Epic 14.`** line dated **2026-10-14**. It reached this file on
+**2026-10-29**, fifteen days later, and only because somebody walked the
+recipients deliberately. **It is the worst miss in Task 5.7.5's set precisely
+because it is the easiest shape to find** — an `Owner:` line in a `STORY.md`,
+which is the first thing the prescribed grep returns.
+
+**The finding, verbatim from that file.** _"Arm 2's calibrator inflation is
+non-monotonic in the gap (2.75–3.26× at 8,824 ms against 18.0–19.4× at
+3,727 ms) and gap and order were confounded, because the arms always ran
+midday-then-close. Not resolved, because the arm is 100% discarded either way."_
+
+**Read the two numbers the right way round.** The **longer** gap inflated
+**less** — 2.75–3.26× at 8,824 ms — and the **shorter** gap inflated **more**,
+18.0–19.4× at 3,727 ms. That is the opposite of what a gap-driven effect
+predicts, and it is a factor of roughly six apart. And the confound is stated
+rather than suspected: the arms **always ran midday-then-close**, so _gap_ and
+_order_ never varied independently and nothing in that run can separate them.
+The arm produced no usable absolute by its own control, which is why Story 5.2
+recorded it rather than chasing it.
+
+**Why it matters beyond one discarded arm, which is the part this epic is the
+only possible owner of.** `CLAUDE.md` cites a **2.29×-against-4.38×** pair as
+its authority for the claim that _a gapped Node sample's calibrator does not
+divide out_ — a claim that governs every per-batch backend figure in this
+repository, because it is why they are all labelled **tight-loop upper bounds**
+rather than measurements of the production cadence. **That pair came from an
+instrument which has since been deleted**, and `CLAUDE.md` already records that
+whether part of its 2.29× was the in-loop calibrator artefact Task 5.2.5 found
+**cannot be settled by reading**. So the standing authority for a
+repository-wide caveat rests on a figure nobody can re-examine.
+
+**Story 5.2's non-monotonicity is independent evidence bearing on the same
+question**, taken with a calibrator in its own loop rather than in-loop: if
+inflation is not monotonic in the gap, then the gap is not the whole mechanism,
+and the deleted instrument's 2.29× may have been measuring something else as
+well. **The conclusion CLAUDE.md draws is unaffected and if anything stronger**
+— Task 5.2.5 saw a calibrator at 2.75–3.26× beside one at 18.0–19.4× in the
+same run and discarded **100%** of its samples — **but the mechanism may be
+misattributed**, and nobody who copies the calibrator shape afterwards will
+know that from the figure alone.
+
+**What this epic owes it.** Re-take the arm with **gap and order crossed** —
+close-then-midday as well as midday-then-close — and with the calibrator in its
+own loop, which is the only configuration this repository now trusts. That is
+the one experiment that can say whether the inflation tracks the gap, the time
+of day, the arm's position in the run, or the instrument. **If it tracks
+anything but the gap, the caveat on every tight-loop figure in Epics 4 and 5
+needs rewording rather than merely repeating** — and this epic is the only one
+that will ever be in a position to do it.
