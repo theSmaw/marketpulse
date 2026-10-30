@@ -640,3 +640,35 @@ exists the `iex` tape begins **2026-09-23**, so a replay of any earlier session
 has **no volume baseline of any tape** and must refuse rather than fall back —
 the same shape as the `security_memberships` bound this epic already carries,
 with a different start date.
+
+## Handed here by Story 6.1's close — 2026-10-30: the topology graph is a concrete consumer of the `security_memberships` bound this epic already carries
+
+`packages/shared/src/topology.ts`'s `buildTopologyGraph` — the market-as-a-
+graph model Epic 6 built and Epic 7 will read server-side — is a
+_computing-over-the-market-we-track-now_ reader, exactly the shape invariant 4
+and this epic's own `security_memberships` section already describe: it
+filters on `status === "active"` against the universe **as it stands now**,
+which is correct for the graph `/` and the workshop draw today and wrong for
+any replayed one.
+
+**Written into `buildTopologyGraph`'s own docblock, in these words, so this
+epic does not have to re-derive them**: `security_memberships` begins
+**2026-10-12** and says nothing about any session before it, so a replayed
+topology of an earlier date must **refuse** rather than fall back to today's
+roster — the same bound every other current-universe reader in this product
+carries, with the same start date, not a new one. Two further constraints
+travel with it, both already general to this epic and restated here only to
+name the concrete reader: the read takes the replay clock **explicitly**,
+because `effective_from` is deliberately not `observed_at` and a generic
+temporal plugin will not cover this table without being told which column
+means what; and membership answers **"was tracked,"** not **"which sector"** —
+a security can be tracked while its curated `sector` field (today's static
+enum, not a history) is the one true as of the replay clock, which this epic's
+own §12.2 reading of `UNIVERSE.md` already distinguishes. So a replayed
+topology can be right about **who** was in the market and wrong about
+**which wedge** they sit in, and that is a correctness statement about the
+graph's clustering, not only about its membership.
+
+Nothing reads `buildTopologyGraph` from a replay context today — this is a
+hand-off ahead of the need, which is the point of writing it now rather than
+at this epic's own decomposition finding it cold.

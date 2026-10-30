@@ -417,3 +417,60 @@ ADR 0045 has the tape rule; read both before scoping this.
 rather than re-purposed when it fires — it is not a refusal and not an absence of
 data, and its payload-free shape exists precisely so there is no invented bound
 to carry forward.
+
+## Handed here by Story 6.1's close — 2026-10-30: the graph model `get_related_securities` and `highlight_graph_nodes` read already exists
+
+`PRODUCT_SPEC.md`'s tool list names `get_related_securities` and
+`highlight_graph_nodes` with no further description. Story 6.1 built the
+domain data both will read, in `packages/shared`, consumed as built output
+exactly as `market-time.ts` is — **two processes read this graph**, and that
+is why it lives where it does rather than in `apps/frontend`.
+
+**The real exports, so this epic implements against them rather than against a
+guess.** `packages/shared/src/topology.ts`: `buildTopologyGraph(securities:
+readonly Security[]): TopologyGraph`, pure and total, filtering on `status ===
+"active"` — a `TopologyGraph` is `{ nodes: readonly TopologyNode[]; edges:
+readonly TopologyEdge[]; clusters: readonly TopologyCluster[] }`, every array
+sorted. A `TopologyNode` carries `symbol`, `label`, `kind`
+(`"equity" | "sector_etf" | "index_etf"`) and `cluster` (a `Sector | null`,
+`null` for the four market proxies — there is no twelfth pseudo-sector).
+`TopologyEdge` carries `from`, `to` and `kind`
+(`"sector_membership" | "index_membership"`) and **no `weight`** — see its own
+reversal trigger below. `packages/shared/src/topology-layout.ts`:
+`buildTopologyLayout(graph: TopologyGraph): TopologyLayout`, closed form, no
+simulation, no random seed — a `TopologyLayout` is `{ placements: readonly
+TopologyPlacement[]; bounds: {...} }`, a **sorted array, not a `Map`**,
+because `JSON.stringify(new Map())` is `{}` and a layout answer that silently
+serialises to nothing is exactly the failure a tool response must not have.
+Coordinates are **abstract units**, not pixels — `TOPOLOGY_NODE_FOOTPRINT` (16)
+is the one figure to know before writing a `highlight_graph_nodes` response
+that has to say how close is close.
+
+**`get_related_securities` is answerable today, directly from `TopologyGraph`**
+— a node's sector membership, its cluster's other members, and the hub-and-
+spoke relationship to `SPY` are all already graph edges; no new computation is
+needed, only a tool wrapper that walks `graph.edges` from a given symbol.
+**`highlight_graph_nodes` needs `TopologyLayout` too**, because "highlight
+these nodes" is meaningless without knowing where they are — read `layout.
+placements`, never invent a second coordinate system.
+
+**The model holds no renderer type, and that is mechanical rather than a
+convention** — `pnpm invariants`' `no-renderer-type-in-the-graph-model` walks
+this package's own import closure and refuses `sigma`, `graphology`, a canvas
+or DOM type, a colour literal or a `var(--token)` read, with a `pnpm break`
+behind it. **Its reversal trigger is this epic arriving**: _"the first
+consumer of the graph model that is not a browser."_ When you write the first
+server-side import of `topology.ts`, re-read that invariant's corpus-walk and
+confirm it still reaches your new file — the check is what makes this
+decision true, and a stated invariant nothing checks quietly stops being true.
+
+**No edge carries a strength today, by design.** `TopologyEdge` has no
+`weight` field, because a membership is not a measurement — if
+`highlight_graph_nodes` or `set_graph_encoding` wants to rank or weight a
+relationship, that is Story 6.5's correlation edges arriving
+(`PRODUCT_SPEC.md` §10's _"strong historical return correlation"_), not
+something to approximate from today's model.
+
+[ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)'s
+Decision 2 is the full account and its own reversal trigger; `TOPOLOGY.md` is
+where this epic's own subject-document chain continues.

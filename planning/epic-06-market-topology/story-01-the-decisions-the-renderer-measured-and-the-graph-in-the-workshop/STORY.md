@@ -1,9 +1,17 @@
 # Story 6.1 — The Decisions, the Renderer Measured, & the Graph in the Workshop
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-30.** The renderer that won is a hand-rolled
+Canvas2D module, not WebGL — measured against Sigma.js/graphology at 334× the
+gzipped cost for an indistinguishable frame rate. 516 nodes, 512 edges, drawn
+correctly in Storybook; nothing on any route yet. One defect travels open: a
+sector label still visibly crosses a neighbouring cluster at the component's
+default size, genuinely reduced but not eliminated by this story's own
+geometry fix, owned by the next story that fits this layout into a real box.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** nothing
-**Epic scope covered:** Graph domain model · Sector/industry relationships · Graph-layout generation · WebGL renderer
+**Epic scope covered:** Graph domain model · Sector/industry relationships ·
+Graph-layout generation · the renderer, chosen by measurement rather than
+Sigma.js/WebGL as originally scoped here
 
 ## Description
 
