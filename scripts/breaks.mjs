@@ -6040,4 +6040,87 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "an-arrival-mark-is-keyed-on-the-arrival",
   },
+  {
+    name: "a-random-source-in-the-shared-model",
+    proves:
+      "`no-random-in-the-shared-model` goes red on a layout that reaches " +
+      "`Math.random` — and the plant is the shape that got past the FIRST " +
+      "draft of the check, not the shape the check was written around.\n\n" +
+      "**`Math.random()` was unguarded anywhere in this repository until " +
+      "2026-10-30**, and a jitter is what a reader reaches for the moment two " +
+      "nodes look too close together on one screen. Measured before the " +
+      "clause existed (Task 6.1.1): with\n" +
+      "`const { random } = Math; const jitter = () => (random() - 0.5) * 2;`\n" +
+      "live in `topology-layout.ts`, `pnpm invariants` reported `78 " +
+      "invariants hold.`, `pnpm lint` was green, and all 22 topology tests " +
+      "passed. The FIRST draft of the clause — keyed on the literal " +
+      "`Math.random` — then reported `79 invariants hold.` against the same " +
+      "plant, which is why the shipped clause covers a member read, a " +
+      "computed read, a `random` lifted off `Math`, and `crypto`'s " +
+      "generators.\n\n" +
+      "What ships wrong if it lands is three things and none is visible on " +
+      "screen. Story 6.1's two renderer candidates stop comparing drawing " +
+      "and start comparing two different pictures — the exact confound the " +
+      "story's shaping found in a force-directed layout. Epic 7's " +
+      "`highlight_graph_nodes` reasons server-side about coordinates that " +
+      "are not the ones on screen, so the highlight lands on the wrong node " +
+      "with nothing raised. And every structural test over the layout stays " +
+      "green: a jittered layout still places every node once, still clears " +
+      "the 16-unit footprint, still bounds correctly — the one assertion " +
+      "that catches it is deep equality of two runs, which is the one a " +
+      "re-implementer deletes first because it looks like a tautology.",
+    file: "packages/shared/src/topology-layout.ts",
+    find: "  const placements: TopologyPlacement[] = [];",
+    replace:
+      "  const placements: TopologyPlacement[] = [];\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const { random } = Math;\n" +
+      "  const jitter = (): number => (random() - 0.5) * 2;\n" +
+      "  void jitter;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no-random-in-the-shared-model",
+  },
+
+  {
+    name: "a-renderer-type-in-the-graph-model",
+    proves:
+      "`no-renderer-type-in-the-graph-model` goes red on the shared layout " +
+      "growing a viewport-fitting helper — Story 6.1's acceptance criterion " +
+      "2, which was unguarded entirely until 2026-10-30.\n\n" +
+      "**The plant is the temptation rather than an absurdity.** The layout " +
+      "emits abstract units and `bounds`, and fitting them to a box is " +
+      "two lines of arithmetic the frontend has to write — so the obvious " +
+      "'helpful' move is to do it here, which drags an `HTMLElement` and a " +
+      "`devicePixelRatio` into a package a **Fastify server** consumes. " +
+      "`tsc` is happy (the DOM lib is in scope through a transitive " +
+      "reference), `pnpm lint`'s browser-boundary rules are scoped to " +
+      "`apps/frontend/src/**` and do not reach this package, and no test at " +
+      "any level can see it.\n\n" +
+      "What ships wrong: a model typed in terms of a drawing host decides " +
+      "the renderer comparison **before it is run**, by making one " +
+      "candidate the model's own vocabulary — and the measurement is " +
+      "supposed to decide even against `PRODUCT_SPEC.md` §27's stated WebGL " +
+      "intent.\n\n" +
+      "**The CORPUS was proved separately and is the load-bearing half**, " +
+      "because a break edits the file the check was written around. The " +
+      "commissioning task specified the corpus as " +
+      "`packages/shared/src/topology*.ts`, and that glob was measured green " +
+      "(`80 invariants hold.`) against the file Story 6.3 would write — a " +
+      "`graph-marks.ts` carrying `host: HTMLElement | null`, a `#1a1a1a` " +
+      "and a `var(--chart-volume)`, imported by `topology.ts`. A marks " +
+      "module is named for what it does rather than for the epic it belongs " +
+      "to, so the shipped corpus is the model's own import CLOSURE and a new " +
+      "file is in it by being reachable.",
+    file: "packages/shared/src/topology-layout.ts",
+    find: "export const TOPOLOGY_NODE_FOOTPRINT = 16;",
+    replace:
+      "export const TOPOLOGY_NODE_FOOTPRINT = 16;\n" +
+      "\n" +
+      "// pnpm break: reverted automatically\n" +
+      "export function fitToHost(host: HTMLElement, extent: number): number {\n" +
+      "  return host.clientWidth / extent / devicePixelRatio;\n" +
+      "}",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no-renderer-type-in-the-graph-model",
+  },
 ];

@@ -1,6 +1,9 @@
 # Task 6.1.1 — The Graph Model, & the Deterministic Layout
 
-**Status:** Not started
+**Status:** **Complete — 2026-10-30.** The model and the closed-form layout are
+pure, deterministic, and provably renderer-free — and the task's own commissioned
+invariant corpus (a `topology*.ts` glob) was proved too narrow before it shipped,
+on a planted file neither renderer candidate would recognise as a defect.
 **Story:** [6.1 The Decisions, the Renderer Measured, & the Graph in the Workshop](STORY.md)
 **Depends on:** nothing
 
@@ -109,6 +112,131 @@ readonly bounds: { minX; minY; maxX; maxY } }`. A sorted array, not a
 
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-10-30
 
-## For a stakeholder — a status report, YYYY-MM-DD
+**The model** — `packages/shared/src/topology.ts` — ships `TOPOLOGY_HUB`
+(`SPY`, kept distinct from the frontend's `BROAD_MARKET` because it is a
+structural fact about which fund partitions the sector SPDRs rather than a
+measurement-reference choice), `TopologyNode`/`TopologyEdge`/`TopologyCluster`/
+`TopologyGraph` exactly as specified (no `weight` field on an edge, with the
+reversal trigger recorded as a condition — _the first edge kind whose strength
+is a measurement rather than a membership_), and `buildTopologyGraph`: pure,
+total, filters on `status === "active"`, and builds **501 membership edges +
+11 hub edges = 512 edges** over **516 nodes** (501 equities, 11 sector ETFs, 4
+market proxies). The Epic 13 replay hand-off is written into the function's
+own docblock with three numbered constraints.
+
+**The layout** — `packages/shared/src/topology-layout.ts` — is the closed-form
+radial design: eleven sector wedges in `SECTORS`' declaration order from twelve
+o'clock clockwise, angular span proportional to √(member count), members
+placed by a golden-angle spiral keyed on a stable sort by symbol. Measured over
+a 501/11/4-node universe of the real shape: **closest pair of placements
+17.83 units apart** (against a 16-unit footprint — 11% headroom), **closest
+pair of cluster circles 28.75 units clear** (against the 25% arc-allocation
+slack the wedge formula buys), hub at the origin, three undecomposed proxies
+(`QQQ`, `DIA`, `IWM`) in one column outside the ring. No real universe fixture
+is reachable from `packages/shared` — the curated universe lives in
+`apps/backend`, downstream of this package — so `topology-fixture.ts`
+generates a universe of the real **shape** from this package's own vocabulary,
+with the eleven per-sector counts taken from the deployed `UNIVERSE` table on
+2026-10-30 (`73/59/76/47/22/83/34/21/31/30/25`, summing to 501). **What that
+fixture cannot certify — that the real universe still matches those counts —
+is now `docs/GAPS.md`'s own entry**, owned by the first task in `apps/backend`
+that imports `buildTopologyGraph` for a real purpose.
+
+**Two new `pnpm invariants` entries, each proved wrong before it was fixed.**
+`no-random-in-the-shared-model`: the first draft, keyed on the literal
+`Math.random`, reported `79 invariants hold.` against a planted
+`const { random } = Math; const jitter = () => (random() - 0.5) * 2;` —
+caught, and the shipped clause covers a member read, a computed read, a
+destructured `random`, and `crypto`'s generators, with a documented exemption
+for a `random` parameter passed in (so it never flags `retry-provider.ts`'s
+seam). `no-renderer-type-in-the-graph-model`: the task's own specified corpus
+(`packages/shared/src/topology*.ts`, a glob) reported `80 invariants hold.`
+against a planted `graph-marks.ts` — carrying `host: HTMLElement | null`, a
+`#1a1a1a` literal and a `var(--chart-volume)` read — imported by `topology.ts`
+but outside the glob's name pattern. Fixed by walking the model's transitive
+`./`-relative import closure from its two seed files instead, with its own
+anchor (`reached.length === 0` throws) proving the closure cannot silently
+collapse back to just the seeds. Both breaks are registered in
+`scripts/breaks.mjs` and were run for real, post-commit, confirming genuine
+red-for-the-right-reason and byte-identical restoration on both.
+
+**Tests: 22, across both files, 654 total in `packages/shared` with the rest
+of the package.** `topology.test.ts` (11): node-kind counts, `cluster: null`
+on proxies only, edge-kind counts (501 + 11 = 512), a permutation check that
+every membership edge's target is the node's own cluster, all 11 ETFs on the
+hub and nothing else, `QQQ`/`DIA`/`IWM` present with zero edges, no dangling
+edge endpoints, 11 clusters summing to 501 excluding their own benchmark, the
+`status === "active"` filter (via an injected untracked row — the curated
+file holds none today), sort-order proof by reversed-input byte-comparison,
+total-on-empty-universe. `topology-layout.test.ts` (11): every node placed
+exactly once, no two coincident (17.83 measured, asserted both `>= 16` and
+`toBeCloseTo(17.83, 2)`), cluster centroids strictly increasing clockwise
+computed from placements rather than from anything the implementation
+exposes, 11 cluster circles disjoint (28.75 clearance), hub at origin, three
+proxies in one column outside the ring, bounds contain every placement, all
+coordinates finite, same-input-twice byte-equal, reversed-input byte-equal,
+total-on-empty-graph.
+
+**Six places where the task's spec needed interpretation, each flagged rather
+than silently resolved**, reviewed and accepted as written: no real-universe
+fixture reachable from this package (routed to `docs/GAPS.md`); "normalised
+abstract units" read as extent-relative rather than rescaled to `[-1, 1]`,
+reasoned in the module's own docblock (a unit-square rescale would make the
+16-unit footprint invariant data-dependent); specific hub/proxy placement
+choices; an edge-direction question resolved by following the task file over
+the canvas; and an imputed-zero (`?? 0`) shape that an _existing_ Epic-5
+invariant (`nothing-checks-for-0`) already catches, confirmed not present in
+the shipped `radiusOf()`, which is a genuine total function.
+
+**A self-contradiction found in `STORY.md` during implementation**, not
+before it: AC1 and AC5's headline language said "514-edge" in four places
+while the body text and the design work both said 512 (= 501 membership + 11
+hub edges, the arithmetically correct figure). The developer built against
+512 and flagged the inconsistency rather than guessing; all four headline
+occurrences are now corrected to 512 in `STORY.md`.
+
+### Gates
+
+`pnpm build` (tsc -b, frontend bundle, Storybook) — green.
+`pnpm lint` — green, zero warnings.
+`pnpm format:check` — green (`notes.txt` never touched; the house `prettier
+format:check` + explicit-path `--write` split was followed throughout).
+`pnpm invariants` — **80 invariants hold.** (up from 78 before this task).
+`pnpm stories` — 44 components, 44 stories files.
+`pnpm env:check`, `pnpm links` (615 documents, 1966 cross-file links, 0
+broken) — green.
+`pnpm coverage:check` — green.
+`pnpm test` — **654 passed (31 files)** in `packages/shared`, 1344 passed in
+`apps/backend`, 1688 passed in `apps/frontend` (one frontend test,
+`use-backend-health.test.ts`'s abort-signal case, failed once under full
+parallel load and passed 4/4 in isolation — a pre-existing timing flake in
+code this task did not touch, re-run clean rather than carried forward).
+`pnpm test:scripts` (21 tests) and `pnpm test:process` (60 tests) — green.
+`pnpm break a-random-source-in-the-shared-model` and
+`pnpm break a-renderer-type-in-the-graph-model` — both run for real after the
+commit (the only way to run them: `break-verify.mjs` requires a clean git
+status for the target file, which untracked new files cannot satisfy before a
+commit), both confirmed red-for-the-right-reason and restored byte-identical.
+
+## For a stakeholder — a status report, 2026-10-30
+
+This task builds no screen — it is the data model and geometry underneath
+Story 6.1's market-topology graph, and nothing changes on any page yet. What
+it delivers: a description of the market as a graph (516 securities, 512
+relationships — each stock linked to its sector's benchmark fund, each of the
+eleven sector funds linked to the broad-market fund) and a formula that places
+every one of those 516 points on a page with no randomness and no simulation,
+so the same market always draws the same picture and two different drawing
+techniques can be compared fairly against it next. Two new automated guards
+ship alongside it, each deliberately proved wrong once before being fixed, per
+this repository's own discipline: a guard against a layout that could jitter
+positions for cosmetic reasons (which would make the upcoming renderer
+comparison compare two different pictures rather than two drawing techniques),
+and a guard against the model quietly picking a drawing technology before the
+measurement that is supposed to decide it has even run. One gap is opened
+rather than closed: nothing yet checks that the hand-recorded test universe
+still matches the real one, which is `docs/GAPS.md`'s and owned by the next
+task that has a reason to build that check for real. Next up is Task 6.1.2 —
+building the two renderer candidates and measuring which one actually wins.
