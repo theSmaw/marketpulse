@@ -7,7 +7,7 @@ import {
 
 import type { ApiResult } from "../api-client.js";
 import type { SecuritiesView } from "../use-securities.js";
-import { toSecuritiesView } from "../use-securities.js";
+import { toRetryingView, toSecuritiesView } from "../use-securities.js";
 
 // The bodies `GET /securities` answers with, and the states this page collapses
 // them to (Task 2.11.6).
@@ -351,4 +351,24 @@ export function securitiesFixtureView(
   name: SecuritiesFixtureName,
 ): SecuritiesView {
   return toSecuritiesView(LOADING_UNIVERSE, securitiesFixtureResult(name));
+}
+
+/**
+ * The same state with a retry **already in flight** (Task 6.1.3).
+ *
+ * `retrying` is the one member of this union no recorded body can produce: it
+ * is a fact about an action a reader took, not about a response. So it is
+ * driven through `toRetryingView` — the real transition the retry button
+ * fires — rather than spread in by hand, for the reason the function above
+ * exists at all.
+ *
+ * A fixture that is not `retryable` comes back **unchanged**, which is the
+ * transition's own rule rather than a special case here: `notThisService` is a
+ * failure this client does not offer to re-ask, and a story asking for its
+ * retrying state is asking for one the product cannot reach.
+ */
+export function securitiesFixtureRetryingView(
+  name: SecuritiesFixtureName,
+): SecuritiesView {
+  return toRetryingView(securitiesFixtureView(name));
 }

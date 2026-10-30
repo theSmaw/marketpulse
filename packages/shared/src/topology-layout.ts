@@ -102,33 +102,84 @@ export const TOPOLOGY_NODE_FOOTPRINT = 16;
 export const TOPOLOGY_CLUSTER_DENSITY = 0.6;
 
 /**
- * **335 — the radius the eleven cluster centres sit on**, from the design
- * canvas.
+ * **400 — the radius the eleven cluster centres sit on**, from the design
+ * canvas, raised from **335 by Task 6.1.3** for a second reason beyond the one
+ * it was set for — and the raise **measurably helps without fully solving it**,
+ * which is the part of this note worth reading before trusting the number.
  *
  * ## Why no two clusters can collide, as arithmetic rather than as a hope
  *
  * Each sector's angular span is allocated **proportionally to its own cluster
  * radius**, so sector `s` receives `2π · r_s / Σr` and the arc length available
  * to it at this radius is `2π · R · r_s / Σr`. Over the real universe
- * `Σr = 839.8`, so that arc is `2.507 · r_s` — against the `2 · r_s` the
- * cluster needs. Every cluster therefore gets **25% more arc than it occupies**,
- * at every member count, which is why disjointness is a property of the
- * allocation rather than something a collision pass has to clean up.
+ * `Σr = 839.8`, so that arc is `2π · 400 / 839.8 ≈ 2.993 · r_s` — against the
+ * `2 · r_s` the cluster needs. Every cluster therefore gets **~50% more arc
+ * than it occupies**, at every member count, which is why disjointness is a
+ * property of the allocation rather than something a collision pass has to
+ * clean up. This part of the arithmetic does not depend on `R` at all — it is
+ * a ratio of allocated-to-occupied arc, and raising `R` scales both the same
+ * way — so it held at 335 and holds here unchanged; the test beside this
+ * module measures the resulting figure rather than quoting either one.
+ * **This property is genuinely, unconditionally true** — unlike the label
+ * discussion below, it does not depend on what box the layout is fitted into.
  *
- * Measured over the real universe, the closest pair of cluster circles clears
- * by **28.75** units. That is the figure to re-take if this radius changes, if
- * `SECTORS` gains a member, or if a curation moves enough names to change the
- * radius spread — and the test beside this module asserts disjointness rather
- * than quoting it.
+ * ## Why 400 rather than 335 — a second collision the first draft didn't check,
+ * ## and a first REPAIR draft that didn't check its own units
  *
- * **Handed to Story 6.2:** an 886 × 826 extent does not fit
- * `Market overview.dc.html` §02's real box, and the canvas's recommendation is
- * an **elliptical** ring (`R_x ≈ 540`, `R_y ≈ 185` for a 1392 × 520 box) —
- * node size fixed, ring deformed. The 25% slack above is computed on a circle;
- * deforming the ring spends it unevenly, and the clusters near twelve and six
- * o'clock are where it goes.
+ * **Found by Task 6.1.2, looking at the built page rather than by any check**:
+ * `The graph at rest.dc.html` §06 places every sector's label **directly above
+ * its own cluster — same x, smaller y** — and at a bearing near three or nine
+ * o'clock that "above" direction is nearly *tangential* to the ring rather than
+ * radial, so a label's lateral extent competes for the same clearance the
+ * circle-to-circle allocation above protects, and the 25% margin at `R = 335`
+ * was not enough: `CONSUMER DISCRETIONARY` (163 px, the longest of the eleven)
+ * crossed into `Financials`' circle, and `COMMUNICATION SERVICES` (161.5 px)
+ * crossed into `Consumer Discretionary`'s.
+ *
+ * **Task 6.1.3's first repair compared the label's width in CSS PIXELS
+ * directly against this module's LAYOUT UNITS, reported the collision cleared,
+ * and was wrong** — `renderer-canvas.ts` draws label text at a **constant
+ * CSS-pixel size regardless of the fit scale** (the design work's own rule:
+ * type does not scale), while every circle shrinks with it, so the two
+ * quantities are only commensurate when a renderer happens to fit this layout
+ * at exactly 1 layout unit per pixel, which no real rendering of it is. Found
+ * by Task 6.1.3's own second pass, looking at the built page again rather than
+ * trusting the first test that said it was fixed.
+ *
+ * **Re-measured through the real fit scale, raising `R` helps but does not
+ * clear it.** At the reference box `apps/frontend/src/topology/fit.ts`'s own
+ * tests already use (`1392 × 520`, Story 6.2's target), the fit scale is
+ * **≈0.515**, and the worst label/circle clearance — the same
+ * `communication_services` → `consumer_discretionary` pair — moved from
+ * **−37.3 px at `R = 335` to −28.0 px at `R = 400`**: a real, measured
+ * improvement, and a real, remaining collision. A swept check (Task 6.1.3's
+ * own record has the table) shows why this is not a dial to keep turning:
+ * clearing the reference box outright needs `R ≈ 700`, and a materially
+ * narrower box needs far more than that — because the required layout-unit
+ * clearance is the pixel label width *divided by* the fit scale, which grows
+ * without bound as the box narrows, while `R` is a single constant this
+ * module commits to independent of any box. **No value of `R` makes this
+ * collision-free at every box this layout might be fitted into**; `R = 400`
+ * is a genuine improvement kept for the circle-disjointness property above
+ * (unconditionally stronger: 28.75 → 57.69 units of clearance, useful
+ * headroom for Story 6.3's band and Story 6.4's ring) while the residual
+ * label collision is `docs/GAPS.md`'s, with a regression-floor test beside
+ * this module rather than a correctness one.
+ *
+ * **What this does NOT do**: grow a node, move a member within its cluster, or
+ * change which universe a replay can draw — `topologyClusterRadius` and the
+ * golden-angle spiral are both independent of `R`. Only the ring itself, and
+ * the extent that follows from it, changed.
+ *
+ * **Handed to Story 6.2, re-measured rather than carried forward:** the extent
+ * at `R = 400` does not fit `Market overview.dc.html` §02's real box either,
+ * and the canvas's recommendation is unchanged in kind — an **elliptical**
+ * ring, node size fixed, ring deformed — with its own figures to re-derive
+ * against the new extent, and with the label-clearance problem above to solve
+ * for real rather than to re-inherit: a renderer that knows its own fit scale
+ * is the only thing in this picture that can.
  */
-export const TOPOLOGY_RING_RADIUS = 335;
+export const TOPOLOGY_RING_RADIUS = 400;
 
 /**
  * **The golden angle, `π(3 − √5) ≈ 2.39996` radians** — how members are

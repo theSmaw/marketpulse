@@ -5412,3 +5412,77 @@ graph apart mechanically.** Story 6.7's live updates and Epic 14's synthetic
 5,000-node mode are the likely triggers; a pixel-diff harness built before one
 of them exists is infrastructure ahead of the iteration that needs it, and
 claiming one exists today is the thing this entry is here to prevent.
+
+## A sector's label still crosses into a neighbouring cluster's circle, and no value of the ring radius fixes it generally
+
+**Added 2026-10-30 by Task 6.1.3, replacing a claim this same task shipped and
+then found wrong within the same day.**
+
+`The graph at rest.dc.html` §06 places every sector's label directly above its
+own cluster — same x as the benchmark ETF, smaller y. At a bearing near three
+or nine o'clock that "above" direction is nearly tangential to the ring rather
+than radial, so a label's lateral extent competes for the same clearance the
+circle-to-circle wedge allocation protects. Task 6.1.2 found this collided for
+real at `TOPOLOGY_RING_RADIUS = 335`: `CONSUMER DISCRETIONARY` crossed into
+`Financials`' circle and `COMMUNICATION SERVICES` crossed into `Consumer
+Discretionary`'s.
+
+**Task 6.1.3's first repair raised `R` to 400 and verified it with a test that
+compared the wrong units** — a label's width in CSS pixels, directly against
+this layout's own abstract units, as though they were the same thing. They are
+not: `renderer-canvas.ts` draws label text at a constant CSS-pixel size
+regardless of the fit scale (the design work's own rule — type does not scale
+with zoom), while a circle's radius and position shrink with it. The two
+quantities are only commensurate when a renderer happens to fit this layout at
+exactly one layout unit per pixel, which no real rendering of it is.
+
+**Re-measured through the real fit scale, the collision is smaller but not
+gone.** At `{ width: 1392, height: 520 }` — Story 6.2's own target box, already
+used as `apps/frontend/src/topology/fit.ts`'s test reference — the fit scale is
+≈0.515, and the worst pair (`communication_services` → `consumer_discretionary`)
+moved from **−37.3 px at `R = 335` to −28.0 px at `R = 400`**: real progress,
+and a real, visible collision still photographed at
+`pnpm probe --story components-markettopology--whole-universe`.
+
+**Why raising `R` further is not the fix.** The layout-unit room a label needs
+at a given box is `(label width in CSS px) / (fit scale)`, and fit scale
+shrinks as the box narrows — so the required clearance grows without bound as
+the box narrows, while `R` is one constant this module commits to independent
+of any box. Swept over the real layout:
+
+```
+R      1392x520 clearance   390x522 clearance
+335    -37.3 px             -26.5 px
+400    -28.0 px             -26.4 px   <- shipped
+700     +1.4 px             -17.0 px
+1600   +29.6 px              +0.9 px
+```
+
+335→400 bought 9 px at the reference box and essentially nothing narrower — and
+clearing the reference box outright costs `R ≈ 700`, which drops whole-graph
+ink density toward the ~2%-reads-as-empty floor `The graph at rest.dc.html`
+itself names as a concern. **No single `R` is the right lever for a
+box-dependent problem.**
+
+**Re-measure:**
+
+```
+pnpm --filter @marketpulse/frontend storybook
+pnpm probe --story components-markettopology--whole-universe
+```
+
+and look near `COMMUNICATION SERVICES`; or re-run the arithmetic in
+`packages/shared/src/topology-layout.test.ts`'s `a sector label against a
+NEIGHBOURING cluster's circle` test, which carries a regression floor (−30 px
+at the reference box) rather than a correctness guarantee, so a future change
+that moves the figure past −30 is caught even though 0 is not yet achieved.
+
+**Mechanisable in part — the regression floor above is the mechanical half.**
+What it cannot do is prove the collision is gone, because that is not
+currently true. **Owner: the next story that fits this layout into a real box**
+— Story 6.2, which already owns deriving a different ring shape (elliptical,
+`R_x ≈ 540`/`R_y ≈ 185`) for `Market overview.dc.html`'s real 1392×520 region,
+and is the first place a renderer-side, scale-aware label treatment (the
+renderer is the one thing in this picture that knows its own fit scale) has a
+reason to exist. Until then, a reviewer reading this graph in Storybook meets
+one real, minor visual collision near `COMMUNICATION SERVICES`.
