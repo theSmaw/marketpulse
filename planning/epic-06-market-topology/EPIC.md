@@ -1,6 +1,6 @@
 # Epic 6 — Market Topology
 
-**Status:** Not started
+**Status:** **Not started — decomposed into NINE stories on 2026-10-30.** Eight are visible; the ninth is the close. Three decisions are owed at Story 6.1's Gate 1 and one of them is not this epic's to take: **light theme only, or light and dark**, which `VISUAL-LANGUAGE.md` records as the user's call and names this epic as the reason it matters.
 **Sequence:** 6 of 15 — follows Epic 5 (Anomaly Detection)
 **Spec references:** PRODUCT_SPEC.md §10 (market topology visualization), §27 (high-performance rendering)
 
@@ -30,6 +30,101 @@ Users can explore securities as an interactive relationship graph.
 ## Exit criteria
 
 The tracked universe can be explored smoothly as an interactive graph, and unusual securities are visually obvious.
+
+**Note before anything is built: half of this criterion has a number and half
+does not.** _Smoothly_ is `PRODUCT_SPEC.md` §28's **60 FPS at 500 nodes /
+5,000 edges**, which has been in the specification since the beginning and has
+**never been measured, because nothing rendered**. _Visually obvious_ is a
+person's judgement with no instrument at all — so it is owed a sitting rather
+than a suite, and Story 6.9 says what a sitting can and cannot claim.
+
+## Stories — split 2026-10-30
+
+> 6.1 → **6.2** → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9
+
+| #   | Story                                                                                                                                                    | Depends on | Visible?                                                                    |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------- |
+| 6.1 | [The Decisions, the Renderer Measured, & the Graph in the Workshop](story-01-the-decisions-the-renderer-measured-and-the-graph-in-the-workshop/STORY.md) | nothing    | **In the workshop** — 516 real nodes, eleven sector clusters                |
+| 6.2 | [The Topology Takes the Landing Page](story-02-the-topology-takes-the-landing-page/STORY.md)                                                             | 6.1        | **Yes — the largest visible change since `/` stopped being a placeholder**  |
+| 6.3 | [The Anomaly Encoding, & the Fourth Treatment a Canvas Needs](story-03-the-anomaly-encoding-and-the-fourth-treatment/STORY.md)                           | 6.2        | **Yes** — unusual securities light up; half the exit criterion              |
+| 6.4 | [Hover, Select, & the Way Out](story-04-hover-select-and-the-way-out/STORY.md)                                                                           | 6.3        | **Yes** — the graph becomes a place you leave from                          |
+| 6.5 | [Correlation Edges, Computed Nightly, & the Strongest N](story-05-correlation-edges-computed-nightly/STORY.md)                                           | 6.2        | **Yes** — edges stop being memberships and become measurements              |
+| 6.6 | [Node Size, Edge Strength, & the Encodings That Remain](story-06-node-size-edge-strength-and-the-encodings-that-remain/STORY.md)                         | 6.3, 6.5   | **Yes** — the graph gains hierarchy                                         |
+| 6.7 | [Live Updates, & the Graph That Stays at 60 FPS](story-07-live-updates-and-sixty-frames/STORY.md)                                                        | 6.6        | **Yes** — the graph moves on its own; §28's unmeasured target gets a figure |
+| 6.8 | [Filtering, & the Degraded Set](story-08-filtering-and-the-degraded-set/STORY.md)                                                                        | 6.7        | **Yes** — a reader can narrow it, and it is honest when the data is thin    |
+| 6.9 | [The Rehearsal, the Sweep, & Epic 6's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                                               | 6.8        | no                                                                          |
+
+### Why this order
+
+**6.1 is in the workshop and not on the route, deliberately.** Two measured
+facts force it. The reserved band is **161 px** at 1440×900 and **119 px** at a
+680 px viewport, which is not a graph. And _the first commit that renders a
+graph node_ is the recorded reversal condition for `/`'s interim layout — so the
+first node and the grid revert are **one** change, which is too much to carry
+alongside choosing and measuring a renderer this repository has never used.
+Storybook is a real surface here and 6.1 ships a real graph of the real
+universe on it.
+
+**6.2 is second because it is the biggest thing stakeholders have not seen.**
+§9 says the visualization _"should be the product's visual centre of gravity"_
+and it has never been drawn. The end state is **already designed**
+(`Market overview.dc.html` §02) and the regions keep their names, order and
+landmarks across the change.
+
+**6.3 before 6.4 and 6.5 because it is half the exit criterion.** _Unusual
+securities are visually obvious_ is worth more than more edges or more
+interaction, and it is the thing `Unusual activity`'s ten-row list beside it
+**cannot** do.
+
+**6.5 depends on 6.2 rather than on 6.4**, so the nightly pass can be built in
+parallel with the interaction work if there is appetite — it is the one story in
+this epic whose work is mostly backend.
+
+**6.6 is late on purpose.** §10 lists **five** node encodings; shipping them
+together makes none of them legible, and each one added has to be measured
+against those already there at the real distribution — **8 nodes in 500** carry
+`extreme` at a median instant, not an even split.
+
+**6.7 before 6.8** because a graph that moves is more valuable than a graph that
+filters, and because §28's 60 FPS target is the epic's hardest number.
+
+### What no story in this epic builds, and why
+
+- **The synthetic 5,000-node / 25,000-edge mode.** §27 and §28 both name it and
+  it is **Epic 14's**, by that epic's own scope. Story 6.9 confirms it rather
+  than attempting it.
+- **A dedicated topology route.** `PATHS` has four entries, §8.1 puts the
+  topology inside Market Overview, and §37's V1 list does not ask for one. Open
+  for the owner at 6.1's Gate 1 rather than assumed.
+- **Supply chain, ownership and fundamental similarity edges.** §10 lists them
+  under _Later_.
+- **`Investigate` on a node.** Epic 5's Gate 1 refused it on a list row in any
+  form and Epic 7 owns the control.
+
+### Three decisions owed at Story 6.1's Gate 1
+
+**1. Light theme only, or light and dark — and this one is the user's.**
+`VISUAL-LANGUAGE.md` records it as such and names this epic as the reason it
+matters: _"it doubles the surface every token, chart and canvas has to be
+correct in, and Epic 6's WebGL renderer reads its colours from these tokens."_
+The case for dark is recorded there — practitioners work in dark interfaces, the
+price and anomaly palettes are far more vivid on a dark ground, and it is what
+makes this kind of product photograph well for a portfolio. **Deciding it after
+the renderer is built is the expensive order.**
+
+**2. There is no canvas page for this epic.** The design canvas holds nine pages
+and none of them is the topology's; the nearest relative draws the _landing
+grid's end state_ and nothing draws the graph. ADR 0026 makes the canvas the
+source of truth, so this epic cannot invent its visual language in code —
+and `DesignSync` reports **no authorisation** in the session that wrote this
+split, so **`/design-login` is owed before 6.1's design work can start.**
+
+**3. Sigma.js is a RECOMMENDATION, not a mandate.** §27 says _"a good candidate
+is a WebGL graph renderer such as Sigma.js"_. Nothing in this repository renders
+a canvas today and neither Sigma nor graphology is installed, so 6.1 chooses by
+**measurement** against at least one alternative — bundle cost, frame rate at
+516 nodes, and what it does to `/`'s measured 447 DOM nodes — and records the
+rejected candidate with its figures.
 
 ## Handed to this epic by Task 4.1.8 — 2026-09-25: the landing page changes shape the day you draw your first node, and the end state is already drawn
 
