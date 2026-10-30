@@ -5486,3 +5486,133 @@ and is the first place a renderer-side, scale-aware label treatment (the
 renderer is the one thing in this picture that knows its own fit scale) has a
 reason to exist. Until then, a reviewer reading this graph in Storybook meets
 one real, minor visual collision near `COMMUNICATION SERVICES`.
+
+## The topology's 60 FPS and no-task-over-50ms figures are local, one laptop, and not §28's scale
+
+**Added 2026-10-30 by Task 6.1.4, closing Story 6.1.**
+
+`PRODUCT_SPEC.md` §28 targets 60 FPS at 500 nodes / 5,000 edges and >45 FPS in
+a synthetic mode at 5,000 nodes / 25,000 edges. Every frame-rate figure this
+story took — ADR 0048's Decision 1 table, the regression-floor numbers beside
+it — was measured by `scripts/topology-instrument.mjs` on **one development
+machine** (an Apple M3, both headed and headless), against the **real** tracked
+universe as recorded in `apps/frontend/src/fixtures/securities.ts` (518 nodes,
+514 edges — see the fixture-dating entry below), on the **built Storybook**,
+with **no route and no deployed measurement at all**.
+
+That is deliberately not §28's number. This story's own Gate 1 settled that the
+real-universe measurement prices the two renderer candidates against each
+other rather than against §28's ceiling — _"both candidates will pass §28's
+60 FPS comfortably at this size … this story's measurement prices the two
+candidates rather than separating them at scale"_ — and the figures confirmed
+it (zero `longtask` entries, zero gaps over 50 ms, in every arm). **What that
+does NOT establish is whether the shipped Canvas2D renderer still holds 60 FPS
+at 5,000 nodes / 25,000 edges**, which is more than 48× this story's edge
+count, nor whether it holds >45 FPS in Epic 14's synthetic 5,000/25,000 mode,
+nor what any of this costs on a machine slower than a laptop bought for
+development.
+
+**Re-measure:** `scripts/topology-instrument.mjs` is written to take a
+candidate list and a universe; Epic 14's synthetic-mode generator is the
+missing half, and re-running the same instrument against it (rather than
+building a new one) is the point of having kept the script rather than
+deleting it as a throwaway.
+
+**Owner: Epic 14, condition: the first synthetic-mode measurement at scale.**
+Until then, "60 FPS" for this renderer is a claim about 516 real securities on
+one laptop, not about the performance target's own numbers.
+
+## `a-var-read-resolves-to-a-declared-token` cannot see a canvas, and `TOKEN_NAMES` is the real mechanism for this renderer
+
+**Added 2026-10-30 by Task 6.1.4, closing Story 6.1.**
+
+The product's token-discipline invariant (`a-var-read-resolves-to-a-declared-
+token`) is keyed on CSS Module `var()` reads, because that is where every
+other component in this application spends a token. The topology renderer
+spends tokens differently — `apps/frontend/src/topology/palette.ts` reads them
+through `getComputedStyle` via `styles/tokens.ts`'s `getTokens()`, into a
+`<canvas>` that emits no `var()` anywhere a static check can see. So this
+renderer's token discipline is **structurally invisible** to the mechanism
+every other component's colour correctness rests on.
+
+**The mechanism this renderer actually has is `styles/tokens.ts`'s own
+hand-maintained `TOKEN_NAMES` list plus its startup throw.** Every token
+`palette.ts` reads — `--chart-volume`, `--ink-primary`, `--chart-grid`,
+`--chart-reference`, `--surface-raised`, `--ink-secondary`, `--font-sans`,
+`--font-data`, `--font-size-micro`, `--letter-spacing-micro` — is named in that
+list, and `getTokens()` throws at call time if any of them is missing or
+malformed from the stylesheet. That is a real guard, but it is a **different
+shape** of guard than the one every CSS Module file gets: it catches an absent
+or broken token, never a token spent that should not have been (a literal hex
+value, a wrong token name that still happens to resolve) — `palette.ts`'s own
+`pixels()`/`em()` functions throw rather than default, which is the half of
+"a literal would be invisible" this module can actually close, and
+`no-renderer-type-in-the-graph-model` (`packages/shared`) separately refuses a
+colour literal in the **model**, but nothing refuses one in the **renderer**.
+
+**Re-measure:** grep `apps/frontend/src/topology/palette.ts` for every
+`tokens["--…"]` read and confirm each name is in `styles/tokens.ts`'s
+`TOKEN_NAMES`; a name present in one list and absent from the other is this
+gap firing for real.
+
+**Owner: Story 6.1's acceptance criterion 6, properly discharged.** The AC
+asked for "every colour read from a token, never a literal," which
+`palette.ts`'s throw-rather-than-default rule satisfies; what it does not yet
+have is a mechanical check **forbidding a hex literal inside
+`apps/frontend/src/topology/`** the way `no-renderer-type-in-the-graph-model`
+forbids one in `packages/shared`. Task 6.1.3's own record names this as not
+written and not owed by that task. **Condition: the first task that touches
+`renderer-canvas.ts`'s drawing code** is the natural point to add it, since
+that is the one file a colour literal could land in today.
+
+## The recorded `full.json` universe fixture is 518 securities, dated before the 2026-10-12 untracking, and every topology Storybook story reads it
+
+**Added 2026-10-30 by Task 6.1.4, closing Story 6.1.**
+
+`apps/frontend/src/fixtures/securities.ts`'s `full.json` body — the recorded
+`GET /securities` response every `MarketTopology` Storybook story is built
+from (`WholeUniverse`, `OneSector`, `MarketProxies`, and the four failure
+variants' underlying `securitiesFixtureView` calls) — was recorded 2026-09-11,
+**before** Task 2.3.9's 2026-10-12 curation untracked `PSKY` and `WBD`. So
+every topology picture reviewed in this story's Storybook draws **518 nodes
+and 514 edges**, not the deployed universe's 516 and 512 — two nodes and two
+edges more, which is the conservative direction for a frame-rate or bundle
+figure but **not** for a geometry one: the per-sector counts, the derived
+cluster radii, the ring's wedge allocation and the label-clearance figures ADR
+0048 and `docs/GAPS.md`'s label-collision entry both quote are all taken
+against this slightly-wrong universe.
+
+**This is a separate fixture from `packages/shared/src/topology-fixture.ts`**,
+which this story's own earlier `docs/GAPS.md` entry already covers (_"Nothing
+checks that the real universe still matches the topology fixture's eleven
+per-sector counts"_) — that one is a synthetic shape generator used by
+`packages/shared`'s unit tests; this one is a **recorded, dated HTTP body**
+used by `apps/frontend`'s Storybook stories and `apps/frontend/src/topology/
+fit.test.ts`. The two gaps rhyme but do not discharge each other.
+
+**Task 6.1.1's own tests do filter on `status === "active"`** —
+`buildTopologyGraph` is a _computing-over-the-market-we-track-now_ reader by
+design — which makes this moot for `packages/shared`'s own test suite (it uses
+the synthetic fixture, not `full.json`, and that generator has no untracked
+rows to filter). It is **not** moot for `apps/frontend`'s Storybook stories,
+because `full.json`'s `PSKY` and `WBD` rows carry `status: "active"` (the file
+predates the untracking, so it was never written with `status: "untracked"`
+for them) and pass the filter straight through.
+
+**Re-measure:**
+
+```
+node -e "const b=require('./apps/frontend/src/fixtures/securities/full.json');
+  console.log(b.securities.length, b.securities.filter(s=>s.symbol==='PSKY'||s.symbol==='WBD').length)"
+```
+
+against `UNIVERSE.md` §17's current count.
+
+**Mechanisable in part.** Re-recording `full.json` against the real,
+2026-10-12-and-later universe is the real fix and is explicitly **not** this
+task's — the fixture is formatted and shared by six other components' stories
+(per `topology-fixture.ts`'s own note on the same tension), so a re-record is
+a cross-cutting change outside Story 6.1's scope. **Owner: the next story that
+re-records `full.json` for its own reason**, or — failing one — the first
+story in this epic whose geometry figures need to be exactly right rather
+than conservatively close.

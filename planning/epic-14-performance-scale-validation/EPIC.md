@@ -1072,3 +1072,53 @@ of day, the arm's position in the run, or the instrument. **If it tracks
 anything but the gap, the caveat on every tight-loop figure in Epics 4 and 5
 needs rewording rather than merely repeating** — and this epic is the only one
 that will ever be in a position to do it.
+
+## Handed here by Story 6.1's close — 2026-10-30: the topology's 60 FPS figures are local and small-scale, and the instrument that took them is yours to reuse
+
+Story 6.1 built and measured the market-topology renderer: a hand-rolled
+Canvas2D module, chosen over Sigma.js/WebGL because the two were
+indistinguishable on frame rate and the library cost 334× the gzipped bytes
+for a worse picture ([ADR 0048](../epic-06-market-topology/EPIC.md)). Every
+frame-rate figure in that decision — zero `longtask` entries, zero gaps over
+50 ms, rAF gap p50 16.7 ms — was taken on **one development machine**, against
+the **real** tracked universe (518 nodes / 514 edges, not §28's 500/5,000 nor
+your own 5,000/25,000 synthetic target), on the built Storybook, **with no
+route and no deployed measurement at all**.
+
+**So the shipped renderer's standing against your two §28 lines —
+500 nodes / 5,000 edges at 60 FPS, and your own 5,000 / 25,000 at >45 FPS — is
+unmeasured.** This story's own Gate 1 settled that the real-universe
+measurement was never meant to answer that question; it priced two candidates
+against each other at the size this product actually draws today. `docs/GAPS.
+md` carries the full entry (_"The topology's 60 FPS and no-task-over-50ms
+figures are local, one laptop, and not §28's scale"_), owned by you,
+condition: the first synthetic-mode measurement at scale.
+
+**The instrument is built to be reused rather than rebuilt.**
+`scripts/topology-instrument.mjs` takes a renderer candidate list and a
+universe as separate inputs — deliberately, because Story 6.1 drove two
+candidates over one universe and your synthetic mode is the same shape with
+one candidate (the shipped renderer) over a different universe. Three things
+it already gets right that a new instrument would have to rediscover: the
+frame-rate plant lives **inside the render loop** rather than watching the
+DOM, because a canvas mutates none and a working graph reads identical to a
+dead one on any DOM-based channel; `assertStorybookBuild`
+(`scripts/overview-instrument.mjs`) proves the Storybook being driven is the
+**built** artefact rather than a dev server serving unminified modules, with
+its own negative proof in `scripts/prove-instrument.mjs`; and every figure
+records which GPU string drew it, because headless Chromium on this machine
+renders WebGL through SwiftShader — a software rasteriser — while a headed run
+reaches the real one, and a figure taken headless prices a GPU library against
+a CPU without saying so.
+
+**What you will need to build that this story did not**: a synthetic
+5,000-node / 25,000-edge universe generator feeding `buildTopologyGraph`'s
+same shape (`packages/shared/src/topology-fixture.ts` is the precedent for a
+generated-shape fixture, though it is sized for 516 and would need a scale
+parameter), and — since this renderer draws through one shared layout — a
+layout computed over that synthetic universe will have eleven real sectors
+holding ~455 members each rather than 21–83, so `TOPOLOGY_CLUSTER_DENSITY`'s
+own ink-percentage argument (currently 2.87–4.3% depending on which model
+measures it — `docs/GAPS.md`'s label-collision entry has the discrepancy) is
+untested at this scale and may need its own re-derivation before a frame-rate
+figure means anything.
