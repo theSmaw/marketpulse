@@ -88,6 +88,40 @@ _Kept as written. All three recommendations were taken on 2026-09-10; the fourth
 
 **Decision 1 — light theme only in V1 — is flagged rather than recommended, because it has already been reversed once at the user's instruction.** The case for revisiting is real: market practitioners overwhelmingly work in dark interfaces, a dark ground makes the price and anomaly palettes far more vivid, and it is what makes this kind of product photograph well for a portfolio. The case against is equally real — it doubles the surface every token, chart and canvas has to be correct in, and Epic 6's WebGL renderer reads its colours from these tokens. **This one is the user's to settle**, and the mechanism is already built.
 
+> **SETTLED 2026-10-30 by the owner, at Epic 6's decomposition: LIGHT THEME
+> ONLY.** The paragraph above is left exactly as it stood, because it is the
+> case that was put and the decision was taken against it rather than in
+> ignorance of it.
+>
+> **It was asked at the moment it became cheapest to answer and most expensive
+> to defer.** Epic 6 is the first epic whose renderer reads these tokens from a
+> **canvas** rather than a stylesheet — `getComputedStyle` through
+> `styles/tokens.ts`, which throws at startup for a declared token missing from
+> the sheet — so a second ground would have doubled the surface **of a renderer
+> that does not exist yet**. Deciding after it was built was the expensive
+> order, and the decision is recorded here rather than only in Epic 6 because
+> **it governs this document's own chain** (canvas → `VISUAL-LANGUAGE.md` →
+> `tokens.css` → components) and not one epic's work.
+>
+> **What this closes.** The four grounds stay four; no token gains a second
+> value; the price and anomaly palettes keep the contrast figures measured
+> against **one** set of grounds, which is what makes `--chart-volume`'s 3.50:1
+> and `--anomaly-*`'s 1.12 / 1.43 / 1.59 greyscale steps meaningful rather than
+> approximate. Epic 6's renderer reads one palette.
+>
+> **What it does not close**, and the reversal trigger is a condition rather
+> than a release: **the first surface this product ships that a person is
+> expected to watch for a long sitting in a dim room.** That is the real
+> argument for a dark ground — not taste and not photography — and a market
+> topology watched through a session is the closest thing to it this product
+> has planned. If that arrives, the cost is known and is written above.
+>
+> **One thing follows immediately and is Epic 6's to honour**: a graph that
+> looks right only on a dark ground is now a graph that looks wrong, and the
+> four-band encoding Story 6.3 has to invent is to be designed and measured
+> **on the light grounds** — in greyscale, as this product requires, because
+> hue is the entire difference in the price palette at 1.04:1.
+
 **And one thing is missing rather than under review: there is nothing here about MOTION.** _Answered on 2026-09-06 — see [Motion](#motion--added-2026-09-06-by-task-244)._
 
 ## Surfaces and elevation

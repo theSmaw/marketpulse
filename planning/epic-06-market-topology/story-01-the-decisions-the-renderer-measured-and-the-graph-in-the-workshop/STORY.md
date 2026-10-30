@@ -73,23 +73,31 @@ the story that pays it off, and it is next.
 
 ## Open decisions — for the Product Owner at this story's Gate 1
 
-**1. Light theme only, or light and dark?** `VISUAL-LANGUAGE.md` records this as
-**the user's to settle** and names this epic as the reason it matters: _"it
-doubles the surface every token, chart and canvas has to be correct in, and Epic
-6's WebGL renderer reads its colours from these tokens."_ The case for dark is
-recorded there too — practitioners work in dark interfaces, the price and
-anomaly palettes are far more vivid on a dark ground, and it is what makes this
-kind of product photograph well. **Deciding it after the renderer is built is
-the expensive order.**
+**1. ~~Light theme only, or light and dark?~~ SETTLED 2026-10-30 by the owner:
+LIGHT THEME ONLY** — so this is a constraint on the story rather than a question
+in it. The renderer reads **one** palette. Two consequences are
+acceptance-grade: the contrast figures measured against one set of grounds stay
+meaningful (`--chart-volume` 3.50:1; the amber ramp's steps
+**1.12 / 1.43 / 1.59**), and the node's resting appearance is designed **on the
+light grounds** rather than on a ground that would have flattered it.
+`VISUAL-LANGUAGE.md` carries the decision, the case for reversing it, and a
+reversal trigger that is a condition.
 
-**2. There is no canvas page for the topology.** The design canvas holds nine
-pages and **none of them is this epic's** — the nearest relatives are
-`Market overview.dc.html` §02, which draws the _end state of the landing grid_,
-and nothing for the graph itself. So the topology's visual language does not
-exist yet, and `DesignSync` currently reports **no authorisation** in this
-session. **`/design-login` is needed before the designer can draw it**, and this
-story should not invent a visual language in code that the canvas is the source
-of truth for (ADR 0026).
+**2. There is no canvas page for the topology** — checked against the canvas on
+2026-10-30, which holds **29 pages** (`DesignSync` `list_files`, 2026-10-30) and **none of them is
+the topology's**. The authorisation gap is closed, so
+this story **draws** the language rather than discovering it in code: ADR 0026
+makes the canvas the source of truth and the chain is canvas →
+`VISUAL-LANGUAGE.md` → `tokens.css` → renderer.
+
+**The nearest relatives, and what each can and cannot lend.**
+`Market overview.dc.html` draws the **landing grid's end state** 6.2 reverts
+to — useful for the band, silent about the graph.
+`The rail that says how unusual.dc.html` is the anomaly language and is a **DOM**
+page: its band word beside every entry is precisely the affordance a canvas
+cannot borrow, which is why Story 6.3 exists. And
+`MarketPulse Design System.dc.html` is the foundation page the renderer's
+palette must come from.
 
 **3. What is an edge, at the start?** Sector membership is free and gives a
 readable clustered graph. The alternative — wait for correlation — delays every

@@ -1,6 +1,6 @@
 # Epic 6 — Market Topology
 
-**Status:** **Not started — decomposed into NINE stories on 2026-10-30.** Eight are visible; the ninth is the close. Three decisions are owed at Story 6.1's Gate 1 and one of them is not this epic's to take: **light theme only, or light and dark**, which `VISUAL-LANGUAGE.md` records as the user's call and names this epic as the reason it matters.
+**Status:** **Not started — decomposed into NINE stories on 2026-10-30.** Eight are visible; the ninth is the close. **The theme question is SETTLED the same day: light theme only**, which is the cheapest moment it could have been answered — this epic's renderer is the first that reads the design tokens from a **canvas**, so a second ground would have doubled the surface of a renderer that does not exist yet. **What is owed before Story 6.1 starts is the canvas work**: there is no topology page among the canvas's 29, so this epic's visual language does not exist, and ADR 0026 forbids inventing it in code.
 **Sequence:** 6 of 15 — follows Epic 5 (Anomaly Detection)
 **Spec references:** PRODUCT_SPEC.md §10 (market topology visualization), §27 (high-performance rendering)
 
@@ -101,23 +101,48 @@ filters, and because §28's 60 FPS target is the epic's hardest number.
 - **`Investigate` on a node.** Epic 5's Gate 1 refused it on a list row in any
   form and Epic 7 owns the control.
 
-### Three decisions owed at Story 6.1's Gate 1
+### Story 6.1's Gate 1 — one decision settled, two still open
 
-**1. Light theme only, or light and dark — and this one is the user's.**
-`VISUAL-LANGUAGE.md` records it as such and names this epic as the reason it
-matters: _"it doubles the surface every token, chart and canvas has to be
-correct in, and Epic 6's WebGL renderer reads its colours from these tokens."_
-The case for dark is recorded there — practitioners work in dark interfaces, the
-price and anomaly palettes are far more vivid on a dark ground, and it is what
-makes this kind of product photograph well for a portfolio. **Deciding it after
-the renderer is built is the expensive order.**
+**1. ~~Light theme only, or light and dark~~ — SETTLED 2026-10-30 by the owner:
+LIGHT THEME ONLY.** It was asked here because this epic is the first whose
+renderer reads the design tokens from a **canvas** rather than a stylesheet, so
+a second ground would have doubled the surface of a renderer that did not exist
+yet. `VISUAL-LANGUAGE.md` carries the decision beside the case that was put for
+reversing it, which is left standing.
 
-**2. There is no canvas page for this epic.** The design canvas holds nine pages
-and none of them is the topology's; the nearest relative draws the _landing
-grid's end state_ and nothing draws the graph. ADR 0026 makes the canvas the
-source of truth, so this epic cannot invent its visual language in code —
-and `DesignSync` reports **no authorisation** in the session that wrote this
-split, so **`/design-login` is owed before 6.1's design work can start.**
+**Two things follow for this epic, and they are requirements rather than
+notes.** The renderer reads **one** palette, so the contrast figures this
+product has measured against one set of grounds stay meaningful —
+`--chart-volume` at 3.50:1, and the amber ramp's internal steps at
+**1.12 / 1.43 / 1.59**. And **Story 6.3's four-band encoding is designed and
+measured on the LIGHT grounds**: a graph that reads well only on a dark ground
+is now a graph that reads wrong — and measured **in greyscale**, because hue is
+the entire difference in this product's price palette at 1.04:1.
+
+The reversal trigger is a condition rather than a release: **the first surface
+this product ships that a person is expected to watch for a long sitting in a
+dim room** — and a market topology watched through a session is the closest
+planned thing to it.
+
+**2. There is no canvas page for this epic, and that is now checked against the
+canvas rather than inferred from a document.** It holds **29 pages** (`DesignSync` `list_files`, 2026-10-30) and **none of them is
+the topology's** — the
+nearest relatives being `Market overview.dc.html`, which draws the **landing
+grid's end state** this epic reverts to, and
+`The rail that says how unusual.dc.html`, which is a **DOM** page whose band
+word beside every entry is exactly the affordance a canvas cannot borrow.
+
+**The authorisation gap is closed** (2026-10-30), and one correction is worth
+keeping rather than quietly fixing: this split first said _nine pages_, which
+was the number of pages **`VISUAL-LANGUAGE.md` names** rather than the number
+the canvas holds. **A count taken from a document about a thing is not a count
+of the thing.** The substance survived it — there is still no topology page —
+which is the only reason it was cheap.
+
+ADR 0026 makes the canvas the source of truth, so **this epic may not invent its
+visual language in code**: the node at rest, the cluster, the edge and the four
+anomaly states are drawn there first, and `MarketPulse Design System.dc.html` is
+the foundation page the renderer's palette comes from.
 
 **3. Sigma.js is a RECOMMENDATION, not a mandate.** §27 says _"a good candidate
 is a WebGL graph renderer such as Sigma.js"_. Nothing in this repository renders
