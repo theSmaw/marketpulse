@@ -321,8 +321,17 @@ export function toSecuritiesView(
  * A retry asked for from any other state leaves it alone. Nothing offers one
  * today, and a state that quietly changed shape because a caller pressed
  * something it should not have would be a worse answer than doing nothing.
+ *
+ * **Exported for the fixture module and for no other reason** (Task 6.1.3),
+ * which is {@link toSecuritiesView}'s own rule applied to the other
+ * transition: `retrying` is the one state in this union no recorded body can
+ * produce, because it is a fact about an **action** rather than about a
+ * response. A story that sets `retrying: true` by hand proves a component can
+ * render a different word on a button; one that drives this function proves the
+ * state is reachable. Nothing in `src/components/` or `src/routes/` may call
+ * it — a component that transitions its own state is a component that fetches.
  */
-function toRetryingView(previous: SecuritiesView): SecuritiesView {
+export function toRetryingView(previous: SecuritiesView): SecuritiesView {
   return previous.state === "failed" && previous.retryable
     ? { ...previous, retrying: true }
     : previous;

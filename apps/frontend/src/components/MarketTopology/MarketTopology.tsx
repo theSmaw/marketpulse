@@ -1,12 +1,16 @@
 import { useEffect, useRef } from "react";
 
-import type { SecuritiesView } from "../../use-securities.js";
+import type {
+  SecuritiesFailure,
+  SecuritiesView,
+} from "../../use-securities.js";
 import {
   mountCanvasTopology,
   topologyPalette,
   topologySource,
 } from "../../topology/index.js";
 import type { TopologyRenderer } from "../../topology/index.js";
+import { Button } from "../Button/Button.js";
 import styles from "./MarketTopology.module.css";
 
 // **The market topology, drawn** (Task 6.1.2).
@@ -49,9 +53,28 @@ export interface MarketTopologyProps {
    * measurement harness does.
    */
   readonly probe?: (() => void) | undefined;
+
+  /**
+   * Ask for the universe again. `useSecurities().retry`, at every call site.
+   *
+   * **Required rather than optional** (Task 6.1.3), which is `UniverseTable`'s
+   * own precedent and is the stronger contract by one failure mode: an
+   * optional handler that a caller forgets to pass takes the `Try again`
+   * control off a failed screen *silently*, and an absent control is exactly
+   * what this product uses to say **trying again will not help**. A caller
+   * that has no retry to offer has a decision to make, not a prop to omit.
+   *
+   * It is called only from the `failed` state and only when that state is
+   * `retryable`; see the branch below.
+   */
+  readonly onRetry: () => void;
 }
 
-export function MarketTopology({ universe, probe }: MarketTopologyProps) {
+export function MarketTopology({
+  universe,
+  probe,
+  onRetry,
+}: MarketTopologyProps) {
   const frame = useRef<HTMLDivElement>(null);
 
   const securities = universe.state === "loaded" ? universe.securities : null;
@@ -120,12 +143,108 @@ export function MarketTopology({ universe, probe }: MarketTopologyProps) {
   if (universe.state === "failed") {
     return (
       <div className={styles.frame}>
-        <p className={styles.absence}>
-          The tracked universe could not be read, so there is no market to draw.
-        </p>
+        {/*
+         * **Three things and no more: the sentence, the control, the
+         * reference** (Task 6.1.3).
+         *
+         * Before this task the whole `failed` state was one sentence, which
+         * threw away both halves of what `use-securities.ts` had already
+         * worked out — whether asking again is worth offering, and the
+         * correlation id a reader could quote. `retryable` and `retrying` are
+         * **flags on this state rather than two further states** (that
+         * module's own account, and `FRONTEND-STATE.md` §4), and what they
+         * change here is exactly what they change in `UniverseTable`: the
+         * sentence, and whether there is a button.
+         *
+         * **It is deliberately NOT `UniverseTable`'s `FailedState`.** That
+         * surface draws a marker, a lowercase status word, a headline, a
+         * cause and a prospect in `BackendIndicator`'s vocabulary, because it
+         * *is* the tracked universe and a reader looking at it has nothing
+         * else on screen. This is a graph region — one that shares a screen
+         * with six others in Story 6.2 — and the five-element treatment would
+         * be a second, louder answer to a question the chrome is already
+         * reporting. Short words about **this region's own subject**, which
+         * is also why they are not a copy of that component's strings: a
+         * second copy of one sentence is what this repository's own rule
+         * forbids, and *there is no market to draw* is a different sentence
+         * from *the tracked universe is not available*.
+         */}
+        <div className={styles.state}>
+          <p className={styles.sentence}>
+            {topologyFailureSentence(universe.failure, universe.retryable)}
+          </p>
+          {universe.retryable && (
+            <p className={styles.action}>
+              {/*
+               * **The subject is in the accessible name**, which is Task
+               * 2.14.7's finding and not a flourish: a wholly unreachable
+               * backend will put this control on the same screen as another
+               * `Try again` the moment Story 6.2 lands this region on `/`,
+               * and two controls reading *Try again, button* are two
+               * different questions a reader cannot tell apart.
+               *
+               * **Not disabled while a retry is in flight**, for the reason
+               * `UniverseTable` records: a disabled button loses focus in
+               * every browser, and the hook supersedes its own request
+               * anyway. The word changes; the control stays where the reader
+               * left it.
+               */}
+              <Button
+                aria-label={`${universe.retrying ? "Trying again…" : "Try again"} — the market topology`}
+                variant="secondary"
+                icon="refresh"
+                onClick={onRetry}
+              >
+                {universe.retrying ? "Trying again…" : "Try again"}
+              </Button>
+            </p>
+          )}
+          {universe.requestId !== null && (
+            /*
+             * The whole correlation id and never a prefix — `api-client.ts`
+             * owns that rule — labelled, and only ever beside a failure the
+             * reader is already being told about. `null` whenever nothing
+             * arrived to carry one, which is every `unreachable` case.
+             */
+            <p className={styles.reference}>
+              Reference{" "}
+              <span className={styles.command}>{universe.requestId}</span>
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
   return <div className={styles.frame} ref={frame} data-topology="canvas" />;
+}
+
+/**
+ * What this region says when the universe could not be read.
+ *
+ * One function so the three sentences sit together and the component renders
+ * one rather than deciding it — `UniverseTable.failedCopy`'s shape, with that
+ * component's own reasoning about why a single "something went wrong" would
+ * send two thirds of its readers somewhere useless.
+ *
+ * **The raw `code` is nowhere near this screen and must not arrive here.** It
+ * is an internal discriminator; `requestId` is the only internal identifier
+ * this product shows.
+ */
+function topologyFailureSentence(
+  failure: SecuritiesFailure,
+  retryable: boolean,
+): string {
+  if (failure === "unreachable") {
+    return "Nothing answered at the service’s address, so there is no market to draw. A service that is starting up looks exactly like this.";
+  }
+
+  if (retryable) {
+    return "The service answered and could not reach the data it needs, so there is no market to draw. This is usually brief.";
+  }
+
+  // The honest half of the same sentence, and the half that is easy to leave
+  // out: with no control on screen, a reader who is not told that waiting will
+  // not help waits for a page that never comes good.
+  return "Something answered at the service’s address and it was not this service, so there is no market to draw. Trying again now would produce the same answer.";
 }

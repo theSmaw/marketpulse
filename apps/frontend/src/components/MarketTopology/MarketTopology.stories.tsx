@@ -1,12 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { SECTOR_ETFS } from "@marketpulse/shared";
+import type { SecuritiesResponse } from "@marketpulse/shared";
 
 import {
   LOADING_UNIVERSE,
   securitiesFixtureBody,
+  securitiesFixtureRetryingView,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
+import type { SecuritiesView } from "../../use-securities.js";
 import { toSecuritiesView } from "../../use-securities.js";
 import { MarketTopology } from "./MarketTopology.js";
 
@@ -75,22 +78,23 @@ function probe(): void {
 const WHOLE_UNIVERSE = securitiesFixtureView("full");
 
 /**
- * One sector, its benchmark and the hub — the design story.
+ * A slice of the recorded universe, **through the real transition**.
  *
- * Built by filtering the recorded **body** and putting it through
- * `toSecuritiesView`, which is this repository's standing rule for a story: a
- * state assembled by hand proves a component can render a string, and a state
- * driven through the shipped transition proves the state is reachable.
+ * One helper and not two inline filters: a body has **three** parallel arrays
+ * keyed by symbol — `securities`, `coverage`, `lastCloses` — and a second copy
+ * of that filter is a second place for one of them to be forgotten. The
+ * selector returns the symbols to keep, and this does the rest.
+ *
+ * `toSecuritiesView` rather than a hand-written `{ state: "loaded", … }` is
+ * this repository's standing rule for a story: a state assembled by hand proves
+ * a component can render a string, and a state driven through the shipped
+ * transition proves the state is reachable.
  */
-const ONE_SECTOR = (() => {
+function filteredUniverse(
+  select: (body: SecuritiesResponse) => ReadonlySet<string>,
+): SecuritiesView {
   const body = securitiesFixtureBody("full");
-  const benchmark = SECTOR_ETFS.energy;
-  const keep = new Set<string>([benchmark, "SPY"]);
-
-  for (const security of body.securities) {
-    if (security.kind === "equity" && security.sector === "energy")
-      keep.add(security.symbol);
-  }
+  const keep = select(body);
 
   return toSecuritiesView(LOADING_UNIVERSE, {
     outcome: "ok",
@@ -105,13 +109,61 @@ const ONE_SECTOR = (() => {
       lastCloses: body.lastCloses.filter((record) => keep.has(record.symbol)),
     },
   });
-})();
+}
+
+/** One sector, its benchmark and the hub — the design story. */
+const ONE_SECTOR = filteredUniverse((body) => {
+  const keep = new Set<string>([SECTOR_ETFS.energy, "SPY"]);
+
+  for (const security of body.securities) {
+    if (security.kind === "equity" && security.sector === "energy")
+      keep.add(security.symbol);
+  }
+
+  return keep;
+});
+
+/**
+ * **The four market proxies alone — the state nobody had named** (Task 6.1.3).
+ *
+ * Selected by `kind === "index_etf"`, which is a **positive membership test**
+ * rather than "everything that is not an equity or a sector ETF": the negative
+ * form would silently admit whatever kind a later curation adds, and this story
+ * exists to look at exactly the four nodes whose `cluster` is `null`.
+ *
+ * **What it draws, computed from the real builders rather than guessed:** four
+ * nodes, **zero** edges, `SPY` at the origin and `DIA`/`IWM`/`QQQ` in a column
+ * at `x = 448` under one `MARKET PROXIES` heading. The extent is **448 × 64**,
+ * a flat strip rather than the whole universe's near-square.
+ *
+ * **Zero edges is the finding, and it is `buildTopologyGraph` behaving
+ * correctly.** The task that named this state wanted `SPY` *"distinguished as
+ * the one carrying edges"*, and in this universe it carries none: the hub edges
+ * are built to each sector ETF **that is present**, and no sector ETF is. That
+ * is ADR 0029 applied to a line — an edge to a node nothing drew is a dangling
+ * claim — so the state is drawn as named and the discrepancy is recorded in
+ * Task 6.1.3's own file rather than reconciled by quietly adding eleven
+ * securities this story does not claim to show. What it *does* confirm is the
+ * other half: the diamond mark, the `null` cluster, the column, the one
+ * heading, and `SPY` sited **apart from** the three it is not joined to.
+ */
+const MARKET_PROXIES = filteredUniverse(
+  (body) =>
+    new Set(
+      body.securities
+        .filter((security) => security.kind === "index_etf")
+        .map((security) => security.symbol),
+    ),
+);
 
 const meta = {
   title: "Components/MarketTopology",
   component: MarketTopology,
   parameters: { layout: "padded" },
-  args: { probe },
+  // `onRetry` is required and in the workshop it is a no-op: what the `failed`
+  // stories are for is the sentence, the control's two words and the reference,
+  // and a real refetch here would ask a server that is not running.
+  args: { probe, onRetry: () => undefined },
 } satisfies Meta<typeof MarketTopology>;
 
 export default meta;
@@ -128,6 +180,17 @@ export const WholeUniverse: Story = { args: { universe: WHOLE_UNIVERSE } };
 /** One sector drawn alone, which is where the node and edge treatment is legible. */
 export const OneSector: Story = { args: { universe: ONE_SECTOR } };
 
+/**
+ * The four market proxies and nothing else — **four diamonds, zero edges**.
+ *
+ * See {@link MARKET_PROXIES}: `SPY` sits at the origin and the other three in
+ * their column under one `MARKET PROXIES` heading, and `SPY` carries no edges
+ * here because there is no sector ETF present for a hub edge to reach. That is
+ * the model refusing to draw a claim it cannot back rather than a defect, and
+ * Task 6.1.3 records it against its own wording.
+ */
+export const MarketProxies: Story = { args: { universe: MARKET_PROXIES } };
+
 /** A reserved box, never a half-drawn canvas. */
 export const Loading: Story = { args: { universe: LOADING_UNIVERSE } };
 
@@ -140,7 +203,49 @@ export const Empty: Story = {
   args: { universe: securitiesFixtureView("empty") },
 };
 
-/** The store unreachable: the one retryable failure this client has. */
+/**
+ * The store unreachable: the one **retryable** failure this client has.
+ *
+ * A recorded 503, whose `code` `isRetryableApiErrorCode` accepts — so this is
+ * the state that draws all three things: the sentence, one `Try again`, and
+ * the correlation id the response carried.
+ */
 export const Failed: Story = {
   args: { universe: securitiesFixtureView("unavailable") },
+};
+
+/**
+ * The same failure with the retry **already in flight** (Task 6.1.3).
+ *
+ * Driven through `toRetryingView`, the transition the button itself fires, so
+ * this is the state the product reaches rather than one typed into a story.
+ * The control stays **pressable and keeps its place** — a disabled button
+ * loses focus in every browser — and the only thing that changes is its word.
+ */
+export const FailedRetrying: Story = {
+  args: { universe: securitiesFixtureRetryingView("unavailable") },
+};
+
+/**
+ * A failure this client will **not** offer to re-ask (Task 6.1.3).
+ *
+ * A 200 carrying something that is not this API — `VITE_API_BASE_URL` pointed
+ * at a static host is the ordinary way in. **No control at all**, and the
+ * sentence says why rather than leaving the absence to be read as something
+ * missing. The reference is still there, because this one arrived with a
+ * correlation id.
+ */
+export const FailedNotRetryable: Story = {
+  args: { universe: securitiesFixtureView("notThisService") },
+};
+
+/**
+ * Nothing answered at all: no response, and therefore **no correlation id**.
+ *
+ * The one failure state with a `Try again` and no `Reference` line — which is
+ * the pair that makes the reference's conditional rendering visible, ADR 0029's
+ * rule that each clause renders only when its own data is present.
+ */
+export const FailedUnreachable: Story = {
+  args: { universe: securitiesFixtureView("nothingAnswered") },
 };

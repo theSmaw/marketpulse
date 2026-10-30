@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SECTORS } from "./security.js";
+import { SECTOR_ETFS, SECTORS } from "./security.js";
 import { TOPOLOGY_HUB, buildTopologyGraph } from "./topology.js";
 import {
   TOPOLOGY_NODE_FOOTPRINT,
@@ -218,5 +218,159 @@ describe("buildTopologyLayout", () => {
 
     expect(empty.placements).toEqual([]);
     expect(empty.bounds).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
+  });
+});
+
+describe("a sector label against a NEIGHBOURING cluster's circle", () => {
+  // **Task 6.1.3 — and this test's own FIRST DRAFT is the defect it now
+  // guards against, which is worth leaving in the record rather than quietly
+  // replacing.**
+  //
+  // The first draft compared a label's width — measured in CSS PIXELS, from a
+  // real `ctx.measureText` — directly against `benchmark.x`/`y` and
+  // `topologyClusterRadius(...)`, which are in this module's own LAYOUT UNITS.
+  // Those are not the same unit, and the renderer does not hold them at a
+  // fixed ratio: `renderer-canvas.ts` draws label text at a CONSTANT CSS pixel
+  // size regardless of the fit scale (the design work's own rule — type does
+  // not scale), while every circle's radius and position shrink with it. A
+  // test that skips the conversion is comparing quantities that happen to
+  // agree only when the fit scale is exactly 1, which no real rendering of
+  // this layout ever is. `packages/shared/src/topology-layout.ts`'s own
+  // `TOPOLOGY_RING_RADIUS` change from 335 to 400 was verified against that
+  // flawed test and reported success; re-measured through the real fit scale
+  // (below), the collision it was meant to fix is **smaller but not gone**.
+  //
+  // **So this is a regression FLOOR for a known, open defect, not a proof of
+  // correctness.** `docs/GAPS.md` carries the full account and the owner.
+  // Raising `TOPOLOGY_RING_RADIUS` further buys very little at this box (the
+  // swept figures are in that entry) and costs ink density across the whole
+  // graph, so the real fix is either a renderer-side label treatment that
+  // knows the fit scale, or a different placement rule — a design question for
+  // whichever story next owns fitting this layout into a real box. This test
+  // exists so that whichever one lands does not make the measured gap WORSE
+  // without somebody noticing.
+  //
+  // The reference box is `{ width: 1392, height: 520 }` — Story 6.2's own
+  // target box (`Market overview.dc.html` §02), already used as `fit.test.ts`'s
+  // reference viewport in `apps/frontend`, reused here rather than inventing a
+  // second number: it is close to this component's actual default Storybook
+  // box and it is a figure this repository already treats as load-bearing.
+  const REFERENCE_VIEWPORT = { width: 1392, height: 520 };
+
+  // The affine fit `apps/frontend/src/topology/fit.ts`'s `fitView` computes —
+  // reproduced rather than imported, because this package cannot depend on
+  // the frontend. `TOPOLOGY_FIT_MARGIN` there is 40; it is not exported from
+  // this package (a pixel margin is a fact about a viewport), so it is a
+  // named local constant here, tied to that module by this comment rather
+  // than by a shared import.
+  const FIT_MARGIN = 40;
+
+  function fitScale(viewport: { width: number; height: number }): number {
+    const spanX = layout.bounds.maxX - layout.bounds.minX + FIT_MARGIN * 2;
+    const spanY = layout.bounds.maxY - layout.bounds.minY + FIT_MARGIN * 2;
+
+    return Math.min(viewport.width / spanX, viewport.height / spanY);
+  }
+
+  // **Measured, not estimated**: `pnpm --filter @marketpulse/frontend
+  // storybook:build`, then a headless page reading the real `--font-sans` /
+  // `--font-size-micro` / `--letter-spacing-micro` tokens (Hanken Grotesk, not
+  // the design canvas's placeholder Inter) and calling `ctx.measureText` for
+  // each of `SECTOR_LABELS`' eleven values, 2026-10-30. Using each sector's
+  // own real width rather than a worst-case assumption for every one is the
+  // right level of conservatism here, and not a shortcut: `SECTOR_LABELS` is
+  // fixed, known content, not user data. In CSS pixels — see the module note
+  // above for why this must be converted before comparing against a layout
+  // unit, never compared directly.
+  const MEASURED_LABEL_WIDTH_PX: Record<string, number> = {
+    technology: 79.84,
+    health_care: 79.08,
+    financials: 68.71,
+    consumer_discretionary: 163.0,
+    communication_services: 161.52,
+    industrials: 75.01,
+    consumer_staples: 118.63,
+    energy: 46.16,
+    utilities: 54.14,
+    real_estate: 74.67,
+    materials: 63.88,
+  };
+
+  // Half the 24-unit label box the design work reserves (`--space-8` gap +
+  // 16-unit line box), in CSS pixels — the renderer draws this constant too.
+  const LABEL_HALF_HEIGHT_PX = 12;
+
+  it("does not let the worst label/circle clearance regress past what shipped", () => {
+    const missing = SECTORS.filter(
+      (sector) => !(sector in MEASURED_LABEL_WIDTH_PX),
+    );
+    expect(missing).toEqual([]);
+
+    const scale = fitScale(REFERENCE_VIEWPORT);
+    let worstPx = Infinity;
+    let worstPair = "";
+
+    for (const labelled of SECTORS) {
+      const benchmark = at.get(SECTOR_ETFS[labelled]);
+      expect(benchmark).toBeDefined();
+      if (benchmark === undefined) continue;
+
+      const radius = topologyClusterRadius(
+        graph.clusters.find((cluster) => cluster.id === labelled)?.members
+          .length ?? 0,
+      );
+      // CSS pixels divided by the fit scale is the layout-unit equivalent AT
+      // THIS BOX — the conversion the first draft skipped.
+      const halfWidth = (MEASURED_LABEL_WIDTH_PX[labelled] ?? 0) / 2 / scale;
+      const halfHeight = LABEL_HALF_HEIGHT_PX / scale;
+      const labelCentreY = benchmark.y - radius - halfHeight;
+
+      for (const other of SECTORS) {
+        if (other === labelled) continue;
+
+        const circle = at.get(SECTOR_ETFS[other]);
+        expect(circle).toBeDefined();
+        if (circle === undefined) continue;
+
+        const otherRadius = topologyClusterRadius(
+          graph.clusters.find((cluster) => cluster.id === other)?.members
+            .length ?? 0,
+        );
+
+        // Closest point on the label's AABB (in layout units, at this box's
+        // own scale) to the other cluster's centre, against that cluster's
+        // own radius — a distance shorter than the radius is the label
+        // sitting inside the circle. Converted back to CSS pixels, because a
+        // pixel is the unit a reviewer actually looks at.
+        const clampedX = Math.max(
+          benchmark.x - halfWidth,
+          Math.min(circle.x, benchmark.x + halfWidth),
+        );
+        const clampedY = Math.max(
+          labelCentreY - halfHeight,
+          Math.min(circle.y, labelCentreY + halfHeight),
+        );
+        const clearancePx =
+          (apart(circle, { x: clampedX, y: clampedY }) - otherRadius) * scale;
+
+        if (clearancePx < worstPx) {
+          worstPx = clearancePx;
+          worstPair = `${labelled} label -> ${other} circle`;
+        }
+      }
+    }
+
+    // **−28.04 px, measured 2026-10-30 at the reference box above** —
+    // `communication_services`'s label against `consumer_discretionary`'s
+    // circle, the same pair the un-converted first draft reported as clear.
+    // The floor is 2 px looser than the measurement so an unrelated change
+    // that nudges a radius by a fraction does not fail this test for a reason
+    // nobody intended; a WORSENING regression is what this guards.
+    expect(worstPx).toBeGreaterThanOrEqual(-30);
+    // The current worst pair, named, so a future re-measure that moves it
+    // updates this note rather than leaving it to drift.
+    expect(worstPair).toBe(
+      "communication_services label -> consumer_discretionary circle",
+    );
   });
 });

@@ -241,6 +241,35 @@ the same place_. Three things fall out of the closed form that no seed can give:
    every cluster gets **25% more arc than it occupies**, and the closest pair of
    cluster circles clears by **28.75 units** — measured, with the test asserting
    disjointness rather than quoting it.
+
+   > **Amended 2026-10-30 by Task 6.1.3 — `TOPOLOGY_RING_RADIUS` moved from 335
+   > to 400, the circle-circle figure above moved with it, and a second,
+   > related defect was found, partially repaired, and left OPEN rather than
+   > closed.** The proportional-arc argument is unchanged and unaffected (it is
+   > a ratio, scale-invariant in the ring radius) and the closest circle-circle
+   > clearance is now a genuinely stronger **57.69 units**, unconditionally.
+   >
+   > The **second** collision this decision's own text did not check for — a
+   > sector's label, drawn directly above its cluster, can be nearly tangential
+   > to the ring rather than radial at some bearings, so its lateral extent
+   > competes for the same clearance — was found by Task 6.1.2 looking at the
+   > built page at `R = 335`. Task 6.1.3's first repair attempt compared the
+   > label's width in CSS pixels directly against this layout's own units and
+   > reported it fixed; that comparison was wrong, because the renderer draws
+   > label text at a constant pixel size regardless of the fit scale while the
+   > circles shrink with it, so the two were never commensurate. **Re-measured
+   > through the real fit scale** (the `1392 × 520` box Story 6.2 targets),
+   > raising `R` to 400 moved the worst label/circle clearance from **−37.3 px
+   > to −28.0 px** — real, and not zero. No value of `R` clears it at every box
+   > this layout might be fitted into, because the layout-unit room a label
+   > needs grows without bound as the fit scale shrinks while `R` is one
+   > constant. `TOPOLOGY_RING_RADIUS`'s own docblock has the full account;
+   > `topology-layout.test.ts` carries a regression-floor test rather than a
+   > correctness one; `docs/GAPS.md` carries the open defect with its
+   > re-measure and its owner — the next story that fits this layout into a
+   > real box and can make the renderer scale-aware. The sentence this
+   > amendment replaces overclaimed a fix that had not, in fact, landed.
+
 2. **The renderer comparison measures drawing.** Both of Decision 1's candidates
    read this one layout.
 3. **Adding a security moves one cluster**, not every node. A simulation
