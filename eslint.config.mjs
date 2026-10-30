@@ -285,6 +285,19 @@ export default tseslint.config(
               message:
                 "Import the market module through its index (PRODUCT_SPEC.md \u00a726): a feature module exposes a domain-level API, and a deep import is a dependency on an internal that has no reason not to move.",
             },
+
+            // The SECOND feature module, added 2026-10-30 by Task 6.1.2 \u2014 and
+            // it is one more entry in THIS array rather than a generalised
+            // `*/index.js` shape, which is what the note above said to ask at
+            // this moment. The answer: it is the same rule, and the generalised
+            // form is still a guess, because it would also catch
+            // `src/fixtures/*` and `src/styles/*`, neither of which is a
+            // feature module and neither of which has a barrel.
+            {
+              group: ["**/topology/*", "!**/topology/index.js"],
+              message:
+                "Import the topology module through its index (PRODUCT_SPEC.md \u00a726): a feature module exposes a domain-level API, and a deep import is a dependency on an internal that has no reason not to move.",
+            },
           ],
         },
       ],

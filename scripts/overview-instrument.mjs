@@ -209,6 +209,100 @@ export async function assertProductionBuild(origin) {
   };
 }
 
+/**
+ * Prove the Storybook being driven is the **built** workshop.
+ *
+ * **A second, separately named and separately proved detector rather than a
+ * loosened regex** — Story 6.1's acceptance criterion 5, and Task 6.1.2's
+ * named instrument fix. {@link assertProductionBuild} is keyed on
+ * `/assets/index-*.js`, which is `vite build`'s entry fingerprint for the
+ * **application**; a `storybook build` emits no such file, so pointing that
+ * function at a built Storybook refuses a perfectly good artefact, and
+ * loosening its regex until both pass would leave one function that cannot say
+ * which of the two it is looking at.
+ *
+ * The fingerprint is Storybook's own and is not a heuristic. Recorded from both
+ * ends on 2026-10-30, rather than inferred:
+ *
+ * ```
+ * # storybook dev -p 6016 --no-open, then curl http://localhost:6016/iframe.html
+ * window.CONFIG_TYPE = 'DEVELOPMENT';
+ * <script type="module" src="/@vite/client"
+ *   (no assets/iframe-*.js anywhere in the document)
+ *
+ * # storybook build, then apps/frontend/storybook-static/iframe.html
+ * window.CONFIG_TYPE = 'PRODUCTION';
+ * ./assets/iframe-BDppRiLe.js        45 bytes — a re-export stub
+ * ./assets/iframe-BFxUIUj8.js   1,159,176 bytes — the workshop itself
+ *   (no @vite/client anywhere in the document)
+ * ```
+ *
+ * So the two are told apart by **three independent conjuncts** — the builder's
+ * own declared mode, the dev client's presence, and a hashed entry chunk — and
+ * any one of them disagreeing is a refusal. Three rather than one because this
+ * is the figure-corrupting mistake that is not recoverable: a dev server serves
+ * unminified modules through an on-demand transform, and **every frame-rate
+ * figure taken that way is wrong in the comfortable direction.**
+ *
+ * `iframe.html` rather than `index.html`, and that is the whole target: the
+ * manager shell at `index.html` renders the sidebar and an iframe, and the story
+ * — the thing being measured — runs in the inner document. `pnpm probe` already
+ * drives `iframe.html?id=…&viewMode=story` for the same reason.
+ */
+export async function assertStorybookBuild(origin) {
+  const url = `${origin.replace(/\/+$/u, "")}/iframe.html`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+  const html = await response.text();
+
+  const devClient = html.includes("/@vite/client");
+  const configType =
+    /window\.CONFIG_TYPE\s*=\s*'([A-Z]+)'/u.exec(html)?.[1] ?? null;
+
+  // **Every match, not the first.** Measured 2026-10-30: a built Storybook's
+  // `iframe.html` names TWO `assets/iframe-*.js`, and the first is a **45-byte**
+  // re-export stub in front of a 1,159,176-byte chunk. Taking `[0]` reported
+  // the artefact at `0 KiB`, which is a fingerprint that passes while printing
+  // a figure nobody can use — and a size printed beside a verdict is read as
+  // the verdict's evidence.
+  const bundles = [
+    ...new Set(
+      [...html.matchAll(/\.?\/assets\/(iframe-[A-Za-z0-9_-]+\.js)/gu)].map(
+        (match) => match[1],
+      ),
+    ),
+  ];
+
+  if (devClient || configType !== "PRODUCTION" || bundles.length === 0) {
+    throw new Error(
+      `${url} is NOT a built Storybook — ` +
+        `@vite/client=${String(devClient)} CONFIG_TYPE=${String(configType)} ` +
+        `bundles=${JSON.stringify(bundles)}. A dev server serves unminified modules ` +
+        "through an on-demand transform, so every frame-rate figure taken that way is " +
+        "wrong in the comfortable direction; run `pnpm --filter @marketpulse/frontend " +
+        "storybook:build` and serve `storybook-static/`.",
+    );
+  }
+
+  let bytes = 0;
+
+  for (const name of bundles) {
+    const asset = await fetch(`${origin.replace(/\/+$/u, "")}/assets/${name}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    bytes += (await asset.arrayBuffer()).byteLength;
+  }
+
+  return {
+    origin,
+    iframe: url,
+    bundle: bundles.join(" + "),
+    bundles,
+    bundleBytes: bytes,
+    configType,
+    devClient: false,
+  };
+}
+
 /** Run a command to completion, or throw with its output. */
 async function run(command, args, cwd, env) {
   const child = spawn(command, args, {

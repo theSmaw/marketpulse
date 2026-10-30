@@ -151,6 +151,25 @@ const TOKEN_NAMES = [
   "--chart-volume-height",
   "--chart-volume-height-compact",
 
+  // The topology — Task 6.1.2, and these are TYPE tokens rather than colours.
+  //
+  // Story 6.1's acceptance criterion 6 names the honest limit this list is the
+  // answer to: `a-var-read-resolves-to-a-declared-token` is keyed on CSS Module
+  // `var()` reads and is **structurally blind to a canvas**, which emits none.
+  // So the mechanism the topology actually gets is a **startup throw** from
+  // `readTokens()`, which means every token the renderer reads has to be named
+  // here or its disappearance is an invisible difference rather than a loud one.
+  //
+  // All three already existed in tokens.css and none of them was in this list,
+  // because until now nothing outside CSS read a family, a size or a tracking.
+  // The topology draws its eleven sector labels and four proxy tickers into a
+  // canvas with `ctx.font`, so it reads all three as strings — and a canvas
+  // cannot inherit, compose or `var()` its way to any of them.
+  "--font-sans",
+  "--font-data",
+  "--font-size-micro",
+  "--letter-spacing-micro",
+
   // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
   // No JavaScript consumer yet, and here for the canary reason `--brand-ink`
   // is: `agent.css` is a fourth global stylesheet whose absence would render

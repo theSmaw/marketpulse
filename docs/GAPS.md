@@ -5364,3 +5364,51 @@ market-proxy nodes and 512 edges. **Owner: the first task in
 `apps/backend` that imports `buildTopologyGraph` for a real purpose** — Epic
 7's `get_related_securities` is the likely trigger, and that task should add
 the cross-check rather than take the fixture's counts on faith.
+
+## Nothing compares two drawings of the topology, and there is no screenshot-diff mechanism anywhere in this repository
+
+**Added 2026-10-30 by Task 6.1.2.**
+
+Story 6.1's acceptance criterion 3 wants the layout _deterministic and
+reproducible_, and the mechanical half of that is held in `pnpm test`:
+`topology-layout.test.ts` asserts every node placed exactly once, no two
+coincident, and cluster centroids in `SECTORS`' own declared order — claims that
+hold under any conforming `Math.sin`/`cos`/`sqrt` and therefore survive the
+Node-against-Chromium difference a checked-in coordinate fixture would be red
+on.
+
+**What nothing holds is that two runs draw the same PICTURE**, and the honest
+reason is that **there is no screenshot-diff infrastructure in `e2e/` at all** —
+not for this surface and not for any other. `overview-degraded-grid.spec.ts`
+photographs 104 states and asserts **text and geometry**, never pixels. So a
+renderer change that moved every node by a hair, mirrored the market about the
+horizontal, or dropped the halo entirely would be green on `pnpm verify`, green
+on `pnpm e2e`, and visible only to a person.
+
+Two specific things that are invisible today and were each found by looking:
+**a label colliding with a neighbouring cluster** (`CONSUMER DISCRETIONARY`
+crosses into Financials at the fitted scale), and **a node drawn in an
+inherited font rather than a token's** — both green on 3,6xx unit tests,
+`tsc -b` and `pnpm lint` when they shipped.
+
+And `getTokens()` throws in the test environment by design, so **no level below
+a real browser can verify a single colour this renderer draws**. That is
+structural, it is the same limit every other token reader lives under, and it is
+why `pnpm probe` is the verification level for this half rather than a
+preference.
+
+**Re-measure:**
+
+```
+pnpm --filter @marketpulse/frontend storybook
+pnpm probe --story components-markettopology--whole-universe
+```
+
+and read `.probe/`. Compare against `.capture/topology/candidate-B-pass-2.png`,
+which is this task's own record of what it drew on 2026-10-30, by eye.
+
+**Owner: a condition — the first story that needs to tell two drawings of this
+graph apart mechanically.** Story 6.7's live updates and Epic 14's synthetic
+5,000-node mode are the likely triggers; a pixel-diff harness built before one
+of them exists is infrastructure ahead of the iteration that needs it, and
+claiming one exists today is the thing this entry is here to prevent.

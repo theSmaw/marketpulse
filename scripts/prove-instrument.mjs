@@ -20,14 +20,23 @@
 // ## And a claim about a mechanism reads identically whether the mechanism is
 // ## there or not
 //
-// Which is why four of the eleven proofs below are **negative**: the load
+// Which is why five of the twelve proofs below are **negative**: the load
 // ceiling refuses when told to, the production-build detector refuses a dev
-// server's own fingerprint, the visibility assertion throws on a hidden page,
-// and an arm whose repaint target does not exist reports **nothing** rather
-// than zero. A guard only proved in the direction that passes is not proved.
+// server's own fingerprint, the **Storybook**-build detector refuses a
+// `storybook dev` server's (Task 6.1.2), the visibility assertion throws on a
+// hidden page, and an arm whose repaint target does not exist reports
+// **nothing** rather than zero. A guard only proved in the direction that
+// passes is not proved.
+//
+// **The fifth was added 2026-10-30 by Task 6.1.2, and it is a second detector
+// rather than a widened one.** `assertProductionBuild` is keyed on
+// `/assets/index-*.js`, which `storybook build` does not emit, so it refuses a
+// perfectly good workshop — and loosening its regex until both pass leaves one
+// function that cannot say which of the two artefacts it is looking at. Story
+// 6.1's frame-rate figures are taken on the built Storybook and nothing else.
 
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
 import process from "node:process";
@@ -37,6 +46,7 @@ import { acquireLock, loadRatio, releaseLockOnExit } from "./heavy-job.mjs";
 import {
   LOAD_CEILING,
   assertProductionBuild,
+  assertStorybookBuild,
   assertVisible,
   distribution,
   drain,
@@ -179,6 +189,95 @@ proof("a dev server is refused by its own fingerprint", devRefused !== false, {
   planted: "@vite/client + /src/main.tsx",
   refusal: devRefused,
 });
+
+// **The second detector's negative half, planted** (Task 6.1.2). A one-off
+// server serving a `storybook dev` iframe's own fingerprint — `CONFIG_TYPE =
+// 'DEVELOPMENT'` and `/@vite/client`, recorded from a real dev server on
+// 2026-10-30 rather than invented — must be refused. It is the same shape as
+// the proof above and a separate one because the two detectors are keyed on
+// different bytes: `assertProductionBuild` looks for `/assets/index-*.js`,
+// which a built Storybook never emits, so one function cannot say which of the
+// two artefacts it is looking at.
+const fakeStorybook = createServer((request, response) => {
+  if (!String(request.url).startsWith("/iframe.html")) {
+    response.writeHead(404);
+    response.end();
+    return;
+  }
+
+  response.writeHead(200, { "content-type": "text/html" });
+  response.end(
+    "<!doctype html><html><head>" +
+      '<script type="module" src="/@vite/client"></script>' +
+      "<script>window.CONFIG_TYPE = 'DEVELOPMENT';</script>" +
+      '</head><body><div id="storybook-root"></div></body></html>',
+  );
+});
+
+await new Promise((done) => fakeStorybook.listen(0, "127.0.0.1", done));
+const fakeStorybookOrigin = `http://127.0.0.1:${String(fakeStorybook.address().port)}`;
+
+let storybookDevRefused = false;
+try {
+  await assertStorybookBuild(fakeStorybookOrigin);
+} catch (error) {
+  storybookDevRefused = String(error).slice(0, 180);
+}
+
+// And the positive half from the same function, against the artefact `pnpm
+// build` just produced — because a refusal that refuses everything is not a
+// detector either. `storybook-static/` is served over a file-backed one-off
+// server rather than `file://`, since the fingerprint is read over HTTP.
+const builtStorybook = createServer((request, response) => {
+  const name = String(request.url).split("?")[0];
+  const path = resolve(
+    REPO_ROOT,
+    "apps/frontend/storybook-static",
+    name === "/" ? "index.html" : name.replace(/^\/+/u, ""),
+  );
+
+  try {
+    const body = readFileSync(path);
+    response.writeHead(200, {
+      "content-type": name.endsWith(".js") ? "text/javascript" : "text/html",
+    });
+    response.end(body);
+  } catch {
+    response.writeHead(404);
+    response.end();
+  }
+});
+
+await new Promise((done) => builtStorybook.listen(0, "127.0.0.1", done));
+const builtStorybookOrigin = `http://127.0.0.1:${String(builtStorybook.address().port)}`;
+
+let builtStorybookFingerprint = null;
+let builtStorybookRefusal = null;
+try {
+  builtStorybookFingerprint = await assertStorybookBuild(builtStorybookOrigin);
+} catch (error) {
+  builtStorybookRefusal = String(error).slice(0, 180);
+}
+
+fakeStorybook.close();
+builtStorybook.close();
+
+proof(
+  "a storybook dev server is refused, and the built workshop is not",
+  storybookDevRefused !== false && builtStorybookFingerprint !== null,
+  {
+    planted: "CONFIG_TYPE = 'DEVELOPMENT' + /@vite/client at /iframe.html",
+    refusal: storybookDevRefused,
+    builtBundle: builtStorybookFingerprint?.bundle ?? null,
+    builtConfigType: builtStorybookFingerprint?.configType ?? null,
+    builtBundleKiB:
+      builtStorybookFingerprint === null
+        ? null
+        : Math.round(builtStorybookFingerprint.bundleBytes / 1024),
+    builtRefusal: builtStorybookRefusal,
+    note: "storybook-static/ must exist — `pnpm build` produces it",
+  },
+);
 
 proof("the pair being driven is a production build", true, {
   frontend: pair.frontendOrigin,
