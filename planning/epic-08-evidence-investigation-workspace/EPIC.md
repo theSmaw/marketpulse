@@ -154,3 +154,52 @@ already has two homes — invariant 5's confidence level, and
 stored. **Epic 5's no-score state is an absence rather than a value**, the way
 `change.percent` is `null` and `directionOf` returns `undefined`, so
 `ANOMALY_BANDS` stays four-member-exhaustive.
+
+## Added to this epic's scope — 2026-10-30, by the owner at Epic 5's close: `Anomaly history` is yours, and it is already on a shipped screen
+
+`Anomaly history` is one of `PRODUCT_SPEC.md` §8.3's seven regions on
+`/securities/:symbol`. **Epic 5 deferred it at its Gate 1 and closed without
+filling it**, and no epic owned it until today.
+
+**Why it is yours**: reading a security's earlier unusual days against today is
+**evidence** work, and this epic already owns the two surfaces it would sit
+beside — the band-versus-confidence collision recorded earlier in this file is on
+these same screens.
+
+**Your trigger is the placeholder's own sentence.** Until 2026-10-29 the shipped
+page read `Filled by Epic 5 — Anomaly Detection`, which is a product promising a
+region from work about to be declared finished. It now reads:
+
+> `Filled by the first story that needs a score for this security from more than
+one past session`
+
+**And the first wording of that condition stopped discriminating within five
+days**, which is worth knowing before you write your own. It was _the first
+surface that needs a score older than the process_ — and Task 5.6.7 satisfied it
+**without filling anything**, because `/`'s `Unusual activity` reads
+`session_composite_scores`, a **nightly** table, on roughly 80% of the week and
+permanently on CI. Those are scores written before the process started, read by a
+shipped surface. The re-wording is the repair: what this region needs is not **a**
+stored score but **a series of them for one security**.
+
+**Three things it inherits.**
+
+- **The read is a range scan nothing asks for yet.**
+  `0017_session_composite_scores` keys **one row per security per session**, and
+  the index such a read would want is **deliberately absent**, with its condition
+  stated in the migration.
+- **Its shape is already drawn** — Story 5.1's canvas, `The rail that says how
+unusual.dc.html` §07 — so whoever fills it inherits the rail's idiom rather
+  than inventing a third one. Two things come with that: the **band word beside
+  every entry** and the rail's own anchoring.
+- **A refused security gets no row.** That is why `0014` and `0017` are each
+  paired with a **pass** table: a history that joins only the row table will
+  under-report and look correct, because the sessions a security was refused in
+  are simply absent rather than marked.
+
+**And the thing to decide first, before any of that**: what a history row _says_
+when the policy that produced it has changed. A stored score is a **cache of a
+policy**, not a record of an observation — Epic 5 proved that the expensive way,
+with 485 persisted rows carrying a figure computed the wrong way after a factor's
+definition turned out to be wrong. Nothing in `0017` records which policy
+produced a row.

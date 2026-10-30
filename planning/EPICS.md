@@ -388,6 +388,47 @@ Users can launch a structured investigation into an anomalous security and see d
 - Peer-comparison tool
 - Market-breadth tool
 - Correlation tool
+- **A volume DISTRIBUTION in the nightly pass** — added 2026-10-30, see below
+
+> **Amended 2026-10-30 at Epic 5's close — two of the tools above cannot be
+> built on what Epic 5 shipped, and one of them needs a nightly job this epic
+> now owns.**
+>
+> **The `Volume-anomaly tool` has nothing to call.** The volume factor is
+> `no-distribution` **unconditionally**: migration `0015` stores a **median and
+> a dispersion**, not a distribution, so there are **no breakpoints to rank a
+> rate against for any security**, and `volumeFactorAnswer()` takes **no
+> parameters**. A quarter of the composite's weight — 25 of 100 — is therefore
+> dead, the score's ceiling is **75**, and a three-factor score is
+> **structurally unreachable** rather than merely unobserved.
+>
+> **So this epic owns storing one**, on the owner's decision of 2026-10-30: the
+> epic that needs the tool builds its input. One nightly-pass story —
+> breakpoints per `(security, bucket, tape)` rather than a median and a
+> dispersion, keyed as `0015` already is with the **tape in the key**. Two
+> things travel with it and are not optional. **The band floors move in the same
+> commit**: `32 / 63 / 73` are measured quantiles of a **two-factor, max-75**
+> scale, and `ANOMALY_BAND_FLOORS`' own reversal trigger fires the day a third
+> factor can score. And **the selecting inequality has to be re-derived**, not
+> re-applied — `elevated ≤ 40 < high` was chosen because a one-factor score caps
+> at 40, which stops being true.
+>
+> **The depth question is the hard part and it is arithmetic, not effort.**
+> `NVDA` — the best case in the universe — has **80 samples** a bucket at
+> **10.65%** relative standard error against a 5% target, and **39,924 of 39,928
+> buckets (99.990%)** refuse today for too few sessions. A distribution needs
+> more samples than a median, not fewer. Read
+> [`ANOMALY.md`](epic-05-anomaly-detection/ANOMALY.md) §3.3 before scoping it.
+>
+> **And the `Peer-comparison tool` has no backend equivalent at all.**
+> `relativePerformance` is a **frontend** function; what exists on the backend is
+> `excessMoveReference` and `excessFactorAnswer`, over a security's
+> **capitalisation-weighted sector SPDR**. `UNIVERSE.md` §1 and §7 forbid
+> assuming a benchmark for an **industry group** — semiconductors is 20 members
+> with no ETF — so a peer comparison here is a peer **median** or a **count**,
+> never _relative move vs sector_ for a group. This epic's own `EPIC.md` carries
+> the six function names that do exist, with their modules and signatures.
+
 - Investigation orchestration
 - Streaming investigation events
 - Cancellation
@@ -437,6 +478,34 @@ Users can inspect the evidence behind an investigation rather than receiving a c
 - Evidence-to-chart linking
 - Findings-to-evidence linking
 - Failed/partial investigation states
+- **`Anomaly history` on the security page** — added 2026-10-30, see below
+
+> **Amended 2026-10-30 at Epic 5's close — this epic inherits a region that is
+> already on a shipped screen and that no epic owned.**
+>
+> `Anomaly history` is one of `PRODUCT_SPEC.md` §8.3's seven regions on
+> `/securities/:symbol`. Epic 5 deferred it at its Gate 1 and **closed without
+> filling it**, and until 2026-10-29 the shipped placeholder read `Filled by
+Epic 5 — Anomaly Detection` — a page promising a region from work that was
+> about to be declared finished. It now states a **condition** instead, and that
+> condition is this epic's trigger: **the first story that needs a score for
+> this security from more than one past session.**
+>
+> **Why it is yours**: reading a security's earlier unusual days against today is
+> evidence work, and this epic already owns the two surfaces it would sit beside
+> — the band-versus-confidence collision recorded above is on these same
+> screens.
+>
+> **Three things it inherits.** `0017_session_composite_scores` keys **one row
+> per security per session**, so a security's history is a **range scan nothing
+> asks for yet** and the index it wants is deliberately absent. Its shape is
+> **already drawn** on the design canvas (`The rail that says how unusual.dc.html`
+> §07), so whoever fills it inherits the rail's idiom rather than inventing a
+> third one. And the original deferral condition — _the first surface that needs
+> a score older than the process_ — had **already fired without filling
+> anything**, because Task 5.6.7 reads a nightly table on roughly 80% of the
+> week; the re-worded condition above is the repair, and it is worth knowing that
+> the first wording stopped discriminating within five days.
 
 ### Exit criteria
 
@@ -661,6 +730,34 @@ MarketPulse contains measurable evidence of frontend and streaming performance.
 - Web Worker optimization where justified
 - Bottleneck analysis
 - Published benchmark results
+- **Repair of the measured `/securities` cold-load breach** — added 2026-10-30
+
+> **Amended 2026-10-30 at Epic 5's close — this section describes a benchmarking
+> epic, and this epic's own `EPIC.md` holds a REPAIR obligation with a trigger
+> that has already fired.** Every scope line above is **synthetic** — a
+> generator, 5,000 securities, 25,000 relationships. The two documents have been
+> describing different epics.
+>
+> **What this epic actually owns, besides the benchmarks**, is a measured breach
+> of `PRODUCT_SPEC.md` §28's _no routine main-thread task over 50 ms_ on the
+> **real** 516-security universe: `/securities` is over the line on **10 of 10**
+> cold loads as a **frame of 62.8–77.4 ms**, attributed ≈ 6 ms to the payload and
+> ≈ 48 ms to the 518-row table's markup, over **10,318 nodes against 765**. The
+> `longtask` channel is **silent** on it, so the instrument three documents named
+> as the re-measure cannot see it any more — which is why the method is three
+> channels, each proved by a plant on the page that produced the figure.
+>
+> **And Epic 5 fired this epic's backend condition**, priced at **0.282–0.309 ms
+> p50 a batch and 564–616 ns a security**, 1.8× the breadth-plus-movers work
+> already on that path. **Both figures are tight-loop upper bounds** with the
+> calibrator in its own loop, they are **not comparable with each other** (their
+> calibrators differ by 2.5×), and neither is a measurement at the cadence
+> production runs them at. Do not subtract one from the other.
+>
+> **The epic is NOT re-ordered**, and that is deliberate: the trigger's own
+> wording puts the repair in the epic that **fires** it rather than at this
+> epic's convenience, so the obligation travels without the epic moving. What
+> this amendment fixes is a scope description that promised only to measure.
 
 ### Exit criteria
 

@@ -360,3 +360,60 @@ this quantity, and `volumeFactorAnswer`'s own docblock says the deletion fires
 in the same commit as `ANOMALY_BAND_FLOORS`' trigger 1. **Until then, a
 composite is at most 2 of 3 factors to a maximum of 75**, and any tool that
 reports a score has to carry that maximum rather than imply 100 was reachable.
+
+## Added to this epic's scope — 2026-10-30, by the owner at Epic 5's close: you own storing a volume DISTRIBUTION, because your own tool list needs one
+
+**This is a scope addition rather than a hand-off.** The section above tells you
+which six functions exist; this one tells you about a **seventh that does not and
+is yours to build**.
+
+**`Volume-anomaly tool` cannot be built on what Epic 5 shipped.** Migration
+`0015_volume_baselines.sql` stores a **median and a dispersion**, not a
+distribution — so there are **no breakpoints to rank a volume rate against, for
+any security, on any store**. `volumeFactorAnswer()` takes **no parameters** and
+returns `{ state: "no-distribution" }` unconditionally. The consequences are
+larger than one tool:
+
+- **A quarter of the composite's weight is dead** — `price 40 · excess 35 ·
+volume 25`, and the volume term never scores.
+- **The score's ceiling is 75**, not 100. `PRODUCT_SPEC.md` §9's and §12's own
+  example figures (`91`, `84`, `79`) are **above it** and unreachable by any
+  security on any day.
+- **A three-factor score is structurally unreachable**, so the cohort machinery
+  has never separated anything: `{price, excess}` is the sole cohort on every
+  machine that exists, 485 of 485 rows.
+
+**What to build.** One nightly-pass story: breakpoints per
+`(security, bucket, tape)` rather than a median and a dispersion, keyed as
+`0015` already is — **with the tape in the key**, because a tape choice carrying
+a reversal trigger can flip and a flip against a session-only key would rewrite
+what every stored row means with nothing recording that the meaning changed.
+
+**Two things travel with it and are not optional.**
+
+**The band floors move in the same commit.** `ANOMALY_BAND_FLOORS` is
+`32 / 63 / 73`, measured quantiles of a **two-factor, max-75** distribution of
+34,318 scores. Its own reversal trigger is _the first score computed over a
+factor set this derivation did not measure_ — which is exactly what you are
+building. Shipping the distribution without re-deriving the floors leaves three
+boundaries describing a scale that no longer exists.
+
+**And the selecting inequality must be re-derived, not re-applied.**
+`elevated ≤ 40 < high` was chosen because **a one-factor score caps at 40** and
+_less evidence must mean less claim_. That premise stops holding when the third
+factor can score. Note what the inequality already rejected: the measured
+**p75 = 49**, which would have made every reduced-factor score `normal` for ever.
+
+**The hard part is depth, and it is arithmetic rather than effort.** `NVDA` — the
+best case in the universe — has **80 samples** a bucket at **10.65%** relative
+standard error against a **5%** target, and **39,924 of 39,928 buckets
+(99.990%)** refuse today for too few sessions. **A distribution needs more
+samples than a median, not fewer**, so the honest first question is whether a
+distribution is drawable at all before it is storable.
+[`ANOMALY.md`](../epic-05-anomaly-detection/ANOMALY.md) §3.3 has the figures and
+ADR 0045 has the tape rule; read both before scoping this.
+
+**One thing this does NOT reopen.** The `no-distribution` arm is **deleted**
+rather than re-purposed when it fires — it is not a refusal and not an absence of
+data, and its payload-free shape exists precisely so there is no invented bound
+to carry forward.
