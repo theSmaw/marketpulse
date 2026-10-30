@@ -5247,3 +5247,80 @@ in a ~6,000-line registry, which is why it is recorded rather than taken here.
 condition — the next change that touches `scripts/breaks.mjs`' entry shape for
 any other reason**, so the field arrives as part of work already opening the
 file rather than as a sweep of its own.
+
+## The deployed live feed was dead for a whole session and nothing said so — because the one check that would have caught it runs on MERGES, and that was the day we deliberately did not merge
+
+**Added 2026-10-30, found by checking the deployment before a rehearsal rather
+than by any instrument.** At 02:45 EDT on 2026-10-30, `/diagnostics/feed` on the
+deployment read:
+
+```
+{"provider":"alpaca","feed":"iex","status":"disconnected",
+ "observedAt":"2026-10-29T12:55:00.000Z","marketOpen":false, …}
+```
+
+`observedAt` is **08:55 EDT on 2026-10-29 — thirty-five minutes before the
+bell** — against a process whose uptime was **21.6 hours**. So the socket died
+in pre-market, the 2026-10-29 regular session opened with it dead, and **the
+deployed product observed none of that session.** Restarting the replica (a
+merge, 16 minutes before this entry was written) brought it straight back to
+`status: live`, so the cause was a **stale process holding a dead socket** and
+not anything upstream.
+
+**The first thing to correct is a wrong conclusion, because the right one is
+more useful.** This was initially written down as _nothing checks the deployed
+feed's connection_. **That is false.** `scripts/check-deployed.mjs`' condition 2
+is exactly this check and is correctly written:
+
+```js
+if (marketOpen === true) {
+  if (feed !== "iex" || status !== "live") { … fail … }
+}
+```
+
+**The gap is WHEN it runs, not what it asserts.** `check-deployed` executes as
+the last step of `deploy.yml`, i.e. **on a merge** — `CLAUDE.md` says so in
+terms: _"A deployed check runs after a merge, so it gates nothing… It is not
+required, and it is not a monitor."_ The three deploys on 2026-10-29 ran at
+**03:01, 03:22 and 05:09 EDT**, all before the 09:30 open, so every evaluation
+of condition 2 that day happened with `marketOpen: false` and the condition
+**gated itself off**. Nothing merged during the session — because the session was
+being kept clear for a rehearsal, which is this repository's own rule — so the
+check was never once evaluated while the market was open.
+
+**So the shape is: the only instrument that can see this fires on an event we
+deliberately suppress during exactly the window the fault matters in.** The
+merge freeze protects a sitting; the check needs a merge; the fault needs a
+session. All three cannot hold at once.
+
+**And the two healthy-looking signals are both correct, which is why nothing
+looked wrong.** `/health` reads `ok` — the process is fine, it is the socket
+that is not. And `/diagnostics/freshness` reads `sessionsBehind: 0` with
+**nothing unexplained**, because the **overnight backfill** filled 2026-10-29
+from `sip` at 00:30 UTC. **The store is complete precisely because the thing
+that failed is not what fills it.** A reader checking either one learns nothing
+about the live path.
+
+**What was actually lost**, which is not the store: the `iex` tape gained no
+depth for that session, so `volume_baselines` is one session further from the
+132 `NVDA` needs; the live basis of every Epic 5 surface was the honest-nothing
+state all day; and a sitting held that evening would have found a `DISCONNECTED`
+chrome rather than any of the figures it was scheduled to watch.
+
+**Re-measure:** `curl $BACKEND/diagnostics/feed` during a session and read
+`status` against `marketOpen`, and `observedAt` against the clock — an
+`observedAt` in pre-market with the market open is the signature. Do **not**
+read `/health` or `/diagnostics/freshness` for this; both are correct while it
+is happening.
+
+**Mechanisable?** Partly, and the part that is not is the interesting half. A
+**monitor** — anything on a schedule hitting `/diagnostics/feed` during market
+hours — would catch it, and this product has no monitoring of any kind by
+design. A cheaper half-step exists: `backfill.yml` already runs nightly against
+the deployment, so a conjunct there could assert _the session just ended
+produced `iex` rows_, which is a **statement about the tape rather than about
+the socket** and catches the consequence rather than the cause. **Owner: a
+condition — the next time a session's live data is missed, or the first time
+anything in this product is put on a schedule for an operational reason rather
+than a data one.** The second is a decision rather than a task, because it is
+the first monitoring this product would have.
