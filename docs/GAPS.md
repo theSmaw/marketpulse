@@ -5324,3 +5324,43 @@ condition — the next time a session's live data is missed, or the first time
 anything in this product is put on a schedule for an operational reason rather
 than a data one.** The second is a decision rather than a task, because it is
 the first monitoring this product would have.
+
+## Nothing checks that the real universe still matches the topology fixture's eleven per-sector counts
+
+**Task 6.1.1.** `packages/shared/src/topology-fixture.ts` generates a universe
+of the real **shape** — 501 equities distributed `73 / 59 / 76 / 47 / 22 / 83 /
+34 / 21 / 31 / 30 / 25` across the eleven sectors, taken on 2026-10-30 from the
+deployed `UNIVERSE` table — because the real curated universe
+(`apps/backend/src/universe.ts`) depends on `packages/shared` and so cannot be
+depended on by it, and the recorded `GET /securities` fixture inside
+`apps/frontend` is dated to before the 2026-10-12 curation that untracked two
+symbols. The topology model's own tests (22 of them, `topology.test.ts` and
+`topology-layout.test.ts`) run against this generated universe and prove the
+graph-building and layout code correct **over a universe with these counts**.
+
+**What that cannot certify: that the real universe still has these counts.**
+Nothing in `packages/shared` can check it, because the real universe sits
+downstream of this package rather than upstream. A curation change — a sector
+reclassification, a new listing, Task 2.3.9's kind of untracking — moves the
+real topology graph's shape (its 501/512 totals, its per-sector radii, its
+proportional wedge allocation) while every test here stays green, because they
+are asserting against a fixture that no longer describes the market.
+
+**Re-measure:**
+
+```
+node -e "const {UNIVERSE}=require('./apps/backend/dist/universe.js');
+  const c={}; for (const s of UNIVERSE)
+    if (s.kind==='equity' && s.status==='active') c[s.sector]=(c[s.sector]||0)+1;
+  console.log(c)"
+```
+
+against `TOPOLOGY_FIXTURE_SECTOR_COUNTS` in `topology-fixture.ts`.
+
+**Mechanisable, and the fix is named rather than built here.** The assertion
+wants to live in `apps/backend`, beside `universe.ts`: build the topology graph
+from the real `UNIVERSE` and assert 501 equity nodes, 11 sector-ETF nodes, 4
+market-proxy nodes and 512 edges. **Owner: the first task in
+`apps/backend` that imports `buildTopologyGraph` for a real purpose** — Epic
+7's `get_related_securities` is the likely trigger, and that task should add
+the cross-check rather than take the fixture's counts on faith.

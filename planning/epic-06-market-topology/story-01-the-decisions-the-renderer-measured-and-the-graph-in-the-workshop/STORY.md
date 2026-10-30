@@ -52,7 +52,7 @@ none had started.
    mutable structure and must never reach `packages/shared`, which a Fastify
    server also depends on). **Candidate B** — a hand-rolled Canvas2D renderer,
    zero dependencies, in the ADR-0027 no-library spirit. Built far enough to
-   draw the real 516-node, 514-edge graph (§5) and compared on:
+   draw the real 516-node, 512-edge graph (§5) and compared on:
    - **Frame rate** — see AC 5.
    - **DOM-node count** inside the Storybook iframe at the full universe, not
      `/`'s 447 (this story ships no route, so that comparison is 6.2's).
@@ -106,7 +106,7 @@ none had started.
    invariant over **every shipped source file in three trees**, the
    `one-home-for-imperative-navigation` shape, because a four-directory corpus
    was green on the file Epic 5 then wrote.
-5. **The frame rate is measured at this story's REAL edge count — 514, not
+5. **The frame rate is measured at this story's REAL edge count — 512, not
    §28's 5,000** — hub-and-spoke, one edge per equity to its sector's benchmark
    ETF (501 equities with a sector, **plus 11 hub edges, SPY → each sector
    ETF** = 512 membership-shaped edges; see the design work for why `QQQ`,
@@ -209,13 +209,13 @@ that is not WebGL**, which is the one place this product was going to
 exercise it on purpose. If Canvas2D wins, §27 takes a dated amendment the same
 day recording that the spec's WebGL intent was overruled by its own
 measurement clause. **No synthetic-load discriminator** — the figures are
-taken at the real 516-node, 514-edge universe only; both candidates will pass
+taken at the real 516-node, 512-edge universe only; both candidates will pass
 §28's 60 FPS comfortably at this size (that target's real test is Epic 14's
 5,000-node mode), so this story's measurement prices the two candidates rather
 than separating them at scale, and that is recorded as what the number means
 rather than overstated.
 
-**4. The edge, at the start — sector and ETF membership, 514 edges.** Free
+**4. The edge, at the start — sector and ETF membership, 512 edges.** Free
 data, no nightly pass, a readable clustered graph from day one. Correlation
 (§10's _strong historical return correlation_) is Story 6.5's, deliberately,
 because it needs 60 sessions and a pass this story does not build.

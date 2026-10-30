@@ -636,3 +636,39 @@ export type {
   SeriesProvenancePayload,
   TimeWindowPayload,
 } from "./bar-series-response.js";
+
+// **The market topology as domain data, and where each node sits** (Task
+// 6.1.1). In this package rather than in `apps/frontend/src/topology/` because
+// two processes read it: the renderer draws it, and Epic 7's
+// `get_related_securities` and `highlight_graph_nodes` answer questions about
+// it server-side — so a model carrying a graphology `Graph` or an
+// `HTMLElement` would drag a browser structure into a Fastify server. It is
+// also what makes Story 6.1's renderer comparison honest: both candidates read
+// ONE graph and ONE layout, so a frame-rate difference is the drawing rather
+// than two different pictures.
+//
+// The layout's coordinates are **abstract units, never pixels** — a pixel is a
+// fact about a viewport, and fitting one to a box is the frontend's job from a
+// `ResizeObserver`. `no-renderer-type-in-the-graph-model` and
+// `no-random-in-the-shared-model` hold both halves of that mechanically.
+export {
+  TOPOLOGY_EDGE_KINDS,
+  TOPOLOGY_HUB,
+  buildTopologyGraph,
+} from "./topology.js";
+export type {
+  TopologyCluster,
+  TopologyEdge,
+  TopologyEdgeKind,
+  TopologyGraph,
+  TopologyNode,
+} from "./topology.js";
+export {
+  TOPOLOGY_CLUSTER_DENSITY,
+  TOPOLOGY_GOLDEN_ANGLE,
+  TOPOLOGY_NODE_FOOTPRINT,
+  TOPOLOGY_RING_RADIUS,
+  buildTopologyLayout,
+  topologyClusterRadius,
+} from "./topology-layout.js";
+export type { TopologyLayout, TopologyPlacement } from "./topology-layout.js";

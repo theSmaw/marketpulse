@@ -10162,6 +10162,430 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "no-random-in-the-shared-model",
+    claim:
+      "No shipped file in `packages/shared/src` reaches a random source — " +
+      "not `Math.random`, not a `random` lifted off `Math`, not `crypto`'s " +
+      "generators — so a layout, a comparator or a score in the package both " +
+      "processes share is a function of its input and nothing else.",
+    check() {
+      // **Task 6.1.1, and `Math.random()` was unguarded ANYWHERE in this
+      // repository until this clause existed.**
+      //
+      // Story 6.1's acceptance criterion 3 wants the topology layout
+      // deterministic and reproducible, and names this as the likeliest real
+      // non-determinism source for a layout. It is not a hypothetical: the
+      // first thing a reader reaches for when two nodes look too close
+      // together on one screen is a jitter, and a jitter is three characters
+      // of `random`.
+      //
+      // ## Why a random source in THIS package is a decision and not a taste
+      //
+      // Three independent consequences, and none of them is visible on screen:
+      //
+      //   1. **The renderer comparison stops measuring drawing.** Story 6.1
+      //      compares Sigma.js against a hand-rolled Canvas2D renderer on
+      //      frame rate at the real 516-node graph. Both read ONE layout, so a
+      //      difference is the renderer — and a layout that answers
+      //      differently each call makes the two candidates draw two different
+      //      pictures, which is exactly the confound the story's shaping found
+      //      in a force-directed layout.
+      //   2. **Epic 7 answers from the server and the browser draws.** The
+      //      model and the layout are in `packages/shared` precisely so
+      //      `get_related_securities` and `highlight_graph_nodes` can read
+      //      positions server-side. A random layout means the coordinates the
+      //      tool reasons about are **not** the coordinates on screen, and the
+      //      highlight lands on the wrong node with no error anywhere.
+      //   3. **Every test over it becomes its own fixture.** A jittered layout
+      //      still places every node once, still clears the footprint, still
+      //      bounds correctly — all of this task's structural assertions stay
+      //      green — and the one assertion that would catch it, deep equality
+      //      of two runs, is the one a re-implementer removes first because it
+      //      looks like a tautology.
+      //
+      // ## The clause is the READ, in four shapes, because the obvious one is
+      // ## avoidable by accident
+      //
+      // **Proved rather than argued (Task 6.1.1).** A first draft keyed on the
+      // literal `Math.random` was green on this plant, live in
+      // `topology-layout.ts`:
+      //
+      //     const { random } = Math;
+      //     const jitter = (): number => (random() - 0.5) * 2;
+      //
+      // The run reported `79 invariants hold.`, with `pnpm lint` and all 22
+      // topology tests green beside it. Nothing about that destructure is
+      // exotic — it is what a reader writes when the call appears twice — so
+      // the clause covers a member read, a computed member read, a `random`
+      // lifted off `Math` by destructuring or assignment, and `crypto`'s
+      // generators, which are the other way to the same place.
+      //
+      // ## What it deliberately does NOT flag, so that it never cries wolf
+      //
+      // **The word `random` on its own.** A `random` passed IN as a parameter
+      // is a determinism *seam* rather than a leak — the caller owns the
+      // source and a test furnishes a fixed one, which is exactly what
+      // `apps/backend/src/retry-provider.ts` does with
+      // `random: policy.random ?? Math.random`. That file is outside this
+      // corpus on purpose: a backend jitter on a retry schedule is correct,
+      // and the claim here is about the package a Fastify server and a browser
+      // SHARE. Widening this to `apps/backend` would be a different claim
+      // needing a different argument.
+      //
+      // And a mention in prose: a match is the failure here, so trailing
+      // comments are stripped as well as whole-line ones, which is the
+      // `a-factor-reads-no-clock` asymmetry for the same reason.
+      const CORPUS = "packages/shared/src";
+
+      // The two modules this clause was written for. **The anchor, and it is
+      // named rather than counted**: `sourceFilesUnder` already throws on an
+      // empty directory, so the failure that would make this check silent is
+      // not the corpus vanishing — it is the LAYOUT moving out of the shared
+      // package, at which point this check passes over a tree that no longer
+      // contains the thing it is about.
+      const NAMED = ["topology.ts", "topology-layout.ts"];
+
+      const files = sourceFilesUnder(resolve(REPO_ROOT, CORPUS)).filter(
+        ({ path }) => !/\.test\.ts$/u.test(path),
+      );
+
+      const present = files.map(({ path }) => basename(path));
+      const missing = NAMED.filter((name) => !present.includes(name));
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          `${CORPUS} no longer holds ${missing.join(", ")}, which is what ` +
+            "this clause was written for: a closed-form layout whose " +
+            "determinism is a property of the function rather than of a " +
+            "seed. Either the model and the layout left this package — in " +
+            "which case this check is now passing over a tree that does not " +
+            "contain its subject, and the two renderer candidates are no " +
+            "longer reading one layout — or they were renamed. Repoint it in " +
+            "the same change.",
+        );
+      }
+
+      // Four shapes, and every one of them is a read of a random source.
+      const SHAPES = [
+        // `Math.random`, `Math?.random` — the one a first draft catches.
+        {
+          as: "Math.random",
+          pattern: /\bMath\s*(?:\?\.|\.)\s*random\b/u,
+        },
+        // `Math["random"]` — the same read, spelled past a name-based grep.
+        {
+          as: 'Math["random"]',
+          pattern: /\bMath\s*(?:\?\.)?\s*\[\s*["']random["']\s*\]/u,
+        },
+        // `const { random } = Math` and `const r = Math.random` — the read
+        // moved one line away from its call, which is THE PLANT above.
+        {
+          as: "a `random` lifted off `Math`",
+          pattern: /\{[^{}]*\brandom\b[^{}]*\}\s*=\s*Math\b/u,
+        },
+        // The other way to the same place. `crypto.randomUUID()` in a layout
+        // is a key nobody can reproduce; `getRandomValues` is a jitter.
+        {
+          as: "a `crypto` generator",
+          pattern:
+            /\b(?:crypto\s*(?:\?\.|\.)\s*)?(?:getRandomValues|randomUUID|randomBytes|randomInt|randomFillSync)\s*\(/u,
+        },
+      ];
+
+      const offenders = [];
+
+      for (const { path, text } of files) {
+        const file = relative(REPO_ROOT, path);
+
+        // Comments BLANKED rather than removed, newlines kept, so the line
+        // number reported is the line in the file. `withoutComments` deletes
+        // whole lines, and this repository writes more prose than code — a
+        // position taken after the cut sends a reader a hundred lines short of
+        // the defect, which is `a-factor-reads-no-clock`' own finding.
+        const lines = text
+          .replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+            comment.replace(/[^\n]/gu, " "),
+          )
+          .replace(/(^|[^:])\/\/[^\n]*/gu, "$1")
+          .split("\n");
+
+        for (const [index, line] of lines.entries()) {
+          const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+          if (shape === undefined) continue;
+
+          offenders.push(
+            `${file}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} shipped line(s) in \`${CORPUS}\` ` +
+            "read a random source:\n      " +
+            offenders.join("\n      ") +
+            "\n    This is the package a Fastify server and a browser SHARE, " +
+            "and a function in it that answers differently each call breaks " +
+            "three things none of which is visible on screen. Story 6.1's " +
+            "two renderer candidates stop comparing drawing and start " +
+            "comparing two different pictures. Epic 7's " +
+            "`highlight_graph_nodes` reasons about server-side coordinates " +
+            "that are not the ones a reader is looking at, so the highlight " +
+            "lands on the wrong node with no error raised. And every " +
+            "structural assertion over the layout stays green — a jittered " +
+            "layout still places every node once, still clears the " +
+            "footprint, still bounds correctly.\n    If what you want is a " +
+            "jitter, it is not random: derive it from the datum, which is " +
+            "what `TOPOLOGY_GOLDEN_ANGLE` keyed on a stable sort by `symbol` " +
+            "already is. If what you genuinely need is a random source, take " +
+            "it as a PARAMETER from the caller — " +
+            "`apps/backend/src/retry-provider.ts`' `random: policy.random ?? " +
+            "Math.random`, deliberately outside this corpus — so a test can " +
+            "furnish a fixed one and the seam is visible in the signature.",
+        );
+      }
+    },
+  },
+  {
+    id: "no-renderer-type-in-the-graph-model",
+    claim:
+      "Nothing the market-topology model reaches names a renderer — no " +
+      "`sigma` or `graphology`, no canvas, WebGL or DOM host type, no colour " +
+      "literal and no `var(--token)` read — so the graph and its layout are " +
+      "domain data and the renderer is a reader of them.",
+    check() {
+      // **Task 6.1.1, Story 6.1's acceptance criterion 2.**
+      //
+      // ## Why this is a decision and not a taste
+      //
+      // `packages/shared` is consumed by a **Fastify server**. Candidate A of
+      // Story 6.1's renderer comparison is Sigma.js + graphology, and
+      // graphology is a browser-oriented *mutable* structure — so a model
+      // typed in terms of it would (a) put a mutable graph in a process that
+      // serves HTTP, (b) make Epic 7's `get_related_securities` and
+      // `highlight_graph_nodes` depend on a drawing library to answer a
+      // question about the market, and (c) **decide the renderer comparison
+      // before it is run**, by making one candidate the model's own
+      // vocabulary. The third is the expensive one: the measurement is
+      // supposed to decide, *even against §27's stated WebGL intent*, and a
+      // model that names one candidate has already voted.
+      //
+      // Colour is the second half and has its own settled rule.
+      // `VISUAL-LANGUAGE.md`'s chain is **canvas → `VISUAL-LANGUAGE.md` →
+      // `tokens.css` → components**, and `ANOMALY_BANDS`' own note draws the
+      // line this clause enforces one package over: *the words are domain, the
+      // `--anomaly-*` and `--price-*` tokens that present them are not and
+      // have no business in a package a Fastify server consumes.* A `#1a1a1a`
+      // here is outside the chain entirely — it answers to no canvas, fails no
+      // contrast measurement, and is invisible to
+      // `a-var-read-resolves-to-a-declared-token`, which reads CSS Modules.
+      // A `var(--chart-volume)` string is worse rather than better: it is a
+      // token read smuggled into a package with no stylesheet, where it
+      // resolves to nothing at all.
+      //
+      // ## The corpus is the model's own import CLOSURE, never a glob
+      //
+      // **Proved rather than argued (Task 6.1.1).** The commissioning task
+      // specified the corpus as `packages/shared/src/topology*.ts`. That glob
+      // is green on the file Story 6.3 would write — a marks module named for
+      // what it does rather than for the epic it belongs to:
+      //
+      //     // packages/shared/src/graph-marks.ts
+      //     export interface GraphMark {
+      //       readonly fill: string;
+      //       readonly host: HTMLElement | null;
+      //     }
+      //     export const SECTOR_MARKS = {
+      //       technology: { fill: "#1a1a1a", host: null }, …
+      //     };
+      //
+      // imported by `topology.ts`. With that live in the tree the glob version
+      // reported `80 invariants hold.` This repository has the lesson
+      // already — four consecutive guards in one story shipped green on the
+      // exact defect they forbade, one of them because its corpus was a
+      // hard-coded file list — so the clause a re-implementer **cannot avoid**
+      // is not the filename, it is that the model has to **import** whatever
+      // it uses. The corpus is therefore the transitive closure of
+      // `./`-relative imports from the two model modules, and a new file is
+      // in it by being reachable.
+      //
+      // ## What it deliberately does NOT flag, so that it never cries wolf
+      //
+      // **Comments**, which is why the text is stripped: `topology.ts`'
+      // docblock names graphology and `HTMLElement` in as many words, as the
+      // argument for why they are absent, and `index.ts`' barrel comment does
+      // the same. A check that a prose explanation of the prohibition can trip
+      // is a check nobody can keep green.
+      //
+      // **A hex literal that is not a colour.** The pattern requires 3, 4, 6
+      // or 8 hex digits — the CSS colour lengths — so a `0x` bitmask or a
+      // `#1` is silent. The residual cost is a false positive on a `#`-prefixed
+      // six-hex-digit identifier that means something else, which this
+      // package has none of, and the direction that leaves is a reader reading
+      // one line rather than a check being switched off.
+      //
+      // **`apps/frontend/src/topology/`.** That tree is where the renderer
+      // belongs, and the frontend's own boundary is an
+      // `eslint.config.mjs` `no-restricted-imports` entry rather than this.
+      // Story 6.1's AC 6 wants a colour-literal clause over the **renderer's**
+      // corpus; that is a different claim over a different tree, and it is
+      // that story's to write once the renderer exists.
+      const SEEDS = ["topology.ts", "topology-layout.ts"];
+      const DIRECTORY = resolve(REPO_ROOT, "packages/shared/src");
+
+      const all = new Map(
+        sourceFilesUnder(DIRECTORY).map(({ path, text }) => [
+          basename(path),
+          { path, text },
+        ]),
+      );
+
+      const missing = SEEDS.filter((name) => !all.has(name));
+
+      if (missing.length > 0) {
+        throw new InvariantFailure(
+          `packages/shared/src no longer holds ${missing.join(", ")}, which ` +
+            "are the seeds this check walks from. Either the graph model left " +
+            "this package — in which case Story 6.1's acceptance criterion 2 " +
+            "needs re-reading, because the model being here is what lets a " +
+            "Fastify server answer questions about the graph — or it was " +
+            "renamed. Repoint the seeds in the same change.",
+        );
+      }
+
+      // The closure. Every `./`-relative specifier, `import type` included:
+      // a renderer type arrives through a type-only import exactly as easily
+      // as through a value one, and more quietly.
+      const corpus = new Map();
+      const queue = [...SEEDS];
+
+      while (queue.length > 0) {
+        const name = queue.shift();
+        if (name === undefined || corpus.has(name)) continue;
+
+        const entry = all.get(name);
+        if (entry === undefined) continue;
+
+        corpus.set(name, entry);
+
+        for (const match of withoutComments(entry.text).matchAll(
+          /from\s+"\.\/([\w.-]+)\.js"/gu,
+        )) {
+          queue.push(`${match[1]}.ts`);
+        }
+      }
+
+      // **The anchor, and it is the one that matters.** A closure that
+      // collapses back to the seeds is the naive glob wearing this check's
+      // name: the import pattern broken, or the specifiers rewritten to
+      // something it cannot see. Either way the file the next story adds
+      // stops being in the corpus, which is precisely the failure this clause
+      // was written to fix — and it reads exactly like a pass.
+      const reached = [...corpus.keys()].filter(
+        (name) => !SEEDS.includes(name),
+      );
+
+      if (reached.length === 0) {
+        throw new InvariantFailure(
+          "The graph model's import closure resolved to its two seeds and " +
+            "nothing else, and this check needs it to reach further. " +
+            "`topology.ts` imports `security.ts` and `ticker.ts` today, so " +
+            "either those imports moved to a bare specifier this pattern " +
+            "cannot follow, or the walk is broken. A closure that collapses " +
+            "to the seeds is the `topology*.ts` glob this clause replaced — " +
+            "which was measured green on a `HTMLElement` and a `#1a1a1a` " +
+            "live in a module `topology.ts` imported.",
+        );
+      }
+
+      const FORBIDDEN = [
+        // The two libraries by name, and `sigma` as a whole word so a
+        // `Sigma`-prefixed identifier is caught while `six-sigma` prose is
+        // not (prose is stripped anyway).
+        { as: "a renderer library", pattern: /\b(?:sigma|graphology)\b/iu },
+        // The drawing surfaces. `canvas` covers `HTMLCanvasElement`,
+        // `OffscreenCanvas` and a `canvas` field; `getContext` is the call
+        // that obtains one either way.
+        {
+          as: "a drawing surface",
+          pattern:
+            /\bcanvas\b|\bwebgl\d?\b|\bgetContext\b|\bOffscreenCanvas\b/iu,
+        },
+        // A DOM or viewport host. A pixel is a fact about a viewport, and
+        // `ResizeObserver` is how the frontend learns one — which is exactly
+        // the knowledge this package must not have.
+        {
+          as: "a DOM or viewport host",
+          pattern:
+            /\bHTML[A-Z]\w*Element\b|\bHTMLElement\b|\bResizeObserver\b|\bdevicePixelRatio\b|\bCSSStyle\w*\b|\bgetComputedStyle\b/u,
+        },
+        // A colour, in every spelling this product's stylesheets use. The hex
+        // lengths are the CSS ones, so a bitmask is silent.
+        {
+          as: "a colour literal",
+          pattern:
+            /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b|\brgba?\s*\(|\bhsla?\s*\(|\bcolor-mix\s*\(/u,
+        },
+        // A token read, which is worse than a literal rather than better:
+        // this package has no stylesheet, so it resolves to nothing.
+        { as: "a `var(--token)` read", pattern: /\bvar\(\s*--/u },
+      ];
+
+      const offenders = [];
+
+      for (const [name, { path, text }] of corpus) {
+        const file = relative(REPO_ROOT, path);
+        if (/\.test\.ts$/u.test(name)) continue;
+
+        // Blanked rather than removed, so the reported line is the line in
+        // the file. `topology.ts` discusses graphology and `HTMLElement` at
+        // length in its own docblock, 40 lines above any code.
+        const lines = text
+          .replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+            comment.replace(/[^\n]/gu, " "),
+          )
+          .replace(/(^|[^:])\/\/[^\n]*/gu, "$1")
+          .split("\n");
+
+        for (const [index, line] of lines.entries()) {
+          const shape = FORBIDDEN.find(({ pattern }) => pattern.test(line));
+          if (shape === undefined) continue;
+
+          offenders.push(
+            `${file}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) reachable from the graph ` +
+            `model name a renderer concern (${String(corpus.size)} ` +
+            "module(s) in the closure):\n      " +
+            offenders.join("\n      ") +
+            "\n    `packages/shared` is consumed by a Fastify server, so a " +
+            "model typed in terms of a drawing library puts a mutable " +
+            "browser structure in a process that serves HTTP — and it " +
+            "decides Story 6.1's renderer comparison before it is run, by " +
+            "making one candidate the model's own vocabulary. The " +
+            "measurement is supposed to decide, even against " +
+            "`PRODUCT_SPEC.md` §27's stated WebGL intent.\n    A colour is " +
+            "the other half and has its own settled chain: canvas → " +
+            "`VISUAL-LANGUAGE.md` → `tokens.css` → components. A hex literal " +
+            "here answers to no canvas, fails no contrast measurement, and " +
+            "is invisible to `a-var-read-resolves-to-a-declared-token`, " +
+            "which reads CSS Modules — while a `var(--token)` string is " +
+            "worse, because this package has no stylesheet and it resolves " +
+            "to nothing at all.\n    The node's domain facts are `symbol`, " +
+            "`label`, `kind` and `cluster`; shape, size and hue are the " +
+            "renderer's, under `apps/frontend/src/topology/`, which is where " +
+            "this belongs.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
