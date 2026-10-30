@@ -1559,6 +1559,31 @@ The market topology should intentionally exercise WebGL.
 
 A good candidate is a WebGL graph renderer such as Sigma.js, with the graph model kept separate from rendering.
 
+> **Amended 2026-10-30 by Task 6.1.2 — the WebGL intent above was OVERRULED by
+> this section's own measurement clause, and the topology ships a hand-rolled
+> Canvas2D renderer with no graph library at all.** Story 6.1's Gate 1 settled
+> that _the figures decide, whichever renderer wins, even if that means no WebGL
+> ships anywhere in this product_, and two real candidates were then built far
+> enough to draw the whole tracked universe and measured against each other on
+> the built Storybook over one scripted pan/zoom path. **Sigma.js 4 + graphology
+> and the hand-rolled Canvas2D renderer are indistinguishable on frame rate** —
+> rAF gap p50 **16.7 ms**, p95 **18.4 ms**, **zero** gaps over 50 ms, **zero**
+> `longtask` entries, in all four interleaved arms, over 518 nodes and 514 edges
+> on an Apple M3 — and the DOM-node count does not separate them either (**172
+> against 171**). What separates them is **+117,219 B gzipped against +351 B, a
+> factor of 334**, for a picture that is **worse**: Sigma could not draw the
+> design canvas's node halo, its edge end-gaps, or either of its two label
+> placements, because all three need a per-node control the library does not
+> expose. [ADR 0048](../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)
+> carries the figures, the four reasoned rejections beside the one measured one,
+> and the reversal trigger — _the first graph this product renders whose node or
+> edge count exceeds 518 nodes and 514 edges_, which Story 6.5's correlation
+> edges are expected to fire. **The sentence above is left standing rather than
+> rewritten**, because it is why the measurement was taken and because a WebGL
+> renderer remains a legitimate winner of that re-run. What is false today is
+> only its tense: _"should intentionally exercise WebGL"_ has **no shipped
+> reader in this product**.
+
 **This section governs the topology and not the 2-D chart layer — amended 2026-09-12 by Story 2.12.** There are two rendering decisions in this product, taken against different problems. Price, volume, comparison and anything else hung on a time axis are **hand-built SVG behind a wrapper, with no charting library**: see [ADR 0027](../docs/adr/0027-the-chart-layer-hand-built-svg-and-what-a-green-chart-suite-certifies.md) and [`CHARTING.md`](epic-02-security-universe-historical-data/story-12-price-chart/CHARTING.md). Nothing here reopens that, and nothing there reopens this.
 
 Target initial visualization:

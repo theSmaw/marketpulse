@@ -1,0 +1,45 @@
+/*
+ * The topology's box, and nothing else (Task 6.1.2).
+ *
+ * Everything drawn *inside* it is drawn by a renderer reading tokens through
+ * `topology/palette.ts`, so this file is deliberately tiny: a positioned frame
+ * with a measurable height and an honest-absence paragraph beside it.
+ *
+ * **The absence states are DOM text, sibling to the canvas, never drawn inside
+ * it** — Story 6.1's acceptance criterion 7. That is the only way they are
+ * assertable below a browser, reachable by a screen reader, and visible to
+ * `overview-degraded-grid.spec.ts` once this surface reaches `/` in Story 6.2.
+ */
+
+.frame {
+  position: relative;
+  /*
+   * A height rather than an aspect ratio, because the layout's extent is a
+   * square and Story 6.2's recommendation is that the RING deforms rather than
+   * the box: `Market overview.dc.html` §02's real box is 1392 x 520, and an
+   * 886 x 826 extent does not fit it. So the frame is told its height and
+   * `fitView` scales to whatever it gets.
+   */
+  block-size: var(--topology-height, 520px);
+  inline-size: 100%;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+}
+
+/*
+ * The honest-nothing paragraph: a loading universe, an empty store, a failed
+ * request. One rule for all of them, because what differs is the sentence
+ * rather than the treatment, and a second rule would be a second answer to
+ * *what does an absence look like here*.
+ */
+.absence {
+  display: grid;
+  margin: 0;
+  padding: var(--space-24);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  place-content: center;
+  text-align: center;
+}
