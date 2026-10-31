@@ -44,62 +44,176 @@ on.
 
 ## Acceptance criteria
 
-1. **The grid reverts to the canvas's end state**, and the four displaced
-   regions keep their **names, their order and their landmarks**.
-2. **The before/after displacement is measured at all four widths BEFORE the
-   merge**, and what moved is stated. `MARKET-OVERVIEW.md` §1.4's trigger — _the
-   first reserved region whose filling would move a figure or a sentence a
-   reader is reading_ — fired once already on the other route at **+74 px**
-   (136 at 390) and the owner accepted it with the figures recorded. On `/`,
-   this region's neighbours are **figures rather than hatch**, so the figure
-   matters more.
-3. **The canvas is sized from its resolved box and never from a constant**, and
-   the region does not scroll at any of the thirteen width/height pairs Task
-   4.9.4 measured. A canvas sized to its box **will not report an
-   overflow** whichever renderer draws it (Canvas2D, shipped, or WebGL, had it
-   won), so the `clientHeight`/`scrollHeight` check stops being able to see
-   this — it becomes a **clipped graph** instead, which is why the sizing rule
-   is an acceptance criterion rather than an implementation note.
-4. **At ≤860 nothing moves.** That breakpoint sets `grid-template-rows: none`
-   and its one-column order is `breadth, sectors, movers, topology, unusual,
-investigations` — verified byte-identical at 768 by Task 5.4.1, and this
-   story must keep it so or say what changed and why.
+**Rewritten 2026-10-31 at this story's own Gate 1**, after shaping found 6 of 9
+unmeasurable, wrong, or checking the wrong thing as first written — the same
+ratio Story 6.1 found in its own eight. Each note below says what changed and
+why; nothing here is a correction to work already done, because none had
+started.
+
+1. **The grid reverts to the canvas's end state, in its own real columns.** The
+   topology takes the full width of the shipped `minmax(0, 3fr) minmax(0, 1fr)`
+   primary column (**not** a literal `span 8`/`span 4` re-reading of the
+   12-column mockup — see Decisions); sector performance and movers drop into a
+   2-up row beneath it, in that same column; the right column (unusual
+   activity, breadth, investigations) is untouched. The four displaced regions
+   keep their **names, their order and their landmarks**, and so does the
+   topology's own.
+2. **The before/after displacement is measured at the same thirteen
+   width/height pairs AC 3 uses, BEFORE the merge**, and what moved is stated
+   for every figure-bearing region — not four widths, because row 1 is a
+   `calc()` with no content floor (`MARKET-OVERVIEW.md` §1.6) and this story
+   changes row 1. `MARKET-OVERVIEW.md` §1.4's trigger — _the first reserved
+   region whose filling would move a figure or a sentence a reader is
+   reading_ — fired once already on the other route at **+74 px** (136 at 390)
+   and the owner accepted it with the figures recorded. On `/`, this region's
+   neighbours are **figures rather than hatch**, so the figure matters more,
+   and the Gate-1 decision to take the full 520 px band (see Decisions) is
+   taken knowing it costs roughly that again.
+3. **The canvas is sized from its resolved box and never from a constant**, at
+   the same thirteen width/height pairs Task 4.6.6 measured (not Task 4.9.4 —
+   that attribution was wrong in the first draft). **Concretely falsifiable,
+   not just named**: `fit.ts`'s own `TopologyPlacement`s and every drawn
+   sector-label box sit entirely inside the box at rest, at all thirteen
+   pairs — the same arithmetic `docs/GAPS.md`'s label entry already runs,
+   pointed at the real resolved box rather than an assumed one. This replaces
+   `--topology-height`'s shipped `520px` fallback, which nothing in the
+   application sets — found independently by two shaping passes, and the
+   first defect this story's first task fixes.
+4. **At ≤860 the one-column ORDER is unchanged** —
+   `breadth, sectors, movers, topology, unusual, investigations`, verified
+   byte-identical at 768 by Task 5.4.1 — **and the topology draws there too,
+   sized from its own resolved box**, with sector labels dropped below the
+   fit-scale threshold Decision 4 sets. "Nothing moves" is not achievable as
+   first written: real content replacing a hatched placeholder necessarily
+   changes that row's height, because `grid-template-rows: none` makes it
+   content-sized. What is checkable, and is this AC's real claim, is the
+   **order**, and the displacement is AC 2's to report.
 5. **The region adds no second clock, session word or connection word.**
    `one-caller-of-the-market-clock` and `one-home-for-the-feed-words` fail the
-   build by name, and the connection's one home is the status bar.
-6. **The degraded grid gains a row and still passes.**
-   `e2e/specs/overview-degraded-grid.spec.ts` is a **kept** spec — thirteen
-   states × four widths × seven surfaces, asserting the collapse as **declared
-   collision classes** rather than as a count, so it fails both when two rows
-   collapse accidentally and when a documented exception stops holding. **A
-   canvas region contributes a surface whose text is whatever its accessible
-   fallback says**, which this story has to decide before the grid asks.
-7. **`Market topology`'s reserved panel is deleted, and what replaces it in a
-   degradation is decided.** Task 4.7.9 row 08: a rollback that omits a section
-   draws a region with the **same hatch, the same muted sentence and the same
-   box** as one nobody has built, differing only by the **absence** of an
-   `EPIC n` badge. After this story **one** badged hatch remains, so a
-   badge-less hatch reads more like the house style than like a fault.
-8. **A memo boundary at the region, or a measured reason not to.** `/` commits
-   **2 renders per applied batch** at **6.8–16.1 batches a minute** — 13.6–32.2
-   renders a minute — because `useLiveFeed` is called in `App` and every
-   overview frame is a new object reference. A Sigma instance will have its host
-   re-rendered at that rate whether or not any graph datum changed. Task 3.6.5
-   took that boundary for the universe table; Task 4.8.5 **declined** it for the
-   charts with a measured reason. Either is acceptable; deciding by accident is
-   not.
-9. **`/`'s cold load is re-measured against the 447-node / 24.7 ms baseline**, on
-   three channels, each proved by a plant. The route had roughly **26 ms of
-   frame budget** before it joins `/securities` in breach of §28.
+   build by name, and the connection's one home is the status bar. Already
+   satisfied by the shipped component as built — confirm after any new copy
+   lands, not before.
+6. **`Market topology` becomes the degraded grid's ninth named surface, on a
+   SECOND axis the grid does not yet have — not merely "a row".**
+   `e2e/specs/overview-degraded-grid.spec.ts` is a kept spec, now **17 states ×
+   4 widths × 8 surfaces** (Task 5.4.6 added the eighth; the original "thirteen
+   × seven" was already stale before this story). The topology's text is a
+   function of the **universe request** (`useSecurities`), not of the overview
+   **aggregate** — the first surface on `/` for which that is true — so it must
+   be: (a) **declared constant across every aggregate-only state** (feed down,
+   stale, market shut, rollback all draw the identical, healthy graph, and
+   `MARKET-OVERVIEW.md` §7.3's "a content class is ONE AGGREGATE" gets a dated
+   amendment recording the exception rather than a silent break), and (b) given
+   its **own** new rows for the universe-request states the grid has none of
+   today (`failed`/retryable, `failed`/not-retryable, `unreachable`, `empty`) —
+   row `13-universe-outstanding`'s own comment, that an abort "reaches the same
+   screen and is the failure case," is false the moment this region lands and
+   needs its own dated correction. The fallback text must be **derived from the
+   graph** (a census, not a static sentence) so the surface has real
+   discriminating power rather than contributing one constant string to all 17
+   rows, and it must **not enumerate securities** — `overview-no-element-per-
+security.spec.ts` asserts `/`'s element count is equal between the full
+   universe and a 27-row sample, and a 516-line text alternative is exactly the
+   defect its break plants.
+7. **`Market topology`'s reserved panel is deleted**, including its own
+   `filledBy` sentence (_"in WebGL … sized by liquidity … moving with the
+   market"_ — three claims this epic has since falsified or not yet built) and
+   the matching sibling string in `e2e/specs/security-explorer-shell.spec.ts`.
+   **A degraded topology never draws the hatch** — see Decisions — so after
+   this story the hatch means exactly one thing on `/`: nobody has built this
+   yet.
+8. **A memo boundary at the region, or a measured reason not to — and the
+   reason is already in the shipped code, not still open.** Traced precisely:
+   `MarketTopology`'s mount effect depends on `[securities, probe]`; `securities`
+   is a `useState` value that changes only on a settled `GET /securities`
+   response or a retry, never on a live-feed batch; `probe` is `undefined` in
+   application use. **The canvas has no continuous render loop** — it redraws
+   only from `invalidate()`, reached by resize, drag or wheel — so a host
+   re-render from `/`'s 6.8–16.1 batches a minute reconciles one unchanged
+   `&lt;div&gt;` and touches the renderer not at all. **Decline the boundary**,
+   record it with a reversal trigger (_the first prop this region takes that
+   changes at feed cadence_ — Story 6.3's band or Story 6.6's size are the
+   likely source), and hold the claim with a **producer-side** assertion
+   (`framesDrawn()` unchanged across N applied batches) rather than a render
+   count, because the wire cannot see a defect in the producer and neither can
+   a renders-per-batch figure.
+9. **`/`'s cold load is re-measured on three channels, each proved by a plant,
+   against the 447-node / 24.7 ms baseline — as two separate claims, not one.**
+   The **cold-load** claim is a route-level measurement this story owes for
+   real, via `overview-instrument.mjs`'s `pageInstrument()` against the built
+   pair, with the production-build assertion and the per-channel plant this
+   repository's own discipline requires (a channel going quiet and a cost going
+   away are one output). The **frame-rate-under-interaction** claim has **no
+   entry point on the real route today** — `probe` is wired only in
+   `MarketTopology.stories.tsx` — so it stays a **Storybook-measured, stated
+   bound** (ADR 0048's own figures) rather than a route claim invented for this
+   story. If `/` crosses §28's 50 ms, the figure is handed to Epic 14 by name,
+   with the three channels and the plant, exactly as `/securities`' was — the
+   decision to ship anyway belongs to the Product Owner before the number is
+   taken, not after (see Decisions).
 
-## Open decisions — for the Product Owner
+## Decisions — settled 2026-10-31 at this story's Gate 1
 
-1. **Does the graph keep the full viewport height the canvas's end state draws,
-   or a reduced band?** The end state is drawn; what it costs the four regions
-   below it is measurable before the merge and is a product judgement.
-2. **What does a degraded topology look like against a deferred one?** This has
-   been recorded as _one picture_ since 2026-10-12 and this story is where it
-   stops being deferrable.
+Eight questions, batched in two rounds, every one taken with the recommendation
+offered:
+
+1. **Region height at 1440: 520 px, not 420.** The fuller band (+27.2 px of
+   label clearance against +14.1, the graph filling 97% of the band's height
+   against 83%) costs roughly another +100 px of displacement on the four
+   regions below — measured and reported under AC 2 rather than assumed.
+2. **The label-collision defect is fixed in this story, both halves** — the
+   ring re-derivation (free, see below) and a renderer-side fit-scale
+   threshold for widths no ring shape can clear. `docs/GAPS.md`'s own "the next
+   story that fits this layout into a real box" condition has fired; shipping
+   the known defect on the product's new visual centre of gravity was rejected.
+3. **The topology owns "the tracked universe is not available," loudly.** `/`'s
+   existing rule for this exact failure is silence (no sentence, no retry); the
+   topology is the one region whose entire subject is the universe, so it
+   becomes the owner under ADR 0029's one-fact-one-home rule. `MarketTopology`'s
+   `onRetry` was already built required rather than optional, anticipating
+   this. A successful retry here also fills in blank mover names, which were
+   the same request's silent consumer since Task 4.5.5.
+4. **A degraded topology never draws the hatch.** Its degradations reuse the
+   white-box-plus-muted-sentence vocabulary the four filled regions already use
+   when they have nothing. After this story the hatch means exactly one thing
+   on `/`: nobody has built this yet (Open decision 2, closed).
+5. **The page scrolls; zoom needs `ctrl`/`⌘` + wheel.** The shipped component's
+   unconditional `preventDefault()` on `wheel` and `touch-action: none` were
+   built for an isolated Storybook iframe with nothing to scroll; moved onto
+   `/` unmodified they make the primary area a scroll trap. Vertical touch drag
+   scrolls the page (`touch-action: pan-y`); wheel scrolls; zoom takes a
+   modifier.
+6. **The region gets a `Reset view` control**, in `Region`'s `meta` slot. It is
+   the only recovery from an unclamped pan (today: a page reload), it is a
+   genuine keyboard-reachable control pending Story 6.4's node interaction, and
+   it gives the degraded grid's ninth surface a stable, assertable string.
+7. **The shipped `minmax(0, 3fr) minmax(0, 1fr)` columns stay** — the canvas's
+   own literal `span 8`/`span 4` 12-column mockup was taken as intent rather
+   than as a track spec. Reading it literally widens the right column
+   342 → 448 px, re-wrapping three regions (notably `Unusual activity`'s
+   company-name column, already tuned to 145 px by Task 5.6.7) that both the
+   canvas's own prose and AC 1 call untouched.
+8. **Sector labels are dropped below a fit-scale threshold rather than drawn
+   colliding.** Swept: no ring shape (circular or elliptical) clears the
+   longest label at the ≤860 one-column width — `CONSUMER DISCRETIONARY` is
+   163 CSS px on a ~342 px box, wider than its own neighbourhood. Below
+   **≈0.365** fit scale the renderer draws clusters with no label at all; the
+   sector names are already in the accessible fallback text at every width
+   (AC 6), and Story 6.4 is where a reader gets close enough to read one on
+   screen.
+
+**Not asked of the Product Owner, decided as a design-system reconciliation
+instead**, per ADR 0026's own rule (where the document and the canvas
+disagree, the document is wrong): the canvas's end-state groups sector
+performance and movers with the topology in the primary column, with breadth
+in the right column — `PRODUCT_SPEC.md` §9's own sketch instead puts breadth
+directly beneath the topology. The canvas is newer, drawn specifically for
+this screen's real regions rather than §9's illustrative one, and the grouping
+it draws is the more coherent of the two (the primary column reads _the
+market's structure, then where in that structure the move sits_ — cluster,
+sector, mover — while the right column reads _aggregate state, what to look
+at, work in flight_). §9 takes a dated amendment in the same change that
+builds AC 1.
 
 ## Handed here by Story 6.1's close — 2026-10-30: the renderer, the ring's real extent, and an unfinished label problem
 
@@ -123,31 +237,147 @@ the reasoning). **Re-derive this story's elliptical-ring numbers from 1000 ×
 928, not from 886 × 826** — `R_x ≈ 540, R_y ≈ 185` was computed against the
 smaller extent and is now stale.
 
-**A real, open label-collision defect comes with the layout, and this story
-is its most likely owner.** `communication_services`'s sector label still
-visibly crosses into `consumer_discretionary`'s cluster at the component's
-own current default size (measured **−28 px** of clearance at the `1392 × 520`
-box this story's own region already resolves to) — `docs/GAPS.md`'s entry
-(_"A sector's label still crosses into a neighbouring cluster's circle, and no
-value of the ring radius fixes it generally"_) has the full account, the
-swept figures, and the reasoning for why raising `TOPOLOGY_RING_RADIUS`
-further is not the fix. **The real fix is architectural and was named rather
-than built**: a renderer-side, scale-aware label treatment, because the
-renderer is the one thing in this picture that knows its own fit scale and
-`packages/shared`'s layout deliberately does not. Fitting this layout into
-`/`'s real **narrower, differently-shaped** box (an ellipse, not the square
-the measurement above was taken against) changes the fit scale again and is
-very likely to change this defect's severity — possibly making it worse, since
-a narrower box was swept down to `-37px` and beyond in the entry's own table.
-**Do not inherit the gap silently**: re-measure it against the real elliptical
-fit before this story's own acceptance criteria are checked off.
+**The open label-collision defect is this story's to close, not merely to
+inherit — and Gate 1 found the real fix.** `communication_services`'s sector
+label visibly crosses into `consumer_discretionary`'s cluster on the shipped
+circular ring (measured **−28 px** of clearance at `1392 × 520`). The fix is
+**not** a further radius increase — `docs/GAPS.md`'s own entry shows raising
+`R` buys almost nothing in a box this shape — it is the ring's **aspect**: see
+Design work below for the derivation.
 
 ## Design work
 
-`Market overview.dc.html` §02 holds the end state. The **accessible fallback**
-for the canvas is new design work with no precedent here — it is what the
-degraded grid will read, what a screen reader gets, and what the region says
-when there is nothing to draw.
+`Market overview.dc.html` §02 holds the end-state grid (amended 2026-10-30 at
+this story's own Gate 1 to correct four stale "WebGL"/"sized by liquidity"
+claims — ADR 0048 and this epic's shipped node ladder had already falsified
+both). `The graph at rest.dc.html` remains the authority for the node, edge
+and label treatment itself; nothing here reopens it.
+
+### The elliptical ring, re-derived and verified against the shipped figures
+
+Re-derived from the real layout (`TOPOLOGY_RING_RADIUS = 400`, extent
+`1000.3 × 928.4`, control-checked against `topology-layout.test.ts`'s own
+clearance arithmetic — reproduces its figures exactly) rather than from the
+canvas's stale `886 × 826`/`R_x≈540, R_y≈185`.
+
+**The canvas's own circular-to-elliptical recommendation is wrong in kind, not
+only in its numbers.** Squashing the ring (`R_y ≈ 185`, well below `R_x`)
+starves the three-and-nine-o'clock sectors of arc length under the existing
+angle-proportional wedge allocation — arc speed on an ellipse is
+`R_x` at twelve o'clock and **`R_y` at three o'clock**, so at 540/185 a sector
+sitting near three o'clock receives **34%** of the arc a circle would give it.
+Measured: `R_x = 540, R_y = 185` with the shipped allocation produces a
+**−53.2-unit cluster-to-cluster overlap** — `health_care` and `financials`
+physically interleave, falsifying `TOPOLOGY_RING_RADIUS`'s own "genuinely,
+unconditionally true" disjointness claim. The canvas's recommendation cannot
+be built as drawn.
+
+**The fix is a stretch along `x`, combined with allocating each sector's wedge
+by arc length along the ellipse rather than by angle** — the same closed-form,
+deterministic, no-simulation shape, re-expressed so the "25% more arc than
+occupied" argument holds independent of `R_x`/`R_y` rather than only at
+`R_x = R_y`.
+
+**Recommended: `TOPOLOGY_RING_RADIUS_X = 800`, `TOPOLOGY_RING_RADIUS_Y = 340`,
+arc-length allocation.** Swept against the real recorded fixture:
+
+|                                                                               | shipped circular `R = 400` | **recommended `800 × 340`** |
+| ----------------------------------------------------------------------------- | -------------------------- | --------------------------- |
+| fitted extent (aspect)                                                        | 1080 × 1008 (1.07)         | **1880 × 923 (2.04)**       |
+| worst cluster-circle gap                                                      | 56.8 u                     | **130.3 u**                 |
+| closest node pair                                                             | 17.83 u                    | **17.83 u — unchanged**     |
+| label clearance @ 1026×520 (this story's primary column at 1440, 520 px band) | **−26.7 px**               | **+27.2 px**                |
+| label clearance @ 1026×420                                                    | **−33.3 px**               | **+14.1 px**                |
+| label clearance @ 708×420 (≤1180 primary column)                              | **−33.3 px**               | **+2.6 px**                 |
+| band width spent on the graph @ 1026×420                                      | 44%                        | **83%**                     |
+
+Closest node pair is bit-identical because nothing inside a cluster moves —
+the golden-angle spiral, the member hole and `topologyClusterRadius` are all
+independent of the ring shape. This is the canvas's own stated approach,
+_node size fixed, ring deformed_, correctly executed. Below **≈690 × 337 px**
+no ring shape clears the label (the box itself is too small for the
+longest label at any aspect, let alone a legible graph) — that is the ≤860
+case, closed by Decision 8's renderer threshold rather than by geometry.
+
+**Explicitly rejected: an anisotropic scale inside `fit.ts` instead of a
+shaped layout.** Cheaper to write, and wrong — it squashes node spacing along
+with the ring, dropping the closest-pair clearance below
+`TOPOLOGY_NODE_FOOTPRINT` at the vertical factor this box wants, and it breaks
+the circular node footprint Story 6.3's annulus and Story 6.4's focus ring
+both need. The shape belongs in the layout, not the fit.
+
+**Where the shape lives**: `buildTopologyLayout(graph, { ringRadiusX,
+ringRadiusY })`, defaulting to `800 × 340` — an aspect ratio is not a pixel,
+so `packages/shared` still learns nothing about a viewport, and a later story
+with a different box (a taller one, say) has a parameter rather than a second
+model. `topologySource`'s memo key widens from array identity alone to array
+plus the radii pair.
+
+**Mechanical consequence, owed in the same change**: `TOPOLOGY_RING_RADIUS`'s
+"genuinely, unconditionally true" disjointness claim is **conditional on the
+allocation rule** the moment the ring is not circular. ADR 0048's Decision 3
+needs a dated amendment, and the property needs an actual test (asserting
+disjointness at the shipped radii) rather than a paragraph — this
+repository's own rule that a claim about a mechanism reads identically
+whether the mechanism is there or not.
+
+### The proxy column
+
+`PROXY_CLEARANCE`'s own docblock hands its compass direction to this story
+("arbitrary, and is Story 6.2's to re-site when the ring deforms"). At
+`R_x = 800` the column's `x = 800 + 106 + 48 = 954`, clear of every cluster
+circle by construction — the property to preserve, undisturbed. **Decision:
+keep the right-hand column.** Three diamonds beyond the widest point of a
+2.04-aspect ellipse is a wider gap from the ring than today's near-circular
+one, which reads as more clearly separate — correctly, since they are
+benchmarks the product has not decomposed — rather than less composed.
+
+### The accessible fallback — extend the shipped vocabulary, invent one new state
+
+`MarketTopology.tsx` already carries four absence sentences and a renderer
+refusal, all DOM text sibling to the canvas — Story 6.1's own AC 7, taken
+anticipating this story's name in as many words. This story **adds one state
+and changes none of the existing five**:
+
+- **The drawing itself needs a text equivalent**, because nothing before this
+  story has needed one — a canvas has no accessible content by default. A
+  visually-hidden `&lt;p&gt;`, sibling to the canvas, carrying one sentence built
+  by a new `topologyDrawnSentence(graph)` (beside `topologyFailureSentence`, so
+  Story 6.3 has one named place to amend when the picture stops being free of
+  measurement): _"A graph of every security we track, grouped into 11 sectors
+  around their benchmark ETFs, with the broad market at the centre. Nothing in
+  it is a measurement — it is a picture of how the market is organised."_ The
+  canvas takes `role="img"` and `aria-labelledby` pointing at that paragraph —
+  not `aria-label`, which would be a second copy of the string the one-fact-
+  one-home rule forbids. **No live region**: the picture is static for the
+  page's lifetime (built once from a `useState` value that changes only on a
+  settled response), so there is nothing to announce — reversal trigger, a
+  condition: _the first change to this region a reader must be told about
+  without having asked_ (Story 6.4's selection answering an agent's
+  `highlight_graph_nodes`, not a repaint).
+- **The sentence states no count another surface already owns** (`516` has one
+  home already, in `measured-set.ts`) **and names no ticker** — the cluster
+  count is this region's own fact and nothing else on `/` states it; 516
+  symbols in a hidden paragraph is a wall, not a fallback.
+- **`Reading the tracked universe.` moves behind `useWaited`'s existing
+  2,000 ms floor**, matching `MarketProxyStrip`/`SectorPerformance`/`Unusual`'s
+  own pattern — the measured 174–277 ms response time means drawing the
+  sentence immediately would flash it in the primary area on every cold load,
+  the exact defect those three siblings were built to avoid.
+- **The failure sentences keep their existing wording** (`"Nothing answered at
+the service's address…"` etc.) rather than being rewritten around "the
+  service" — Decision 3 makes the topology this fact's owner, and the existing
+  sentences already name their own subject correctly.
+
+### The source note
+
+`/`'s one source note (`OverviewSourceNote`) gains a clause reusing
+`SourceNote`'s shipped `CLASSIFICATION_CLAIM` vocabulary ("Sector and industry
+are curated, not from the market feed."), rendering only while a graph is
+drawn — the precedent is Story 5.4 adding a term for the baselines' `sip`
+tape. Without it, a healthy graph beside regions in an aggregate-degraded
+state makes an unlabelled claim about market data; the graph's structure is
+curated, not observed.
 
 ## Out of scope
 
