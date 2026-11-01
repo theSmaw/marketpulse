@@ -5413,7 +5413,46 @@ graph apart mechanically.** Story 6.7's live updates and Epic 14's synthetic
 of them exists is infrastructure ahead of the iteration that needs it, and
 claiming one exists today is the thing this entry is here to prevent.
 
-## A sector's label still crosses into a neighbouring cluster's circle, and no value of the ring radius fixes it generally
+## ~~A sector's label still crosses into a neighbouring cluster's circle, and no value of the ring radius fixes it generally~~
+
+**Closed 2026-11-01 by Task 6.2.2.** The diagnosis below (added 2026-10-30 by
+Task 6.1.3) was correct in full — no single ring radius fixes a box-dependent
+collision, and the owner note at its foot named the right fix a story early:
+_"a renderer-side, scale-aware label treatment… has a reason to exist."_ Task
+6.2.2 built two things rather than one, and the combination is what closes
+this rather than narrows it:
+
+1. **The ring is elliptical** (`TOPOLOGY_RING_RADIUS_X = 800`,
+   `TOPOLOGY_RING_RADIUS_Y = 340`), with wedge allocation changed from
+   angle-proportional to **arc-length**-proportional — the part that actually
+   keeps clusters disjoint on a non-circular ring, not the stretch alone. A
+   naive squash at the canvas's own first-guess figures (`540×185`, same
+   angle-proportional allocation) produces a **−53.2-unit** cluster-to-cluster
+   overlap, proving the stretch alone is the wrong fix in kind.
+2. **The renderer draws no sector label below a derived fit-scale threshold**
+   (`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in `renderer-canvas.ts`) —
+   Decision 8, the scale-aware treatment the note above asked for.
+
+**Measured against the real route, not a guessed box.** Task 6.2.1 measured
+`Region.content`'s real resolved size on `/` at the four widths `pnpm probe`
+uses: `998×425` (1440), `570×425` (1024), `686×425` (768), `308×425` (390).
+Their fit scales are **0.4604, 0.3033, 0.3650, 0.1639.** Only 1440 clears
+`0.38`, and at 1440 the worst label/circle clearance is **+14.99 px**
+(`consumer_staples` against `energy`'s circle — a different pair from the one
+this entry was written about, because the ellipse's longer `x` axis moves
+which bearing is tightest). At the other three widths no sector label draws
+at all, so the negative geometry there — real, and recorded in
+`topology-layout.test.ts` — never reaches a reader.
+
+**Both halves are now mechanical.** `topology-layout.test.ts` carries a
+correctness claim (`toBeGreaterThan(0)`) at the 1440 box, proved wrong-then-
+right against the superseded circular ring in the same file, plus a test that
+the three narrower real boxes' fit scales sit below the renderer's own
+threshold. `pnpm break` has an entry for each. The historical diagnosis below
+is left standing because the arithmetic in it is still correct and still the
+reason a single ring radius was never going to be the fix.
+
+---
 
 **Added 2026-10-30 by Task 6.1.3, replacing a claim this same task shipped and
 then found wrong within the same day.**

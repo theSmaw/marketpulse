@@ -1,6 +1,12 @@
 # Task 6.2.2 — The Elliptical Ring, & the Label-Collision Fix
 
-**Status:** Not started
+**Status:** **Complete — 2026-11-01.** The elliptical ring (`800×340`) with
+arc-length-proportional wedge allocation ships; disjointness clears by
+131.40 units (up from 57.69 circular), and the label collision this story
+inherited is **closed rather than narrowed** — at the one real content box
+that clears the renderer's own new fit-scale threshold (1440, scale 0.4604),
+every label clears by +14.99px; at the other three real widths (1024, 768, 390) the renderer draws no sector label at all, so the negative geometry
+there never reaches a reader.
 **Story:** [6.2 The Topology Takes the Landing Page](STORY.md)
 **Depends on:** 6.2.1
 
@@ -93,8 +99,148 @@ renderer-canvas.ts`): below the derived threshold (~0.365, re-derive against
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
 
+**Done-when #3's own premise is corrected by this task's own measurement**:
+"a regression floor (not yet zero) at the ≤860 box" assumed some real box
+would draw a label with imperfect-but-floored clearance. Measured against
+the real content boxes Task 6.2.1 found, that case does not occur — the
+renderer's own fit-scale threshold means a sector label either draws
+correctly (1440) or does not draw at all (1024, 768, 390). See "What was
+done" below for the real figures.
+
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-11-01
 
-## For a stakeholder — a status report, YYYY-MM-DD
+**The ring, and the allocation.** `buildTopologyLayout(graph, options?)` now
+takes `{ ringRadiusX?, ringRadiusY? }`, defaulting to
+`TOPOLOGY_RING_RADIUS_X = 800` / `TOPOLOGY_RING_RADIUS_Y = 340`. Centroid
+placement is `x = ringRadiusX·sin(turn), y = −ringRadiusY·cos(turn)`. Wedge
+allocation is **arc-length**-proportional rather than angle-proportional: a
+fixed composite Simpson's-rule pass (`buildArcLengthTable`, 3600 sub-intervals,
+no adaptive convergence) builds the ellipse's own cumulative arc-length table
+once per `(ringRadiusX, ringRadiusY)` pair, and each sector's wedge midpoint is
+found by inverting it (`bearingAtArcLength`, binary search + linear
+interpolation) at the midpoint of its own allocated arc-length share. Both
+are pure functions of the graph and the radii — same input, same output,
+asserted by the existing determinism tests, which still pass unchanged.
+`topologyClusterRadius`, the golden-angle member spiral and the hole radius
+are untouched; the closest NODE pair is still exactly **17.83** units,
+confirmed by the pre-existing test.
+
+**Proved wrong before right, twice**, per the house discipline:
+
+1. The canvas's own naive elliptical recommendation (`540×185`, same
+   angle-proportional allocation) reproduces the Design work's **−53.2-unit**
+   `health_care`/`financials` overlap exactly (measured −53.30). The SHIPPED
+   `buildTopologyLayout`, called with those same `540×185` radii, clears by
+   **+21.59 units** at the same pair — proving the allocation rule, not the
+   stretch, is the fix, even beyond the radii actually shipped.
+2. The superseded CIRCULAR ring (`buildTopologyLayout(graph, {ringRadiusX:
+400, ringRadiusY: 400})`, Task 6.1.3's own radius) still fails the real
+   1440 content box by **−33.63 px** on the same
+   `communication_services`/`consumer_discretionary` pair; the shipped
+   ellipse clears it by **+14.99 px** (a different worst pair,
+   `consumer_staples`/`energy`, because the longer `x` axis moves which
+   bearing is tightest).
+
+**Disjointness, measured.** Every sector now receives `3728.74 / 839.75 ≈
+4.44 · r_s` of arc against the `2 · r_s` it occupies — **122% more arc than
+it occupies**, against the circular ring's ~50%. Closest cluster-circle
+clearance: **131.40 units** (`energy`/`utilities`), up from 57.69.
+
+**The label collision — closed, not narrowed, and the resolution corrects
+this task's own premise.** The task file's Done-when #3 expected "a
+correctness claim at the two-column boxes, and a regression floor (not yet
+zero) at the ≤860 box." Measured against the REAL content boxes Task 6.2.1's
+probe found (not the `1026×520`-style boxes `STORY.md`'s Design work
+assumed before the route existed), that premise turned out to be wrong in a
+good way: fit scale at the four real widths is **0.4604, 0.3033, 0.3650,
+0.1639** (1440/1024/768/390). A derived threshold —
+`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in `renderer-canvas.ts`, re-derived
+by binary search (bare crossover ≈0.3727, rounded up for margin) rather than
+cited from the `~0.365` the design canvas guessed — means only 1440 ever
+draws a sector label, and it clears. There is no width left where a label
+draws with imperfect-but-floored clearance; it is binary, correct at one
+real box, suppressed at the other three. `topology-layout.test.ts` carries
+both halves as mechanical tests.
+
+**The renderer.** `renderer-canvas.ts`'s `DrawableLabel` gained a `sector:
+boolean` discriminator (tickers and the `MARKET PROXIES` heading are never
+gated — they sit in the column, clear by construction). The draw loop skips
+a sector label when `view.scale * view.zoom < TOPOLOGY_SECTOR_LABEL_MIN_SCALE`
+— the CURRENT effective scale, including interactive zoom, so a reader who
+zooms into a cramped box earns the label back rather than it staying
+suppressed at the initial fit. The `MARKET PROXIES` column filter changed
+from an `x > TOPOLOGY_RING_RADIUS` threshold (meaningless once the ring has
+two radii) to `proxy.symbol !== TOPOLOGY_HUB` — clearer and shape-independent.
+
+**Verified visually, not just by assertion.** `pnpm probe --story
+components-markettopology--whole-universe` (Storybook's own generous box) and
+`pnpm probe /` (the real route, all four widths) both confirm: at 1440,
+`COMMUNICATION SERVICES` and every other sector label sits clearly clear of
+its neighbours; at 1024 (and 768, 390), no sector label draws at all — a
+clean, legible graph rather than a cluttered or colliding one.
+
+**`pnpm invariants` caught one real defect during implementation**:
+`no-imputed-zero-in-a-figure` refused `arcTable[arcTable.length -
+1]?.s ?? 0` — a structurally-impossible absence dressed as a default.
+Repaired by having `buildArcLengthTable` return `{ entries, totalArcLength }`
+directly (capturing the accumulator rather than re-reading the array), which
+needs no `?? 0` because `totalArcLength` is a plain `number` by construction.
+
+**Two new `pnpm break` entries**, both proved for real against the committed
+tree: `angle-proportional-wedge-allocation-returns` (reverts `turn`'s
+arc-length formula to its angle-proportional equivalent, algebraically
+re-derived from the in-scope variables — goes red on both the new
+540×185 stress test and the 1440 label-clearance test) and
+`the-ring-shrinks-under-the-label-threshold` (shrinks `TOPOLOGY_RING_RADIUS_X`
+800→600, pushing the 1024 real box's fit scale above the renderer's
+threshold — goes red on the "draws no sector label" precondition test).
+
+**`docs/GAPS.md`'s entry is closed** (not narrowed) and **ADR 0048's Decision
+3 carries a third dated amendment**, both quoting the figures above.
+
+### Gates
+
+- `pnpm build` — green.
+- `pnpm lint` — green, 0 warnings.
+- `pnpm format:check` — green.
+- `pnpm --filter @marketpulse/shared test` — 659/659 pass (16 in
+  `topology-layout.test.ts`, up from 12).
+- `pnpm test` (full workspace) — green.
+- `pnpm invariants` — 80/80 hold (one caught and fixed mid-task, see above).
+- `pnpm e2e overview-region-order.spec.ts landing-route.spec.ts
+overview-sector-order.spec.ts` — 7/7 pass.
+- `pnpm probe --story components-markettopology--whole-universe` and
+  `pnpm probe /` — reviewed visually at every width; no collision, correct
+  suppression below threshold.
+- Both new `pnpm break` entries pass for real, on the committed tree.
+
+### What was not done, deliberately out of scope
+
+`topologySource`'s memo key (`apps/frontend/src/topology/graph-source.ts`)
+was **not** widened to include the radii pair, despite `STORY.md`'s Design
+work naming it as a "mechanical consequence." No caller passes non-default
+radii anywhere in this story, so the memo key only needs to vary when it
+would actually receive a different pair — which never happens yet. Flagged
+here rather than silently skipped; the next story that calls
+`buildTopologyLayout` with a non-default box should widen the key in the
+same change.
+
+## For a stakeholder — a status report, 2026-11-01
+
+**What a user can see:** the market topology graph on `/` now fills its
+whole band — wider than before, because the ring is an ellipse rather than a
+circle — and every sector name is legible with no label crossing into a
+neighbouring cluster. At narrower screen widths the graph still draws
+cleanly; it simply stops labelling individual sectors once there is not
+enough room to do so without crowding, rather than drawing a collision.
+
+**What was found:** the real boxes this graph renders into on the live page
+are narrower than this story's own design work had assumed before the route
+existed (measured in the previous task). Re-deriving the fix against those
+real numbers turned what was expected to be a partial improvement into a
+full close of a defect this epic has carried since Story 6.1.
+
+**What's next:** Task 6.2.3, interaction scope — scroll and zoom behaviour on
+the real page rather than in an isolated Storybook frame.

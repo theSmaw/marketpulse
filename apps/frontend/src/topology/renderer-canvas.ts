@@ -34,8 +34,8 @@
 
 import {
   SECTOR_ETFS,
+  TOPOLOGY_HUB,
   TOPOLOGY_NODE_FOOTPRINT,
-  TOPOLOGY_RING_RADIUS,
   topologyClusterRadius,
 } from "@marketpulse/shared";
 import type {
@@ -87,6 +87,33 @@ const EDGE_END_CLEARANCE = 1.5;
 /** Where a sector label sits above its cluster's bounding circle, in CSS pixels. */
 const LABEL_GAP = 8;
 
+/**
+ * **Decision 8 (Task 6.2.2): below this effective scale, no sector label
+ * draws at all.** `packages/shared/src/topology-layout.test.ts`'s own
+ * label-clearance proof shows the worst label/circle clearance is a pure
+ * function of the fit scale alone (the geometry is fixed; only the
+ * CSS-pixel-to-layout-unit conversion moves), and there is **no ring shape**
+ * that clears `consumer_discretionary`'s 163 px label at every box this
+ * layout might be fitted into — the required layout-unit room grows without
+ * bound as the box narrows.
+ *
+ * **Re-derived against the real resolved boxes, not cited from the design
+ * canvas's `~0.365`.** A binary search over the same formula
+ * `topology-layout.test.ts` proves found the clearance crosses zero at
+ * `scale ≈ 0.3727` (measured 2026-11-01, this story's fixture universe,
+ * `communication_services` against `consumer_discretionary`'s circle). Of the
+ * four real content boxes Task 6.2.1 measured on `/` (998×425, 570×425,
+ * 686×425, 308×425 at 1440/1024/768/390), their fit scales are
+ * **0.4604, 0.3033, 0.3650, 0.1639** — so only **1440** clears this
+ * threshold; the other three never draw a sector label at all, regardless of
+ * the geometric collision computed for them.
+ *
+ * `0.38` rather than the bare crossover: a small margin against font-metric
+ * variance across engines, chosen so it still excludes 768's 0.3650 (which
+ * sits 0.0077 below the bare crossover and would otherwise be a coin flip).
+ */
+const TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38;
+
 /** One node, with its placement resolved. Built once at mount. */
 interface DrawableNode {
   readonly node: TopologyNode;
@@ -108,6 +135,14 @@ interface DrawableEdge {
 /** A label drawn at a world point. */
 interface DrawableLabel {
   readonly text: string;
+  /**
+   * Whether this is one of the eleven sector names — the only labels
+   * {@link TOPOLOGY_SECTOR_LABEL_MIN_SCALE} gates. A ticker and the
+   * `MARKET PROXIES` heading draw at every scale: they sit in the column,
+   * clear of every cluster circle by construction, so they have no collision
+   * to gate against.
+   */
+  readonly sector: boolean;
   readonly x: number;
   readonly y: number;
   readonly mono: boolean;
@@ -208,6 +243,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
 
     labels.push({
       text: cluster.label.toUpperCase(),
+      sector: true,
       x: centre.x,
       y: centre.y - topologyClusterRadius(cluster.members.length),
       mono: false,
@@ -241,6 +277,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     proxies.push(placement);
     labels.push({
       text: node.symbol,
+      sector: false,
       x: placement.x + TOPOLOGY_NODE_INK[node.kind],
       y: placement.y,
       mono: true,
@@ -249,11 +286,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
 
   // **One `MARKET PROXIES` heading over the column**, so the three undecomposed
   // benchmarks read as *benchmarks we have not decomposed* rather than as three
-  // broken nodes. `SPY` is excluded by construction — it is at the origin with
-  // eleven edges on it, not in the column — and the heading is placed over the
-  // column's own topmost member rather than at a fixed point, so it follows
-  // them if the layout re-sites the column.
-  const column = proxies.filter((proxy) => proxy.x > TOPOLOGY_RING_RADIUS);
+  // broken nodes. `SPY` is excluded **by symbol rather than by an `x` threshold
+  // against the ring** (Task 6.2.2, when the ring stopped being a single
+  // radius) — it is at the origin with eleven edges on it, not in the column —
+  // and the heading is placed over the column's own topmost member rather than
+  // at a fixed point, so it follows them if the layout re-sites the column.
+  const column = proxies.filter((proxy) => proxy.symbol !== TOPOLOGY_HUB);
 
   // **Destructured rather than `column[0]?.x ?? 0`**, which
   // `no-imputed-zero-in-a-figure` caught on the first run of `pnpm invariants`
@@ -265,6 +303,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   if (head !== undefined) {
     labels.push({
       text: "MARKET PROXIES",
+      sector: false,
       x: head.x,
       y: Math.min(...column.map((proxy) => proxy.y)) - TOPOLOGY_NODE_FOOTPRINT,
       mono: false,
@@ -376,9 +415,20 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     }
 
     // --- The labels, at a constant size -----------------------------------
+    //
+    // **Decision 8 (Task 6.2.2): below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE`, a
+    // sector name does not draw at all**, because no ring shape clears the
+    // longest one (`CONSUMER DISCRETIONARY`, 163 px) at every box this layout
+    // is fitted into. `view.scale * view.zoom` rather than `view.scale`
+    // alone, so a reader who zooms in on a cramped box earns the label back
+    // rather than it staying suppressed at the fit this component started at.
     context.fillStyle = palette.label;
+    const effectiveScale = view.scale * view.zoom;
 
     for (const label of labels) {
+      if (label.sector && effectiveScale < TOPOLOGY_SECTOR_LABEL_MIN_SCALE)
+        continue;
+
       const at = worldToScreen(view, label.x, label.y);
 
       if (at.x < -200 || at.x > width + 200 || at.y < -40 || at.y > height + 40)

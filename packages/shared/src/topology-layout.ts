@@ -12,9 +12,9 @@
  * graph*. Three things fall out of the closed form that the simulation cannot
  * give at any seed:
  *
- *   1. **No two clusters can collide**, because the angular span each sector
- *      gets is allocated from its own radius rather than negotiated.
- *      {@link TOPOLOGY_RING_RADIUS}'s note has the arithmetic.
+ *   1. **No two clusters can collide**, because the arc span each sector gets
+ *      is allocated from its own radius rather than negotiated.
+ *      {@link TOPOLOGY_RING_RADIUS_X}'s note has the arithmetic.
  *   2. **The renderer comparison measures drawing.** Both of Story 6.1's
  *      candidates read this one layout, so a frame-rate difference is the
  *      renderer and not two different pictures — the confound the story's own
@@ -178,8 +178,159 @@ export const TOPOLOGY_CLUSTER_DENSITY = 0.6;
  * against the new extent, and with the label-clearance problem above to solve
  * for real rather than to re-inherit: a renderer that knows its own fit scale
  * is the only thing in this picture that can.
+ *
+ * ## Story 6.2 (Task 6.2.2) — the ring is an ellipse, and the allocation changed with it
+ *
+ * `TOPOLOGY_RING_RADIUS` is replaced by the pair below. **The canvas's own
+ * circular-to-elliptical recommendation (`R_x≈540, R_y≈185`) is wrong in
+ * kind, not only in its numbers**: squashing `R_y` well below `R_x` starves
+ * the three-and-nine-o'clock sectors of arc under the OLD angle-proportional
+ * allocation — arc speed on an ellipse is `R_x` at twelve o'clock and `R_y`
+ * at three o'clock, so a sector sitting near three o'clock would receive
+ * only 34% of the arc a circle gives it at `540×185`, and measured at those
+ * figures the shipped allocation produced a **−53.2-unit** cluster-to-cluster
+ * overlap — `health_care` and `financials` physically interleaved.
+ *
+ * **The fix is the stretch, PLUS allocating each sector's wedge by arc
+ * length along the ellipse rather than by angle** — `buildArcLengthTable`
+ * and `bearingAtArcLength` below. This is what keeps the disjointness
+ * argument true independent of `R_x`/`R_y`: every sector is allocated a
+ * SHARE OF ARC LENGTH proportional to its own cluster radius, so the ratio
+ * `(arc allocated) / (arc occupied, 2·r_s)` is `totalArcLength / Σr`
+ * regardless of which sector or where it sits on the ellipse — the same
+ * proof `TOPOLOGY_RING_RADIUS`'s old note gave for a circle, generalised to
+ * any shape by construction rather than by the circle's constant-radius
+ * accident.
+ *
+ * **Measured over the real universe, 2026-11-01**: `Σr = 839.75`, the
+ * `800×340` ellipse's own circumference (the fixed-Simpson's-pass total)
+ * is `3728.74`, so every sector receives `3728.74 / 839.75 ≈ 4.44 · r_s` of
+ * arc against the `2 · r_s` it occupies — **122% more arc than it
+ * occupies**, against the circular ring's ~50%, because the ellipse's own
+ * circumference at these semi-axes is larger relative to `Σr` than a circle
+ * of radius 400 was. The closest pair of cluster circles clears by **131.40
+ * units** (`energy` / `utilities`), up from 57.69 at the circular ring — the
+ * test beside this module measures the figure rather than quoting either
+ * one. The closest NODE pair is unchanged at **17.83** units, because
+ * nothing inside a cluster reads the ring's shape.
  */
-export const TOPOLOGY_RING_RADIUS = 400;
+export const TOPOLOGY_RING_RADIUS_X = 800;
+
+/** See {@link TOPOLOGY_RING_RADIUS_X}. */
+export const TOPOLOGY_RING_RADIUS_Y = 340;
+
+/**
+ * How many equal sub-intervals the elliptical ring's arc-length table is
+ * built from — fixed, not adaptive, so wedge allocation is a pure function
+ * of the graph and nothing converges to a tolerance (the whole point of a
+ * closed-form layout — see the module docblock). Must be even: composite
+ * Simpson's rule integrates two sub-intervals at a time. 3600 is a step
+ * every 0.1°, far finer than the arithmetic needs — the error this
+ * introduces is swamped by `Math.sin`/`Math.cos` themselves being inexact
+ * across engines, which is already why there is no checked-in coordinate
+ * fixture anywhere in this module.
+ */
+const ARC_LENGTH_STEPS = 3600;
+
+/**
+ * `ds/dt` for a point on an ellipse of semi-axes `(radiusX, radiusY)` at
+ * bearing `t` — this module's own "clockwise from twelve o'clock"
+ * convention, the same one {@link fromTwelve} uses. Derived from
+ * `x = radiusX·sin(t)`, `y = −radiusY·cos(t)`.
+ */
+function ellipseSpeed(t: number, radiusX: number, radiusY: number): number {
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+
+  return Math.sqrt(
+    radiusX * radiusX * cos * cos + radiusY * radiusY * sin * sin,
+  );
+}
+
+/** One entry of {@link buildArcLengthTable}'s own output. */
+interface ArcLengthEntry {
+  /** The bearing, clockwise from twelve o'clock. */
+  readonly t: number;
+  /** The arc length travelled from twelve o'clock to here. */
+  readonly s: number;
+}
+
+/** {@link buildArcLengthTable}'s own output. */
+interface ArcLengthTable {
+  /** `ARC_LENGTH_STEPS / 2 + 1` entries, `s` monotonic. */
+  readonly entries: readonly ArcLengthEntry[];
+  /**
+   * The ellipse's own circumference — `entries`' own last `s`, captured
+   * directly from the accumulator rather than read back by indexing, which
+   * is what keeps this total's type a plain `number` rather than
+   * `number | undefined`: `entries` is never empty (the loop below always
+   * pushes at least one entry), but indexing a `readonly` array cannot say
+   * so under `noUncheckedIndexedAccess`, and `no-imputed-zero-in-a-figure`
+   * is right to refuse the `?? 0` a re-read would otherwise need.
+   */
+  readonly totalArcLength: number;
+}
+
+/**
+ * The ellipse's own cumulative arc-length function, sampled every two
+ * sub-intervals from 0 to 2π by a fixed composite Simpson's pass —
+ * `ARC_LENGTH_STEPS / 2 + 1` entries, `s` monotonically increasing by
+ * construction (every step adds a non-negative arc length). Built once per
+ * `(radiusX, radiusY)` pair; the same pair always produces the same table,
+ * because nothing here iterates to a tolerance or reads a random source.
+ */
+function buildArcLengthTable(radiusX: number, radiusY: number): ArcLengthTable {
+  const h = (2 * Math.PI) / ARC_LENGTH_STEPS;
+  const entries: ArcLengthEntry[] = [{ t: 0, s: 0 }];
+  let cumulative = 0;
+
+  for (let i = 0; i < ARC_LENGTH_STEPS; i += 2) {
+    const t0 = i * h;
+    const t1 = (i + 1) * h;
+    const t2 = (i + 2) * h;
+
+    // Simpson's rule over [t0, t2]: (h/3)(f0 + 4f1 + f2).
+    cumulative +=
+      (h / 3) *
+      (ellipseSpeed(t0, radiusX, radiusY) +
+        4 * ellipseSpeed(t1, radiusX, radiusY) +
+        ellipseSpeed(t2, radiusX, radiusY));
+    entries.push({ t: t2, s: cumulative });
+  }
+
+  return { entries, totalArcLength: cumulative };
+}
+
+/**
+ * The bearing at which {@link buildArcLengthTable}'s cumulative arc length
+ * first reaches `targetArcLength`, by linear interpolation between the two
+ * bracketing table entries — `table.s` is sorted and monotonic by
+ * construction, so this is a plain binary search rather than anything
+ * iterative-to-a-tolerance.
+ */
+function bearingAtArcLength(
+  table: readonly ArcLengthEntry[],
+  targetArcLength: number,
+): number {
+  let low = 0;
+  let high = table.length - 1;
+
+  while (low < high - 1) {
+    const mid = Math.floor((low + high) / 2);
+    const entry = table[mid];
+    if (entry !== undefined && entry.s <= targetArcLength) low = mid;
+    else high = mid;
+  }
+
+  const before = table[low];
+  const after = table[high];
+  if (before === undefined || after === undefined) return 0;
+  if (after.s === before.s) return before.t;
+
+  const fraction = (targetArcLength - before.s) / (after.s - before.s);
+
+  return before.t + fraction * (after.t - before.t);
+}
 
 /**
  * **The golden angle, `π(3 − √5) ≈ 2.39996` radians** — how members are
@@ -213,9 +364,15 @@ export const TOPOLOGY_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
  * single `MARKET PROXIES` label is for.
  *
  * Their position is outside every cluster circle **by construction**: the
- * column's own `x` alone exceeds `ringRadius + maxClusterRadius`. That is the
- * property to preserve; the compass direction is arbitrary and is Story 6.2's
- * to re-site when the ring deforms into an ellipse.
+ * column's own `x` alone exceeds `ringRadiusX + maxClusterRadius`. That is the
+ * property to preserve.
+ *
+ * **Decision (Task 6.2.2): kept at the right, unmoved.** The compass direction
+ * was arbitrary and reserved for this story to re-site when the ring deformed
+ * — at `ringRadiusX = 800` the column sits at `x = 800 + 106 + 48 = 954`,
+ * clear of every cluster circle exactly as before, and three diamonds beyond
+ * the widest point of a 2.04-aspect ellipse read as *more* clearly separate
+ * from the ring than the near-circular original did, not less.
  */
 const PROXY_CLEARANCE = 48;
 
@@ -279,17 +436,29 @@ function fromTwelve(turn: number, distance: number): { x: number; y: number } {
   return { x: distance * Math.sin(turn), y: -distance * Math.cos(turn) };
 }
 
+/** {@link buildTopologyLayout}'s own options — an aspect ratio, never a pixel. */
+export interface TopologyLayoutOptions {
+  /** The ring's horizontal semi-axis. Defaults to {@link TOPOLOGY_RING_RADIUS_X}. */
+  readonly ringRadiusX?: number;
+  /** The ring's vertical semi-axis. Defaults to {@link TOPOLOGY_RING_RADIUS_Y}. */
+  readonly ringRadiusY?: number;
+}
+
 /**
- * Lay the graph out. **Pure** — the same graph twice gives the same layout, and
- * nothing here reads a clock, a viewport or a random source.
+ * Lay the graph out. **Pure** — the same graph and the same options twice give
+ * the same layout, and nothing here reads a clock, a viewport or a random
+ * source.
  *
  * Eleven sector wedges run from twelve o'clock clockwise in `SECTORS`' own
- * declaration order, each spanning in proportion to its own cluster radius;
- * the benchmark ETF sits at its cluster's centroid and the sector's equities on
- * a golden-angle spiral around it, from a hole of
- * {@link TOPOLOGY_NODE_FOOTPRINT} so the innermost member clears the ETF. The
- * hub sits at the origin — 229 units clear of the nearest cluster edge — and
- * the three undecomposed proxies in a column outside the ring.
+ * declaration order, each spanning an **arc length** proportional to its own
+ * cluster radius (Task 6.2.2 — see {@link TOPOLOGY_RING_RADIUS_X}'s note for
+ * why arc length rather than angle, once the ring is an ellipse); the
+ * benchmark ETF sits at its cluster's centroid and the sector's equities on a
+ * golden-angle spiral around it, from a hole of
+ * {@link TOPOLOGY_NODE_FOOTPRINT} so the innermost member clears the ETF — both
+ * independent of the ring's shape, because nothing inside a cluster reads
+ * `ringRadiusX`/`ringRadiusY`. The hub sits at the origin, and the three
+ * undecomposed proxies sit in a column outside the ring.
  *
  * **A node the graph holds and this function cannot place does not exist**: a
  * node whose `cluster` is a sector gets a wedge, a node whose cluster is `null`
@@ -299,7 +468,12 @@ function fromTwelve(turn: number, distance: number): { x: number; y: number } {
  * placed in the column with them — `placements.length === nodes.length` is the
  * assertion a reader can make, and it is unconditional.
  */
-export function buildTopologyLayout(graph: TopologyGraph): TopologyLayout {
+export function buildTopologyLayout(
+  graph: TopologyGraph,
+  options?: TopologyLayoutOptions,
+): TopologyLayout {
+  const ringRadiusX = options?.ringRadiusX ?? TOPOLOGY_RING_RADIUS_X;
+  const ringRadiusY = options?.ringRadiusY ?? TOPOLOGY_RING_RADIUS_Y;
   // Member counts come from the CLUSTERS rather than from a second pass over
   // the nodes, so the wedge a sector gets and the spiral its members sit on are
   // derived from one list. Two passes would be two answers the day a cluster's
@@ -326,8 +500,9 @@ export function buildTopologyLayout(graph: TopologyGraph): TopologyLayout {
 
   // **The wedge allocation, computed ONCE.** Both loops below need a sector's
   // centroid — the members' spiral is centred on it and the benchmark ETF sits
-  // exactly on it — and recomputing the cumulative angle in the second loop
-  // would be two spellings of one geometry, which is the shape that drifts.
+  // exactly on it — and recomputing the cumulative arc length in the second
+  // loop would be two spellings of one geometry, which is the shape that
+  // drifts.
   //
   // `totalRadius <= 0` is a universe with no equities at all: CI's store after
   // a migration but before `pnpm universe`, which `CLAUDE.md` records as having
@@ -336,12 +511,22 @@ export function buildTopologyLayout(graph: TopologyGraph): TopologyLayout {
   const centroids = new Map<Sector, { x: number; y: number }>();
 
   if (totalRadius > 0) {
-    let turn = 0;
+    const { entries: arcTable, totalArcLength } = buildArcLengthTable(
+      ringRadiusX,
+      ringRadiusY,
+    );
+    let cumulativeRadius = 0;
 
     for (const sector of SECTORS) {
-      const span = (2 * Math.PI * radiusOf(sector)) / totalRadius;
-      centroids.set(sector, fromTwelve(turn + span / 2, TOPOLOGY_RING_RADIUS));
-      turn += span;
+      const startArc = (totalArcLength * cumulativeRadius) / totalRadius;
+      cumulativeRadius += radiusOf(sector);
+      const endArc = (totalArcLength * cumulativeRadius) / totalRadius;
+      const turn = bearingAtArcLength(arcTable, (startArc + endArc) / 2);
+
+      centroids.set(sector, {
+        x: ringRadiusX * Math.sin(turn),
+        y: -ringRadiusY * Math.cos(turn),
+      });
     }
   }
 
@@ -405,9 +590,7 @@ export function buildTopologyLayout(graph: TopologyGraph): TopologyLayout {
   }
 
   const columnX =
-    TOPOLOGY_RING_RADIUS +
-    Math.max(...SECTORS.map(radiusOf), 0) +
-    PROXY_CLEARANCE;
+    ringRadiusX + Math.max(...SECTORS.map(radiusOf), 0) + PROXY_CLEARANCE;
 
   for (const [ordinal, symbol] of column.entries()) {
     placements.push({

@@ -6133,4 +6133,74 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "no-renderer-type-in-the-graph-model",
   },
+  {
+    name: "angle-proportional-wedge-allocation-returns",
+    proves:
+      "Task 6.2.2's whole fix was allocating each sector's wedge by ARC " +
+      "LENGTH along the elliptical ring rather than by angle — the stretch " +
+      "alone is not the fix, the allocation rule is. This plant reverts " +
+      "`buildTopologyLayout`'s `turn` to the OLD angle-proportional formula " +
+      "algebraically (re-derived from the in-scope arc-length variables, so " +
+      "it needs no other line changed), and confirms a dedicated unit test " +
+      "catches it.\n\n" +
+      "**The shipped default (`800×340`) does not distinguish the two " +
+      "allocation rules** — angle-proportional there still clears by 42.94 " +
+      "units, measured — so a break on the shipped radii alone would prove " +
+      "nothing. The test this proves is built around the canvas's own first " +
+      "elliptical recommendation, `540×185`, where the two rules diverge: " +
+      "angle-proportional produces the design work's own `−53.2-unit` " +
+      "`health_care`/`financials` overlap, and arc-length allocation (the " +
+      "SHIPPED `buildTopologyLayout`, called with those radii) does not. " +
+      "This plant also turns the real 1440 label-clearance box negative, " +
+      "which is a second, independent symptom of the same defect.",
+    file: "packages/shared/src/topology-layout.ts",
+    find: "      const turn = bearingAtArcLength(arcTable, (startArc + endArc) / 2);",
+    replace:
+      "      // pnpm break: reverted automatically — algebraically equal to the\n" +
+      "      // OLD angle-proportional turn, since (startArc+endArc)/totalArcLength\n" +
+      "      // is the same cumulative-radius fraction the arc-length table was\n" +
+      "      // built to replace.\n" +
+      "      const turn = (Math.PI * (startArc + endArc)) / totalArcLength;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/shared",
+      "test",
+      "topology-layout",
+    ],
+    expect:
+      "is the arc-length allocation that fixes disjointness, not the stretch alone",
+  },
+  {
+    name: "the-ring-shrinks-under-the-label-threshold",
+    proves:
+      "`TOPOLOGY_SECTOR_LABEL_MIN_SCALE` (`renderer-canvas.ts`, duplicated " +
+      "as a number in `topology-layout.test.ts` for the same reason " +
+      "`FIT_MARGIN` already is) only does its job while the three narrower " +
+      "real content boxes `/` resolves to (1024, 768, 390) stay BELOW it. " +
+      "Shrinking the ring is the ordinary-looking change that would silently " +
+      "break that precondition: a smaller extent raises every box's fit " +
+      "scale, and nothing before this test would have noticed one crossing " +
+      "the threshold — the renderer would simply start drawing a sector " +
+      "label at a box this story proved negative.\n\n" +
+      "`TOPOLOGY_RING_RADIUS_X: 800 → 600` is the plant: 1024's real " +
+      "content box (`570×425`) crosses from 0.3033 to 0.3852, above " +
+      "`SECTOR_LABEL_MIN_SCALE`. The test this proves is the shared-package " +
+      "half of Decision 8 — the frontend's own draw loop is Canvas2D and " +
+      "unreachable below `pnpm probe`, which is why this precondition is " +
+      "what is mechanically guarded rather than the pixels themselves.",
+    file: "packages/shared/src/topology-layout.ts",
+    find: "export const TOPOLOGY_RING_RADIUS_X = 800;",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export const TOPOLOGY_RING_RADIUS_X = 600;",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/shared",
+      "test",
+      "topology-layout",
+    ],
+    expect: "draws no sector label at all below SECTOR_LABEL_MIN_SCALE",
+  },
 ];
