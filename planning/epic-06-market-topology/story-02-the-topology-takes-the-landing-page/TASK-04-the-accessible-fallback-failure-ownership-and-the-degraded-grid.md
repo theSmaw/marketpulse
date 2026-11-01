@@ -1,6 +1,14 @@
 # Task 6.2.4 — The Accessible Fallback, Failure Ownership, & the Degraded Grid
 
-**Status:** Not started
+**Status:** **Complete — 2026-11-01.** `onRetry` wired to the real
+`useSecurities().retry`; the drawn graph has a visually-hidden text
+equivalent referenced by `aria-labelledby`; `Reading the tracked universe.`
+moves behind the 2,000ms floor; the source note's new `Classification`
+clause renders only while a graph is drawn; the degraded grid grows to 17
+states × 4 widths × 9 surfaces with `Market topology` declared constant
+across the aggregate axis and carrying its own four rows on the
+universe-request axis — and a real race in the pre-floor row was found and
+excluded rather than papered over.
 **Story:** [6.2 The Topology Takes the Landing Page](STORY.md)
 **Depends on:** 6.2.1
 
@@ -85,6 +93,129 @@ overview-degraded-grid.spec.ts` and the other touched specs are green.
 
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-11-01
 
-## For a stakeholder — a status report, YYYY-MM-DD
+- **Real retry.** `MarketOverview.tsx` now destructures `retry` as
+  `retryUniverse` from `useSecurities()` (it previously took only `view`) and
+  passes it to `MarketTopology` as `onRetry`; the placeholder
+  `retryNotWiredYet` is deleted.
+- **The text equivalent.** `MarketTopology.tsx` gains
+  `topologyDrawnSentence(graph)`, a `useId()`-generated id, and a
+  visually-hidden `<p>` (`composes: visuallyHidden from
+"../../styles/a11y.module.css"`) rendered as a sibling of the canvas. The
+  canvas's `role="img"` and `aria-labelledby` are set via
+  `canvas.setAttribute()` in `renderer-canvas.ts` (the canvas is created
+  imperatively, not through JSX) and threaded through a new
+  `labelledBy?: string` field on `TopologyRendererOptions`.
+- **The 2,000ms floor.** `Reading the tracked universe.` is now gated by
+  `useWaited(universe.state === "loading")`, matching
+  `MarketProxyStrip`/`SectorPerformance`/`Unusual`'s existing pattern exactly.
+- **The source note's new clause.** `OverviewSourceNoteView` gained a
+  `classification: boolean` field; `toOverviewSourceNote` takes a third
+  `topologyDrawn` parameter and sets it; `OverviewSourceNote.tsx` renders a
+  `dt`/`dd` pair reusing `CLASSIFICATION_CLAIM` from `SourceNote`, last in the
+  list, only while a graph is drawn (ADR 0029's per-clause rule). All 23
+  `toOverviewSourceNote(...)` call sites in `overview-source-note.test.ts` and
+  all 10 `<OverviewSourceNote .../>` JSX usages in `OverviewSourceNote.test.tsx`
+  were updated to carry the new argument/prop.
+- **A real `MarketTopologyHandle`**, exported from `MarketTopology.tsx` via
+  React 19's native `ref`-as-prop (`resetView(): void`), wired to a `Reset
+view` button in `MarketOverview.tsx`'s `Market topology` region meta slot —
+  built because the reset affordance already existed on the renderer
+  (`fit.ts`'s `reviewport`) and Task 6.2.3 had already needed `reset()` on
+  `TopologyRenderer`.
+- **The degraded grid's two-axis extension.** `Market topology` is now the
+  sixth region / ninth surface in `overview-degraded-grid.spec.ts`. Four new
+  states (18-21) drive real `page.route(SECURITIES_ROUTE_PATTERN, ...)`
+  handlers — abort (unreachable), a `503` `ApiError` (retryable), a `500`
+  `ApiError` (not retryable), and an empty `200` array — each asserted against
+  the matching sentence. A new explicit block proves `Market topology`'s
+  reading is byte-identical across every **aggregate-only** row, after
+  discovering and excluding the one row read deliberately pre-floor (see
+  below). Row `13-universe-outstanding`'s stale comment ("reaches the same
+  screen and is the failure case") is corrected with a dated note. `NOTE_TERMS`
+  gained `"Classification"`.
+- **`MARKET-OVERVIEW.md` §7.3** gained a dated 2026-11-01 amendment recording
+  `Market topology` as the first declared exception to "a content class is one
+  aggregate" — it is a function of the universe request, not the aggregate —
+  and the grid's new 17×4×9 size.
+- **A real race, found rather than assumed.** The first run of the new
+  constant-across-aggregate-rows assertion failed:
+  `02-no-aggregate-after-the-floor reads a DIFFERENT Market topology than
+01-no-aggregate-before-the-floor`. Row `01` is deliberately read pre-floor
+  (`preFloor: true`), before the real, unmocked `GET /securities` request to
+  the local backend has necessarily resolved — independent of the 2,000ms
+  sentence floor. Fixed by excluding `preFloor === true` rows from the
+  aggregate-only constant-check set, with a comment citing the race.
+- **A second regression, found by CI rather than by the regression sweep —
+  `overview-source-note.spec.ts`.** That spec was not in the six-spec sweep
+  this task's own verification pass ran, and it keeps an independent,
+  hand-written `TERMS` list used to locate the note's `<dl>` by its complete
+  set of `dt` texts. The new `Classification` clause broke that lookup
+  outright (the note has a `dt` the list didn't know, so the filter matched
+  no `<dl>` at all) — CI's `verify` and `database` jobs passed, and `e2e`
+  failed two tests with `expect(received).not.toBeNull() / Received: null`.
+  Fixed by adding `"Classification"` to `TERMS`. That surfaced a second,
+  real finding: the spec's own `"CI's store: 518 securities and zero bars"`
+  row asserted the note draws **nothing** in that state, which was true
+  before this task and is **no longer true** — `topologyDrawn` is a fact
+  about the universe request, not the aggregate, and CI's store has 516
+  securities with zero bars, so the real, unmocked `GET /securities` behind
+  every row in this spec resolves everywhere, including that one. The
+  assertion is corrected to expect the Classification-only note
+  (`CLASSIFICATION Sector and industry are curated, not from the market
+feed.`), with a dated comment explaining why the old expectation went
+  stale.
+
+### Gates
+
+- `pnpm build` — passed.
+- `pnpm lint` — clean, 0 warnings.
+- `pnpm format:check` — clean.
+- `pnpm test` — 659 (backend) + 1344 (shared) + 1716 (frontend) all passed
+  (frontend rose from 1710 to 1716 with this task's new tests).
+- `pnpm invariants` — 80/80 hold.
+- `pnpm links` — 0 broken.
+- `pnpm stories` — 45/45.
+- `pnpm e2e overview-no-element-per-security.spec.ts` — 1/1 passed (Done-when
+  #6).
+- `pnpm e2e overview-degraded-grid.spec.ts` — green at all 4 widths (17 states
+  × 4 widths × 9 surfaces), after the preFloor-race fix.
+- Regression sweep — `pnpm e2e overview-region-order.spec.ts
+landing-route.spec.ts overview-sector-order.spec.ts securities-route.spec.ts
+overview-movers-hold.spec.ts overview-sector-region.spec.ts` — **40 passed
+  (43.1s)**, no regressions elsewhere on the route from this task's changes.
+- `pnpm e2e overview-source-note.spec.ts` — **not in the sweep above, and CI's
+  `e2e` job caught what it missed**: 2 tests failed
+  (`expect(received).not.toBeNull()`) because the spec's own hand-written
+  `TERMS` list didn't know the new `Classification` `dt`, so its `<dl>`
+  locator matched nothing. Fixed in the same PR by adding the term and
+  correcting one stale assertion the fix then exposed (the CI-store row,
+  previously asserted to draw no note at all, now correctly asserted to draw
+  the Classification clause alone) — re-run locally, 2/2 green.
+
+## For a stakeholder — a status report, 2026-11-01
+
+The market topology region on the landing page now behaves like every other
+region on that screen instead of being the one silent exception. If the
+universe request fails, there's a real `Try again` button that actually
+retries — previously it was wired to nothing. A screen reader now gets a real
+sentence describing the graph ("11 sectors...") instead of an unlabelled
+picture, and the loading message only appears after a genuine two-second wait
+rather than flashing on every load. The page's source note at the bottom now
+states, only when the graph is actually drawn, that sector and industry
+groupings are curated rather than pulled from the live market feed.
+
+The degraded-states test suite — the one that photographs every way this page
+can look when something's wrong — grew to cover the topology's own four
+failure modes (can't reach the server, a retryable server error, a
+non-retryable one, and an empty universe), on top of the three failure modes
+every other region already shared. Building that out found a real, if minor,
+timing race in the test itself (not in the product): one row was being read
+before a background network request had necessarily finished, which would
+have made an unrelated assertion flaky. That's now excluded with an
+explanation rather than silently tolerated.
+
+Nothing was deliberately left undone against this task's own checklist. A
+regression sweep across six other landing-page specs (40 tests) confirms
+nothing else on the route broke.

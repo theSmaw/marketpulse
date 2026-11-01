@@ -155,12 +155,20 @@ async function serve(
  * zero bars and no baseline. It is listed anyway because {@link noteOf}
  * requires every `dt` to be known, so an unlisted term would make the note
  * unfindable on a developer's store rather than failing an assertion.
+ *
+ * **`Classification` is last, added by Task 6.2.4** — the one term here that
+ * is not a function of `overview` at all: it is a fact about the universe
+ * REQUEST (`MarketTopology`'s own `useSecurities()` call), which this spec
+ * never mocks, so it draws on every row below whenever the real backend
+ * serves securities — which is every row, on every store that exists,
+ * CI's zero-bar one included.
  */
 const TERMS = [
   "Observed prices",
   "Closing prices",
   "Observed through",
   "Baselines",
+  "Classification",
 ];
 
 /**
@@ -174,7 +182,8 @@ const TERMS = [
  */
 const DRAWN_TERMS = TERMS.map((term) => term.toUpperCase());
 
-const [, CLOSES_TERM = "", THROUGH_TERM = ""] = DRAWN_TERMS;
+const [, CLOSES_TERM = "", THROUGH_TERM = "", , CLASSIFICATION_TERM = ""] =
+  DRAWN_TERMS;
 
 /**
  * **The note as a reader meets it, as one string** — or `null` where it draws
@@ -356,9 +365,16 @@ test("the states, produced and compared as strings", async ({ page }) => {
     expect(drawn.get(label)).toContain(CLOSES_TERM);
   }
 
-  // **CI's state draws no note at all** — every figure is `unknown`, so there
-  // is nothing on the screen for a footnote to qualify.
-  expect(drawn.get("CI's store: 518 securities and zero bars")).toBeNull();
+  // **CI's state draws the Classification clause and nothing else** — every
+  // overview figure is `unknown`, so the four aggregate-derived clauses have
+  // nothing to qualify, but `topologyDrawn` is a fact about the universe
+  // request rather than about this aggregate (Task 6.2.4) and CI's store
+  // does hold 516 securities. Corrected from a prior "no note at all" — that
+  // was true before Story 6.2 gave this screen a clause with its own,
+  // independent source of truth.
+  expect(drawn.get("CI's store: 518 securities and zero bars")).toBe(
+    `${CLASSIFICATION_TERM} Sector and industry are curated, not from the market feed.`,
+  );
 
   // **No two rows read identically** except the pair that must — the check
   // Story 3.10's nine-state pass made its own: a grid whose rows collapse is

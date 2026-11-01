@@ -24,8 +24,8 @@
 // reserved box and a half-drawn graph.
 
 import { createRef } from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   FIXTURE_REQUEST_ID,
@@ -33,6 +33,7 @@ import {
   securitiesFixtureRetryingView,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
+import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { MarketTopology } from "./MarketTopology.js";
 import type { MarketTopologyHandle } from "./MarketTopology.js";
 
@@ -42,13 +43,50 @@ function canvas(): HTMLCanvasElement | null {
 }
 
 describe("MarketTopology", () => {
-  it("says it is reading the universe, and mounts no canvas while it is", () => {
-    render(
-      <MarketTopology universe={LOADING_UNIVERSE} onRetry={() => undefined} />,
-    );
+  describe("while the universe is loading", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
 
-    expect(screen.getByText("Reading the tracked universe.")).toBeDefined();
-    expect(canvas()).toBeNull();
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("says nothing for the wait a real universe request takes — Task 6.2.4", () => {
+      render(
+        <MarketTopology
+          universe={LOADING_UNIVERSE}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS - 1);
+      });
+
+      // Measured 174–277 ms, five runs against a local pair (the same figure
+      // `use-waited.ts`'s own account cites) — the ordinary load never
+      // reaches here, and drawing the sentence immediately would flash it on
+      // every cold load of `/`.
+      expect(screen.queryByText("Reading the tracked universe.")).toBeNull();
+      expect(canvas()).toBeNull();
+    });
+
+    it("says it is reading the universe past the floor, and mounts no canvas", () => {
+      render(
+        <MarketTopology
+          universe={LOADING_UNIVERSE}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(SAY_NOTHING_ARRIVED_AFTER_MS);
+      });
+
+      expect(screen.getByText("Reading the tracked universe.")).toBeDefined();
+      expect(canvas()).toBeNull();
+    });
   });
 
   it("says an empty universe has no market to draw, as DOM text", () => {
@@ -183,5 +221,30 @@ describe("MarketTopology", () => {
     expect(screen.queryByText(/Reference/)).toBeNull();
     expect(screen.getByRole("button", { name: /Try again/ })).toBeDefined();
     expect(screen.getByText(/Nothing answered at the service/)).toBeDefined();
+  });
+
+  it("gives the drawn graph a text equivalent naming no count or ticker another surface owns — Task 6.2.4", () => {
+    // jsdom has no 2d context, so the mount effect throws and a DIFFERENT
+    // paragraph (`The market topology could not be drawn…`) is appended
+    // imperatively — but the sentence under test is part of this
+    // component's own SYNCHRONOUS render output, before that effect ever
+    // runs, so it is reachable here regardless.
+    render(
+      <MarketTopology
+        universe={securitiesFixtureView("full")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const sentence = screen.getByText(/A graph of every security we track/);
+
+    expect(sentence.tagName).toBe("P");
+    // The real fixture has all eleven sectors, read off the graph rather
+    // than hard-coded a second place.
+    expect(sentence.textContent).toContain("11 sectors");
+    // `516` has one home already (`measured-set.ts`) and no ticker belongs
+    // in a hidden paragraph — a wall of symbols is not a fallback.
+    expect(sentence.textContent).not.toMatch(/\d{3}/);
+    expect(sentence.textContent).not.toMatch(/\b[A-Z]{2,5}\b/);
   });
 });

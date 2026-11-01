@@ -163,12 +163,21 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   container: HTMLElement,
   options: TopologyRendererOptions,
 ): TopologyRenderer => {
-  const { graph, layout, palette, probe } = options;
+  const { graph, layout, palette, probe, labelledBy } = options;
 
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
+  // **A text equivalent, not a second string** (Task 6.2.4). `role="img"`
+  // plus `aria-labelledby` points a screen reader at the sentence
+  // `MarketTopology.tsx` already renders as a visually-hidden sibling, rather
+  // than duplicating it here as `aria-label` — one fact, one home, same rule
+  // `Movers`' slot and the proxy column's heading already follow.
+  if (labelledBy !== undefined) {
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-labelledby", labelledBy);
+  }
   // **`pan-y`, not `none`** (Task 6.2.3). This renderer was built for an
   // isolated Storybook iframe with nothing to scroll past, where `none` cost
   // nothing; moved onto `/` unmodified it would make the page's primary

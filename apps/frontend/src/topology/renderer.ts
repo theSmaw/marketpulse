@@ -81,6 +81,16 @@ export interface TopologyRendererOptions {
    * DOM. Nothing in the application passes one.
    */
   readonly probe?: (() => void) | undefined;
+  /**
+   * The id of a sibling element holding this graph's text equivalent (Task
+   * 6.2.4). A canvas has no accessible content of its own, so the mounted
+   * `<canvas>` takes `role="img"` and `aria-labelledby` pointing here —
+   * never `aria-label`, which would be a second copy of the string the
+   * one-fact-one-home rule forbids. Undefined mounts a canvas with neither
+   * attribute, which is correct for a Storybook permutation that has no
+   * sentence beside it to point to.
+   */
+  readonly labelledBy?: string | undefined;
 }
 
 /** A mounted renderer. */
