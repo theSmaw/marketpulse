@@ -147,6 +147,25 @@ view` button in `MarketOverview.tsx`'s `Market topology` region meta slot —
   the local backend has necessarily resolved — independent of the 2,000ms
   sentence floor. Fixed by excluding `preFloor === true` rows from the
   aggregate-only constant-check set, with a comment citing the race.
+- **A second regression, found by CI rather than by the regression sweep —
+  `overview-source-note.spec.ts`.** That spec was not in the six-spec sweep
+  this task's own verification pass ran, and it keeps an independent,
+  hand-written `TERMS` list used to locate the note's `<dl>` by its complete
+  set of `dt` texts. The new `Classification` clause broke that lookup
+  outright (the note has a `dt` the list didn't know, so the filter matched
+  no `<dl>` at all) — CI's `verify` and `database` jobs passed, and `e2e`
+  failed two tests with `expect(received).not.toBeNull() / Received: null`.
+  Fixed by adding `"Classification"` to `TERMS`. That surfaced a second,
+  real finding: the spec's own `"CI's store: 518 securities and zero bars"`
+  row asserted the note draws **nothing** in that state, which was true
+  before this task and is **no longer true** — `topologyDrawn` is a fact
+  about the universe request, not the aggregate, and CI's store has 516
+  securities with zero bars, so the real, unmocked `GET /securities` behind
+  every row in this spec resolves everywhere, including that one. The
+  assertion is corrected to expect the Classification-only note
+  (`CLASSIFICATION Sector and industry are curated, not from the market
+feed.`), with a dated comment explaining why the old expectation went
+  stale.
 
 ### Gates
 
@@ -166,6 +185,14 @@ view` button in `MarketOverview.tsx`'s `Market topology` region meta slot —
 landing-route.spec.ts overview-sector-order.spec.ts securities-route.spec.ts
 overview-movers-hold.spec.ts overview-sector-region.spec.ts` — **40 passed
   (43.1s)**, no regressions elsewhere on the route from this task's changes.
+- `pnpm e2e overview-source-note.spec.ts` — **not in the sweep above, and CI's
+  `e2e` job caught what it missed**: 2 tests failed
+  (`expect(received).not.toBeNull()`) because the spec's own hand-written
+  `TERMS` list didn't know the new `Classification` `dt`, so its `<dl>`
+  locator matched nothing. Fixed in the same PR by adding the term and
+  correcting one stale assertion the fix then exposed (the CI-store row,
+  previously asserted to draw no note at all, now correctly asserted to draw
+  the Classification clause alone) — re-run locally, 2/2 green.
 
 ## For a stakeholder — a status report, 2026-11-01
 
