@@ -7,6 +7,7 @@ import {
   BreadthLedgerReservation,
 } from "../components/BreadthLedger/BreadthLedger.js";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
+import { MarketTopology } from "../components/MarketTopology/MarketTopology.js";
 import {
   Movers,
   MoversMeta,
@@ -765,12 +766,42 @@ export function MarketOverview({
           )}
         </Region>
 
-        <Region
-          className={styles.areaTopology}
-          name="Market topology"
-          awaiting="Epic 6"
-          filledBy="The securities graph, in WebGL — 516 nodes clustered by sector, sized by liquidity, moving with the market. It takes the full width of this screen when it arrives."
-        />
+        {/*
+         * **The landing page's primary area, drawing the market** (Task
+         * 6.2.1) — the region this screen has been reserving a band for since
+         * 2026-09-25.
+         *
+         * **No `filledBy` and no `awaiting`.** The sentence it had said *"the
+         * securities graph, in WebGL — 516 nodes clustered by sector, sized by
+         * liquidity, moving with the market"*, and this epic has falsified all
+         * three of those claims: ADR 0048 ships a hand-rolled Canvas2D
+         * renderer, a node's size encodes its **kind** rather than its
+         * liquidity, and nothing moves with the market until Story 6.7. It
+         * goes with the hatch rather than being rewritten, which is this
+         * screen's own judgement every time a region has been filled: a
+         * caption for a drawing immediately below it is a second home for
+         * what the drawing says.
+         *
+         * **The universe is the `useSecurities()` call this route already
+         * makes** — the movers' name map has read it since Task 4.5.5 — so
+         * mounting a graph of 516 securities here adds **no request**. The
+         * region's own absence states are the component's, which is Story
+         * 6.1's acceptance criterion 7: DOM text sibling to the canvas, not a
+         * sentence painted into it.
+         */}
+        <Region className={styles.areaTopology} name="Market topology">
+          <MarketTopology
+            universe={universe}
+            /*
+             * **Task 6.2.4 replaces this with `useSecurities().retry`.** That
+             * story's Decision 3 makes this region the owner of *the tracked
+             * universe is not available* — the sentence, the control and the
+             * retry wiring are one change, and splitting the wiring off into
+             * this task would ship a `Try again` that does nothing.
+             */
+            onRetry={retryNotWiredYet}
+          />
+        </Region>
 
         {/*
          * **The landing page's last reserved region, filled** (Task 5.4.3).
@@ -879,3 +910,22 @@ const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map<string, Bar>();
 /** The same, for the universe that has not arrived — see `names`. */
 const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();
+
+/**
+ * **A placeholder for one task: Task 6.2.4 replaces this with `retry` from the
+ * `useSecurities()` call this route already makes.**
+ *
+ * `MarketTopologyProps.onRetry` is required rather than optional — Task 6.1.3's
+ * decision, because an omitted handler takes the `Try again` control off a
+ * failed screen *silently* and an absent control is how this product says
+ * **trying again will not help**. So the prop cannot be left off while Story
+ * 6.2 builds the region's failure ownership in its own task, and what stands in
+ * is a named no-op rather than an inline arrow: module scope so its identity is
+ * stable across every one of this route's 13.6–32.2 renders a minute, and a
+ * name so the thing this is waiting for is readable at the call site.
+ *
+ * **It is reachable**: a `GET /securities` that fails retryably draws a control
+ * that does nothing for the length of this task. Named here rather than left
+ * implicit so that it is one grep away.
+ */
+const retryNotWiredYet = (): void => undefined;

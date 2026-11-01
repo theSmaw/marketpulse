@@ -20,8 +20,34 @@
   line-height: var(--line-height-dense);
 }
 
+/*
+ * The slot, and since 2026-10-31 (Task 6.2.1) the middle link in the chain that
+ * gives a region's contents a real height rather than only a real width.
+ *
+ * `Panel.body` is a flex column that grows into the panel's resolved box, so
+ * this is a flex item: `1 0 auto` is **grow into the room that is left, never
+ * shrink below the contents**. The shrink is `0` deliberately and it is the
+ * half that preserves today's behaviour exactly — a region shorter than its
+ * contents overflows and `Panel`'s own `overflow: auto` scrolls it, which is
+ * what the two short-viewport rows in `MARKET-OVERVIEW.md` §1.6 are measuring.
+ * With shrink at its default `1` this box would absorb the overflow instead and
+ * those figures would move.
+ */
 .content {
+  flex: 1 0 auto;
   margin-top: var(--space-16);
+  /*
+   * **Added 2026-11-01 by Task 6.2.1, for one consumer and a circular
+   * dependency rather than a stylistic preference.** `MarketTopology`'s
+   * `.frame` sizes itself with `position: absolute; inset: 0` rather than a
+   * percentage height, because a percentage here would measure against this
+   * element's own `auto` flex-basis — which in turn measures `.frame` as
+   * in-flow content, which needed the percentage first. `position: relative`
+   * is what makes this the absolute child's containing block; it has no
+   * visible effect on anything else, because no other consumer of `.content`
+   * has an absolutely-positioned child today.
+   */
+  position: relative;
 }
 
 /*

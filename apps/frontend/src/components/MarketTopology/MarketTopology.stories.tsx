@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 
 import { SECTOR_ETFS } from "@marketpulse/shared";
 import type { SecuritiesResponse } from "@marketpulse/shared";
@@ -156,9 +156,29 @@ const MARKET_PROXIES = filteredUniverse(
     ),
 );
 
+/**
+ * **The box, because the workshop is not a layout** (Task 6.2.1).
+ *
+ * `.frame` is `block-size: 100%` since the `--topology-height` constant was
+ * removed, and on `/` the height comes from the grid row through `Panel` and
+ * `Region`. Storybook has no grid row, so a story rendered bare would resolve
+ * `100%` against an `auto` parent and draw a frame 0 px tall.
+ *
+ * **520 px, which is the figure ADR 0048's frame-rate arms were taken at**, so
+ * every story in this file is the same picture it was before the constant went
+ * — the number has simply moved to the one place a typed box is honest.
+ * `Unusual.stories.tsx`' own sizing decorator is the precedent.
+ */
+const inABox: Decorator = (Story) => (
+  <div style={{ height: 520 }}>
+    <Story />
+  </div>
+);
+
 const meta = {
   title: "Components/MarketTopology",
   component: MarketTopology,
+  decorators: [inABox],
   parameters: { layout: "padded" },
   // `onRetry` is required and in the workshop it is a no-op: what the `failed`
   // stories are for is the sentence, the control's two words and the reference,

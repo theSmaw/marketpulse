@@ -82,7 +82,36 @@
   text-align: right;
 }
 
+/*
+ * The body fills whatever the panel has left over, and it is a flex column so
+ * that what is inside it can be told the same thing.
+ *
+ * **Added 2026-10-31 by Task 6.2.1, for one consumer and one reason.** A canvas
+ * cannot be sized by its content — it has none — so Epic 6's topology needs a
+ * box whose height comes from the panel the grid already sized. Before this,
+ * the chain stopped here: `.panel` had a resolved height from its grid row,
+ * `.body` was content-sized, and a `block-size: 100%` below it resolved against
+ * `auto` and collapsed to nothing. `MarketTopology` shipped a
+ * `var(--topology-height, 520px)` fallback instead, with nothing anywhere
+ * setting the variable — a constant dressed as a box.
+ *
+ * **`flex-grow` rather than `flex: 1`**: the shorthand also sets
+ * `flex-basis: 0`, which throws away the body's own content height as the
+ * starting point. Growth is the only thing wanted here, and shrink is already
+ * `1` and already load-bearing — `.panel` is the `overflow: auto` scroller and
+ * a region shorter than its contents has to keep scrolling exactly as it did.
+ *
+ * **Measured rather than argued, because this is the one component `Region`
+ * sits on and `Region` draws 7 regions on `/` and 8 on `/securities/:symbol`.**
+ * Probed before and after at four widths on both routes and at thirteen
+ * width/height pairs on `/`: every one of the 15 region boxes, and every box
+ * inside them, is unchanged to the pixel. Nothing but the topology asks the
+ * body for a height.
+ */
 .body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
   padding: var(--space-16);
   min-height: 0;
 }
