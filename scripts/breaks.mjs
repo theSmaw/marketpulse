@@ -6203,4 +6203,23 @@ export const BREAKS = [
     ],
     expect: "draws no sector label at all below SECTOR_LABEL_MIN_SCALE",
   },
+  {
+    name: "a-topology-pan-with-no-way-back",
+    proves:
+      "`panBy` clamps, so a reader cannot drag the market off-canvas with no " +
+      "way back except a page reload (Task 6.2.3) — built for an isolated " +
+      "Storybook iframe with nothing to scroll past, where an unclamped pan " +
+      "cost nothing, and found by shaping before this renderer reached `/`. " +
+      "This plant reverts `panBy` to that pre-task shape: the raw, unbounded " +
+      "`view.panX + deltaX` / `view.panY + deltaY` it was before " +
+      "`clampPan` existed.",
+    file: "apps/frontend/src/topology/fit.ts",
+    find: "    ...clampPan(view, view.panX + deltaX, view.panY + deltaY),",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    panX: view.panX + deltaX,\n" +
+      "    panY: view.panY + deltaY,",
+    command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "fit.test"],
+    expect: "clamps a pan that would take the market off screen entirely",
+  },
 ];

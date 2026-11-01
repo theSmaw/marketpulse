@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { Bar } from "@marketpulse/shared";
 
@@ -6,8 +6,10 @@ import {
   BreadthLedger,
   BreadthLedgerReservation,
 } from "../components/BreadthLedger/BreadthLedger.js";
+import { Button } from "../components/Button/Button.js";
 import { MarketProxyStrip } from "../components/MarketProxyStrip/MarketProxyStrip.js";
 import { MarketTopology } from "../components/MarketTopology/MarketTopology.js";
+import type { MarketTopologyHandle } from "../components/MarketTopology/MarketTopology.js";
 import {
   Movers,
   MoversMeta,
@@ -102,6 +104,16 @@ export function MarketOverview({
   const overview = liveFeed?.overview;
   const observations = liveFeed?.observations ?? EMPTY_OBSERVATIONS;
   const fromSnapshot = liveFeed?.fromSnapshot ?? EMPTY_SNAPSHOT;
+
+  /**
+   * **The way back from a drag or a zoom, with no reload** (Task 6.2.3).
+   * `Reset view` lives in `Region`'s `meta` slot — outside `MarketTopology`'s
+   * own render tree — so reaching the mounted renderer from there needs an
+   * imperative handle rather than a prop: there is no STATE here to hold
+   * and re-pass, only a command aimed at a resource the component already
+   * owns.
+   */
+  const topology = useRef<MarketTopologyHandle>(null);
 
   /*
    * **The sector rows, derived once per frame — the first of this task's two
@@ -789,8 +801,32 @@ export function MarketOverview({
          * 6.1's acceptance criterion 7: DOM text sibling to the canvas, not a
          * sentence painted into it.
          */}
-        <Region className={styles.areaTopology} name="Market topology">
+        <Region
+          className={styles.areaTopology}
+          name="Market topology"
+          /*
+           * **`Reset view` — the way back from a drag or a zoom with no
+           * reload** (Task 6.2.3). A no-op while nothing is mounted
+           * (`MarketTopologyHandle.resetView`'s own contract), so the button
+           * is always present rather than appearing and disappearing with
+           * the universe's state — the same reasoning `Region` itself
+           * applies to being a tab stop unconditionally (ADR 0039):  a
+           * control that comes and goes under a reader is worse than one
+           * that is briefly inert.
+           */
+          meta={
+            <Button
+              aria-label="Reset view — the market topology"
+              variant="secondary"
+              icon="refresh"
+              onClick={() => topology.current?.resetView()}
+            >
+              Reset view
+            </Button>
+          }
+        >
           <MarketTopology
+            ref={topology}
             universe={universe}
             /*
              * **Task 6.2.4 replaces this with `useSecurities().retry`.** That

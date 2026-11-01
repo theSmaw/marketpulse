@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef } from "react";
+import type { Ref } from "react";
 
 import type {
   SecuritiesFailure,
@@ -68,14 +69,50 @@ export interface MarketTopologyProps {
    * `retryable`; see the branch below.
    */
   readonly onRetry: () => void;
+
+  /**
+   * Imperative access to the mounted renderer — `resetView` only, today.
+   *
+   * **A ref rather than a prop**, because what it carries (`fitView` again,
+   * right now) is not state a parent holds and re-passes; it is a command
+   * aimed at an imperative resource this component already owns (the module
+   * docblock's own argument for why the renderer lives in an effect at all).
+   * React 19 takes `ref` as a plain prop, so no `forwardRef` wrapper.
+   */
+  readonly ref?: Ref<MarketTopologyHandle>;
+}
+
+/** What a caller can ask this component to do. See {@link MarketTopologyProps.ref}. */
+export interface MarketTopologyHandle {
+  /**
+   * Fit the view fresh — zoom back to 1, pan back to 0 (Task 6.2.3). The
+   * `Reset view` control's whole mechanism: a clamped pan means a reader can
+   * never lose the market entirely, but it is still a market that has been
+   * dragged and zoomed, and this is the way back with no reload.
+   *
+   * **A no-op while nothing is mounted** (loading, empty, failed, or no
+   * renderer could start) — there is nothing to reset, and a caller does not
+   * have to ask first.
+   */
+  resetView(): void;
 }
 
 export function MarketTopology({
   universe,
   probe,
   onRetry,
+  ref,
 }: MarketTopologyProps) {
   const frame = useRef<HTMLDivElement>(null);
+  const renderer = useRef<TopologyRenderer | null>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      resetView: () => renderer.current?.reset(),
+    }),
+    [],
+  );
 
   const securities = universe.state === "loaded" ? universe.securities : null;
 
@@ -95,6 +132,7 @@ export function MarketTopology({
         palette: topologyPalette(),
         probe,
       });
+      renderer.current = mounted;
     } catch (error) {
       // **A throw inside an effect is a render error, and nothing above `App`
       // catches one — the page goes blank.** `CLAUDE.md` records that as a
@@ -117,6 +155,7 @@ export function MarketTopology({
     }
 
     return () => {
+      if (renderer.current === mounted) renderer.current = null;
       mounted?.destroy();
       refusal?.remove();
     };

@@ -132,6 +132,42 @@ describe("the transform", () => {
     expect(after.x - before.x).toBeCloseTo(37, 6);
     expect(after.y - before.y).toBeCloseTo(-11, 6);
   });
+
+  it("clamps a pan that would take the market off screen entirely — Task 6.2.3", () => {
+    // A reader who drags far enough, repeatedly, must not be able to lose
+    // the market past any recovery but a page reload. `100_000` is an
+    // arbitrarily large delta — the clamp's whole point is that no delta,
+    // however large, escapes it.
+    const view = fitView(LAYOUT, VIEWPORT);
+    const dragged = panBy(view, 100_000, 100_000);
+
+    expect(dragged.panX).toBeLessThan(100_000);
+    expect(dragged.panY).toBeLessThan(100_000);
+
+    // And the content is still reachably on screen: SOME placement still
+    // projects inside (a generous box around) the viewport, which a runaway
+    // pan would make false of every single one.
+    const onScreen = LAYOUT.placements.some((placement) => {
+      const at = worldToScreen(dragged, placement.x, placement.y);
+      return (
+        at.x > -VIEWPORT.width &&
+        at.x < VIEWPORT.width * 2 &&
+        at.y > -VIEWPORT.height &&
+        at.y < VIEWPORT.height * 2
+      );
+    });
+
+    expect(onScreen).toBe(true);
+  });
+
+  it("does not clamp a pan already inside the bound — pan 0 from a fresh fit is never itself clamped", () => {
+    // The clamp is symmetric about the fitted position, so the state
+    // `fitView` itself produces is always inside it — a guard that fired on
+    // its own starting point would be a bug a reader meets on page load.
+    const view = fitView(LAYOUT, VIEWPORT);
+
+    expect(panBy(view, 0, 0)).toEqual(view);
+  });
 });
 
 describe("zoomAbout", () => {
@@ -156,6 +192,27 @@ describe("zoomAbout", () => {
     expect(zoomAbout(view, 1_000, 0, 0).zoom).toBe(TOPOLOGY_MAX_ZOOM);
     expect(zoomAbout(view, 0.000_1, 0, 0).zoom).toBe(TOPOLOGY_MIN_ZOOM);
   });
+
+  it("clamps the pan it sets too — Task 6.2.3", () => {
+    // `zoomAbout` sets `panX`/`panY` to keep the anchor fixed, which is a
+    // SEPARATE pan-setting path from `panBy`'s and needs its own clamp
+    // rather than inheriting one. A far corner of the viewport, zoomed in
+    // hard, is the shape that drives the anchor-preserving pan furthest.
+    const view = fitView(LAYOUT, VIEWPORT);
+    const zoomed = zoomAbout(view, TOPOLOGY_MAX_ZOOM, VIEWPORT.width, 0);
+
+    const onScreen = LAYOUT.placements.some((placement) => {
+      const at = worldToScreen(zoomed, placement.x, placement.y);
+      return (
+        at.x > -VIEWPORT.width &&
+        at.x < VIEWPORT.width * 2 &&
+        at.y > -VIEWPORT.height &&
+        at.y < VIEWPORT.height * 2
+      );
+    });
+
+    expect(onScreen).toBe(true);
+  });
 });
 
 describe("the zoom rule", () => {
@@ -174,10 +231,23 @@ describe("the zoom rule", () => {
 
 describe("reviewport", () => {
   it("re-fits the scale to a new box and keeps the reader's zoom and pan", () => {
+    // **A small pan — Task 6.2.3's own clamp is what this test is now beside,
+    // not what it is testing.** The pan here only has to stay inside the
+    // clamp's bound at BOTH the wide and the narrow box, so the claim this
+    // test makes (pan survives an ordinary resize unchanged) is isolated
+    // from the claim the next test makes (pan is re-clamped when it would
+    // not). A bigger pan risked re-clamping on the resize for a reason
+    // unrelated to what this test is about, which is exactly what happened
+    // when `TOPOLOGY_PAN_MIN_VISIBLE_FRACTION` tightened from 0.15 to 0.5.
     const view = panBy(
-      zoomAbout(fitView(LAYOUT, VIEWPORT), 3, 100, 100),
-      20,
-      5,
+      zoomAbout(
+        fitView(LAYOUT, VIEWPORT),
+        1.05,
+        VIEWPORT.width / 2,
+        VIEWPORT.height / 2,
+      ),
+      2,
+      1,
     );
     const next = reviewport(view, LAYOUT, { width: 696, height: 1_040 });
 
@@ -186,5 +256,22 @@ describe("reviewport", () => {
     expect(next.panY).toBe(view.panY);
     expect(next.scale).not.toBe(view.scale);
     expect(next.viewport).toEqual({ width: 696, height: 1_040 });
+  });
+
+  it("re-clamps the kept pan against the NEW box — Task 6.2.3", () => {
+    // A pan valid in a wide box is not necessarily valid in a narrow one: the
+    // same screen-pixel pan is a larger FRACTION of a smaller viewport. A
+    // resize must not hand back a view whose content a reader can no longer
+    // reach, which `reviewport` re-fitting the scale but carrying the old
+    // pan verbatim would do.
+    const wide = panBy(fitView(LAYOUT, VIEWPORT), 100_000, 0);
+    const narrow = reviewport(wide, LAYOUT, { width: 320, height: 200 });
+
+    const onScreen = LAYOUT.placements.some((placement) => {
+      const at = worldToScreen(narrow, placement.x, placement.y);
+      return at.x > -320 && at.x < 320 * 2 && at.y > -200 && at.y < 200 * 2;
+    });
+
+    expect(onScreen).toBe(true);
   });
 });

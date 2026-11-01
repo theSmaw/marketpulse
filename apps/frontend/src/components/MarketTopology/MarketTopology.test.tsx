@@ -23,6 +23,7 @@
 // states no canvas element exists at all, which is the difference between a
 // reserved box and a half-drawn graph.
 
+import { createRef } from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -33,6 +34,7 @@ import {
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
 import { MarketTopology } from "./MarketTopology.js";
+import type { MarketTopologyHandle } from "./MarketTopology.js";
 
 /** The `<canvas>` the renderer mounts, or `null`. */
 function canvas(): HTMLCanvasElement | null {
@@ -142,6 +144,29 @@ describe("MarketTopology", () => {
       screen.getByText(/Trying again now would produce the same answer/),
     ).toBeDefined();
     expect(canvas()).toBeNull();
+  });
+
+  it("exposes resetView on the ref as a no-op while nothing is mounted — Task 6.2.3", () => {
+    // **What jsdom can prove and no more.** jsdom has no 2d context, so a
+    // `loaded` universe here takes the component's own refusal path (see the
+    // file's own note at the top) and no renderer ever mounts — which is
+    // exactly the state `resetView`'s own contract names as a no-op. Calling
+    // it drawing a graph is `pnpm probe`'s job; this is the plumbing: the
+    // ref resolves to a real object with a callable `resetView`, in every
+    // state this component can reach in a test environment, and calling it
+    // throws nothing.
+    const ref = createRef<MarketTopologyHandle>();
+
+    render(
+      <MarketTopology
+        ref={ref}
+        universe={LOADING_UNIVERSE}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(ref.current).not.toBeNull();
+    expect(() => ref.current?.resetView()).not.toThrow();
   });
 
   it("draws no reference where nothing answered to carry one", () => {
