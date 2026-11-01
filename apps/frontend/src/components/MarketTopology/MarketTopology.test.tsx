@@ -27,6 +27,7 @@ import { createRef } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TopologyRenderer } from "../../topology/index.js";
 import {
   FIXTURE_REQUEST_ID,
   LOADING_UNIVERSE,
@@ -36,6 +37,74 @@ import {
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { MarketTopology } from "./MarketTopology.js";
 import type { MarketTopologyHandle } from "./MarketTopology.js";
+
+/**
+ * **A fake renderer, for the one test below that needs a renderer that does
+ * not throw** — jsdom has no 2d context, so `mountCanvasTopology` always
+ * throws there (see the file's own note at the top), which is correct for
+ * every other test here and useless for this one: proving a re-render does
+ * not re-mount needs something to observe staying mounted.
+ *
+ * `framesDrawn` is a real, independent counter per instance (not a shared
+ * constant) — two mount calls produce two renderers with two counters
+ * starting at the same real behaviour (`measure()` draws one frame at
+ * mount), so a regression that remounted on every re-render would be
+ * visible as `mountCanvasTopology` being called more than once, which is
+ * what the test below asserts directly.
+ */
+/**
+ * The most recently created fake renderer's `destroy` spy, held outside the
+ * `TopologyRenderer`-typed object so a test can read it without tripping
+ * `@typescript-eslint/unbound-method` — that rule fires on a reference taken
+ * off an interface's method-shorthand member (`destroy(): void`), not on a
+ * plain variable, and `renderer?.destroy` is exactly the former.
+ */
+let lastDestroy = vi.fn();
+
+function createFakeRenderer(): TopologyRenderer {
+  const frames = 1;
+  lastDestroy = vi.fn();
+  return {
+    kind: "canvas",
+    resize: vi.fn(),
+    reset: vi.fn(),
+    framesDrawn: () => frames,
+    destroy: lastDestroy,
+  };
+}
+
+const { mountCanvasTopology, FAKE_PALETTE } = vi.hoisted(() => ({
+  mountCanvasTopology: vi.fn(),
+  FAKE_PALETTE: {
+    equity: "black",
+    sectorEtf: "black",
+    marketProxy: "black",
+    membershipEdge: "black",
+    hubEdge: "black",
+    halo: "black",
+    label: "black",
+    labelFamily: "sans-serif",
+    dataFamily: "monospace",
+    labelSizePx: 11,
+    labelTrackingEm: 0.08,
+  },
+}));
+
+vi.mock("../../topology/index.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../topology/index.js")>();
+  return {
+    ...actual,
+    mountCanvasTopology,
+    // `topologyPalette()` reads `getTokens()`, which throws in this test
+    // environment because no stylesheet is applied here — the file's own
+    // note at the top. It is an argument **evaluated before**
+    // `mountCanvasTopology` is ever called, so leaving it real would throw
+    // before the mock below is reached at all, for a reason that has
+    // nothing to do with what this one test is proving.
+    topologyPalette: () => FAKE_PALETTE,
+  };
+});
 
 /** The `<canvas>` the renderer mounts, or `null`. */
 function canvas(): HTMLCanvasElement | null {
@@ -246,5 +315,51 @@ describe("MarketTopology", () => {
     // in a hidden paragraph — a wall of symbols is not a fallback.
     expect(sentence.textContent).not.toMatch(/\d{3}/);
     expect(sentence.textContent).not.toMatch(/\b[A-Z]{2,5}\b/);
+  });
+
+  describe("the declined memo boundary — Task 6.2.5, Story 6.2's acceptance criterion 8", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    it("does not re-mount the renderer across several applied batches", () => {
+      // **One `universe`, held across every render** — exactly what
+      // `use-securities.ts` gives `/` between live-feed batches: the same
+      // object by identity, not a fresh one each tick. A test that called
+      // `securitiesFixtureView("full")` again per render would prove
+      // nothing, because a NEW array would be a real reason to re-mount.
+      const universe = securitiesFixtureView("full");
+
+      const { rerender } = render(
+        <MarketTopology universe={universe} onRetry={() => undefined} />,
+      );
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      const renderer = mountCanvasTopology.mock.results[0]?.value as
+        TopologyRenderer | undefined;
+      expect(renderer).toBeDefined();
+      const framesBefore = renderer?.framesDrawn();
+
+      // **Several applied batches** — a parent re-render with every prop
+      // this component reads unchanged, which is what `/`'s 6.8–16.1
+      // batches a minute actually do to this region: `onRetry` is a fresh
+      // closure each time (as a real `useCallback`-stable one would not be,
+      // but the mount effect does not depend on it either way), `universe`
+      // is the same reference.
+      for (let batch = 0; batch < 5; batch += 1) {
+        rerender(
+          <MarketTopology universe={universe} onRetry={() => undefined} />,
+        );
+      }
+
+      // **The producer, not the wire**: a render-count assertion cannot
+      // see a remount that happens to draw the same picture, but the mount
+      // call count and the renderer's own identity can. Unchanged across
+      // five re-renders is the claim Story 6.2's AC 8 makes.
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+      expect(renderer?.framesDrawn()).toBe(framesBefore);
+    });
   });
 });

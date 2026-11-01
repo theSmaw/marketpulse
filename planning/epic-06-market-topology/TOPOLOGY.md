@@ -143,3 +143,19 @@ not a default.
   shape of guard than every other component gets, and one that catches an
   absent token but not yet a literal spent where a token should be.
   `docs/GAPS.md` names the condition for closing that gap for real.
+- **Added 2026-11-01 (Task 6.2.5): the frame-rate-under-interaction claim is
+  still a Storybook-measured, stated bound rather than a route-level one.**
+  Story 6.2 re-took the **cold-load** figure for real against `/`'s own box
+  via `overview-instrument.mjs` (that task's own record carries the number),
+  but `pnpm probe`'s driven pan/zoom path has **no entry point on `/` at
+  all** — it is wired only in `MarketTopology.stories.tsx`, over the fixed
+  Storybook container this section's own §2 figures were taken against. Task
+  6.2.5 deliberately did not invent one for this story: a route-level
+  interaction harness is its own piece of work (a scripted drag/wheel path
+  driven against `/`'s real, resizable box rather than Storybook's fixed one)
+  and nothing in Story 6.2's acceptance criteria asked for it. **Owner: the
+  next story that changes what the renderer draws under interaction**
+  (Story 6.3's anomaly band or Story 6.4's hover/selection are the likely
+  source) — at that point the ADR 0048 figures are being re-argued anyway,
+  and a route-level harness is worth building once rather than for a
+  limitation this task only had to document.

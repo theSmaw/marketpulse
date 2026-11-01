@@ -42,6 +42,29 @@ import styles from "./MarketTopology.module.css";
 // exactly what an effect with a cleanup is for. Nothing about it belongs in
 // React state — a re-render must not re-mount a context, and the React Compiler
 // rules in this repository reject the shapes that would.
+//
+// ## No `React.memo` boundary here, and the reason is already in the code above
+//
+// Traced rather than assumed (Task 6.2.5, Story 6.2's acceptance criterion 8):
+// the mount effect's own deps are `[topology, probe, sentenceId]`. `topology`
+// is `topologySource(securities)`, which memoises on `securities`' own array
+// **identity** — and `securities` is a `useState` value `use-securities.ts`
+// changes only on a settled `GET /securities` response or a retry, **never**
+// on a live-feed batch. `probe` is `undefined` in every application call site.
+// So a host re-render from `/`'s 6.8–16.1 batches a minute reconciles one
+// `<div>` whose children haven't changed and never re-runs this effect — the
+// canvas has no continuous render loop to begin with (it redraws only from
+// `invalidate()`, reached by resize, drag or wheel), so there is nothing here
+// for a memo boundary to buy. Held by a **producer-side** assertion
+// (`MarketTopology.test.tsx`'s own account) rather than a render-count one,
+// for this repository's usual reason: a render count is the wire, and the
+// wire cannot see a defect in the producer.
+//
+// **Reversal trigger, a condition**: the first prop this region takes that
+// changes at feed cadence (Story 6.3's anomaly band or Story 6.6's
+// liquidity-driven size are the likely source) — at that point the mount
+// effect's deps would include something that changes every batch, and this
+// decision needs re-taking rather than assuming it still holds.
 
 export interface MarketTopologyProps {
   /** The universe, in whichever state `use-securities.ts` has it. */
