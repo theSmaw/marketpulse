@@ -270,6 +270,43 @@ the same place_. Three things fall out of the closed form that no seed can give:
    > real box and can make the renderer scale-aware. The sentence this
    > amendment replaces overclaimed a fix that had not, in fact, landed.
 
+   > **Amended 2026-11-01 by Task 6.2.2 — the ring is an ellipse
+   > (`TOPOLOGY_RING_RADIUS_X = 800`, `TOPOLOGY_RING_RADIUS_Y = 340`), the
+   > wedge allocation changed from angle- to ARC-LENGTH-proportional, and both
+   > halves of the open defect above are closed.**
+   >
+   > **"Genuinely, unconditionally true" was true only of a circle, and this
+   > amendment is what makes it true again for any shape.** The canvas's own
+   > circular-to-elliptical recommendation (`R_x≈540, R_y≈185`, same
+   > angle-proportional allocation) is wrong in KIND, not only in its
+   > numbers: arc speed on an ellipse is `R_x` at twelve o'clock and `R_y` at
+   > three o'clock, so a sector near three o'clock receives only 34% of the
+   > arc a circle gives it at those figures, and measured, the naive squash
+   > produces a **−53.2-unit** cluster-to-cluster overlap —
+   > `health_care`/`financials` physically interleaved. The fix pairs the
+   > stretch with allocating each sector's wedge by ARC LENGTH along the
+   > ellipse rather than by angle, which keeps the disjointness ratio
+   > (`arc allocated / arc occupied`) independent of the ring's shape by
+   > construction rather than by the circle's constant-radius accident.
+   > Measured over the real universe: every sector now receives **122% more**
+   > arc than it occupies (`3728.74 / 839.75 ≈ 4.44 · r_s` against `2 · r_s`),
+   > and the closest pair of cluster circles clears by **131.40 units**
+   > (`energy`/`utilities`) — stronger again than the circular ring's 57.69.
+   >
+   > **The label collision is closed too, by a combination rather than by
+   > geometry alone.** Task 6.2.1 measured the REAL boxes `Region.content`
+   > resolves to on `/` — narrower than the `1392×520` this decision and
+   > `docs/GAPS.md` had both assumed — and at the one of the four real widths
+   > whose fit scale clears the renderer's own new threshold
+   > (`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in `renderer-canvas.ts`, the
+   > scale-aware treatment the amendment above named as the owed fix), the
+   > worst label/circle clearance is **+14.99 px** — a correctness claim, not
+   > a floor, proved wrong-then-right in `topology-layout.test.ts` against
+   > the superseded circular ring at the same box. At the other three real
+   > widths the renderer draws no sector label at all, so the geometry being
+   > negative there — true, and recorded — never reaches a reader.
+   > `docs/GAPS.md`'s entry is closed rather than narrowed.
+
 2. **The renderer comparison measures drawing.** Both of Decision 1's candidates
    read this one layout.
 3. **Adding a security moves one cluster**, not every node. A simulation

@@ -667,8 +667,13 @@ export {
   TOPOLOGY_CLUSTER_DENSITY,
   TOPOLOGY_GOLDEN_ANGLE,
   TOPOLOGY_NODE_FOOTPRINT,
-  TOPOLOGY_RING_RADIUS,
+  TOPOLOGY_RING_RADIUS_X,
+  TOPOLOGY_RING_RADIUS_Y,
   buildTopologyLayout,
   topologyClusterRadius,
 } from "./topology-layout.js";
-export type { TopologyLayout, TopologyPlacement } from "./topology-layout.js";
+export type {
+  TopologyLayout,
+  TopologyLayoutOptions,
+  TopologyPlacement,
+} from "./topology-layout.js";
