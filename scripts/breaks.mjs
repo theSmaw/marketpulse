@@ -2738,9 +2738,19 @@ export const BREAKS = [
     // The re-area gave the grid a fourth row, so the `repeat()` no longer ends
     // the declaration and the old `find` matched nothing —
     // `every-break-can-still-land` caught it in the same `pnpm verify`.
+    //
+    // **Repointed again by Task 6.2.1 (2026-10-31), same reason, same catch.**
+    // Story 6.2's grid reversion collapsed the `repeat(2, …)` of two identical
+    // proportional rows into a single middle row — there is now one filled
+    // region row rather than two — and gave the topology a resolved box
+    // through `Panel.body`/`Region.content` rather than through this row's own
+    // `calc()`. The defect this break proves is unchanged: a developer who
+    // reaches for a fixed `height` plus a floor-less `1fr` to size a canvas
+    // reproduces Task 4.1.3's original cap. `every-break-can-still-land`
+    // caught the stale `find` in the same `pnpm invariants` run.
     file: "apps/frontend/src/routes/MarketOverview.module.css",
-    find: "    repeat(2, minmax(min-content, 1fr))\n    auto;",
-    replace: "    repeat(2, minmax(0, 1fr))\n    auto;\n  height: 82vh;",
+    find: "  grid-template-rows: auto minmax(min-content, 1fr) auto;",
+    replace: "  grid-template-rows: auto minmax(0, 1fr) auto;\n  height: 82vh;",
     command: ["pnpm", "e2e", "overview-sector-region.spec.ts", "--anyway"],
     expect: "does not scroll them",
   },

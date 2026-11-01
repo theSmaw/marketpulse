@@ -12,16 +12,45 @@
  */
 
 .frame {
-  position: relative;
   /*
-   * A height rather than an aspect ratio, because the layout's extent is a
-   * square and Story 6.2's recommendation is that the RING deforms rather than
-   * the box: `Market overview.dc.html` §02's real box is 1392 x 520, and an
-   * 886 x 826 extent does not fit it. So the frame is told its height and
-   * `fitView` scales to whatever it gets.
+   * **The box comes from the container, and it is not a constant — Story 6.2's
+   * acceptance criterion 3, and the first defect Task 6.2.1 fixed.**
+   *
+   * This read `var(--topology-height, 520px)` until 2026-10-31 and **nothing
+   * anywhere in the application set that variable**, so the frame was 520 px
+   * tall whatever box it had been given — on `/` a grid row resolving to
+   * 123–161 px at the time, which is a canvas drawing 520 px of graph into
+   * 161 px of region and letting `overflow: hidden` take the rest. A clipped
+   * drawing reports no overflow at all, so nothing mechanical could see it.
+   *
+   * **`block-size: 100%` was the wrong fix and was itself replaced the same
+   * day, by the same task, once the route was probed with it in place.** A
+   * percentage height resolves against the containing block's own resolved
+   * size — but `Region.content` sizes itself with `flex: 1 0 auto`, which
+   * measures `.frame` as in-flow, percentage-sizeless content to get that
+   * `auto` basis. Each side was waiting on the other: Chromium breaks the loop
+   * by treating `.frame`'s `100%` as indeterminate and falling back to this
+   * element's own content — the `<canvas>` — whose `height` *attribute* is set
+   * imperatively from an earlier `getBoundingClientRect()` read, taken before
+   * the chain had ever stabilised. The result was a `.content` box 2–3× the
+   * right height at every width, reported by `pnpm probe` as
+   * `clientHeight !== scrollHeight` (520/945 at 1440).
+   *
+   * **`position: absolute; inset: 0` instead**, against `.content`'s own new
+   * `position: relative` (`Region.module.css`). An absolutely-positioned box is
+   * excluded from its containing block's normal-flow size computation by the
+   * CSS spec, so `.content` now measures as empty in flow, `flex-grow: 1`
+   * expands it to fill `Panel.body`'s resolved remainder with no content
+   * dependency at all, and only then does `.frame` ask that already-settled
+   * box for `inset: 0`. No percentage, no loop.
+   *
+   * **A container with no resolved height therefore gets no frame**, which is
+   * correct and is why `MarketTopology.stories.tsx` carries a sizer decorator:
+   * the workshop has nothing to be sized by, and a story is the one place a box
+   * may legitimately be typed.
    */
-  block-size: var(--topology-height, 520px);
-  inline-size: 100%;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: var(--surface-raised);
   border: 1px solid var(--rule-hairline);

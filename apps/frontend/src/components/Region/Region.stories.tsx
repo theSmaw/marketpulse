@@ -95,7 +95,7 @@ export const Failed: Story = {
   args: {
     name: "Market topology",
     filledBy:
-      "Epic 6 draws the securities graph here, in WebGL. Until then this is Story 1.4’s render check.",
+      "Epic 6 draws the securities graph here, clustered by sector around their benchmark ETFs.",
     children: <Throws />,
   },
 };
@@ -170,7 +170,7 @@ export const AllPermutations: Story = {
         <span className={gridStyles.label}>contents failed</span>
         <Region
           name="Market topology"
-          filledBy="Epic 6 draws the securities graph here, in WebGL."
+          filledBy="Epic 6 draws the securities graph here, clustered by sector."
         >
           <Throws />
         </Region>

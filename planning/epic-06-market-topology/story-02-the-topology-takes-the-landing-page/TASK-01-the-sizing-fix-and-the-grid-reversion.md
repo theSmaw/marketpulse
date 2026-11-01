@@ -1,6 +1,14 @@
 # Task 6.2.1 — The Sizing Fix, & the Grid Reversion
 
-**Status:** **In progress — 2026-10-31**
+**Status:** **Complete — 2026-11-01.** A second, undocumented defect was found
+and fixed beyond the one this task was written for: the `Panel.body`/
+`.content: flex: 1 0 auto` chain the sizing fix built on had a live flexbox
+circular dependency with `.frame`'s own `block-size: 100%`, which Chromium
+resolved by falling back to the canvas's own stale JS-set height attribute —
+oversizing `Market topology` by 2–3× at every width. Repaired with
+`position: absolute; inset: 0` on `.frame` against `position: relative` on
+`.content`, which removes the percentage and the loop entirely. Zero scroll
+confirmed at all thirteen width/height pairs, up from four scrolling before.
 **Story:** [6.2 The Topology Takes the Landing Page](STORY.md)
 **Depends on:** nothing
 
@@ -92,6 +100,128 @@ exactly as they did, just lower.
 
 ---
 
-## What was done — YYYY-MM-DD
+## What was done — 2026-11-01
 
-## For a stakeholder — a status report, YYYY-MM-DD
+**The sizing defect, and the shape chosen.** `MarketTopology.module.css`'s
+`.frame` read `var(--topology-height, 520px)` with nothing anywhere setting
+that variable, so the frame was a constant dressed as a box. Fixed via
+`Panel.body { flex-grow: 1 }` + `Region.content { flex: 1 0 auto }` +
+`.frame { block-size: 100% }` initially — the first of the two shapes the task
+file offered, taken because the photograph it asked for (all 15 region bodies
+on both routes, four widths) came back pixel-unchanged.
+
+**A second defect was found while proving the first one, and it was the real
+blocker.** `pnpm probe` on the mounted component reported `clientHeight` ≠
+`scrollHeight` on `Market topology` at every width (520/945 at 1440×900,
+reproduced at 1024/768/390). Traced with Claude-in-Chrome against the running
+dev server: `.content`'s computed height resolved to ~1066–1124px (should be
+~441–473px), and the `<canvas>` element's own `height` *attribute* was `2248`
+(= 1123.97 CSS px × devicePixelRatio 2) — the canvas's own stale, JS-set
+intrinsic size was driving the chain upward instead of the grid driving it
+down. Root cause: a flexbox circular dependency. `Region.content`'s
+`flex-basis: auto` must measure its own in-flow content's natural height to
+settle; its content (`.frame`) asked for `block-size: 100%` of that same
+content; Chromium breaks the tie by treating the percentage as indeterminate
+and falling back to `.frame`'s own content (the canvas) for its size, which was
+set from an earlier `getBoundingClientRect()` read taken before the chain had
+ever stabilised.
+
+**Fixed by removing the percentage rather than by chasing the canvas.**
+`.frame` is now `position: absolute; inset: 0`, and `Region.content` carries
+`position: relative`. An absolutely-positioned box is excluded from its
+containing block's normal-flow size computation by the CSS spec, so
+`.content` now measures as empty in flow, `flex-grow: 1` expands it to fill
+`Panel.body`'s already-resolved remainder with no dependency on `.frame`'s
+content at all, and only then does `.frame` ask that settled box for its
+`inset: 0`. No percentage, no loop.
+
+**Verified empirically, not just by inspection.** `pnpm probe` at all
+thirteen canonical width/height pairs (`1440×900, 1024×900, 768×800, 390×780,
+1440×700, 1440×680, 1440×600, 1440×500, 1280×480, 1024×560, 768×680, 1280×700,
+1024×700`) reports **zero** `SCROLLS` lines — including the four pairs
+(1440×680, 1440×600, 1440×500, 1280×480, 1024×560) that previously scrolled
+under the old circular-dependency geometry per ADR 0039's own measurement.
+Screenshots at every pair show the graph correctly fitted inside its frame
+with no clipping, including the narrowest reduced-height pairs where only the
+page itself scrolls (`document.scrollHeight` unchanged at 1739/1772/3277/3486
+across all height variants at a given width, confirming the topology region's
+own box is the fixed 520px `Decision 1` calls for and not a function of
+viewport height).
+
+**The grid reversion, the mount, and the stale-string sweep** (the rest of
+this task's scope) were done by two developer subagents that each stalled
+after ~600s; per the user's "keep going," I completed the remaining pieces
+directly: the second `tokens.ts` stale-string site (`"Epic 6's Sigma.js/WebGL
+renderer..."` → corrected to name ADR 0048 and Canvas2D), and confirmed
+`e2e/specs/security-explorer-shell.spec.ts`'s `"Filled by Epic 6"` string
+needed **no** change — it belongs to `RegionPlaceholder` on the Security
+Explorer's own "Connected securities" region, an unrelated component with no
+false WebGL/liquidity claim in it.
+
+**The `pnpm break` entry for `the-region-grid-is-capped-again`** had rotted —
+`every-break-can-still-land` caught its `find` no longer matching the grid's
+new single-row structure — and was repointed in the same change, in the
+registry's own pre-existing style (full substitution, since that entry
+predates the newer "keep the found line, append beside it" convention).
+
+### Gates
+
+- `pnpm build` — green.
+- `pnpm lint` — green, 0 warnings.
+- `pnpm format:check` — green (after `prettier --write scripts/breaks.mjs` to
+  fix the repointed break entry's formatting).
+- `pnpm invariants` — **80 invariants hold** (one dated, owned waiver
+  unrelated to this task: Epic 4's rehearsal row 4.7).
+- `pnpm test:scripts` — 21/21 pass.
+- `pnpm test:process` — 60/60 pass (one isolated run hit a known timing-
+  sensitive flake in `market-gateway.process.test.ts`, a backend file this
+  task does not touch; re-ran clean twice in isolation and once as the full
+  suite).
+- `pnpm test` — 655 + 1,344 + 1,705 = **3,704 tests pass** across
+  `packages/shared`, `apps/backend`, `apps/frontend`.
+- `pnpm stories`, `pnpm env:check`, `pnpm links`, `pnpm coverage:check` — all
+  green.
+- `pnpm e2e overview-region-order.spec.ts landing-route.spec.ts` — 3/3 pass
+  (AC 4's own named specs).
+- `pnpm e2e overview-degraded-grid.spec.ts overview-sector-region.spec.ts
+  security-explorer-shell.spec.ts` — 17 + 13 = 30/30 pass, run as a regression
+  check against the grid reversion and the `Panel`/`Region` CSS changes.
+- `pnpm e2e` in full and `pnpm test:database` are **out of scope for this
+  task** — Task 6.2.6 runs both, integrated, at the story's close.
+
+### What was not separately re-verified this session
+
+A full before/after region-displacement re-measure against a clean `main`
+checkout (a second worktree, a second dev-server pair) was **not** re-run — the
+cost of standing up a parallel environment was weighed against what it would
+add on top of what is already confirmed: `Panel.body`'s own code comment
+records that exact measurement (15 region boxes, four widths, thirteen pairs,
+pixel-unchanged) from when the shape was chosen, and the 30-spec regression
+run above (which exercises region order, sector/movers geometry and the
+Security Explorer shell) would have failed on any real displacement. This is
+flagged rather than silently skipped.
+
+## For a stakeholder — a status report, 2026-11-01
+
+**What a user can see:** the real market topology graph, drawn on the landing
+page, correctly sized, at every width and every reasonable viewport height —
+not the hatched placeholder, not a canvas clipped or scrolling inside its own
+box.
+
+**What was found and fixed, beyond the brief:** the task's own spec named one
+known defect (a hard-coded 520px fallback with nothing setting the real
+variable). Fixing that correctly exposed a second, more serious one — a CSS
+circular dependency that nobody had described before, which was making the
+topology region report the wrong height at every single width tested, driven
+by a stale number baked into the canvas element rather than by the page's
+layout. That is now fixed at its root rather than patched around.
+
+**What shipped:** the sizing fix (two coordinated CSS changes), the grid
+reversion (topology full-width, sector/movers as a 2-up row beneath it), the
+component mounted with the real universe, every stale "WebGL"/"sized by
+liquidity" string this epic had already falsified corrected in both
+application code and test strings, and the one `pnpm break` entry this
+rewrite broke, repointed.
+
+**What's next:** Task 6.2.2, the elliptical ring and the label-collision fix,
+already fully specified from Gate 1.

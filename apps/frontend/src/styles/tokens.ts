@@ -17,10 +17,27 @@
 // What that choice costs, stated rather than discovered later:
 //
 //   1. **Every value is a string.** `--space-4` reads as `"4px"` and
-//      `--surface-page` as `"#f6f7fa"`. Epic 6's Sigma.js/WebGL renderer wants
-//      numbers and packed colours, so it will need a parse layer. That layer is
-//      Epic 6's to write against real requirements; inventing it here would be
-//      guessing at them.
+//      `--surface-page` as `"#f6f7fa"`.
+//
+//      **This clause predicted that would cost Epic 6 a parse layer, and the
+//      prediction is falsified — ADR 0048, recorded here 2026-10-31 by Task
+//      6.2.1.** It said _"Epic 6's Sigma.js/WebGL renderer wants numbers and
+//      packed colours, so it will need a parse layer"_. It does not, and
+//      **neither candidate ever did**: Canvas2D's `fillStyle` takes a CSS
+//      colour string, and so did Sigma 4's node and edge `color`. The parse
+//      layer this clause reserved is not written and is not owed.
+//
+//      What a colour-reading renderer *did* inherit is the other half of the
+//      bargain below — the startup throw rather than a silent default — which
+//      is why `topology/palette.ts` refuses a missing token instead of
+//      substituting one, and why four type tokens had to join `TOKEN_NAMES`:
+//      a canvas emits no `var()`, so the invariant that checks `var()` reads
+//      is structurally blind to it.
+//
+//      The clause is corrected rather than deleted because the **cost it
+//      names is real and unchanged** — every value here is still a string, and
+//      the next consumer that wants a number still owes the parse. What was
+//      wrong was guessing which consumer that would be.
 //   2. **`getComputedStyle` is a main-thread read.** It is called once, at
 //      startup, and the result is frozen and cached — not once per frame, and
 //      not once per component. That is the whole reason this module exists
@@ -43,11 +60,14 @@
 // here is a promise to keep the value readable from JavaScript.
 //
 // The market tokens in the second group are the reason this module exists at
-// all. Epic 6's Sigma.js/WebGL topology colours a node by its anomaly band and
-// by the direction of its move, and a canvas cannot read a CSS class — so
-// `--anomaly-extreme` has to be reachable as a string from here. That was the
-// case Task 1.4.3 answered in the abstract; this is the first group of tokens
-// that actually depends on the answer.
+// all. The topology's Canvas2D renderer (ADR 0048 — not the Sigma.js/WebGL
+// this comment named before Story 6.1 measured the two) reads its achromatic
+// palette through `topology/palette.ts` today, and Story 6.3's anomaly
+// encoding will colour a node by its band and by the direction of its move —
+// a canvas cannot read a CSS class either way, so `--anomaly-extreme` has to
+// be reachable as a string from here. That was the case Task 1.4.3 answered
+// in the abstract; this is the first group of tokens that actually depends on
+// the answer.
 //
 // Note what comes back for a semantic token: the *substituted* value. Both
 // `--price-unchanged` and `--ink-secondary` read as `"#5a5d5c"`, because the
