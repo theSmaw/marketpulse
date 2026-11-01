@@ -22,10 +22,16 @@ future close to rediscover.
 
 ## 0. What exists today, and the one sentence that bounds everything below
 
-**Nothing is on any route.** The whole of what this section describes is
+~~**Nothing is on any route.** The whole of what this section describes is
 reachable only in Storybook (`Components/MarketTopology`), reviewed by nobody
 but the people who built it, on one development machine. Story 6.2 is what
-puts this on `/`.
+puts this on `/`.~~ — **false since 2026-11-01: Story 6.2 shipped.** The
+graph is on `/`'s second region, drawing the real tracked universe, with a
+real retry, pan/zoom and an accessible fallback. What bounds the sections
+below now is narrower: the **anomaly encoding, node sizing, correlation
+edges, interaction and live updates** — Stories 6.3–6.8 — are still
+Storybook-only or unbuilt, and §2's renderer figures are still local,
+one-laptop ones (§4).
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 
@@ -110,22 +116,33 @@ not a default.
 
 ## 4. What no machine and no person has seen — the running section every later story amends
 
-- **Nobody has watched this on a real screen.** The built Storybook is the
-  only surface any of this exists on. Story 6.2 is what changes that.
+- ~~**Nobody has watched this on a real screen.** The built Storybook is the
+  only surface any of this exists on. Story 6.2 is what changes that.~~ —
+  **false since 2026-11-01: Story 6.2 shipped.** `/`'s second region draws
+  the real graph — 516 securities, the elliptical ring, pan/zoom, a real
+  retry, an accessible fallback. What remains true of the sentence above is
+  everything downstream of this epic's remaining seven stories: the anomaly
+  band, node size, correlation edges, live updates and interaction are all
+  still Storybook-only or not yet built.
 - **The frame-rate and no-task-over-50ms figures are local, one laptop, and
   not §28's scale** — 518 nodes / 514 edges, not §28's 500/5,000 nor its own
   5,000/25,000 synthetic target. `docs/GAPS.md` carries the entry; Epic 14
   owns the re-take at scale.
-- **A sector's label still crosses into a neighbouring cluster's circle at
+- ~~**A sector's label still crosses into a neighbouring cluster's circle at
   the component's own default size, and no single ring radius fixes it in
-  general.** `communication_services` into `consumer_discretionary`'s, −28px
-  of clearance measured at the `1392 × 520` box Story 6.2 will fit this into.
-  `docs/GAPS.md` has the full account, including a repair attempt that was
-  itself proved wrong before being corrected into an honest regression-floor
-  test rather than a false correctness claim. **Owner: the next story that
-  fits this layout into a real box and can make the renderer scale-aware** —
-  already Story 6.2's territory for an unrelated reason (its own elliptical
-  ring, a different box shape again).
+  general.**~~ — **closed 2026-11-01 by Task 6.2.2, with two mechanisms
+  rather than one.** The ring is now **elliptical**
+  (`TOPOLOGY_RING_RADIUS_X = 800, TOPOLOGY_RING_RADIUS_Y = 340`), with wedge
+  allocation changed from angle-proportional to **arc-length**-proportional —
+  this is what keeps clusters disjoint on a non-circular ring, and a naive
+  squash at the canvas's own first-guess figures without it produced a
+  **−53.2-unit** cluster overlap. Beside it, the renderer draws no sector
+  label below a derived fit-scale threshold
+  (`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in `renderer-canvas.ts`) — the
+  scale-aware treatment this bullet used to say did not exist yet. Both
+  halves are mechanical (`topology-layout.test.ts`, `pnpm break` entries for
+  each); `docs/GAPS.md`'s own entry carries the full account and is itself
+  closed.
 - **The recorded `full.json` fixture every Storybook story reads is 518
   nodes / 514 edges, dated before the 2026-10-12 untracking** — two nodes and
   two edges more than the deployed universe's 516/512, the conservative
@@ -159,3 +176,20 @@ not a default.
   source) — at that point the ADR 0048 figures are being re-argued anyway,
   and a route-level harness is worth building once rather than for a
   limitation this task only had to document.
+- **Added 2026-11-01 (Task 6.2.4): the degraded grid has a second axis now,
+  and this is the first region on `/` a gated machine can verify for real.**
+  `overview-degraded-grid.spec.ts` grew from 17 states × 4 widths × 8
+  surfaces to **17 × 4 × 9**, with `Market topology` declared constant
+  across every aggregate-only row (the graph's content is a function of the
+  universe REQUEST, not the overview aggregate) and carrying its own four
+  new rows on the universe-request axis (`failed`/retryable,
+  `failed`/not-retryable, `unreachable`, `empty`) — none of which any other
+  region on this screen has, because every other region needs stored bars
+  to hold a figure at all and CI's store has zero. A new e2e spec,
+  `overview-market-topology.spec.ts`, goes further still: it fetches
+  `GET /securities` independently and recomputes the real
+  `buildTopologyGraph` over it, then checks the canvas's own dimensions,
+  the absence of its refusal sentence and its drawn sector count against
+  that independent answer — a real, CI-capable positive and negative no
+  other row in `MARKET-OVERVIEW.md` §9's own "what no gated machine has
+  ever seen" table can have.

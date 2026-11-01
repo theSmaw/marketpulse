@@ -161,19 +161,58 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): one of nine stories complete, 2026-10-30, and
-nothing visible yet.** Story 6.1 decided and built the market-as-a-graph model
-(`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic layout)
-and measured two real renderer candidates against each other — Sigma.js/WebGL,
-which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled Canvas2D module, zero
-dependencies. **The library lost**, on 334× the gzipped cost for a frame rate
-indistinguishable from the one that shipped, and §27 carries a dated amendment
-recording that its own measurement clause overruled its stated intent. The
-whole graph draws correctly in Storybook, reviewed by nobody but the people who
-built it — **nothing is on any route**, and Story 6.2 is what changes that.
-[ADR 0048](docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)
+**Epic 6 (Market Topology): two of nine stories complete, 2026-11-01, and the
+graph is on the route.** Story 6.1 decided and built the market-as-a-graph
+model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
+layout) and measured two real renderer candidates against each other —
+Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
+Canvas2D module, zero dependencies. **The library lost**, on 334× the gzipped
+cost for a frame rate indistinguishable from the one that shipped, and §27
+carries a dated amendment recording that its own measurement clause overruled
+its stated intent. ~~The whole graph draws correctly in Storybook, reviewed by
+nobody but the people who built it — **nothing is on any route**~~ — **false
+since 2026-11-01: Story 6.2 shipped.** [ADR 0048](docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)
 and [`TOPOLOGY.md`](planning/epic-06-market-topology/TOPOLOGY.md) are where
 this epic's record starts.
+
+**And since 2026-11-01 `/`'s second region is the real graph, which is the
+largest visible change to this screen since it stopped being a placeholder.**
+`Market topology` draws 516 securities clustered by sector around their
+benchmark ETFs, with the broad market at the centre — full width of the
+primary column, sector performance and movers dropped into a 2-up row
+beneath it in that same column, `Market breadth` moved to the right column
+(a design-system reconciliation, `PRODUCT_SPEC.md` §9's own dated
+amendment). **The ring is elliptical, re-derived rather than taken from the
+design canvas's stale figures**: `TOPOLOGY_RING_RADIUS_X = 800,
+TOPOLOGY_RING_RADIUS_Y = 340` with arc-length-proportional wedge allocation
+— the canvas's own circular-to-elliptical recommendation would have
+produced a **−53.2-unit** cluster overlap, measured and rejected. A sector
+label no longer collides with a neighbouring cluster: the renderer draws no
+label at all below a derived fit-scale threshold
+(`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38`), closing a defect two earlier
+tasks had found and left open. **Pan and zoom are clamped and reversible** —
+`ctrl`/`⌘` + wheel zooms, drag pans, a plain wheel scrolls the page, and a
+`Reset view` control is the way back with no reload — and **the region owns
+its own failure for real**: a failed universe request shows a sentence, a
+`Try again` where retrying is worth offering, and a correlation id, because
+this is the one region on `/` whose entire subject is the tracked universe
+itself.
+
+**And it is the first region on this screen a gated machine can actually
+verify.** Every other region on `/` needs stored bars to hold a figure, and
+CI's store has 516 securities and zero bars; the topology needs only the
+universe request, which succeeds everywhere. `overview-degraded-grid.spec.ts`
+grew a second axis for it (17 states × 4 widths × 9 surfaces now), and
+`overview-market-topology.spec.ts` fetches `GET /securities` independently
+and recomputes the real graph over it, checking the canvas's dimensions,
+its drawn sector count and the absence of its refusal sentence against that
+independent answer. The route's cold load was re-measured for real and is
+not in breach: **0 of 10 loads over 50ms**, worst rAF gap **18.6–18.7ms**
+against a 24.7/34.7ms baseline taken before this story landed.
+`MARKET-OVERVIEW.md` §1.1, §1.4 and §9 and `TOPOLOGY.md` carry the fuller
+account; what remains Storybook-only or unbuilt is everything the next seven
+stories still own — the anomaly band, node size, correlation edges,
+interaction and live updates.
 
 ### What a user can see today
 
@@ -485,12 +524,13 @@ other three hold figures.** `Market topology`, `Unusual activity` and
 `Current investigations` are still `reserved`~~ — **false since 2026-10-17:
 `Unusual activity` draws, and two are reserved.** `Sector performance`, `Movers`
 and `Market breadth` are Stories 4.3, 4.5 and 4.4, **all three of which have
-shipped** (the last on 2026-10-08).
-Two
-of the seven belong to later epics by name — the topology is Epic 6's and
-unusual activity is Epic 5's — and the layout running there is explicitly
-**interim**, reverting to the canvas's end state on a condition: the first
-commit that renders a graph node. What the screen must **not** grow is a second
+shipped** (the last on 2026-10-08)~~ — **and false again since 2026-11-01:
+only `Current investigations` is still `reserved`.** `Market topology`'s own
+reversal trigger — _the first commit that renders a graph node_ — fired, and
+the interim layout reverted to the canvas's end state exactly as that
+trigger's own wording promised: Story 6.2. One
+of the seven belongs to a later epic by name now —
+`Current investigations` is Epic 7+'s. What the screen must **not** grow is a second
 clock or a second connection word; `pnpm invariants` refuses both by name.
 They can type `nv` and open NVDA; the address becomes `/securities/NVDA` and a
 cold link works. **The field that does it is on the page's heading row since

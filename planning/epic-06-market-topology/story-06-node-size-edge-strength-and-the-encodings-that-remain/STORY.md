@@ -84,3 +84,27 @@ of them work **at once**.
 ## Out of scope
 
 Live updates (6.7), filtering (6.8).
+
+## Handed here by Story 6.2's close — 2026-11-01: the memo trigger this story may fire, and the annulus it has to share
+
+**This story's own node size is named, by `MarketTopology.tsx`'s docblock, as
+one of the two likely sources of the declined `React.memo` boundary's
+reversal trigger** ("the first prop this region takes that changes at feed
+cadence" — Story 6.3's anomaly band is the other). If the size this story
+draws is driven by a quantity that updates live (a share figure refreshed
+per batch, say, rather than a value fixed at mount like the rest of the
+graph), the memo decision needs re-taking with a producer-side
+`framesDrawn()`/mount-count measurement, not assumed to still hold — see
+`MarketTopology.test.tsx`'s "the declined memo boundary" describe block for
+the test shape.
+
+**The 4-unit annulus between ink and footprint is reserved, not idle, and
+this story is a THIRD claimant on it.** `renderer.ts`'s own docblock: ink is
+`TOPOLOGY_NODE_INK` (8/10/12 px at zoom 1, by kind) while the drawn
+footprint is `TOPOLOGY_NODE_FOOTPRINT = 16` layout units — the 4-unit margin
+is reserved for Story 6.3's anomaly band and Story 6.4's focus ring. A size
+encoding that grows a node's own ink into that margin collides with both
+before either ships, or after one has; **check which of the two has landed
+before taking the margin**, and `TOPOLOGY_NODE_SCALE_FLOOR`/`_CEILING`
+(0.5–1.5, already clamped at zoom) is the existing precedent for keeping a
+scaled quantity inside a bounded range rather than growing without limit.
