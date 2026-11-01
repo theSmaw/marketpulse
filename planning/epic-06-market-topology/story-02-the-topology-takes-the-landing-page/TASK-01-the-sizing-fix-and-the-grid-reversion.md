@@ -9,6 +9,7 @@ oversizing `Market topology` by 2–3× at every width. Repaired with
 `position: absolute; inset: 0` on `.frame` against `position: relative` on
 `.content`, which removes the percentage and the loop entirely. Zero scroll
 confirmed at all thirteen width/height pairs, up from four scrolling before.
+
 **Story:** [6.2 The Topology Takes the Landing Page](STORY.md)
 **Depends on:** nothing
 
@@ -115,7 +116,7 @@ blocker.** `pnpm probe` on the mounted component reported `clientHeight` ≠
 `scrollHeight` on `Market topology` at every width (520/945 at 1440×900,
 reproduced at 1024/768/390). Traced with Claude-in-Chrome against the running
 dev server: `.content`'s computed height resolved to ~1066–1124px (should be
-~441–473px), and the `<canvas>` element's own `height` *attribute* was `2248`
+~441–473px), and the `<canvas>` element's own `height` _attribute_ was `2248`
 (= 1123.97 CSS px × devicePixelRatio 2) — the canvas's own stale, JS-set
 intrinsic size was driving the chain upward instead of the grid driving it
 down. Root cause: a flexbox circular dependency. `Region.content`'s
@@ -184,7 +185,7 @@ predates the newer "keep the found line, append beside it" convention).
 - `pnpm e2e overview-region-order.spec.ts landing-route.spec.ts` — 3/3 pass
   (AC 4's own named specs).
 - `pnpm e2e overview-degraded-grid.spec.ts overview-sector-region.spec.ts
-  security-explorer-shell.spec.ts` — 17 + 13 = 30/30 pass, run as a regression
+security-explorer-shell.spec.ts` — 17 + 13 = 30/30 pass, run as a regression
   check against the grid reversion and the `Panel`/`Region` CSS changes.
 - `pnpm e2e` in full and `pnpm test:database` are **out of scope for this
   task** — Task 6.2.6 runs both, integrated, at the story's close.
