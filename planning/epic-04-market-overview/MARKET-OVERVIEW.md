@@ -93,9 +93,17 @@ them; this epic fills **four** (and Story 5.4 filled a fifth on 2026-10-17).
 | `Sector performance`     | eleven ranked sector SPDRs, each its benchmark's own move                                                                                | Story 4.3 ✔     |
 | `Market breadth`         | three counts, a remainder and a net headline                                                                                             | Story 4.4 ✔     |
 | `Movers`                 | `GAINERS` and `LOSERS`, five rows each                                                                                                   | Story 4.5 ✔     |
-| `Market topology`        | `reserved`                                                                                                                               | **Epic 6**      |
+| `Market topology`        | **a live graph of 516 securities clustered by sector, pan/zoom, a `Reset view` control, a real retry on a failed universe request**      | **Story 6.2 ✔** |
 | `Unusual activity`       | **ten ranked rows — the composite score, a tinted direction glyph, the day's band in the head, three populations, the cohort and a cut** | **Story 5.6 ✔** |
 | `Current investigations` | `reserved`                                                                                                                               | **Epic 7+**     |
+
+**Amended 2026-11-01 by Story 6.2: six of the seven hold content and only ONE
+is `reserved`.** `Market topology` draws for real — `TOPOLOGY.md` has the
+renderer and layout decisions this epic (6) made, and §9 below has this
+screen's own account of the region. It is this screen's first region whose
+content is a function of the **universe request** (`GET /securities`) rather
+than of the overview **aggregate**, which is what lets a gated run (CI's
+store: 516 securities, zero bars) verify it for real — see §9's own account.
 
 **Amended 2026-10-17 by Story 5.4: five of the seven hold figures and only TWO
 are `reserved`.** `Unusual activity` draws the ten securities whose last
@@ -536,6 +544,55 @@ an unadjusted price break — shares not comparable` (65) each wrapped to a
 > **240 / 240 / 240 / 302** and moves down 244 px once, at the release, with
 > `Anomaly history` behind it. Nothing moves under a reader mid-session —
 > which is the claim the thirteen-state probe above is for.
+
+> **Fired a FIFTH time on 2026-11-01 by Story 6.2, back on `/` and exactly where
+> the SECOND firing's own "what the trigger keeps" note said to watch for it —
+> `Market topology` filled for real.** Measured against a clean `main` worktree
+> (a second worktree and a second isolated pair, `provider=none` both sides so
+> the comparison holds the overview aggregate constant too), `pnpm probe` before
+> and after, at all four standard widths plus the three 1440-height variants
+> AC 2 named:
+>
+> | width×height     | `Market topology` top (Δ height)         | `Sector performance` top | `Movers` top        | `Market breadth` top | `Unusual activity` top | `Current investigations` top | document `scrollHeight`                 |
+> | ---------------- | ---------------------------------------- | ------------------------ | ------------------- | -------------------- | ---------------------- | ---------------------------- | --------------------------------------- |
+> | 1440×900         | 372 (161→522, **+361**)                  | 557→918 (**+361**)       | 1072→918 (**−154**) | 1072→918 (**−154**)  | 557→372 (**−185**)     | 1587→1433 (**−154**)         | 1893→1763 (**−130**)                    |
+> | 1440×700/680/500 | identical to 1440×900, all three heights | —                        | —                   | —                    | —                      | —                            | 1763 at all three (old: 1855/1851/1816) |
+> | 1024×900         | 372 (161→522, **+361**)                  | 557→918 (**+361**)       | 1072→918 (**−154**) | 1072→918 (**−154**)  | 557→372 (**−185**)     | 1587→1466 (**−121**)         | 1893→1796 (**−97**)                     |
+> | 768×800 (≤860)   | 1903 (121→522, **+401**)                 | 887→887 (**0**)          | 1397→1397 (**0**)   | 372→372 (**0**)      | 2048→2449 (**+401**)   | 2530→2931 (**+401**)         | 2876→3301 (**+425**)                    |
+> | 390×780 (≤860)   | 2002 (157→522, **+365**)                 | 1010→1010 (**0**)        | 1496→1496 (**0**)   | 495→495 (**0**)      | 2183→2548 (**+365**)   | 2665→3030 (**+365**)         | 3121→3534 (**+413**)                    |
+>
+> **At ≤860 the measurement is itself AC 4's own proof**: `Sector performance`,
+> `Movers` and `Market breadth` — the three regions the one-column order places
+> **before** the topology — moved **zero pixels**, while `Unusual activity` and
+> `Current investigations` — placed **after** it — moved by exactly the
+> topology's own height delta, confirming the order is unchanged and the
+> displacement is wholly attributable to one region's real height replacing a
+> placeholder's.
+>
+> **At ≥1024 the page got SHORTER despite the topology growing by +361 px**,
+> which is not the sign Decision 1's own "+100 px of displacement" language
+> predicted (that figure compared the 520 px band option against a 420 px one,
+> not old-grid against new-grid). The reason is the row-sharing AC 1 describes:
+> the old grid spent **two** `minmax(min-content, 1fr)` rows of 491 px each
+> (sectors+unusual, then movers+breadth) where the new grid spends **one**
+> (sectors+movers+breadth together, with unusual promoted into topology's own
+> row) — a structural saving of one 491 px row that outweighs the topology's
+> own +361.
+>
+> **The 1440-height variants confirm the mechanism this story's Task 6.2.1
+> fixed is gone, not merely passing at the heights tested.** The old grid's
+> `calc((82vh - 48px) * 7/30)` row made the topology's own height — and
+> therefore the position of everything inside its row and below it that a
+> taller box would have reached — a function of viewport HEIGHT; at 1440×500
+> the old topology scrolled (`client 82 / scroll 85`, matching the historical
+> reading in this document's own §1.6). The new `position: absolute; inset: 0`
+> mechanism has no height term at all: all three alternate heights at 1440
+> produced byte-identical region boxes to 1440×900, so there is no height at
+> which this region can scroll again short of the box itself disappearing.
+>
+> **What the trigger keeps.** One reserved region remains
+> (`Current investigations`, Epic 7+'s), and the next firing to watch for is
+> whatever story fills it.
 
 ### 1.5 A region is a tab stop unconditionally
 
@@ -2004,6 +2061,20 @@ reproduces that shape locally in seconds.
 | **A mover clicked through**                   | never                | never         | Story 4.6           |
 | **The screen at 390 on a phone, mid-session** | n/a                  | never         | Story 4.7 (AC 5b)   |
 | **Any cost figure against a real feed**       | never                | never         | Story 4.8           |
+
+**Amended 2026-11-01 by Story 6.2: the table above is no longer true of every
+region.** `Market topology` is the one row in it CI can actually verify —
+its content is a function of `GET /securities`, the universe request, rather
+than of this aggregate, and that request succeeds on every store that
+exists, bars or none. `e2e/specs/overview-market-topology.spec.ts` fetches
+`GET /securities` independently and recomputes the real `buildTopologyGraph`
+over it, then asserts the canvas's own dimensions, the absence of its
+refusal sentence, and its drawn sector count against that independent
+answer — a real, CI-capable negative and positive no other row in this
+table's list can have. The cold load was also re-taken for real against the
+built route (Task 6.2.5): 0 of 10 loads over 50ms, against the 447-node /
+24.7ms baseline. The rest of this section is unaffected — the other five
+tracked regions remain exactly as unseen by a gated machine as they were.
 
 **`LIVE-REHEARSAL.md` carried seven `OPEN` rows on 2026-10-12**, and it read **six**
 until that day: Story **4.6** had **no row in that ledger at all**, found

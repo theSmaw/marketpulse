@@ -1,6 +1,20 @@
 # Epic 6 — Market Topology
 
-**Status:** **Decomposed into NINE stories on 2026-10-30; Story 6.1 complete the same day, eight remain.** Eight are visible; the ninth is the close. **The theme question is SETTLED the same day: light theme only**, which is the cheapest moment it could have been answered — this epic's renderer is the first that reads the design tokens from a **canvas**, so a second ground would have doubled the surface of a renderer that did not exist yet. **The renderer question is also settled, by measurement rather than by the spec's own recommendation**: a hand-rolled Canvas2D module, not Sigma.js/WebGL — [ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md) is the decision and [`TOPOLOGY.md`](TOPOLOGY.md) is the subject document, written at Story 6.1's own close rather than deferred to this epic's. **Nothing is on any route yet** — the whole of Story 6.1's work is reviewable only in Storybook; Story 6.2 is what changes that.
+**Status:** **Decomposed into NINE stories on 2026-10-30; Stories 6.1 and 6.2 complete, seven remain.** **The theme question is SETTLED the same day: light theme only**, which is the cheapest moment it could have been answered — this epic's renderer is the first that reads the design tokens from a **canvas**, so a second ground would have doubled the surface of a renderer that did not exist yet. **The renderer question is also settled, by measurement rather than by the spec's own recommendation**: a hand-rolled Canvas2D module, not Sigma.js/WebGL — [ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md) is the decision and [`TOPOLOGY.md`](TOPOLOGY.md) is the subject document, written at Story 6.1's own close rather than deferred to this epic's.
+
+**And since 2026-11-01 it is on the route — Story 6.2's close.** `/`'s second
+region draws the real graph: 516 securities, an elliptical ring
+(arc-length-proportional wedge allocation, re-derived from the shipped
+layout rather than from the design canvas's stale figures), a renderer-side
+fit-scale threshold for widths no ring shape clears, pan/zoom with a clamped
+way back, a real retry on a failed universe request, an accessible text
+equivalent, and the degraded grid's ninth surface with its own
+universe-request axis. The cold load was re-measured for real against the
+built route and is not in breach (0 of 10 loads over 50ms). What Story 6.1's
+own sentence above used to say — _nothing is on any route yet, reviewable
+only in Storybook_ — is false of the topology itself now; it remains true of
+every encoding the remaining seven stories still own (the anomaly band, node
+size, correlation edges, interaction, live updates).
 **Sequence:** 6 of 15 — follows Epic 5 (Anomaly Detection)
 **Spec references:** PRODUCT_SPEC.md §10 (market topology visualization), §27 (high-performance rendering)
 

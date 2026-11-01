@@ -77,3 +77,35 @@ three are new; none has a page.
 ## Out of scope
 
 Filtering (6.8) — selecting a node is not filtering the graph.
+
+## Handed here by Story 6.2's close — 2026-11-01: the live region this story fires, the interaction surface it inherits, and the control it shares
+
+**The live-region reversal trigger is this story's own, by name.**
+`MarketTopology.tsx`'s docblock states the drawn graph's text equivalent
+carries **no live region** because the picture is static for the page's
+lifetime, with the reversal trigger _"the first change to this region a
+reader must be told about without having asked."_ A selection or hover that
+changes what a screen-reader user is told — without them having pressed
+anything new — is exactly that condition firing. Reaching for a plain
+`aria-live` region on the existing hidden paragraph is the obvious shape and
+is probably wrong by itself: that paragraph's whole reason for being static
+is `topologyDrawnSentence`'s own one-time construction, and a second,
+dynamic announcement is more likely a **second** element than a rewrite of
+the first.
+
+**The pointer/keyboard surface already has real state to coordinate with,
+not a blank canvas.** `fit.ts`'s `TopologyView` (pan, zoom, a clamped
+viewport) and `renderer-canvas.ts`'s `nodeAt()` hit-test already exist and
+are reused rather than rebuilt: pan is drag, zoom is `ctrl`/`⌘` + wheel, and
+a plain wheel scrolls the page (`touch-action: pan-y`) — a hover or a
+keyboard-driven selection must not fight either gesture, and `nodeAt`'s own
+16-unit footprint threshold (not the 8–12-unit ink) is already sized to be
+the thing a cursor or a focus ring targets.
+
+**`Reset view` (`MarketTopologyHandle.resetView`) is a shared control, not
+this story's to re-invent.** It already exists, wired to a button in
+`MarketOverview.tsx`'s region meta slot, and resets pan and zoom to the
+fitted view. A node selection this story adds should decide explicitly
+whether `Reset view` also clears it — the control's own docblock says it
+"is a no-op while nothing is mounted," which does not yet say anything about
+a selection, because none existed when it was written.

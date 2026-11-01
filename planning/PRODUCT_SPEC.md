@@ -525,6 +525,30 @@ The desktop layout should approximately consist of:
 
 The visualization should be the product's visual centre of gravity.
 
+> **Amended 2026-11-01 by Story 6.2 — the sketch groups `Market Breadth`
+> directly beneath the topology, and the shipped grid groups `Sector
+Performance`/`Movers` there instead, with `Market Breadth` moved to the
+> right column.** `/` now draws the real graph: 516 securities clustered by
+> sector, taking the full width of the primary column, with sector
+> performance and movers in a 2-up row beneath it in that **same** column.
+> `Market breadth` sits in the right column, beside `Unusual activity` and
+> `Current investigations`.
+>
+> **Decided as a design-system reconciliation rather than put to the Product
+> Owner** (ADR 0026's own rule — where this document and the design canvas
+> disagree, the document is wrong). `Market overview.dc.html` §02 draws the
+> end state this grid matches, and the grouping it draws is the more coherent
+> of the two: the primary column reads _the market's structure, then where in
+> that structure the move sits_ — cluster, sector, mover — while the right
+> column reads _aggregate state, what to look at, work in flight_. The
+> sketch's own layout was illustrative of a general shape (two columns, four
+> cells) rather than drawn against this screen's seven real regions, and the
+> canvas was drawn specifically for them.
+>
+> The three buckets and their names in `Market Breadth` are unaffected by the
+> move — see Story 4.4's amendment below — only the region's **column**
+> changed.
+
 > **Amended 2026-10-29 by Task 5.7.3 at Epic 5's close — the `Unusual Activity`
 > panel above is falsified FOUR ways, and §9 had received no Epic 5 amendment at
 > all until today.** The sketch stands as the record of what was asked for; the

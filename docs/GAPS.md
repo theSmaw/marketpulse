@@ -5561,6 +5561,21 @@ deleting it as a throwaway.
 Until then, "60 FPS" for this renderer is a claim about 516 real securities on
 one laptop, not about the performance target's own numbers.
 
+**Amended 2026-11-01 by Task 6.2.5: the cold-load HALF of this entry now has a
+route-level, real re-measurement — the frame-rate-under-interaction half does
+not, and remains exactly as described above.** Story 6.2 put the graph on `/`
+for real and Task 6.2.5 re-took `/`'s cold load against the built route via
+`overview-instrument.mjs`: **0 of 10 loads over 50ms on either long-frame
+channel, worst rAF gap 18.6–18.7ms**, against the 447-node/24.7ms/34.7ms
+baseline — still one laptop, still not a deployed measurement, but no longer
+"no route measurement at all" for this one figure. The frame-rate-under-
+interaction claim is unchanged by this: `pnpm probe`'s scripted pan/zoom path
+still has no entry point on `/` — it is wired only in
+`MarketTopology.stories.tsx` — so whether the shipped renderer holds 60 FPS
+while being dragged or zoomed on the real route, at real-universe scale or at
+Epic 14's synthetic one, is still unmeasured. `TOPOLOGY.md` §4 carries the
+same distinction, dated the same day.
+
 ## `a-var-read-resolves-to-a-declared-token` cannot see a canvas, and `TOKEN_NAMES` is the real mechanism for this renderer
 
 **Added 2026-10-30 by Task 6.1.4, closing Story 6.1.**

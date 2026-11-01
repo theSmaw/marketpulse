@@ -90,3 +90,26 @@ the affordance a canvas cannot borrow.
 Node sizing and edge strength (6.6) — this story encodes **one** quantity and
 says so, because `PRODUCT_SPEC.md` §10 lists five possible encodings and
 shipping them together makes none of them legible.
+
+## Handed here by Story 6.2's close — 2026-11-01: two reversal triggers this story is the likely source of
+
+**`topologyDrawnSentence`'s own sentence is false the moment this story
+ships.** `MarketTopology.tsx`'s accessible text equivalent reads _"Nothing in
+it is a measurement — it is a picture of how the market is organised."_ —
+true only while the graph encodes nothing but structure. The moment a node's
+visual treatment is driven by its anomaly band, that clause is wrong and
+needs rewriting alongside the band itself; `topologyDrawnSentence` is named
+in `MarketTopology.tsx`'s own docblock as the one place to amend, beside
+`topologyFailureSentence`, so there is nowhere else to look for it.
+
+**The declined `React.memo` boundary's own reversal trigger may fire here
+too.** Story 6.2's Task 6.2.5 traced the mount effect's deps
+(`[topology, probe, sentenceId]`) and found none of them change at feed
+cadence, so a memo boundary was declined with the reversal trigger _"the
+first prop this region takes that changes at feed cadence"_ — recorded in
+`MarketTopology.tsx`'s own docblock. If this story's anomaly band is driven
+by a live-updating score (rather than a value read once at mount, as the
+rest of the graph is), that is this trigger firing, and the memo decision
+needs re-taking with a producer-side measurement rather than assumed to
+still hold — `MarketTopology.test.tsx`'s own "the declined memo boundary"
+describe block has the test shape to extend or replace.

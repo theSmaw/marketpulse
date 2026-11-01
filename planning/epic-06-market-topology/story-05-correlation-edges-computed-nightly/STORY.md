@@ -95,3 +95,27 @@ has **no** computable correlations — which on CI is every security, for ever.
 
 Node sizing (6.6), live updates (6.7). The edge's **visual** strength beyond
 presence is 6.6's.
+
+## Handed here by Story 6.2's close — 2026-11-01: the ring this story's edges are drawn against is no longer the one §10's figure assumed
+
+**The ring is now elliptical, not circular, and the extent is bigger.**
+`buildTopologyLayout`'s shipped defaults are
+`TOPOLOGY_RING_RADIUS_X = 800, TOPOLOGY_RING_RADIUS_Y = 340` with
+arc-length-proportional wedge allocation (not angle-proportional), fitted
+extent **1880 × 923** against the circular ring's **1080 × 1008** — a 2.04
+aspect ratio rather than near-square. Open decision 1's own readability
+argument ("the figure should come from a measurement of readability and
+frame rate") has to be re-taken against this real shape: a correlation edge
+crossing the long axis of a 2.04-aspect ellipse travels a different real
+distance, at a different density of existing membership edges, than the same
+edge would have on the near-circular ring this story's own figures (N = 5
+giving 2,500 edge slots) were reasoned against.
+
+**Closest node pair is unchanged (17.83 layout units) — the one measurement
+from the old geometry that still holds.** The golden-angle spiral inside a
+cluster, the member hole and `topologyClusterRadius` are all independent of
+the ring's shape, so whatever this story measures about correlation-edge
+density **within** a cluster carries over; what does not carry over is
+anything about edges that cross **between** clusters, which now travel
+through a ring with 130.3 layout units of worst cluster-circle gap rather
+than 56.8.
