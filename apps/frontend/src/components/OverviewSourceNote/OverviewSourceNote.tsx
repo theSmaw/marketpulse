@@ -2,6 +2,7 @@ import type { WireMarketOverview } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import type { MarketFeedView } from "../../use-market-feed.js";
+import { CLASSIFICATION_CLAIM } from "../SourceNote/source-note.js";
 import {
   OVERVIEW_NOTE_TERMS,
   hasOverviewClauses,
@@ -75,19 +76,33 @@ export interface OverviewSourceNoteProps {
    * absence it was looking at.
    */
   readonly feed: MarketFeedView;
+
+  /**
+   * Whether `Market topology` has a real graph on screen right now (Task
+   * 6.2.4) — `universe.state === "loaded"` at the call site, the same
+   * condition `MarketTopology` itself draws from.
+   *
+   * **Independent of `overview`**, deliberately: the graph is a function of
+   * the universe REQUEST, not of this aggregate, so this flag can be `true`
+   * while `overview` is `undefined` (a graph with no aggregate ever
+   * arrived) and `false` while every other clause is present (the graph's
+   * own request failed with four live proxies above it).
+   */
+  readonly topologyDrawn: boolean;
 }
 
 export function OverviewSourceNote({
   overview,
   feed,
+  topologyDrawn,
 }: OverviewSourceNoteProps) {
-  const note = toOverviewSourceNote(overview, feed);
+  const note = toOverviewSourceNote(overview, feed, topologyDrawn);
 
   // Nothing to say, so nothing is drawn — not an empty box with a hairline
   // over it. It is the first-paint state and it should be brief.
   if (!hasOverviewClauses(note)) return null;
 
-  const { observed, closes, baselines, observedThrough } = note;
+  const { observed, closes, baselines, observedThrough, classification } = note;
 
   return (
     <dl className={cx(styles.note)}>
@@ -170,15 +185,19 @@ export function OverviewSourceNote({
       {observedThrough !== null && (
         <>
           {/*
-           * Last, because it is the least surprising claim on the note and the
-           * one furthest from the picture — `SourceNote`'s ordering rule.
-           *
            * **It drew `Computed` until 2026-10-10** — when the arithmetic ran,
            * which advances every time a reader opens a tab and therefore dated
            * a stopped feed's figures to the minute the tab was opened. It now
            * states the newest observation the aggregate contains, and says
            * nothing at all when there is none. Task 4.8.12, and
            * `overview-source-note.ts` carries the argument.
+           *
+           * **No longer the last term** (Task 6.2.4 adds `Classification`
+           * beneath it) — still the least surprising claim about the
+           * AGGREGATE, which is the ordering rule this note has always
+           * applied to itself; `Classification` is a claim about something
+           * else on screen entirely and sits beneath every aggregate clause
+           * for `SourceNote`'s own reason, not this one's.
            */}
           <dt className={cx(styles.term)}>
             {OVERVIEW_NOTE_TERMS.observedThrough}
@@ -186,6 +205,43 @@ export function OverviewSourceNote({
           <dd className={cx(styles.definition)}>
             <span className={cx(styles.line)}>
               <span className={cx(styles.retrieved)}>{observedThrough}</span>
+            </span>
+          </dd>
+        </>
+      )}
+
+      {classification && (
+        <>
+          {/*
+           * **The graph's structure is curated, not observed** (Task 6.2.4).
+           * `Market topology` is this screen's first content that is a
+           * function of the universe REQUEST rather than of this aggregate
+           * — a healthy graph beside regions in an aggregate-degraded state
+           * would otherwise make an unlabelled claim about market data.
+           *
+           * Last, for `SourceNote`'s own reason: the least surprising claim
+           * on the note and the one furthest from the picture — and here,
+           * also the one clause that can stand alone with every other clause
+           * absent (a drawn graph, no aggregate ever arrived — CI's
+           * permanent state).
+           */}
+          <dt className={cx(styles.term)}>
+            {OVERVIEW_NOTE_TERMS.classification}
+          </dt>
+          <dd className={cx(styles.definition)}>
+            <span className={cx(styles.line)}>
+              <span>
+                {CLASSIFICATION_CLAIM.before}
+                {/*
+                 * `.value`, the same weight `Clause`'s own label carries —
+                 * what makes this read as one note rather than a paragraph
+                 * that happens to share its rule.
+                 */}
+                <span className={cx(styles.value)}>
+                  {CLASSIFICATION_CLAIM.group}
+                </span>
+                {CLASSIFICATION_CLAIM.after}
+              </span>
             </span>
           </dd>
         </>

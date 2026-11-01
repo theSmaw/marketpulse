@@ -135,6 +135,22 @@ export interface OverviewSourceNoteView {
    * {@link observedThroughClause}.
    */
   readonly observedThrough: string | null;
+
+  /**
+   * **Whether the graph's structure is curated, not observed** (Task 6.2.4).
+   *
+   * `/`'s own topology is this screen's first content that is a function of
+   * the UNIVERSE REQUEST rather than of the overview aggregate — see
+   * `MarketTopology.tsx`'s own account. A healthy graph beside regions in an
+   * aggregate-degraded state would otherwise make an unlabelled claim about
+   * market data; the graph's structure is curated, not observed, and this
+   * says so.
+   *
+   * A plain `boolean` rather than a `FeedClause`, because the claim is fixed
+   * — `SourceNote`'s own shipped `CLASSIFICATION_CLAIM` — and nothing about
+   * it varies per frame the way a feed's label or a baseline's window does.
+   */
+  readonly classification: boolean;
 }
 
 /**
@@ -156,6 +172,9 @@ export const OVERVIEW_NOTE_TERMS = {
   // set of **distributions**, not a set of prices, and the prices behind them
   // are already named by `Closing prices` one line up. Task 5.4.4.
   baselines: "Baselines",
+  // `SourceNote`'s own term for the same claim (Task 6.2.4) — one word, one
+  // home, reused rather than re-spelled.
+  classification: "Classification",
 } as const;
 
 /**
@@ -196,7 +215,8 @@ export function hasOverviewClauses(note: OverviewSourceNoteView): boolean {
     note.observed !== null ||
     note.closes !== null ||
     note.baselines !== null ||
-    note.observedThrough !== null
+    note.observedThrough !== null ||
+    note.classification
   );
 }
 
@@ -205,10 +225,19 @@ export function hasOverviewClauses(note: OverviewSourceNoteView): boolean {
  *
  * `undefined` is *no frame has arrived* — first paint, and the note says
  * nothing rather than describing an aggregate that does not exist.
+ *
+ * **`topologyDrawn` is independent of `overview`**, deliberately — it is a
+ * fact about the universe REQUEST (`MarketTopology`'s own `useSecurities()`
+ * call), not about the aggregate this function's other four clauses all
+ * read. So the classification clause can be the only thing this note says
+ * (a graph drawn with no aggregate ever arrived, CI's permanent state) and
+ * can be absent while every other clause is present (the graph's own
+ * request failed with four live proxies on screen above it).
  */
 export function toOverviewSourceNote(
   overview: WireMarketOverview | undefined,
   feed: MarketFeedView,
+  topologyDrawn: boolean,
 ): OverviewSourceNoteView {
   if (overview === undefined) {
     return {
@@ -216,6 +245,7 @@ export function toOverviewSourceNote(
       closes: null,
       baselines: null,
       observedThrough: null,
+      classification: topologyDrawn,
     };
   }
 
@@ -224,6 +254,7 @@ export function toOverviewSourceNote(
     closes: closesClause(overview),
     baselines: baselinesClause(overview),
     observedThrough: observedThroughClause(overview),
+    classification: topologyDrawn,
   };
 }
 

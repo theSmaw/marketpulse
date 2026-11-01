@@ -214,7 +214,7 @@ export function MarketOverview({
    * every surface but the one that owns a fact stays quiet, and the row would
    * otherwise grow an error state over a missing word.
    */
-  const { view: universe } = useSecurities();
+  const { view: universe, retry: retryUniverse } = useSecurities();
   const names = useMemo(
     () =>
       universe.state === "loaded"
@@ -829,13 +829,14 @@ export function MarketOverview({
             ref={topology}
             universe={universe}
             /*
-             * **Task 6.2.4 replaces this with `useSecurities().retry`.** That
-             * story's Decision 3 makes this region the owner of *the tracked
-             * universe is not available* — the sentence, the control and the
-             * retry wiring are one change, and splitting the wiring off into
-             * this task would ship a `Try again` that does nothing.
+             * **`useSecurities().retry` — Decision 3 makes this region the
+             * owner of *the tracked universe is not available*** (Task
+             * 6.2.4). Already `useCallback`-stable, so this is the same
+             * identity across every one of this route's renders that
+             * `retryNotWiredYet`'s own module-scope placeholder was built to
+             * provide, now reaching something real.
              */
-            onRetry={retryNotWiredYet}
+            onRetry={retryUniverse}
           />
         </Region>
 
@@ -923,7 +924,17 @@ export function MarketOverview({
        * It is handed the **same frame the strip is drawing**, so the note and
        * the picture cannot describe different answers.
        */}
-      <OverviewSourceNote overview={overview} feed={marketFeed ?? CHECKING} />
+      <OverviewSourceNote
+        overview={overview}
+        feed={marketFeed ?? CHECKING}
+        /*
+         * **Independent of `overview`, by design** (Task 6.2.4) — the graph
+         * is a function of `universe`, the `useSecurities()` request this
+         * route already makes for the movers' name map, never of this
+         * aggregate.
+         */
+        topologyDrawn={universe.state === "loaded"}
+      />
     </>
   );
 }
@@ -946,22 +957,3 @@ const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map<string, Bar>();
 /** The same, for the universe that has not arrived — see `names`. */
 const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();
-
-/**
- * **A placeholder for one task: Task 6.2.4 replaces this with `retry` from the
- * `useSecurities()` call this route already makes.**
- *
- * `MarketTopologyProps.onRetry` is required rather than optional — Task 6.1.3's
- * decision, because an omitted handler takes the `Try again` control off a
- * failed screen *silently* and an absent control is how this product says
- * **trying again will not help**. So the prop cannot be left off while Story
- * 6.2 builds the region's failure ownership in its own task, and what stands in
- * is a named no-op rather than an inline arrow: module scope so its identity is
- * stable across every one of this route's 13.6–32.2 renders a minute, and a
- * name so the thing this is waiting for is readable at the call site.
- *
- * **It is reachable**: a `GET /securities` that fails retryably draws a control
- * that does nothing for the length of this task. Named here rather than left
- * implicit so that it is one grep away.
- */
-const retryNotWiredYet = (): void => undefined;

@@ -110,7 +110,7 @@ const meta = {
   title: "Market/OverviewSourceNote",
   component: OverviewSourceNote,
   parameters: { layout: "padded" },
-  args: { overview: SESSION, feed: NOT_CONFIGURED },
+  args: { overview: SESSION, feed: NOT_CONFIGURED, topologyDrawn: false },
 } satisfies Meta<typeof OverviewSourceNote>;
 
 export default meta;
@@ -326,6 +326,30 @@ export const BaselinesRanked: Story = {
   },
 };
 
+/**
+ * **The graph's structure is curated, not observed** (Task 6.2.4) —
+ * `Market topology`'s own claim, reusing `SourceNote`'s shipped
+ * `CLASSIFICATION_CLAIM` vocabulary rather than re-spelling it.
+ *
+ * Last, for `SourceNote`'s own ordering reason, and the one clause that is
+ * independent of every other on this note: it is a fact about the universe
+ * REQUEST (`useSecurities()`), never about this aggregate, so it draws
+ * exactly as well beside a healthy session as beside an aggregate over
+ * nothing — see {@link ADrawnGraphWithNoAggregate} below.
+ */
+export const ASessionWithTheGraphDrawn: Story = {
+  args: { feed: { state: "configured", feed: "iex" }, topologyDrawn: true },
+};
+
+/**
+ * **CI's permanent state, and the one clause that can stand alone with it:**
+ * 516 securities, zero bars, no overview frame ever — and a graph still
+ * drew, because it reads the tracked universe rather than this aggregate.
+ */
+export const ADrawnGraphWithNoAggregate: Story = {
+  args: { overview: undefined, topologyDrawn: true },
+};
+
 export const EveryState: Story = {
   parameters: { layout: "padded" },
   render: () => (
@@ -336,9 +360,16 @@ export const EveryState: Story = {
             "A session running, chrome naming IEX",
             SESSION,
             { state: "configured", feed: "iex" },
+            false,
           ],
-          ["A session running, chrome silent", SESSION, NOT_CONFIGURED],
-          ["Stored closes only, no provider", CLOSES, NOT_CONFIGURED],
+          [
+            "The same session, with the graph drawn too",
+            SESSION,
+            { state: "configured", feed: "iex" },
+            true,
+          ],
+          ["A session running, chrome silent", SESSION, NOT_CONFIGURED, false],
+          ["Stored closes only, no provider", CLOSES, NOT_CONFIGURED, false],
           [
             "A feed that stopped four hours ago",
             frame(
@@ -354,13 +385,24 @@ export const EveryState: Story = {
               at("18:01"),
             ),
             { state: "configured", feed: "iex" } as const,
+            false,
           ],
-          ["No frame yet", undefined, NOT_CONFIGURED],
+          ["No frame yet", undefined, NOT_CONFIGURED, false],
+          [
+            "No frame yet, but the graph drew — CI's permanent state",
+            undefined,
+            NOT_CONFIGURED,
+            true,
+          ],
         ] as const
-      ).map(([label, overview, feed]) => (
+      ).map(([label, overview, feed, topologyDrawn]) => (
         <div className={gridStyles.stackItem} key={label}>
           <p className={gridStyles.label}>{label}</p>
-          <OverviewSourceNote overview={overview} feed={feed} />
+          <OverviewSourceNote
+            overview={overview}
+            feed={feed}
+            topologyDrawn={topologyDrawn}
+          />
         </div>
       ))}
     </div>

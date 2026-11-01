@@ -1,11 +1,13 @@
 import { mkdir, writeFile } from "node:fs/promises";
 
-import type {
-  MarketFeed,
-  WireMarketBreadth,
-  WireMarketMovers,
-  WireMarketOverview,
-  WireOverviewFigure,
+import {
+  REQUEST_ID_HEADER,
+  apiError,
+  type MarketFeed,
+  type WireMarketBreadth,
+  type WireMarketMovers,
+  type WireMarketOverview,
+  type WireOverviewFigure,
 } from "@marketpulse/shared";
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
@@ -690,6 +692,13 @@ const REGIONS = [
   "Sector performance",
   "Market breadth",
   "Movers",
+  // **The ninth surface, and the sixth region** (Task 6.2.4) — the first
+  // region this grid carries that is a function of the UNIVERSE REQUEST
+  // rather than of the overview aggregate every other row varies. See the
+  // `aggregateOnlyIds` check below and `MARKET-OVERVIEW.md` §7.3's dated
+  // amendment for why that makes it a second axis rather than a ninth row
+  // of the first one.
+  "Market topology",
   // **The eighth surface, and the fifth region** (Task 5.4.6) — the landing
   // page's last reserved region, filled by Story 5.4 and invisible to this
   // grid until it was named here.
@@ -742,6 +751,12 @@ const NOTE_TERMS = [
   "Closing prices",
   "Observed through",
   "Baselines",
+  // **Task 6.2.4, and this list's own docblock predicted exactly this
+  // failure mode for a term added without updating this copy** — an
+  // unlisted `dt` does not fail an assertion, it makes the whole note
+  // unfindable, which reads as the product having dropped its provenance
+  // entirely rather than as one clause missing from a test fixture.
+  "Classification",
 ];
 
 /**
@@ -811,7 +826,8 @@ async function readRow(page: Page): Promise<Reading> {
     "Sector performance": regions[1] ?? null,
     "Market breadth": regions[2] ?? null,
     Movers: regions[3] ?? null,
-    "Unusual activity": regions[4] ?? null,
+    "Market topology": regions[4] ?? null,
+    "Unusual activity": regions[5] ?? null,
     "source note": await noteOf(page),
     "feed cell": feedCell,
     "service cell": serviceCell,
@@ -1283,13 +1299,23 @@ const STATES: readonly State[] = [
     id: "13-universe-outstanding",
     kind: "produced",
     drive: async (page) => {
-      // **The axis this grid has never had** (Task 4.7.5): `GET /securities`
-      // is the one HTTP request beside the socket, the movers name track is
-      // the only thing that depends on it, and it measured 124 ms against
-      // first-frame times of 174–277 ms — so every cold load may paint movers
-      // with no names. Held open rather than refused: an abort reaches the
-      // same screen and is the failure case, and the point is that the failure
-      // and the ordinary cold load are one picture.
+      // **The axis this grid had only a held half of, until Task 6.2.4 gave
+      // it four resolved rows of its own (18–21, below).** `GET /securities`
+      // is the one HTTP request beside the socket; until Story 6.2 the
+      // movers name track was the only thing that depended on it, and it
+      // measured 124 ms against first-frame times of 174–277 ms — so every
+      // cold load may paint movers with no names. Held open rather than
+      // refused, because this row is about the ORDINARY cold load rather
+      // than a failure.
+      //
+      // **Corrected 2026-11-01 by Task 6.2.4: "an abort reaches the same
+      // screen and is the failure case" is false the moment this region
+      // lands.** `Market topology` reads the same `useSecurities()` request
+      // and now draws its OWN sentence per outcome — unreachable, a 503, a
+      // 200 that is not this API, and an empty store are four DIFFERENT
+      // screens, not one. Rows 18–21 produce them for real; this row stays
+      // as the fifth state on this axis, the one no abort or fulfillment
+      // produces: the request simply has not resolved yet.
       const produced = await serveFeed(page, { feed: VENUE, overview: RICH });
 
       let held = 0;
@@ -1352,6 +1378,154 @@ const STATES: readonly State[] = [
     id: "17-rollback-no-unusual-section",
     kind: "rollback",
     drive: serving(ROLLBACK_NO_UNUSUAL),
+  },
+  // -------------------------------------------------------------------------
+  // The ninth surface's own four rows (Task 6.2.4) — the axis this grid
+  // never had a second half of, because until Story 6.2 nothing visible on
+  // `/` depended on `GET /securities` succeeding. `Market topology` is a
+  // function of the UNIVERSE REQUEST rather than of the overview aggregate
+  // every row above varies, so these four hold `RICH` constant (the same
+  // healthy aggregate row 13 uses) and vary only how `GET /securities`
+  // answers — the second axis `MARKET-OVERVIEW.md` §7.3 now names as this
+  // region's declared exception to *a content class is one aggregate*.
+  // -------------------------------------------------------------------------
+  {
+    id: "18-universe-unreachable",
+    kind: "produced",
+    drive: async (page) => {
+      const produced = await serveFeed(page, { feed: VENUE, overview: RICH });
+
+      await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+        await route.abort("connectionrefused");
+      });
+
+      await open(page);
+      await expect
+        .poll(() => produced.overviews(), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+      await expect(
+        page.getByRole("region", { name: "Market topology" }),
+      ).toContainText("Nothing answered at the service’s address");
+
+      return {
+        plant: {
+          connections: produced.connections(),
+          overviews: produced.overviews(),
+        },
+      };
+    },
+  },
+  {
+    id: "19-universe-failed-retryable",
+    kind: "produced",
+    drive: async (page) => {
+      const requestId = "c1f2a3b4-5d6e-4f70-8a91-b2c3d4e5f607";
+      const produced = await serveFeed(page, { feed: VENUE, overview: RICH });
+
+      await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          headers: {
+            [REQUEST_ID_HEADER]: requestId,
+            "access-control-expose-headers": REQUEST_ID_HEADER,
+          },
+          body: JSON.stringify(
+            apiError(
+              "SERVICE_UNAVAILABLE",
+              "Market data is temporarily unavailable. Try again shortly.",
+              requestId,
+            ),
+          ),
+        });
+      });
+
+      await open(page);
+      await expect
+        .poll(() => produced.overviews(), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+      await expect(
+        page.getByRole("region", { name: "Market topology" }),
+      ).toContainText("The service answered and could not reach the data");
+
+      return {
+        plant: {
+          connections: produced.connections(),
+          overviews: produced.overviews(),
+        },
+      };
+    },
+  },
+  {
+    id: "20-universe-failed-not-retryable",
+    kind: "produced",
+    drive: async (page) => {
+      const requestId = "d2e3f4a5-6b7c-4d81-9b02-c3d4e5f6a718";
+      const produced = await serveFeed(page, { feed: VENUE, overview: RICH });
+
+      await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          headers: {
+            [REQUEST_ID_HEADER]: requestId,
+            "access-control-expose-headers": REQUEST_ID_HEADER,
+          },
+          body: JSON.stringify(
+            apiError("INTERNAL_ERROR", "Something went wrong.", requestId),
+          ),
+        });
+      });
+
+      await open(page);
+      await expect
+        .poll(() => produced.overviews(), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+      await expect(
+        page.getByRole("region", { name: "Market topology" }),
+      ).toContainText("it was not this service");
+
+      return {
+        plant: {
+          connections: produced.connections(),
+          overviews: produced.overviews(),
+        },
+      };
+    },
+  },
+  {
+    id: "21-universe-empty",
+    kind: "produced",
+    drive: async (page) => {
+      const produced = await serveFeed(page, { feed: VENUE, overview: RICH });
+
+      await page.route(SECURITIES_ROUTE_PATTERN, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            securities: [],
+            coverage: [],
+            lastCloses: [],
+          }),
+        });
+      });
+
+      await open(page);
+      await expect
+        .poll(() => produced.overviews(), { timeout: 10_000 })
+        .toBeGreaterThan(0);
+      await expect(
+        page.getByRole("region", { name: "Market topology" }),
+      ).toContainText("No securities are tracked yet");
+
+      return {
+        plant: {
+          connections: produced.connections(),
+          overviews: produced.overviews(),
+        },
+      };
+    },
   },
 ];
 
@@ -1525,7 +1699,7 @@ for (const width of WIDTHS) {
   test.describe(`the degraded grid at ${String(width)}`, () => {
     test.use({ viewport: { width, height: width === 390 ? 780 : 900 } });
 
-    test(`eight surfaces, every state, and the declared collisions`, async ({
+    test(`nine surfaces, every state, and the declared collisions`, async ({
       context,
     }) => {
       test.slow();
@@ -1646,6 +1820,60 @@ for (const width of WIDTHS) {
             ).toBe(declared);
           }
         }
+      }
+
+      // **`Market topology` declared constant across the aggregate axis**
+      // (Task 6.2.4) — explicitly, rather than left to pass by accident the
+      // way the generic class machinery above would. Rows 01–12 and 14–17
+      // vary only the OVERVIEW AGGREGATE and never touch `GET /securities`,
+      // so the real local universe answers identically underneath every one
+      // of them — the topology region must read byte-for-byte the same on
+      // all fifteen. This is a SEPARATE assertion from the generic
+      // content-class partition above because the aggregate-only rows do not
+      // all share one declared class with each other (several share none at
+      // all), so the partition check has no way to state a claim that spans
+      // every row on one axis while the OTHER regions keep differing between
+      // them.
+      //
+      // **`preFloor` rows are excluded, and this is a real race the first
+      // run of this check found rather than a guess.** `01-no-aggregate-
+      // before-the-floor` is read immediately on mount, deliberately before
+      // anything settles — and `MarketTopology`'s own universe request
+      // resolves on the real local backend's own timing, which is gated by
+      // nothing this grid controls. The first run caught row 01 mid-flight
+      // (`Market topology RESET VIEW`, nothing drawn yet) beside row 02 —
+      // read after settling — fully drawn. Both are correct readings of a
+      // real race; asserting them equal would be asserting a timing
+      // coincidence rather than the claim this check is actually about.
+      const UNIVERSE_REQUEST_ROW_PREFIXES = ["13-", "18-", "19-", "20-", "21-"];
+      const aggregateOnlyIds = new Set(
+        STATES.filter(
+          (state) =>
+            state.preFloor !== true &&
+            !UNIVERSE_REQUEST_ROW_PREFIXES.some((prefix) =>
+              state.id.startsWith(prefix),
+            ),
+        ).map((state) => state.id),
+      );
+      const aggregateOnlyRows = rows.filter((row) =>
+        aggregateOnlyIds.has(row.state.id),
+      );
+      const firstTopologyReading =
+        aggregateOnlyRows[0]?.reading["Market topology"];
+
+      expect(
+        aggregateOnlyRows.length,
+        "the aggregate-only row set is empty — a renamed row id broke this check silently",
+      ).toBeGreaterThan(0);
+
+      for (const row of aggregateOnlyRows) {
+        expect(
+          row.reading["Market topology"],
+          `${row.state.id} reads a DIFFERENT Market topology than the other ` +
+            `aggregate-only rows at ${String(width)} — the region is supposed ` +
+            `to be a pure function of the universe request, which none of ` +
+            `these rows touch`,
+        ).toBe(firstTopologyReading);
       }
 
       // **The partial collisions, both halves.** A declared class is a claim

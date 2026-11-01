@@ -1,5 +1,7 @@
-import { useEffect, useImperativeHandle, useRef } from "react";
+import { useEffect, useId, useImperativeHandle, useRef } from "react";
 import type { Ref } from "react";
+
+import type { TopologyGraph } from "@marketpulse/shared";
 
 import type {
   SecuritiesFailure,
@@ -12,6 +14,7 @@ import {
 } from "../../topology/index.js";
 import type { TopologyRenderer } from "../../topology/index.js";
 import { Button } from "../Button/Button.js";
+import { useWaited } from "../MarketProxyStrip/use-waited.js";
 import styles from "./MarketTopology.module.css";
 
 // **The market topology, drawn** (Task 6.1.2).
@@ -105,6 +108,7 @@ export function MarketTopology({
 }: MarketTopologyProps) {
   const frame = useRef<HTMLDivElement>(null);
   const renderer = useRef<TopologyRenderer | null>(null);
+  const sentenceId = useId();
 
   useImperativeHandle(
     ref,
@@ -116,21 +120,41 @@ export function MarketTopology({
 
   const securities = universe.state === "loaded" ? universe.securities : null;
 
+  /**
+   * **Built once, read by both the mount effect and the drawn sentence
+   * below** (Task 6.2.4). `topologySource` is a pure, memoised function —
+   * the same `securities` array gives back the same `{ graph, layout }` by
+   * identity — so calling it here rather than only inside the effect is
+   * free, and it is what lets {@link topologyDrawnSentence} read the real
+   * cluster count from the graph the canvas actually drew rather than
+   * hard-coding `11` a second place.
+   */
+  const topology = securities === null ? null : topologySource(securities);
+
+  /**
+   * **`Reading the tracked universe.` behind `useWaited`'s 2,000 ms floor**
+   * (Task 6.2.4) — `MarketProxyStrip`/`SectorPerformance`/`Unusual`'s own
+   * pattern, copied rather than re-invented. The measured 174–277 ms
+   * response time means drawing the sentence immediately would flash it in
+   * the landing page's primary area on every cold load, which is the exact
+   * defect those three siblings were built to avoid.
+   */
+  const waited = useWaited(universe.state === "loading");
+
   useEffect(() => {
     const container = frame.current;
-    if (container === null || securities === null) return;
+    if (container === null || topology === null) return;
 
     let mounted: TopologyRenderer | null = null;
     let refusal: HTMLParagraphElement | null = null;
 
     try {
-      const { graph, layout } = topologySource(securities);
-
       mounted = mountCanvasTopology(container, {
-        graph,
-        layout,
+        graph: topology.graph,
+        layout: topology.layout,
         palette: topologyPalette(),
         probe,
+        labelledBy: sentenceId,
       });
       renderer.current = mounted;
     } catch (error) {
@@ -159,12 +183,14 @@ export function MarketTopology({
       mounted?.destroy();
       refusal?.remove();
     };
-  }, [securities, probe]);
+  }, [topology, probe, sentenceId]);
 
   if (universe.state === "loading") {
     return (
       <div className={styles.frame}>
-        <p className={styles.absence}>Reading the tracked universe.</p>
+        {waited ? (
+          <p className={styles.absence}>Reading the tracked universe.</p>
+        ) : undefined}
       </div>
     );
   }
@@ -255,7 +281,54 @@ export function MarketTopology({
     );
   }
 
-  return <div className={styles.frame} ref={frame} data-topology="canvas" />;
+  if (topology === null) {
+    // **Unreachable rather than asserted away.** Every earlier `return`
+    // covers every state `universe` can hold other than `loaded`, which is
+    // the only one `topology` is non-null for — so this never actually
+    // renders, and it is here so the type this function returns is proven
+    // rather than cast past.
+    return null;
+  }
+
+  return (
+    <div className={styles.frame} ref={frame} data-topology="canvas">
+      {/*
+       * **The drawn graph's text equivalent** (Task 6.2.4, Story 6.1's
+       * acceptance criterion 7 arriving at the one state that needed it
+       * last).
+       */}
+      <p id={sentenceId} className={styles.drawnSentence}>
+        {topologyDrawnSentence(topology.graph)}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * What this region says to a screen reader once the graph is drawn — a
+ * canvas has no accessible content of its own, so this is the ONLY account
+ * of it one gets (Task 6.2.4, Story 6.1's acceptance criterion 7).
+ *
+ * **Settled at this story's Gate 1, verbatim** (`STORY.md`'s Design work):
+ * states no count another surface already owns (`516` lives in
+ * `measured-set.ts`) and names no ticker — 501 symbols in a hidden paragraph
+ * is a wall, not a fallback. The sector count is read off the real graph
+ * rather than hard-coded a second place, so a curation change that ever
+ * altered it would move this sentence with it.
+ *
+ * **No live region, and that is a decision rather than an omission.** The
+ * picture is static for the page's lifetime — built once from a `useState`
+ * value that changes only on a settled response — so there is nothing to
+ * announce. Reversal trigger, a condition: *the first change to this region
+ * a reader must be told about without having asked* (Story 6.4's selection
+ * answering an agent's `highlight_graph_nodes`, not a repaint).
+ */
+function topologyDrawnSentence(graph: TopologyGraph): string {
+  return (
+    `A graph of every security we track, grouped into ${String(graph.clusters.length)} sectors ` +
+    `around their benchmark ETFs, with the broad market at the centre. Nothing in it is a ` +
+    `measurement — it is a picture of how the market is organised.`
+  );
 }
 
 /**

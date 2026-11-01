@@ -78,15 +78,39 @@ const CHECKING: MarketFeedView = { state: "checking" };
 
 describe("toOverviewSourceNote", () => {
   it("says nothing at all before a frame has arrived", () => {
-    const note = toOverviewSourceNote(undefined, NOT_CONFIGURED);
+    const note = toOverviewSourceNote(undefined, NOT_CONFIGURED, false);
 
     expect(note).toEqual({
       observed: null,
       closes: null,
       baselines: null,
       observedThrough: null,
+      classification: false,
     });
     expect(hasOverviewClauses(note)).toBe(false);
+  });
+
+  it("states the graph's structure is curated, independent of the aggregate — Task 6.2.4", () => {
+    // A drawn graph with no aggregate ever arrived is CI's permanent state,
+    // and it must not depend on one.
+    const drawnWithNoFrame = toOverviewSourceNote(
+      undefined,
+      NOT_CONFIGURED,
+      true,
+    );
+
+    expect(drawnWithNoFrame.classification).toBe(true);
+    expect(hasOverviewClauses(drawnWithNoFrame)).toBe(true);
+
+    // And the mirror: a healthy aggregate with the graph's own request
+    // failed states everything else and not this.
+    const frameWithNoGraph = toOverviewSourceNote(
+      frame([observed("SPY", 0.42)], ["iex"]),
+      NOT_CONFIGURED,
+      false,
+    );
+
+    expect(frameWithNoGraph.classification).toBe(false);
   });
 
   it("names no feed when nothing has been observed", () => {
@@ -96,6 +120,7 @@ describe("toOverviewSourceNote", () => {
     const note = toOverviewSourceNote(
       frame([stored("SPY"), stored("QQQ")]),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.observed).toBeNull();
@@ -108,6 +133,7 @@ describe("toOverviewSourceNote", () => {
     const note = toOverviewSourceNote(
       frame([observed("SPY", 0.42)], ["iex"]),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.observed).toEqual([
@@ -116,10 +142,14 @@ describe("toOverviewSourceNote", () => {
   });
 
   it("goes quiet only when the chrome names this exact feed", () => {
-    const note = toOverviewSourceNote(frame([observed("SPY", 0.42)], ["iex"]), {
-      state: "configured",
-      feed: "iex",
-    });
+    const note = toOverviewSourceNote(
+      frame([observed("SPY", 0.42)], ["iex"]),
+      {
+        state: "configured",
+        feed: "iex",
+      },
+      false,
+    );
 
     expect(note.observed).toBeNull();
     // And the closes clause stays, because the chrome can never state it.
@@ -127,10 +157,14 @@ describe("toOverviewSourceNote", () => {
   });
 
   it("speaks when the chrome names a different feed", () => {
-    const note = toOverviewSourceNote(frame([observed("SPY", 0.42)], ["iex"]), {
-      state: "configured",
-      feed: "sip",
-    });
+    const note = toOverviewSourceNote(
+      frame([observed("SPY", 0.42)], ["iex"]),
+      {
+        state: "configured",
+        feed: "sip",
+      },
+      false,
+    );
 
     expect(note.observed).toEqual([
       { label: IEX.label, sentence: IEX.sentence },
@@ -143,8 +177,11 @@ describe("toOverviewSourceNote", () => {
     // milliseconds later is a worse reading than a fact arriving with
     // everything else.
     expect(
-      toOverviewSourceNote(frame([observed("SPY", 0.42)], ["iex"]), CHECKING)
-        .observed,
+      toOverviewSourceNote(
+        frame([observed("SPY", 0.42)], ["iex"]),
+        CHECKING,
+        false,
+      ).observed,
     ).toBeNull();
   });
 
@@ -152,6 +189,7 @@ describe("toOverviewSourceNote", () => {
     const note = toOverviewSourceNote(
       frame([observed("SPY", 0.42)], ["sip", "iex"]),
       { state: "configured", feed: "iex" },
+      false,
     );
 
     expect(note.observed?.map((clause) => clause.label)).toEqual([
@@ -163,10 +201,14 @@ describe("toOverviewSourceNote", () => {
   it("states the consolidated tape when a live figure was measured from one", () => {
     // The uncomfortable fact this note exists for: an IEX numerator and a
     // consolidated-SIP denominator, on a screen whose chrome says `IEX`.
-    const note = toOverviewSourceNote(frame([observed("SPY", 0.42)], ["iex"]), {
-      state: "configured",
-      feed: "iex",
-    });
+    const note = toOverviewSourceNote(
+      frame([observed("SPY", 0.42)], ["iex"]),
+      {
+        state: "configured",
+        feed: "iex",
+      },
+      false,
+    );
 
     expect(note.closes?.sentence).toBeDefined();
   });
@@ -175,6 +217,7 @@ describe("toOverviewSourceNote", () => {
     const note = toOverviewSourceNote(
       frame([observed("SPY"), unknown("QQQ")], ["iex"]),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.closes).toBeNull();
@@ -183,7 +226,11 @@ describe("toOverviewSourceNote", () => {
   it("drops the sentence when no change is on screen", () => {
     // Per-clause, inside a clause: the label stands alone rather than carrying
     // a sentence about percentages nobody can see.
-    const note = toOverviewSourceNote(frame([stored("SPY")]), NOT_CONFIGURED);
+    const note = toOverviewSourceNote(
+      frame([stored("SPY")]),
+      NOT_CONFIGURED,
+      false,
+    );
 
     expect(note.closes).toEqual({ label: SIP.label });
   });
@@ -200,6 +247,7 @@ describe("toOverviewSourceNote", () => {
       toOverviewSourceNote(
         observedThrough("2026-09-25T18:01:32.000Z", [stored("SPY")]),
         NOT_CONFIGURED,
+        false,
       ).observedThrough,
     ).toBe("Sep 25 · 14:01 EDT");
   });
@@ -221,9 +269,9 @@ describe("toOverviewSourceNote", () => {
       computedAt: "2026-09-25T20:44:11.000Z",
     };
 
-    expect(toOverviewSourceNote(second, NOT_CONFIGURED).observedThrough).toBe(
-      toOverviewSourceNote(first, NOT_CONFIGURED).observedThrough,
-    );
+    expect(
+      toOverviewSourceNote(second, NOT_CONFIGURED, false).observedThrough,
+    ).toBe(toOverviewSourceNote(first, NOT_CONFIGURED, false).observedThrough);
     expect(second.computedAt).not.toBe(first.computedAt);
   });
 
@@ -236,6 +284,7 @@ describe("toOverviewSourceNote", () => {
     const note = toOverviewSourceNote(
       frame([unknown("SPY"), unknown("QQQ")]),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.observedThrough).toBeNull();
@@ -246,7 +295,11 @@ describe("toOverviewSourceNote", () => {
     // A store with bars and no provider configured: four closes, no
     // observation, so there is no instant to state. The tape behind the closes
     // is still named — each clause renders on its own data.
-    const note = toOverviewSourceNote(frame([stored("SPY")]), NOT_CONFIGURED);
+    const note = toOverviewSourceNote(
+      frame([stored("SPY")]),
+      NOT_CONFIGURED,
+      false,
+    );
 
     expect(note.observedThrough).toBeNull();
     expect(note.closes).toEqual({ label: SIP.label });
@@ -266,6 +319,7 @@ describe("toOverviewSourceNote", () => {
         unknown("QQQ"),
       ]),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.observedThrough).toBe("Sep 25 · 14:01 EDT");
@@ -280,6 +334,7 @@ describe("toOverviewSourceNote", () => {
         figures: [stored("SPY")],
       },
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.observedThrough).toBeNull();
@@ -327,6 +382,7 @@ describe("the baselines clause — the third source class", () => {
     const note = toOverviewSourceNote(
       withBaseline({ session: "2026-10-14", lookbackSessions: 60 }),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.baselines?.label).toBe(SIP.label);
@@ -341,6 +397,7 @@ describe("the baselines clause — the third source class", () => {
     const note = toOverviewSourceNote(
       withBaseline({ session: "2026-09-30", lookbackSessions: 45 }),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.baselines?.sentence).toContain("45 sessions");
@@ -354,6 +411,7 @@ describe("the baselines clause — the third source class", () => {
     const note = toOverviewSourceNote(
       withBaseline({ session: "2026-10-14", lookbackSessions: 60 }, "iex"),
       NOT_CONFIGURED,
+      false,
     );
 
     expect(note.baselines?.label).toBe(IEX.label);
@@ -366,15 +424,18 @@ describe("the baselines clause — the third source class", () => {
     // holds 516 securities, zero bars and no generation, and so does a cold
     // replica and any deployment whose nightly job has not run. A tape named
     // over a baseline nobody read is provenance about no data.
-    expect(toOverviewSourceNote(withBaseline(), NOT_CONFIGURED).baselines).toBe(
-      null,
-    );
+    expect(
+      toOverviewSourceNote(withBaseline(), NOT_CONFIGURED, false).baselines,
+    ).toBe(null);
   });
 
   it("says nothing where the frame carries no unusual section at all", () => {
     expect(
-      toOverviewSourceNote(frame([observed("SPY")], ["iex"]), NOT_CONFIGURED)
-        .baselines,
+      toOverviewSourceNote(
+        frame([observed("SPY")], ["iex"]),
+        NOT_CONFIGURED,
+        false,
+      ).baselines,
     ).toBe(null);
   });
 
@@ -385,6 +446,7 @@ describe("the baselines clause — the third source class", () => {
       toOverviewSourceNote(
         withBaseline({ session: "yesterday", lookbackSessions: 60 }),
         NOT_CONFIGURED,
+        false,
       ).baselines,
     ).toBe(null);
   });

@@ -1581,6 +1581,28 @@ where the second key can see them.
    status bar or of `main`; `MarketSessionStatus` owns it, **from the wall clock**,
    in the opposite corner of the viewport.
 
+**Amended 2026-11-01 by Task 6.2.4 — _a content class is ONE AGGREGATE_ has its
+first declared EXCEPTION, and it is a second axis rather than a ninth row of the
+first one.** `Market topology` (Story 6.2) draws from `useSecurities()`'s own
+`GET /securities` request — the universe, not the overview aggregate — so it is
+the first content surface on `/` for which the rule above is structurally false:
+two rows carrying the SAME aggregate can draw two DIFFERENT topology regions
+(the real universe request fails on one and succeeds on the other), and two rows
+carrying DIFFERENT aggregates draw the IDENTICAL topology (neither touches
+`GET /securities`). `overview-degraded-grid.spec.ts` holds both halves as
+separate, explicit assertions rather than folding the region into the existing
+content-class partition: `Market topology` is asserted BYTE-IDENTICAL across
+every row that varies only the aggregate (rows 01–12, 14–17, excluding the one
+`preFloor` row — a real race the check's first run found, not a guess: the
+universe request resolves on its own timing, uncoupled from the 2,000 ms
+sentence floor, so a row read before anything settles can catch it either side
+of done), and rows 18–21 hold the aggregate at `RICH` while producing all four
+universe-request outcomes for real — unreachable, a 503 (retryable), a 200 that
+is not this API (not retryable), and an empty store — through the real
+`GET /securities` route rather than a stub. The grid is now **17 states × 4
+widths × 9 surfaces** (`Market topology` is the sixth region and the ninth
+surface).
+
 ### 7.4 What the landing page says, and what it deliberately does not
 
 **Ages, never a verdict.** The owner held Story 3.10's one-home rule at Story 4.7's

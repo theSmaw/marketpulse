@@ -53,7 +53,21 @@ const SESSION: WireMarketOverview = {
 };
 const NOT_CONFIGURED: MarketFeedView = { state: "not-configured" };
 
-/** What a listener is handed for the definition beside one term. */
+/**
+ * What a listener is handed for the definition beside one term.
+ *
+ * **Drops whitespace before punctuation** — `SourceNote.test.tsx`'s own
+ * `reading()` carries the same correction, for the same reason (Task
+ * 2.14.4, now met here too by Task 6.2.4's classification clause): the
+ * classification clause emphasises one word *inside* a sentence with an
+ * element boundary, so a naive join produces `curated , not from the market
+ * feed.` — a space before a comma nothing reads aloud and nothing shows. A
+ * boundary inside a running sentence is not a pause; jsdom computes no
+ * layout so the walk cannot tell that apart from a boundary BETWEEN clauses,
+ * and dropping whitespace before punctuation is the rule that separates them
+ * without costing anything elsewhere — none of this note's other readings
+ * has punctuation at a boundary.
+ */
 function definitionOf(term: string): string {
   const dt = screen.getByText(term, { selector: "dt" });
   const dd = dt.nextElementSibling;
@@ -72,13 +86,21 @@ function definitionOf(term: string): string {
   };
   walk(dd);
 
-  return parts.join(" ").replace(/\s+/gu, " ").trim();
+  return parts
+    .join(" ")
+    .replace(/\s+/gu, " ")
+    .replace(/ ([,.])/gu, "$1")
+    .trim();
 }
 
 describe("OverviewSourceNote", () => {
   it("draws nothing at all before a frame has arrived", () => {
     const { container } = render(
-      <OverviewSourceNote overview={undefined} feed={NOT_CONFIGURED} />,
+      <OverviewSourceNote
+        overview={undefined}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
     );
 
     expect(container.innerHTML).toBe("");
@@ -87,7 +109,13 @@ describe("OverviewSourceNote", () => {
   it("names both tapes during a session, as two terms", () => {
     // The whole of invariant 6 on this screen: an IEX numerator and a
     // consolidated-SIP denominator, which a single row could not state.
-    render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     expect(definitionOf("Observed prices")).toBe(
       `${IEX.label} ${IEX.sentence ?? ""}`.trim(),
@@ -100,6 +128,7 @@ describe("OverviewSourceNote", () => {
       <OverviewSourceNote
         overview={SESSION}
         feed={{ state: "configured", feed: "iex" }}
+        topologyDrawn={false}
       />,
     );
 
@@ -108,7 +137,13 @@ describe("OverviewSourceNote", () => {
   });
 
   it("renders the observation instant last", () => {
-    render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     const terms = screen.getAllByRole("term").map((term) => term.textContent);
 
@@ -130,6 +165,7 @@ describe("OverviewSourceNote", () => {
       <OverviewSourceNote
         overview={frame([observed("SPY")], ["iex"])}
         feed={NOT_CONFIGURED}
+        topologyDrawn={false}
       />,
     );
 
@@ -141,7 +177,11 @@ describe("OverviewSourceNote", () => {
     // Story 3.10's one-home rule: `live | stale | disconnected` belong to the
     // status bar, and this surface has never been allowed to answer them.
     const { container } = render(
-      <OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />,
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
     );
 
     for (const word of ["LIVE", "STALE", "DISCONNECTED", "REPLAYING"]) {
@@ -150,7 +190,13 @@ describe("OverviewSourceNote", () => {
   });
 
   it("declares no landmark, so the screen keeps seven named regions", () => {
-    render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     expect(screen.queryAllByRole("region")).toHaveLength(0);
   });
@@ -191,7 +237,13 @@ describe("the baselines term", () => {
   };
 
   it("draws third, before the instant", () => {
-    render(<OverviewSourceNote overview={RANKED} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={RANKED}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(
       ["Observed prices", "Closing prices", "Baselines", "Observed through"],
@@ -199,7 +251,13 @@ describe("the baselines term", () => {
   });
 
   it("names the tape the ordinals were ranked against", () => {
-    render(<OverviewSourceNote overview={RANKED} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={RANKED}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     const definition = definitionOf("Baselines");
 
@@ -210,8 +268,68 @@ describe("the baselines term", () => {
   });
 
   it("is absent where no generation was read, which is every gated run", () => {
-    render(<OverviewSourceNote overview={SESSION} feed={NOT_CONFIGURED} />);
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
 
     expect(screen.queryByText("Baselines")).toBeNull();
+  });
+});
+
+describe("the classification term — Task 6.2.4", () => {
+  it("states the graph's structure is curated, last, reusing SourceNote's own claim", () => {
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn
+      />,
+    );
+
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(
+      [
+        "Observed prices",
+        "Closing prices",
+        "Observed through",
+        "Classification",
+      ],
+    );
+    expect(definitionOf("Classification")).toBe(
+      "Sector and industry are curated, not from the market feed.",
+    );
+  });
+
+  it("is the only term that can stand alone, with no aggregate ever arrived", () => {
+    // CI's permanent state: a drawn graph, zero bars, no overview frame.
+    render(
+      <OverviewSourceNote
+        overview={undefined}
+        feed={NOT_CONFIGURED}
+        topologyDrawn
+      />,
+    );
+
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(
+      ["Classification"],
+    );
+  });
+
+  it("is absent while the graph's own request has not succeeded", () => {
+    // The mirror: a healthy aggregate, four live proxies, and the graph's
+    // own universe request failed — Decision 3 makes the topology region
+    // the owner of that sentence, not this note.
+    render(
+      <OverviewSourceNote
+        overview={SESSION}
+        feed={NOT_CONFIGURED}
+        topologyDrawn={false}
+      />,
+    );
+
+    expect(screen.queryByText("Classification")).toBeNull();
   });
 });
