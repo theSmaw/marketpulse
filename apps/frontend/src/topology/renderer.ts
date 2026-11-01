@@ -89,6 +89,14 @@ export interface TopologyRenderer {
   readonly kind: TopologyRendererKind;
   /** Re-read the container's box and redraw. */
   resize(): void;
+  /**
+   * Fit the view fresh at the current box — zoom back to 1, pan back to 0.
+   * The `Reset view` control's whole mechanism (Task 6.2.3): a clamped pan
+   * means a reader can never lose the market entirely, but it is still a
+   * market that has been dragged and zoomed, and this is the way back with
+   * no reload.
+   */
+  reset(): void;
   /** How many frames this renderer has drawn since mount. */
   framesDrawn(): number;
   /** Release the context, the listeners and the observers. */

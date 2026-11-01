@@ -169,7 +169,16 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   canvas.style.display = "block";
   canvas.style.width = "100%";
   canvas.style.height = "100%";
-  canvas.style.touchAction = "none";
+  // **`pan-y`, not `none`** (Task 6.2.3). This renderer was built for an
+  // isolated Storybook iframe with nothing to scroll past, where `none` cost
+  // nothing; moved onto `/` unmodified it would make the page's primary
+  // content area a scroll trap — a reader whose pointer lands on the graph
+  // while scrolling the page stops being able to. `pan-y` lets the browser's
+  // own vertical-scroll gesture through; a deliberate drag still works, via
+  // this renderer's own `pointerdown`/`pointermove` handling below, because
+  // `touch-action` only constrains the browser's NATIVE gesture recognition
+  // and has no opinion on synthetic pointer events a script already captures.
+  canvas.style.touchAction = "pan-y";
   container.append(canvas);
 
   const context = canvas.getContext("2d");
@@ -544,7 +553,19 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       canvas.releasePointerCapture(event.pointerId);
   };
 
+  /**
+   * **Zoom only on `ctrl`/`⌘` + wheel** (Task 6.2.3). An unmodified wheel
+   * event is not `preventDefault()`ed at all, so the page scrolls through it
+   * exactly as it would over any other content — this listener has nothing
+   * to undo. `event.ctrlKey` rather than only `event.metaKey`, because
+   * Chromium's trackpad pinch-to-zoom gesture arrives as a synthetic wheel
+   * event with `ctrlKey: true` set, whatever the actual keyboard state is —
+   * one check covers the deliberate keyboard-modifier case and the trackpad
+   * gesture a reader never meant as a keypress.
+   */
   const onWheel = (event: WheelEvent): void => {
+    if (!event.ctrlKey && !event.metaKey) return;
+
     event.preventDefault();
     const box = canvas.getBoundingClientRect();
 
@@ -570,6 +591,10 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   return {
     kind: "canvas",
     resize: measure,
+    reset: () => {
+      view = fitView(layout, view.viewport);
+      invalidate();
+    },
     framesDrawn: () => frames,
     destroy: () => {
       observer.disconnect();

@@ -45,6 +45,28 @@ export const TOPOLOGY_MIN_ZOOM = 0.5;
 /** See {@link TOPOLOGY_MIN_ZOOM}. */
 export const TOPOLOGY_MAX_ZOOM = 8;
 
+/**
+ * **The fraction of the content's (or the viewport's, whichever is smaller)
+ * on-screen size that a pan must always leave visible** (Task 6.2.3).
+ *
+ * Built for `/`, where the renderer's pan has no way back except a page
+ * reload — Storybook's isolated iframe never surfaced this, because nobody
+ * drags a graph off an otherwise-empty frame and calls it lost.
+ *
+ * **0.5, not a smaller number — found by looking at the drawn page rather
+ * than by the unit tests alone.** A first draft shipped `0.15`, which the
+ * unit tests passed (a placement landed somewhere inside a generously
+ * padded window) and which a real extreme drag, driven at the running
+ * component on `/`, showed as an entirely BLANK canvas: `TOPOLOGY_FIT_MARGIN`
+ * is included in `extentX`/`extentY` (correctly — it is the same span
+ * `fitView`'s own `scale` is derived from), so the thin sliver a small
+ * fraction leaves on screen can land entirely inside that empty margin
+ * rather than on a single node. At `0.5`, at least half of the content's own
+ * on-screen size is always visible, which a reader actually sees as *the
+ * market, panned* rather than as a reserved box that broke.
+ */
+export const TOPOLOGY_PAN_MIN_VISIBLE_FRACTION = 0.5;
+
 /** A box in CSS pixels. */
 export interface TopologyViewport {
   readonly width: number;
@@ -65,6 +87,16 @@ export interface TopologyView {
   readonly centreX: number;
   /** See {@link centreX}. */
   readonly centreY: number;
+  /**
+   * The content's own extent, in LAYOUT units (`TOPOLOGY_FIT_MARGIN` on both
+   * sides already included — the same span {@link fitView} computed its
+   * `scale` from). What {@link TOPOLOGY_PAN_MIN_VISIBLE_FRACTION} is a
+   * fraction of, at {@link clampPan} — stored here rather than recomputed
+   * from a layout, so `panBy`/`zoomAbout` need only a `TopologyView`.
+   */
+  readonly extentX: number;
+  /** See {@link extentX}. */
+  readonly extentY: number;
   /** The box this view was fitted to. */
   readonly viewport: TopologyViewport;
 }
@@ -128,7 +160,63 @@ export function fitView(
     panY: 0,
     centreX: (layout.bounds.minX + layout.bounds.maxX) / 2,
     centreY: (layout.bounds.minY + layout.bounds.maxY) / 2,
+    extentX: spanX,
+    extentY: spanY,
     viewport,
+  };
+}
+
+/**
+ * `pan` on one axis, bounded so the content cannot be dragged entirely off
+ * screen — see {@link TOPOLOGY_PAN_MIN_VISIBLE_FRACTION}.
+ *
+ * The content's on-screen size on this axis is `extent · scale · zoom`; the
+ * required overlap is the fraction of whichever is SMALLER, the content or
+ * the viewport, because a reader zoomed in past the viewport's own size and
+ * a reader zoomed out past it are both real states and the bound must make
+ * sense in either. The bound is symmetric about the fitted (centred)
+ * position — `pan = 0` is always inside it, so a fresh `fitView` is never
+ * itself clamped.
+ */
+function clampPanAxis(
+  pan: number,
+  extent: number,
+  viewportSize: number,
+  scale: number,
+  zoom: number,
+): number {
+  const contentSize = extent * scale * zoom;
+  const required =
+    TOPOLOGY_PAN_MIN_VISIBLE_FRACTION * Math.min(contentSize, viewportSize);
+  const bound = (viewportSize + contentSize) / 2 - required;
+
+  // A degenerate box (zero viewport, zero extent) bounds to a negative
+  // number — `Math.max(0, …)` keeps the clamp a no-op rather than one that
+  // forces `pan` to exactly 0 and fights `reviewport`'s own restore.
+  return clamp(pan, -Math.max(0, bound), Math.max(0, bound));
+}
+
+/** Both axes of {@link clampPanAxis}, against one view's own fit. */
+function clampPan(
+  view: TopologyView,
+  panX: number,
+  panY: number,
+): { readonly panX: number; readonly panY: number } {
+  return {
+    panX: clampPanAxis(
+      panX,
+      view.extentX,
+      view.viewport.width,
+      view.scale,
+      view.zoom,
+    ),
+    panY: clampPanAxis(
+      panY,
+      view.extentY,
+      view.viewport.height,
+      view.scale,
+      view.zoom,
+    ),
   };
 }
 
@@ -176,22 +264,32 @@ export function zoomAbout(
   const zoom = clampZoom(view.zoom * factor);
   const anchor = screenToWorld(view, screenX, screenY);
   const unit = view.scale * zoom;
+  const zoomed = { ...view, zoom };
 
   return {
-    ...view,
-    zoom,
-    panX: screenX - view.viewport.width / 2 - (anchor.x - view.centreX) * unit,
-    panY: screenY - view.viewport.height / 2 - (anchor.y - view.centreY) * unit,
+    ...zoomed,
+    ...clampPan(
+      zoomed,
+      screenX - view.viewport.width / 2 - (anchor.x - view.centreX) * unit,
+      screenY - view.viewport.height / 2 - (anchor.y - view.centreY) * unit,
+    ),
   };
 }
 
-/** Move the view by a screen-space delta. */
+/**
+ * Move the view by a screen-space delta — **clamped**, so a drag cannot take
+ * the whole market off-canvas with no way back except a page reload (Task
+ * 6.2.3; `Reset view` is the other half of the same finding).
+ */
 export function panBy(
   view: TopologyView,
   deltaX: number,
   deltaY: number,
 ): TopologyView {
-  return { ...view, panX: view.panX + deltaX, panY: view.panY + deltaY };
+  return {
+    ...view,
+    ...clampPan(view, view.panX + deltaX, view.panY + deltaY),
+  };
 }
 
 /** The same view against a new box, keeping the reader's zoom and pan. */
@@ -200,10 +298,15 @@ export function reviewport(
   layout: TopologyLayout,
   viewport: TopologyViewport,
 ): TopologyView {
+  const fitted = fitView(layout, viewport);
+
   return {
-    ...fitView(layout, viewport),
+    ...fitted,
     zoom: view.zoom,
-    panX: view.panX,
-    panY: view.panY,
+    // Re-clamped against the NEW box's own extent/viewport, because a pan
+    // that was valid before a resize is not necessarily valid after one — a
+    // box that shrank can make yesterday's pan reach past this clamp's own
+    // bound.
+    ...clampPan({ ...fitted, zoom: view.zoom }, view.panX, view.panY),
   };
 }
