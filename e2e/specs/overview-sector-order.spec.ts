@@ -436,6 +436,17 @@ test("a pointer over the region holds the order, the figures keep updating, and 
     sectorRegion(page).getByText("of 11 ranked", { exact: false }),
   ).toHaveCount(0);
 
+  // **Scrolled into view before the baseline is taken.** `hover()` scrolls the
+  // target into view, so a baseline read with the region below the fold is
+  // compared against a box that moved because the page scrolled — which is
+  // what this measurement looked like once `Market topology` grew from a
+  // 161 px placeholder to its real 520 px box (Task 6.2.1), pushing this
+  // region far enough down the page that the default viewport no longer held
+  // it, and reads exactly like a head that grew. `overview-movers-hold.spec.ts`
+  // carries the same fix for the same reason.
+  await sectorRegion(page).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+
   const quiet = { title: await title(), row: await firstRow() };
 
   // The reader arrives. The region says so, in the slot the count would be in.
