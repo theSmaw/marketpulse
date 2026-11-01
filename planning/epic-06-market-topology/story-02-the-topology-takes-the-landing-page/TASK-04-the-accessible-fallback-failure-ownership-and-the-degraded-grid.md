@@ -102,7 +102,7 @@ overview-degraded-grid.spec.ts` and the other touched specs are green.
 - **The text equivalent.** `MarketTopology.tsx` gains
   `topologyDrawnSentence(graph)`, a `useId()`-generated id, and a
   visually-hidden `<p>` (`composes: visuallyHidden from
-  "../../styles/a11y.module.css"`) rendered as a sibling of the canvas. The
+"../../styles/a11y.module.css"`) rendered as a sibling of the canvas. The
   canvas's `role="img"` and `aria-labelledby` are set via
   `canvas.setAttribute()` in `renderer-canvas.ts` (the canvas is created
   imperatively, not through JSX) and threaded through a new
@@ -120,7 +120,7 @@ overview-degraded-grid.spec.ts` and the other touched specs are green.
   were updated to carry the new argument/prop.
 - **A real `MarketTopologyHandle`**, exported from `MarketTopology.tsx` via
   React 19's native `ref`-as-prop (`resetView(): void`), wired to a `Reset
-  view` button in `MarketOverview.tsx`'s `Market topology` region meta slot —
+view` button in `MarketOverview.tsx`'s `Market topology` region meta slot —
   built because the reset affordance already existed on the renderer
   (`fit.ts`'s `reviewport`) and Task 6.2.3 had already needed `reset()` on
   `TopologyRenderer`.
@@ -142,7 +142,7 @@ overview-degraded-grid.spec.ts` and the other touched specs are green.
 - **A real race, found rather than assumed.** The first run of the new
   constant-across-aggregate-rows assertion failed:
   `02-no-aggregate-after-the-floor reads a DIFFERENT Market topology than
-  01-no-aggregate-before-the-floor`. Row `01` is deliberately read pre-floor
+01-no-aggregate-before-the-floor`. Row `01` is deliberately read pre-floor
   (`preFloor: true`), before the real, unmocked `GET /securities` request to
   the local backend has necessarily resolved — independent of the 2,000ms
   sentence floor. Fixed by excluding `preFloor === true` rows from the
@@ -163,8 +163,8 @@ overview-degraded-grid.spec.ts` and the other touched specs are green.
 - `pnpm e2e overview-degraded-grid.spec.ts` — green at all 4 widths (17 states
   × 4 widths × 9 surfaces), after the preFloor-race fix.
 - Regression sweep — `pnpm e2e overview-region-order.spec.ts
-  landing-route.spec.ts overview-sector-order.spec.ts securities-route.spec.ts
-  overview-movers-hold.spec.ts overview-sector-region.spec.ts` — **40 passed
+landing-route.spec.ts overview-sector-order.spec.ts securities-route.spec.ts
+overview-movers-hold.spec.ts overview-sector-region.spec.ts` — **40 passed
   (43.1s)**, no regressions elsewhere on the route from this task's changes.
 
 ## For a stakeholder — a status report, 2026-11-01
