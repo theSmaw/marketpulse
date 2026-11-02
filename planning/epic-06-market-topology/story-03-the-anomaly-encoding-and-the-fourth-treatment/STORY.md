@@ -1,6 +1,10 @@
 # Story 6.3 — The Anomaly Encoding, & the Fourth Treatment a Canvas Needs
 
-**Status:** Not started
+**Status:** **In progress — 2026-11-02.** Gate 1 passed the same day: five
+tasks, four decisions taken (live updates broadcast to everyone; amber for
+`high`/`extreme` only; the fifteen sector-ETF/proxy landmarks excluded from
+the encoding entirely; AC 2 reworded to the measurable claim). See
+Decisions below.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.2
 **Epic scope covered:** Node movement/anomaly encoding
@@ -36,54 +40,130 @@ being the centre of gravity, and what `Unusual activity` beside it cannot do.
 
 ## Acceptance criteria
 
+**Rewritten 2026-11-02 at this story's own Gate 1**, after shaping (BA, TA, UX
+in parallel) found AC 2 unmeasurable as written, AC 5's own figures internally
+inconsistent, and three real states — the fifteen unscorable landmarks, a
+frame with the band section missing, and a live-updating band — that the
+first draft had no criterion for at all. Each note below says what changed
+and why.
+
 1. **Four distinguishable treatments for four bands, and hue is not the only
    channel.** Measured in **greyscale** as this product requires, because the
    price palette differs by 1.04:1 in greyscale and hue is the entire
    difference — a rule that has already caught a chart that was wrong behind
-   four passing simulations.
-2. **`normal` is the quiet state.** Whatever the fourth treatment is, a market
+   four passing simulations. **Settled at Gate 1**: a ring in the node's
+   already-reserved 4-unit annulus, absent for `normal`, growing in weight for
+   `elevated`/`high`, with `extreme` the only band that also changes the
+   node's own fill — never size, opacity or a halo (all three are spoken for
+   elsewhere, or redundant with the ring; see Decisions). **Amber is spent for
+   `high`/`extreme` only** — `elevated` carries no hue, because the order
+   survives on ring weight alone and this screen's chrome already spends amber
+   for degraded states.
+2. **~~`normal` is the quiet state. Whatever the fourth treatment is, a market
    where nothing is unusual must not look like a Christmas tree — 219 of 484
-   securities are `normal` at a median instant.
+   securities are `normal` at a median instant.~~ — reworded: this market
+   state does not exist and the criterion is unmeasurable as first written.**
+   `ANOMALY_BAND_FLOORS` are percentiles of their own distribution
+   (`elevated` is the **p50**), so roughly half the scored universe sits at
+   `elevated`-or-above on every session there has ever been — there is no
+   "nothing unusual" day to design against, the same tension
+   `PRODUCT_SPEC.md` §11 already carries a dated amendment for. **The real
+   claim: the measured ordinary instant (AC 5's own distribution) must not
+   read as an alarm.** `elevated` is the ordinary upper half and must read as
+   such — ordinary, not warning — which is why it carries no colour. What the
+   picture is allowed to read as a hot spot is `high`/`extreme` only, ~10%
+   and ~2% of the scored population respectively.
 3. **The band is read off the frame, never recomputed.** The composite already
    crosses the wire with its explanation, and `readAnomalyScore` **re-adds the
    published contributions and refuses the whole explanation when the sum is not
    the score it was sent**. A renderer that derives a band from a raw figure
-   bypasses the one mechanism that survives the socket.
-4. **A security with no score is not drawn as `normal`.** CI's store has zero
-   bars, no provider and no composite generation, so `0 of 3 factors` is its
-   permanent state and **every node is unscored there, for ever**. An unscored
-   node and a calm node are different claims, and conflating them is ADR 0029's
-   false impression on 516 nodes at once.
-5. **The measured distribution is stated beside the design, not discovered
-   after it.** Per instant over 484 scored securities: `normal` **219.2**,
-   `elevated` **179.4**, `high` **39.3**, `extreme` **7.74**. So roughly
-   **8 nodes in 500** carry the strongest treatment on an ordinary day, and the
-   design has to work at that ratio rather than at an even split.
-6. **No invented curve.** A log cap, a sigmoid or a chosen knee mapping score to
+   bypasses the one mechanism that survives the socket. A refused explanation
+   draws **unscored**, never a best-effort band.
+4. **A security with no score is not drawn as `normal`, and the fifteen
+   sector-ETF/proxy nodes are not drawn as unscored either — they are
+   excluded from the encoding entirely.** CI's store has zero bars, no
+   provider and no composite generation, so `0 of 3 factors` is its permanent
+   state and **every one of the 501 equities is unscored there, for ever** —
+   drawn hollow (an achromatic outline, no fill), never calm. The eleven
+   sector SPDRs, the four market proxies and the hub are a **different
+   claim**: the composite's population is the 501 curated equities and
+   cannot include them (a sector ETF is its own benchmark; a broad-market
+   fund has no sector) — the encoding does not apply to them, so they keep
+   Story 6.2's shipped treatment, unchanged, on every store that exists.
+   **Settled at Gate 1** — three shaping roles converged on this
+   independently.
+5. **A frame whose band section is missing or unreadable never blanks what is
+   already drawn.** A rollback, a previous image, or two nightly tables a
+   session apart (ADR 0044's own "never mix two sessions' halves" rule) all
+   produce **no** section rather than a wrong one — and the picture holds the
+   last bands it had rather than reverting 501 nodes to hollow on one bad
+   frame. This is `/`'s own "an answer already on screen is never blanked by
+   a newer request in flight" rule arriving at 501 nodes instead of one.
+6. **The measured distribution is stated beside the design, and it is
+   RE-MEASURED before this story cites it again.** The figures this story
+   inherited (`normal` 219.2, `elevated` 179.4, `high` 39.3, `extreme` 7.74
+   per instant over "484 scored securities") sum to **445.6**, not 484 — an
+   inconsistency found at shaping, not yet resolved. Task 6.3.1 re-takes this
+   figure against real data once the wire section exists, and states the
+   population the four numbers actually describe.
+7. **No invented curve.** A log cap, a sigmoid or a chosen knee mapping score to
    a visual magnitude is **calibrated in one tape's units** and breaks ADR 0045's
    invariance: a knee at `3× typical` means a different thing at 3.54% venue
    share than at 15.19%, and that spread is measured. _No invented constant_ and
-   ADR 0045's test are the same rule from two directions.
-7. **Colour is never the sole encoding** (ADR 0026's standing rule), and the
+   ADR 0045's test are the same rule from two directions — a four-step band
+   ladder is not a curve; a continuous score-to-magnitude map would be.
+8. **The graph never states the raw score, only the band — the ceiling of 75
+   is invisible on this surface, and that is correct rather than a
+   limitation.** `Unusual activity` and `Abnormal-move indicators` both state
+   the score with its cohort and its `max`; a bare `75` on a node with no
+   qualification would read as three-quarters up a 100-point scale rather than
+   the top of a 75-point one. At node scale there is no room for the
+   qualification, so the number does not travel — the band word does, and
+   only in the accessible sentence (Task 6.3.4), never painted.
+9. **Colour is never the sole encoding** (ADR 0026's standing rule), and the
    token chain holds: canvas → `VISUAL-LANGUAGE.md` → `tokens.css` → renderer.
-8. **A photograph per band at all four widths**, in colour and in greyscale.
+10. **A photograph per band at all four widths**, in colour and in greyscale.
 
-## Open decisions — for the Product Owner
+## Decisions — settled 2026-11-02 at this story's Gate 1
 
-1. **What is the fourth treatment?** Candidates with precedent in this product:
-   a ring versus a fill (the chip's own distinction, which a canvas _can_ do at
-   node scale), size, opacity, or a halo. Each has a cost at 500 nodes and only
-   one of them survives greyscale cheaply. This is a canvas question (ADR 0026)
-   and the canvas has no page for it.
-2. **Does an unscored node read as absent, or as present-and-unknown?** Both are
-   honest; they look entirely different at 516 nodes, and CI shows only one.
+Four questions, batched in one round, every one taken with the recommendation
+offered:
+
+1. **Bands update live, broadcast to every connected client on the existing
+   overview frame** — not a static snapshot, not a subscription-scoped
+   section. A snapshot is cheaper (no renderer update channel, no memo
+   re-take) but visibly disagrees with the live `Unusual activity` region
+   beside it within minutes of a tab being left open, which is the costlier
+   defect. ~3.1KB, +76% on the frame's measured ceiling, paid by every route
+   including ones that draw no graph — accepted against the alternative's
+   correctness cost. **Reversal trigger, a condition:** the first route whose
+   own cost budget this frame visibly breaches.
+2. **The ring spends amber for `high`/`extreme` only; `elevated` is
+   achromatic.** The order survives on ring weight alone in greyscale; amber
+   mainly reinforces for colour-sighted readers on the two bands that matter
+   most, and this avoids putting colour on ~40% of the graph in a hue this
+   screen's chrome already spends on degraded states.
+3. **The fifteen sector-ETF/proxy/hub nodes are excluded from the band
+   encoding entirely** — not unscored, not drawn specially, Story 6.2's
+   shipped treatment unchanged. See AC 4.
+4. **AC 2 is reworded to the claim the scoring model can actually be measured
+   against** — see AC 2's own note.
 
 ## Design work
 
 The four states on the canvas, in colour and greyscale, at node scale rather
 than at chip scale. `The rail that says how unusual.dc.html` is the nearest
 relative and it is a **DOM** page — its band word beside every entry is exactly
-the affordance a canvas cannot borrow.
+the affordance a canvas cannot borrow. `The graph at rest.dc.html` §03
+already reserves the 4-unit annulus this story draws inside and names the
+collision with Story 6.4's focus ring explicitly. **Resolved here rather
+than left for 6.4 to find**: this story's ring is 516-wide and must stay
+cheap and quiet, while 6.4's focus is exactly one node at a time and can
+afford a louder treatment — so **this story takes the annulus and 6.4's
+focus/selection treatment goes outside the footprint** (`nodeAt`'s hit-test
+already targets the 16-unit footprint rather than the 8–12-unit ink, so a
+treatment outside it needs no hit-area change). Written into Story 6.4's own
+file at this story's close (Task 6.3.5), in words that story can act on.
 
 ## Out of scope
 
