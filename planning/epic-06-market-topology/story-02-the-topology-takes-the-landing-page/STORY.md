@@ -1,6 +1,16 @@
 # Story 6.2 — The Topology Takes the Landing Page
 
-**Status:** Not started
+**Status:** **Complete — 2026-11-02.** `/`'s second region draws the real
+market topology: 516 securities clustered by sector, an elliptical ring
+re-derived rather than taken from the design canvas's stale figures, a
+renderer-side fit-scale threshold closing the label-collision defect,
+clamped pan/zoom with a `Reset view` way back, a real retry owning the
+tracked-universe failure, and an accessible fallback. The cold load is not
+in breach — 0 of 10 loads over 50ms, worst rAF gap 18.6–18.7ms against the
+24.7/34.7ms baseline — and a real before/after displacement re-measure
+found the page got **shorter** at ≥1024 despite the region growing +361px.
+Six tasks, six merged PRs (#638–#643), accepted by the Product Owner at
+Gate 2.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.1
 **Epic scope covered:** Sector clustering · the renderer on the route
