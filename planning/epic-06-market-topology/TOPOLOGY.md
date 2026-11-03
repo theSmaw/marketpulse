@@ -27,11 +27,19 @@ reachable only in Storybook (`Components/MarketTopology`), reviewed by nobody
 but the people who built it, on one development machine. Story 6.2 is what
 puts this on `/`.~~ — **false since 2026-11-01: Story 6.2 shipped.** The
 graph is on `/`'s second region, drawing the real tracked universe, with a
-real retry, pan/zoom and an accessible fallback. What bounds the sections
+real retry, pan/zoom and an accessible fallback. ~~What bounds the sections
 below now is narrower: the **anomaly encoding, node sizing, correlation
 edges, interaction and live updates** — Stories 6.3–6.8 — are still
 Storybook-only or unbuilt, and §2's renderer figures are still local,
-one-laptop ones (§4).
+one-laptop ones (§4).~~ — **narrower again since 2026-11-03: the anomaly
+encoding shipped too.** Story 6.3 wired a real composite band — a ring
+weighted `elevated`/`high`/`extreme`, `extreme` recolouring the node's own
+fill, an accessible sentence stating the vocabulary and the counts, a
+static legend at three of four widths — onto the live graph, watched
+working against this developer's own real local backend. What bounds the
+sections below now is narrower still: **node sizing, correlation edges,
+interaction and live updates** — Stories 6.4–6.8 — remain Storybook-only or
+unbuilt, and §2's renderer figures are still local, one-laptop ones (§4).
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 
@@ -179,9 +187,22 @@ not a default.
 - **Added 2026-11-01 (Task 6.2.4): the degraded grid has a second axis now,
   and this is the first region on `/` a gated machine can verify for real.**
   `overview-degraded-grid.spec.ts` grew from 17 states × 4 widths × 8
-  surfaces to **17 × 4 × 9**, with `Market topology` declared constant
+  surfaces to **17 × 4 × 9**, ~~with `Market topology` declared constant
   across every aggregate-only row (the graph's content is a function of the
-  universe REQUEST, not the overview aggregate) and carrying its own four
+  universe REQUEST, not the overview aggregate)~~ — **corrected 2026-11-03
+  by Task 6.3.5: that declaration went false the moment Story 6.3 shipped,
+  and was corrected rather than deleted.** The region's drawn STRUCTURE is
+  still a pure function of the universe request alone — that half is
+  unchanged and still true. Its accessible SENTENCE is not, since Task
+  6.3.3 made it read the overview aggregate's own `anomalyBands` section:
+  the one row that never hears an overview at all
+  (`02-no-aggregate-after-the-floor`) still reads the plain structural
+  sentence, and the other fourteen aggregate-only rows — none of which
+  construct a real `anomalyBands` section — now uniformly carry AC 4's
+  "nothing has been scored yet" fallback clause. The grid's own assertion
+  is now a two-group claim rather than a one-group one; see Task 6.3.4's
+  own record for the fix and why a forked investigation, not a guess,
+  found the real boundary. And carrying its own four
   new rows on the universe-request axis (`failed`/retryable,
   `failed`/not-retryable, `unreachable`, `empty`) — none of which any other
   region on this screen has, because every other region needs stored bars
@@ -193,3 +214,37 @@ not a default.
   that independent answer — a real, CI-capable positive and negative no
   other row in `MARKET-OVERVIEW.md` §9's own "what no gated machine has
   ever seen" table can have.
+- **Added 2026-11-03 (Task 6.3.5, closing Story 6.3): the frame-rate-
+  under-interaction gap Task 6.2.5 flagged is STILL open, and Story 6.3 was
+  the predicted trigger that fired without closing it.** The bullet above
+  this one named "Story 6.3's anomaly band" as the likely reason a
+  route-level `pnpm probe` interaction harness would eventually be needed —
+  Story 6.3 shipped the ring, and that harness was not built. What Story
+  6.3 confirmed instead is narrower and FUNCTIONAL rather than a
+  frame-rate figure: a live band update does not re-mount the canvas and a
+  reader's pan survives one (Task 6.3.3, both a manual check against this
+  developer's own running backend — a 28-second-held pan surviving a
+  background re-render — and a new e2e spec,
+  `overview-market-topology-anomaly-bands.spec.ts`, comparing the canvas's
+  own rendered bytes before and after). **Nobody has measured what drawing
+  up to three extra batched strokes a frame (the ring passes,
+  `renderer-canvas.ts`'s own draw-call accounting) costs under the
+  pan/zoom/wheel interaction §2's ADR 0048 figures were taken against** —
+  those figures predate the ring entirely. Owner unchanged from Task
+  6.2.5's own note: the next story that changes what the renderer draws
+  under interaction, or the first story that needs the route-level harness
+  for its own reason.
+- **Added 2026-11-03 (Task 6.3.5, closing Story 6.3): what no gated
+  machine will EVER see for this story's own feature, stated plainly
+  rather than left to be inferred from the general Epic 5 rule.** CI's
+  store has zero bars and no provider, so composite generation never runs
+  there — every one of the 501 equities is `unscored` (hollow, achromatic
+  outline) on every gated run, for ever, which is AC 4's own permanent
+  state rather than a transient one. A `high` ring, an `extreme` ring, the
+  node-fill recolour, and the "N are high and M are extreme" sentence
+  clause are therefore **structurally unreachable on CI** — the only
+  machine that has drawn any of them is this developer's own local store
+  (`ANOMALY.md` §0's "almost every claim in Epic 5 is a claim about a
+  store" rule, arriving at a sixth surface). `docs/GAPS.md`'s own new entry
+  (Task 6.3.5) carries the real distribution figure this one instant
+  produced and the condition for re-taking it against the deployed store.

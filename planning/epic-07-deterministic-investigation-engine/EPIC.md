@@ -418,6 +418,44 @@ rather than re-purposed when it fires — it is not a refusal and not an absence
 data, and its payload-free shape exists precisely so there is no invented bound
 to carry forward.
 
+## Handed here by Story 6.3's close — 2026-11-03: a THIRD consumer of `ANOMALY_BAND_FLOORS`, beyond the score and the chip
+
+**The two consequences already written above — the dead weight and the
+ceiling — are about the SCORE. Story 6.3 added a consumer that reads the
+BAND, visually, over the whole universe at once, and it is not covered by
+anything above.** `apps/frontend/src/topology/renderer-canvas.ts` draws
+every scored equity's `elevated`/`high`/`extreme` band as a ring — thin,
+achromatic for `elevated`; thicker, `--anomaly-high`, for `high`; thickest,
+`--anomaly-extreme` plus the node's own fill recoloured, for `extreme` —
+across up to 485 nodes on one screen. That treatment's own weight ladder
+and `extreme`'s fill-recolour decision were both taken against the
+**measured, real** distribution the current floors produce (Task 6.3.1,
+2026-09-11, 485 scored equities): `normal` 33.4%, `elevated` 41.4%, `high`
+21.9%, `extreme` 3.3%.
+
+**When the floors move, that distribution moves with them, and nobody has
+checked by how much.** A derivation from 34,318 three-factor scores could
+put a materially different share of the universe into `high`/`extreme` than
+today's two-factor one does — and `high`/`extreme` are **the only two bands
+this screen spends any colour on at all** (STORY.md's own Decision 2:
+`elevated` is deliberately achromatic so as not to put colour on ~41% of
+the graph). A redistribution that doubled the `extreme` share, for
+instance, would put the deep-amber recolour on proportionally more of the
+516-node picture than the design work's own "ink over the frame" budget
+(`The graph at rest.dc.html` §08, 4.3%) was ever measured against — not
+a correctness bug (the ring would still draw the RIGHT band for each
+security), but a legibility question nobody has looked at with the new
+floors' own real shares.
+
+**What this means for you, concretely: re-take Task 6.3.1's own
+measurement — real counts per band, over the real post-redistribution
+population — before assuming the topology's ring treatment still reads the
+way it was designed to.** If the `high`/`extreme` share has moved
+materially, that is a design conversation (STORY.md's own Decision 2 and
+its reversal trigger), not a code change this epic owes by itself — but it
+is a conversation nobody can have without the number, and this is the one
+place that number is written down.
+
 ## Handed here by Story 6.1's close — 2026-10-30: the graph model `get_related_securities` and `highlight_graph_nodes` read already exists
 
 `PRODUCT_SPEC.md`'s tool list names `get_related_securities` and

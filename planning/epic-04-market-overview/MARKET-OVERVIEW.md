@@ -1931,6 +1931,27 @@ keyed on the **displayed** figure so a browser is fine, but an agent or a later 
 sorting on the raw value would not be, and 350 bytes buys a correctness property that
 is expensive to get back.
 
+**And since 2026-11-03 the overview frame carries a sixth-ish section —
+`anomalyBands` — which this table's own figures above predate.** Story
+6.3's topology ring needs every scored equity's composite band, not just
+`Unusual activity`'s top-ten selection, so Task 6.3.1 added an optional
+`anomalyBands` section (four symbol arrays — `normal`/`elevated`/`high`/
+`extreme` — plus the cohort they were scored against) built from the same
+`cohort.members` the existing ranked section already resolves, no new
+backend query. Measured against the real shipped encoder, not estimated:
+**3,145 bytes** for the section alone, over 485 real symbols from this
+machine's own local store (an otherwise-minimal overview frame grew from
+144 to 3,289 bytes) — confirming the ~3.1KB figure Story 6.3's Gate 1
+decision was taken against (`+76%` on this table's own 4,078 B observed-
+basis ceiling, paid by every route subscribed to the overview including
+ones that draw no graph, per that story's own accepted trade-off). This
+table's own five rows above are unchanged and now understate every
+post-6.3 frame's true size by roughly this amount; a re-take of the whole
+table against the real gateway, with `anomalyBands` included, is owed and
+not done here — Task 6.3.1's own measurement is against a hand-built
+frame on this developer's machine, not the deployed gateway's real byte
+count across the five shapes this table already distinguishes.
+
 **The `feed` frame's rate was the other byte finding, and it was ~15 MB a session a
 phone never needed.** The gateway published a `feed` frame **once per item of every
 inbound vendor message and again on the vendor's `ping`** — a median of **332 frames
