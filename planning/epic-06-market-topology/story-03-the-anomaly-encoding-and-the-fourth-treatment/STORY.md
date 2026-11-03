@@ -11,7 +11,8 @@ measured distribution: 485 scored equities, `normal` 33.4% / `elevated`
 the re-measure). Gate 1 passed 2026-11-02: five tasks, four decisions taken
 (live updates broadcast to everyone; amber for `high`/`extreme` only; the
 fifteen sector-ETF/proxy landmarks excluded from the encoding entirely; AC
-2 reworded to the measurable claim). See Decisions below.
+2 reworded to the measurable claim). See Decisions below. Five tasks, five
+merged PRs (#646–#650), accepted by the Product Owner at Gate 2.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.2
 **Epic scope covered:** Node movement/anomaly encoding
