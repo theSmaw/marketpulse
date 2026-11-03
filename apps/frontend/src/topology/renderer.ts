@@ -25,9 +25,28 @@
  * renderer knows when it drew. Nothing in the application passes one.
  */
 
-import type { TopologyGraph, TopologyLayout } from "@marketpulse/shared";
+import type {
+  AnomalyBand,
+  Ticker,
+  TopologyGraph,
+  TopologyLayout,
+} from "@marketpulse/shared";
 
 import type { TopologyPalette } from "./palette.js";
+
+/**
+ * What one equity's node treatment is, beyond today's shipped look (Task
+ * 6.3.2).
+ *
+ * `AnomalyBand`'s own four values cover `normal`/`elevated`/`high`/`extreme`
+ * — every one of those is a security the composite scored. `"unscored"` is
+ * the fifth state the wire does not carry as a band at all: an equity whose
+ * explanation could not be re-added, or one that exists in a universe with
+ * no composite generation at all (CI's permanent state). It is named here
+ * rather than folded into `AnomalyBand` because it is not a reading of the
+ * score — it is the absence of one, STORY.md AC 4's own distinction.
+ */
+export type TopologyAnomalyTreatment = AnomalyBand | "unscored";
 
 /** Which implementation drew. Carried on the renderer so a figure can name it. */
 export type TopologyRendererKind = "canvas" | "sigma";
@@ -107,6 +126,19 @@ export interface TopologyRenderer {
    * no reload.
    */
   reset(): void;
+  /**
+   * Redraw with each equity's anomaly treatment, **without re-mounting**
+   * (Task 6.3.2) — the update channel the mount effect's own docblock
+   * predicted this story would need, so a reader's pan and zoom survive a
+   * band changing under them.
+   *
+   * A symbol absent from `treatments` draws `normal` — today's shipped node,
+   * unchanged. Scoped to the 501 equities: a sector SPDR, a market proxy or
+   * the hub keyed in this map is ignored, because Gate 1's Decision 3
+   * excludes the fifteen landmarks from the encoding entirely rather than
+   * drawing them unscored.
+   */
+  setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
   /** How many frames this renderer has drawn since mount. */
   framesDrawn(): number;
   /** Release the context, the listeners and the observers. */

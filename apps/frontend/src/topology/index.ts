@@ -44,6 +44,7 @@ export {
   TOPOLOGY_NODE_SCALE_FLOOR,
 } from "./renderer.js";
 export type {
+  TopologyAnomalyTreatment,
   TopologyRenderer,
   TopologyRendererFactory,
   TopologyRendererKind,

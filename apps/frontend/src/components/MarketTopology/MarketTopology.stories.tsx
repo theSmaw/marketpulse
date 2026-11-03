@@ -1,7 +1,7 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 
 import { SECTOR_ETFS } from "@marketpulse/shared";
-import type { SecuritiesResponse } from "@marketpulse/shared";
+import type { SecuritiesResponse, Ticker } from "@marketpulse/shared";
 
 import {
   LOADING_UNIVERSE,
@@ -9,6 +9,7 @@ import {
   securitiesFixtureRetryingView,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
+import type { TopologyAnomalyTreatment } from "../../topology/index.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import { toSecuritiesView } from "../../use-securities.js";
 import { MarketTopology } from "./MarketTopology.js";
@@ -76,6 +77,69 @@ function probe(): void {
 
 /** The whole recorded universe, through the real transition. */
 const WHOLE_UNIVERSE = securitiesFixtureView("full");
+
+/**
+ * Every equity symbol in the recorded fixture, in the body's own order —
+ * the population {@link MarketTopologyProps.bands} is scoped to (Task
+ * 6.3.2, Gate 1 Decision 3). Read from the fixture body directly rather
+ * than from a drawn graph, because this module builds the band maps before
+ * any renderer exists to ask.
+ */
+const EQUITY_SYMBOLS: readonly Ticker[] = securitiesFixtureBody("full")
+  .securities.filter((security) => security.kind === "equity")
+  .map((security) => security.symbol);
+
+/**
+ * The real measured distribution (Task 6.3.1, `STORY.md` note 6): **normal
+ * 33.4%, elevated 41.4%, high 21.9%, extreme 3.3%** of 485 scored equities
+ * on the one local-store instant that story counted. Applied here by
+ * contiguous share of {@link EQUITY_SYMBOLS} rather than drawn at random,
+ * so the story is deterministic and its own percentages are checkable by
+ * counting the symbols assigned to each band.
+ *
+ * `normal`'s share needs no entry at all — absence from the map **is**
+ * `normal` (`TopologyRenderer.setBands`'s own contract) — so only the other
+ * three bands are written, in `elevated, high, extreme` order, leaving the
+ * first 33.4% of the list with no key and therefore drawn `normal`.
+ */
+function measuredDistributionBands(): ReadonlyMap<
+  Ticker,
+  TopologyAnomalyTreatment
+> {
+  const total = EQUITY_SYMBOLS.length;
+  const elevatedEnd = Math.round(total * 0.334) + Math.round(total * 0.414);
+  const highEnd = elevatedEnd + Math.round(total * 0.219);
+
+  const bands = new Map<Ticker, TopologyAnomalyTreatment>();
+
+  EQUITY_SYMBOLS.forEach((symbol, index) => {
+    if (index < Math.round(total * 0.334)) return; // normal — no entry
+    if (index < elevatedEnd) bands.set(symbol, "elevated");
+    else if (index < highEnd) bands.set(symbol, "high");
+    else bands.set(symbol, "extreme");
+  });
+
+  return bands;
+}
+
+/**
+ * CI's permanent state (AC 4): no composite generation at all, so every one
+ * of the 501 equities is unscored, for ever. Hollow rather than calm.
+ */
+function allUnscoredBands(): ReadonlyMap<Ticker, TopologyAnomalyTreatment> {
+  return new Map(EQUITY_SYMBOLS.map((symbol) => [symbol, "unscored"]));
+}
+
+/**
+ * A stress case for AC 1's legibility claim — never a real market state
+ * (note 2's own finding: roughly half the universe sits `elevated`-or-above
+ * on every session there has ever been, and 16 of 485 were `extreme` on the
+ * one instant this story measured), but the top of the scale has to stay
+ * legible with every node carrying the loudest treatment at once.
+ */
+function allExtremeBands(): ReadonlyMap<Ticker, TopologyAnomalyTreatment> {
+  return new Map(EQUITY_SYMBOLS.map((symbol) => [symbol, "extreme"]));
+}
 
 /**
  * A slice of the recorded universe, **through the real transition**.
@@ -199,6 +263,40 @@ export const WholeUniverse: Story = { args: { universe: WHOLE_UNIVERSE } };
 
 /** One sector drawn alone, which is where the node and edge treatment is legible. */
 export const OneSector: Story = { args: { universe: ONE_SECTOR } };
+
+/**
+ * **The anomaly treatment, at the real measured distribution** (Task
+ * 6.3.2). `normal`/`elevated`/`high`/`extreme` across the whole universe at
+ * {@link measuredDistributionBands}'s own shares — the ordinary instant AC
+ * 2 is about, which must not read as an alarm. Named stories rather than an
+ * interactive control, following this file's own idiom of one state per
+ * export: a reader reviews all three side by side in the workshop exactly
+ * as they would any other state here.
+ */
+export const AnomalyBandsMeasuredDistribution: Story = {
+  args: { universe: WHOLE_UNIVERSE, bands: measuredDistributionBands() },
+};
+
+/**
+ * **Every equity unscored — CI's permanent state** (AC 4, Task 6.3.2). No
+ * composite generation ever runs there, so this is not a stress case; it is
+ * the state a gated machine draws for ever. Hollow, achromatic outlines —
+ * "we don't know", never "calm".
+ */
+export const AnomalyBandsAllUnscored: Story = {
+  args: { universe: WHOLE_UNIVERSE, bands: allUnscoredBands() },
+};
+
+/**
+ * **Every equity `extreme` — the top of the scale under stress** (Task
+ * 6.3.2's own Work item). Never a real market state (note 2), but the
+ * thickest ring and the recoloured fill have to stay legible with every
+ * one of 501 equities carrying them at once, which this proves rather than
+ * assumes.
+ */
+export const AnomalyBandsAllExtreme: Story = {
+  args: { universe: WHOLE_UNIVERSE, bands: allExtremeBands() },
+};
 
 /**
  * The four market proxies and nothing else — **four diamonds, zero edges**.
