@@ -68,6 +68,20 @@ import styles from "./MarketTopology.module.css";
 // liquidity-driven size are the likely source) — at that point the mount
 // effect's deps would include something that changes every batch, and this
 // decision needs re-taking rather than assuming it still holds.
+//
+// **It did NOT fire, measured rather than assumed, when Task 6.3.3 wired the
+// anomaly band live.** The obvious shape — a `bands` prop the route re-passes
+// every batch — would have fired it; this component does not take that shape
+// on the live path at all. `MarketOverview.tsx` reaches `setBands` through
+// `MarketTopologyHandle` (the same imperative-ref shape `resetView` already
+// used), called from the ROUTE's own effect, never from a prop this
+// component receives. So the live anomaly band changes the picture every
+// batch while changing NONE of `MarketTopology`'s own props — the mount
+// effect's deps are still exactly `[topology, probe, sentenceId]`, unchanged,
+// and this component still never re-renders at feed cadence. The trigger's
+// own condition (“the first prop that changes at feed cadence”) remains
+// unmet by construction; `MarketTopology.test.tsx`'s “anomaly-band update
+// channel” describe block is where this is held.
 
 export interface MarketTopologyProps {
   /** The universe, in whichever state `use-securities.ts` has it. */
@@ -88,22 +102,31 @@ export interface MarketTopologyProps {
    * Each equity's anomaly treatment, by symbol (Task 6.3.2). Absent from
    * this map entirely draws `normal` — today's shipped node.
    *
-   * **Not wired to anything live yet.** This story builds the renderer's
-   * update channel and the visual ladder, provable from a Storybook control
-   * over the real universe; which wire state produces which map, and
-   * whether the whole prop is omitted versus an empty map, is Task 6.3.3's
-   * decision. `undefined` and `new Map()` are the same picture either way —
-   * every equity drawn `normal` — so nothing here forces that choice early.
+   * **The declarative path, for a Storybook story — the real route uses
+   * {@link MarketTopologyHandle.setBands} instead, as of Task 6.3.3.** This
+   * prop is what makes a fixed state a one-line `arg` (`AnomalyBandsAllExtreme`
+   * and its siblings, `MarketTopology.stories.tsx`); the real route's own
+   * live-batch policy (AC 4/AC 5: the first absent section draws every
+   * equity unscored, a later absent section is held rather than blanked)
+   * needs state across renders that a prop re-passed by a parent cannot
+   * hold on its own, so `MarketOverview.tsx` keeps that policy in its own
+   * `useRef` and calls the handle method directly — see that method's own
+   * docblock for why two paths exist for one underlying call. **Omitting
+   * this prop and never calling `setBands` are the same picture** — every
+   * equity drawn `normal` — which is why every pre-6.3 Storybook story
+   * here needed no change.
    *
-   * **A second effect, not the mount effect's own deps.** The mount effect
-   * traced its deps to `[topology, probe, sentenceId]` for Story 6.2's
-   * declined memo boundary (this file's own module docblock) specifically
-   * because none of them change at feed cadence; `bands` is the one the
-   * module docblock's reversal trigger named in advance, and folding it into
-   * the SAME effect would re-mount the canvas — destroying a reader's pan
-   * and zoom — on every batch once Task 6.3.3 wires it live. Keeping it
-   * separate is what makes `setBands`'s whole redraw-without-remount
-   * contract reachable from this component at all.
+   * **A second effect, not the mount effect's own deps**, when this prop
+   * IS used. The mount effect traced its deps to
+   * `[topology, probe, sentenceId]` for Story 6.2's declined memo boundary
+   * (this file's own module docblock) specifically because none of them
+   * change at feed cadence; `bands` is the one the module docblock's
+   * reversal trigger named in advance, and folding it into the SAME effect
+   * would re-mount the canvas — destroying a reader's pan and zoom — on
+   * every batch. Keeping it separate is what makes `setBands`'s whole
+   * redraw-without-remount contract reachable through a prop at all; the
+   * handle path below needs no such effect, because it calls the renderer
+   * directly from the caller's own effect instead.
    */
   readonly bands?: ReadonlyMap<Ticker, TopologyAnomalyTreatment> | undefined;
 
@@ -123,7 +146,8 @@ export interface MarketTopologyProps {
   readonly onRetry: () => void;
 
   /**
-   * Imperative access to the mounted renderer — `resetView` only, today.
+   * Imperative access to the mounted renderer — `resetView`, and since
+   * Task 6.3.3, `setBands`.
    *
    * **A ref rather than a prop**, because what it carries (`fitView` again,
    * right now) is not state a parent holds and re-passes; it is a command
@@ -147,6 +171,28 @@ export interface MarketTopologyHandle {
    * have to ask first.
    */
   resetView(): void;
+
+  /**
+   * Redraw the equity nodes with new anomaly treatments, without
+   * re-mounting the renderer (Task 6.3.3) — `TopologyRenderer.setBands`,
+   * reached imperatively rather than through
+   * {@link MarketTopologyProps.bands}.
+   *
+   * **Two paths to the same call, for two different callers.** The `bands`
+   * prop is Task 6.3.2's own declarative path, built for a Storybook story
+   * to demonstrate a fixed state with one `arg`; this method is the real
+   * route's, because applying a live batch is governed by AC 4/AC 5's own
+   * stateful policy (the first absent section draws every equity unscored,
+   * every absent section after a real one is held rather than blanked) —
+   * that policy lives in a `useRef` the ROUTE owns, not in a value this
+   * component could re-derive from its own props alone, so it reaches the
+   * renderer the same way `resetView` already does: a command aimed at a
+   * resource this component owns, called from an effect rather than
+   * re-passed every render.
+   *
+   * **A no-op while nothing is mounted**, same contract as `resetView`.
+   */
+  setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
 }
 
 export function MarketTopology({
@@ -164,6 +210,7 @@ export function MarketTopology({
     ref,
     () => ({
       resetView: () => renderer.current?.reset(),
+      setBands: (treatments) => renderer.current?.setBands(treatments),
     }),
     [],
   );
@@ -240,9 +287,21 @@ export function MarketTopology({
    * above on purpose** (Task 6.3.2) — see {@link MarketTopologyProps.bands}.
    * A no-op while nothing is mounted (`renderer.current` is `null` in every
    * state but `loaded`), same shape as `resetView`'s own no-op contract.
+   *
+   * **`undefined` skips the call entirely, rather than defaulting to an
+   * empty map — the meaning tightened at Task 6.3.3.** An empty map and "no
+   * call" draw the same picture at MOUNT, where the renderer's own default
+   * is already `normal` for everyone — but they stop agreeing once a real
+   * batch has been applied: calling `setBands(new Map())` on every
+   * prop-identity render would silently revert whatever was drawn back to
+   * `normal`, which is the exact "blanked on a quiet frame" defect AC 5
+   * forbids. Harmless for this prop specifically (the real route does not
+   * use it — see {@link MarketTopologyProps.bands}'s own note), but the
+   * contract is written for whatever calls this prop next.
    */
   useEffect(() => {
-    renderer.current?.setBands(bands ?? new Map());
+    if (bands === undefined) return;
+    renderer.current?.setBands(bands);
   }, [bands]);
 
   if (universe.state === "loading") {
@@ -376,18 +435,30 @@ export function MarketTopology({
  * rather than hard-coded a second place, so a curation change that ever
  * altered it would move this sentence with it.
  *
- * **No live region, and that is a decision rather than an omission.** The
- * picture is static for the page's lifetime — built once from a `useState`
- * value that changes only on a settled response — so there is nothing to
- * announce. Reversal trigger, a condition: *the first change to this region
- * a reader must be told about without having asked* (Story 6.4's selection
- * answering an agent's `highlight_graph_nodes`, not a repaint).
+ * **The "nothing in it is a measurement" clause is gone, false since Task
+ * 6.3.3.** Every equity's own ring is a measurement now — the clause this
+ * docblock is attached to said otherwise while it was still true, before
+ * this story wired a real band to a real node. The minimal correct
+ * replacement is below; the band vocabulary and counts a full rewrite would
+ * add are deliberately NOT here — Task 6.3.4 owns the accessible account,
+ * this task only removed what had gone false.
+ *
+ * **"No live region" is ALSO no longer the true half of that trigger's own
+ * condition, and the decision itself is left to Task 6.3.4 rather than
+ * retaken here.** The picture is no longer static for the page's lifetime —
+ * `setBands` redraws it on a live batch via `MarketTopologyHandle`, outside
+ * React state entirely — which is exactly the reversal trigger this
+ * docblock named in advance: *the first change to this region a reader must
+ * be told about without having asked*. It has fired. Whether that change
+ * should be spoken, and how often, given this sentence's own 25-word
+ * pacing precedent elsewhere in this product, is a judgement call about a
+ * **word**, which is 6.3.4's brief by name — not a consequence of removing
+ * one false clause from a sentence that still needs to exist either way.
  */
 function topologyDrawnSentence(graph: TopologyGraph): string {
   return (
     `A graph of every security we track, grouped into ${String(graph.clusters.length)} sectors ` +
-    `around their benchmark ETFs, with the broad market at the centre. Nothing in it is a ` +
-    `measurement — it is a picture of how the market is organised.`
+    `around their benchmark ETFs, with the broad market at the centre.`
   );
 }
 

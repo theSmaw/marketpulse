@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import type { Bar } from "@marketpulse/shared";
+import type { Bar, Ticker } from "@marketpulse/shared";
 
 import {
   BreadthLedger,
@@ -17,6 +17,10 @@ import {
 } from "../components/Movers/Movers.js";
 import { OverviewSourceNote } from "../components/OverviewSourceNote/OverviewSourceNote.js";
 import { Region } from "../components/Region/Region.js";
+import {
+  anomalyTreatmentsFromWire,
+  unscoredAnomalyTreatments,
+} from "../topology/index.js";
 import {
   SectorPerformance,
   SectorPerformanceMeta,
@@ -227,6 +231,76 @@ export function MarketOverview({
         : EMPTY_NAMES,
     [universe],
   );
+
+  /**
+   * The 501 equities, by symbol — the population Task 6.3.3's `unscored`
+   * fallback is scoped to (AC 4; the fifteen sector-ETF/proxy/hub nodes are
+   * never in it, same exclusion Task 6.3.1's wire section already made and
+   * Task 6.3.2's renderer already honours).
+   */
+  const equitySymbols = useMemo(
+    () =>
+      universe.state === "loaded"
+        ? universe.securities
+            .filter((security) => security.kind === "equity")
+            .map((security) => security.symbol)
+        : EMPTY_EQUITY_SYMBOLS,
+    [universe],
+  );
+
+  /**
+   * **The live anomaly band reaches the graph** (Task 6.3.3) — AC 4 and
+   * AC 5's own stateful policy, kept in a `useRef` rather than React state
+   * because it is a record of what has already been APPLIED to an
+   * imperative resource, not a value this render derives.
+   *
+   * - `overview.anomalyBands` present → always apply it, and remember a
+   *   real section has now been seen.
+   * - `overview` present, `anomalyBands` absent, nothing real seen yet →
+   *   this is the first word this route has ever had about scoring, and
+   *   the word is "nothing was scored" — every equity draws `unscored`
+   *   (AC 4: CI's permanent state, and the first ~46 s of a cold deploy).
+   * - `overview` present, `anomalyBands` absent, a real section seen
+   *   before → **do nothing** (AC 5: a rollback, a previous image, or two
+   *   nightly tables a session apart never blanks what is already drawn).
+   * - `overview` absent (the first paint, before any live frame has
+   *   arrived at all) → do nothing; the renderer's own mount-time default
+   *   is `normal`, exactly Story 6.2's shipped look, which is the correct
+   *   picture for a few hundred milliseconds nobody has asked anything of
+   *   yet.
+   */
+  const appliedRealAnomalyBands = useRef(false);
+
+  /**
+   * **Forgotten on a fresh universe, because the renderer itself is.** A
+   * retry that succeeds gives `MarketTopology` a new `securities` array,
+   * which re-runs ITS mount effect and mounts a brand new renderer whose
+   * own default is `normal` for everyone — the same as any other fresh
+   * mount. Without this, a reader who retries after this route had already
+   * applied the `unscored` fallback once would be stuck on that renderer's
+   * default `normal` look until the next frame happened to carry a REAL
+   * section, which on CI is never.
+   */
+  useEffect(() => {
+    appliedRealAnomalyBands.current = false;
+  }, [universe]);
+
+  useEffect(() => {
+    if (overview === undefined) return;
+
+    if (overview.anomalyBands !== undefined) {
+      appliedRealAnomalyBands.current = true;
+      topology.current?.setBands(
+        anomalyTreatmentsFromWire(overview.anomalyBands),
+      );
+      return;
+    }
+
+    if (appliedRealAnomalyBands.current) return;
+
+    appliedRealAnomalyBands.current = true;
+    topology.current?.setBands(unscoredAnomalyTreatments(equitySymbols));
+  }, [overview, equitySymbols]);
 
   /*
    * **The two movers lists, derived once per frame — the route's third memo
@@ -957,3 +1031,5 @@ const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map<string, Bar>();
 /** The same, for the universe that has not arrived — see `names`. */
 const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();
+/** The same, for `equitySymbols` — Task 6.3.3's anomaly-band fallback. */
+const EMPTY_EQUITY_SYMBOLS: readonly Ticker[] = [];
