@@ -71,8 +71,10 @@ and why.
    claim: the measured ordinary instant (AC 5's own distribution) must not
    read as an alarm.** `elevated` is the ordinary upper half and must read as
    such — ordinary, not warning — which is why it carries no colour. What the
-   picture is allowed to read as a hot spot is `high`/`extreme` only, ~10%
-   and ~2% of the scored population respectively.
+   picture is allowed to read as a hot spot is `high`/`extreme` only —
+   **corrected 2026-11-03 by Task 6.3.1, from a guess to a count**: 21.9% and
+   3.3% of the scored population respectively, not the `~10%`/`~2%` this
+   criterion was first written with (see note 6 below for the method).
 3. **The band is read off the frame, never recomputed.** The composite already
    crosses the wire with its explanation, and `readAnomalyScore` **re-adds the
    published contributions and refuses the whole explanation when the sum is not
@@ -99,13 +101,26 @@ and why.
    last bands it had rather than reverting 501 nodes to hollow on one bad
    frame. This is `/`'s own "an answer already on screen is never blanked by
    a newer request in flight" rule arriving at 501 nodes instead of one.
-6. **The measured distribution is stated beside the design, and it is
-   RE-MEASURED before this story cites it again.** The figures this story
-   inherited (`normal` 219.2, `elevated` 179.4, `high` 39.3, `extreme` 7.74
-   per instant over "484 scored securities") sum to **445.6**, not 484 — an
-   inconsistency found at shaping, not yet resolved. Task 6.3.1 re-takes this
-   figure against real data once the wire section exists, and states the
-   population the four numbers actually describe.
+6. **The measured distribution is stated beside the design, and it was
+   RE-MEASURED before this story cites it again — done 2026-11-03 by Task
+   6.3.1.** The figures this story inherited (`normal` 219.2, `elevated`
+   179.4, `high` 39.3, `extreme` 7.74 per instant over "484 scored
+   securities") summed to **445.6**, not 484 — a per-instant-mean figure over
+   an unstated number of instants, with no surviving record of which. The
+   **real** count, taken against this machine's own local store (the only
+   stored composite-score instant it holds, `2026-09-11`, in the
+   `session_composite_scores` table, 485 rows, counted with
+   `SELECT band, count(*) … GROUP BY band`):
+   **normal 162 (33.4%), elevated 201 (41.4%), high 106 (21.9%), extreme 16
+   (3.3%)** — summing to 485, the exact scored population the same frame
+   reports elsewhere. The `16` matches `CLAUDE.md`'s own independent citation
+   of "16 `extreme` securities in the whole universe" from Task 5.6.3, which
+   is the same store and the same session read a different way — the first
+   corroboration this figure has had. **This is one instant on one store,
+   not a distribution across sessions** — the inherited figure's "per
+   instant" framing cannot be reproduced because nothing records how many
+   instants or which; a second session would need its own count rather than
+   an assumed stability. Note 2 above is corrected with the same numbers.
 7. **No invented curve.** A log cap, a sigmoid or a chosen knee mapping score to
    a visual magnitude is **calibrated in one tape's units** and breaks ADR 0045's
    invariance: a knee at `3× typical` means a different thing at 3.54% venue
@@ -136,8 +151,13 @@ offered:
    beside it within minutes of a tab being left open, which is the costlier
    defect. ~3.1KB, +76% on the frame's measured ceiling, paid by every route
    including ones that draw no graph — accepted against the alternative's
-   correctness cost. **Reversal trigger, a condition:** the first route whose
-   own cost budget this frame visibly breaches.
+   correctness cost. **Confirmed 2026-11-03 by Task 6.3.1, against the real
+   encoder rather than estimated**: 485 real symbols from this machine's
+   local store, run through the shipped `encodeMarketStreamMessage`, cost
+   **3,145 bytes** for the section alone (an otherwise-minimal overview frame
+   grew from 144 to 3,289 bytes) — ~3.07 KiB, matching the shaping estimate
+   this decision was taken against. **Reversal trigger, a condition:** the
+   first route whose own cost budget this frame visibly breaches.
 2. **The ring spends amber for `high`/`extreme` only; `elevated` is
    achromatic.** The order survives on ring weight alone in greyscale; amber
    mainly reinforces for colour-sighted readers on the two bands that matter

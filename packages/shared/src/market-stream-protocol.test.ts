@@ -37,6 +37,7 @@ import {
   type WireSymbolReturn,
   type WireVolumeComparison,
   type WireVolumeRate,
+  type WireAnomalyBands,
   type WireUnusualActivity,
   type WireUnusualBaseline,
   type WireUnusualRow,
@@ -1817,6 +1818,136 @@ describe("the unusual-activity section, whose rows are a COMPOSITE SCORE and its
       expect(decode(SECTION)?.computedAt).toBe(OVERVIEW_AT);
       expect(decodeRaw({ rows: [] })?.computedAt).toBe(OVERVIEW_AT);
     });
+  });
+});
+
+describe("the anomaly-bands section — every scored equity, bucketed (Task 6.3.1)", () => {
+  const BANDS: WireAnomalyBands = {
+    normal: ["AAPL", "MSFT"],
+    elevated: ["TSLA"],
+    high: ["NVDA"],
+    extreme: [],
+    cohort: { factors: ["price", "excess"], max: 75, scored: 4, others: 0 },
+  };
+
+  const roundTrip = (anomalyBands: unknown): string =>
+    encodeMarketStreamMessage(
+      overviewMessage({ anomalyBands: anomalyBands as WireAnomalyBands }),
+    );
+
+  const decode = (anomalyBands: unknown): WireMarketOverview | undefined => {
+    const decoded = decodeMarketStreamMessage(
+      encodeMarketStreamMessage(
+        overviewMessage({ anomalyBands: anomalyBands as WireAnomalyBands }),
+      ),
+    );
+
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      return undefined;
+    }
+    return decoded.message.overview;
+  };
+
+  /** The same read, from a frame this encoder cannot build — `decode`'s own
+   * sibling, `readUnusual`'s rule: a gateway from another image is under no
+   * obligation to send a shape this bundle's own types would refuse. */
+  const decodeRaw = (anomalyBands: unknown): WireMarketOverview | undefined => {
+    const decoded = decodeMarketStreamMessage(
+      JSON.stringify({
+        type: "overview",
+        version: MARKET_STREAM_PROTOCOL_VERSION,
+        sentAt: SENT_AT,
+        overview: {
+          computedAt: OVERVIEW_AT,
+          feeds: ["iex"],
+          figures: [],
+          anomalyBands,
+        },
+      }),
+    );
+
+    if (decoded.kind !== "message" || decoded.message.type !== "overview") {
+      return undefined;
+    }
+    return decoded.message.overview;
+  };
+
+  it("carries all four bands, including an EMPTY one — `normal` is never inferred from absence", () => {
+    const wire = roundTrip(BANDS);
+
+    expect(wire).toContain('"normal":["AAPL","MSFT"]');
+    expect(wire).toContain('"elevated":["TSLA"]');
+    expect(wire).toContain('"high":["NVDA"]');
+    expect(wire).toContain('"extreme":[]');
+    expect(wire).toContain('"factors":["price","excess"]');
+  });
+
+  it("round-trips through the shipped decoder", () => {
+    const decoded = decode(BANDS);
+
+    expect(decoded?.anomalyBands).toEqual(BANDS);
+  });
+
+  it("is ABSENT rather than sent as four empty arrays, where nothing is scored", () => {
+    // The whole point of the shape: a dropped or stale section must default
+    // to *we don't know*, which only holds if `undefined` is the encoding
+    // for *nothing scored* — never four empty arrays sitting on the wire at
+    // their own byte cost.
+    const wire = encodeMarketStreamMessage(overviewMessage({}));
+
+    expect(wire).not.toContain("anomalyBands");
+  });
+
+  it("reads an ABSENT section as absent and a MALFORMED one as the same absence", () => {
+    expect(decode(undefined)?.anomalyBands).toBeUndefined();
+    expect(decodeRaw({ normal: [] })?.anomalyBands).toBeUndefined();
+    expect(decode(BANDS)?.computedAt).toBe(OVERVIEW_AT);
+    expect(decodeRaw({ normal: [] })?.computedAt).toBe(OVERVIEW_AT);
+  });
+
+  it("refuses a section whose total disagrees with its own cohort's `scored`", () => {
+    // The partition check: four arrays summing to a figure other than
+    // `cohort.scored` is not a band section, it is four lists that happen to
+    // parse — `readUnusual`'s own "rows ≤ cohort.scored" discipline, applied
+    // to a total rather than a selection.
+    const wrong = {
+      ...BANDS,
+      cohort: { ...BANDS.cohort, scored: 99 },
+    };
+
+    expect(decodeRaw(wrong)?.anomalyBands).toBeUndefined();
+  });
+
+  it("refuses a section where one symbol appears in more than one band", () => {
+    const overlapping = {
+      ...BANDS,
+      normal: ["AAPL", "MSFT", "NVDA"],
+      // Total is now 5 against `cohort.scored: 4`, AND `NVDA` is duplicated —
+      // either check alone would catch this; both are asserted elsewhere, so
+      // this fixes `cohort.scored` to the wrong-but-matching total to isolate
+      // the duplicate-symbol check specifically.
+      cohort: { ...BANDS.cohort, scored: 5 },
+    };
+
+    expect(decodeRaw(overlapping)?.anomalyBands).toBeUndefined();
+  });
+
+  it("refuses a section with no readable cohort", () => {
+    const cohortless: Record<string, unknown> = { ...BANDS };
+    delete cohortless.cohort;
+
+    expect(decodeRaw(cohortless)?.anomalyBands).toBeUndefined();
+  });
+
+  it("never names a sector SPDR, a market proxy or SPY — the composite's own population", () => {
+    // Not a read-side rule (the decoder has no symbol vocabulary to check
+    // against) — this is the shape the real producer promises, exercised
+    // through the real encoder so the fixture is honest.
+    const wire = roundTrip(BANDS);
+
+    for (const outsider of ["XLK", "XLE", "QQQ", "DIA", "IWM", "SPY"]) {
+      expect(wire).not.toContain(outsider);
+    }
   });
 });
 

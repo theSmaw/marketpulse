@@ -20,7 +20,7 @@ import { breakpointsOf } from "./return-baseline.js";
 import { topMovers } from "./market-movers.js";
 import { unusualActivity } from "./market-unusual.js";
 
-import type { Bar, BarSource, Ticker } from "@marketpulse/shared";
+import type { AnomalyBand, Bar, BarSource, Ticker } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MarketOverviewEntry } from "./market-overview.js";
 import type {
@@ -548,6 +548,10 @@ describe("unusualActivity — a refused security is NOT a row", () => {
     expect(section.scored).toBe(0);
     expect(section.rows).toEqual([]);
     expect(section.cohort).toBeUndefined();
+    // Task 6.3.1: no cohort means no scale to bucket on, so the topology's
+    // own section is absent too — the producer-side mirror of AC 4 (a
+    // security with no outcome is never drawn in any band).
+    expect(section.anomalyBands).toBeUndefined();
     expect(section.refusals.comparison["too-few-samples"]).toBe(1);
   });
 
@@ -900,6 +904,36 @@ describe("unusualActivity — the basis gate", () => {
     // footer out of hours the same sentence it is at 11:00.
     expect(section.refusals.figure["nothing-observed"]).toBe(35);
     expect(section.refusals.comparison["too-few-samples"]).toBe(11);
+
+    // **Task 6.3.1, on the SESSION basis — the topology's own section is
+    // built from the same stored cohort the ranked rows above came from.**
+    // Read each symbol's band off the ranked rows already asserted above,
+    // rather than re-deriving `scoreAnomaly`'s own arithmetic here: the
+    // claim under test is that the bucket matches the row, not what the
+    // row's score happens to be.
+    const bandOfRow = (symbol: string): AnomalyBand => {
+      const band = section.rows.find((row) => row.symbol === symbol)?.band;
+      if (band === undefined) {
+        throw new Error(`no row for ${symbol}`);
+      }
+      return band;
+    };
+
+    for (const symbol of ["AMD", "MSFT", "NVDA"]) {
+      expect(section.anomalyBands?.[bandOfRow(symbol)]).toContain(symbol);
+    }
+
+    // The band section's own cohort is the FIXTURE's three rows, not the
+    // stored pass's 485 — `scored` above is `composite.pass.scored`, a
+    // column; this is `cohort.members.length`, an array this test actually
+    // populated.
+    expect(section.anomalyBands?.cohort.scored).toBe(3);
+    expect(
+      (section.anomalyBands?.normal.length ?? 0) +
+        (section.anomalyBands?.elevated.length ?? 0) +
+        (section.anomalyBands?.high.length ?? 0) +
+        (section.anomalyBands?.extreme.length ?? 0),
+    ).toBe(3);
   });
 
   it("reads the MOVE from beside the score, because the composite row has none", () => {
@@ -961,6 +995,11 @@ describe("unusualActivity — the basis gate", () => {
     expect(section.rows).toEqual([]);
     expect(section.scored).toBe(0);
     expect(section.cohort).toBeUndefined();
+    // Task 6.3.1: the never-mix-two-sessions'-halves rule reaches the
+    // topology's section for free — `candidates` is `[]` whenever
+    // `composite` is dropped, so there is no cohort to bucket on and the
+    // section is absent exactly where the ranked rows are.
+    expect(section.anomalyBands).toBeUndefined();
     // The percentile pass's own figures still travel, so the footer is honest
     // about the population it heard from.
     expect(section.tracked).toBe(501);
