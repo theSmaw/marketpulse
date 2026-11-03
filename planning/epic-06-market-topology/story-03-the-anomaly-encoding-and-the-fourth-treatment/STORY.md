@@ -1,10 +1,17 @@
 # Story 6.3 — The Anomaly Encoding, & the Fourth Treatment a Canvas Needs
 
-**Status:** **In progress — 2026-11-02.** Gate 1 passed the same day: five
-tasks, four decisions taken (live updates broadcast to everyone; amber for
-`high`/`extreme` only; the fifteen sector-ETF/proxy landmarks excluded from
-the encoding entirely; AC 2 reworded to the measurable claim). See
-Decisions below.
+**Status:** **Complete — 2026-11-03.** All five tasks shipped: the band
+reaches the wire (6.3.1, ~3.1KB measured), the ring is drawn (6.3.2, five
+treatments, pixel-identical `normal`), the band reaches the real route live
+(6.3.3, watched against a real backend, pan survives a live update), the
+accessible account and the legend (6.3.4, plus the widened
+`amber-appears-once-in-the-rail` check), and this sweep (6.3.5). Real
+measured distribution: 485 scored equities, `normal` 33.4% / `elevated`
+41.4% / `high` 21.9% / `extreme` 3.3% (one instant, `docs/GAPS.md` carries
+the re-measure). Gate 1 passed 2026-11-02: five tasks, four decisions taken
+(live updates broadcast to everyone; amber for `high`/`extreme` only; the
+fifteen sector-ETF/proxy landmarks excluded from the encoding entirely; AC
+2 reworded to the measurable claim). See Decisions below.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.2
 **Epic scope covered:** Node movement/anomaly encoding

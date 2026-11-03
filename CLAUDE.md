@@ -161,8 +161,8 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): two of nine stories complete, 2026-11-01, and the
-graph is on the route.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): three of nine stories complete, 2026-11-03, and
+the graph now draws what it means.** Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -210,9 +210,56 @@ independent answer. The route's cold load was re-measured for real and is
 not in breach: **0 of 10 loads over 50ms**, worst rAF gap **18.6–18.7ms**
 against a 24.7/34.7ms baseline taken before this story landed.
 `MARKET-OVERVIEW.md` §1.1, §1.4 and §9 and `TOPOLOGY.md` carry the fuller
-account; what remains Storybook-only or unbuilt is everything the next seven
-stories still own — the anomaly band, node size, correlation edges,
-interaction and live updates.
+account; what remains Storybook-only or unbuilt is everything the next six
+stories still own — node size, correlation edges, interaction and live
+updates.
+
+**And since 2026-11-03 the graph's nodes carry what the market is doing,
+not only how it is organised — Story 6.3, the half of this epic's exit
+criterion that reads _unusual securities are visually obvious_.** Each of
+the 501 equities draws one of five treatments: `normal` (unchanged — the
+node Story 6.2 shipped), `unscored` (hollow, an achromatic outline — "we
+don't know", never calm), or `elevated`/`high`/`extreme` as a ring growing
+in weight in the node's own reserved 4px annulus, with `extreme` the only
+band that also recolours the body. `elevated` spends no hue at all (Gate
+1's own decision — the ring survives in greyscale on weight alone, and
+colouring ~41% of the graph amber would read as an alarm); `high`/`extreme`
+read `--anomaly-high`/`--anomaly-extreme`, the same ramp `AnomalyBadge`
+spends, now with a SECOND, documented reader
+(`a-var-read-resolves-to-a-declared-token`'s sibling check,
+`amber-appears-once-in-the-rail`, was widened rather than relaxed to admit
+it). The fifteen landmark nodes — the eleven sector SPDRs, the four
+proxies, the hub — are excluded from the encoding entirely, confirmed
+unchanged across every live batch. The accessible sentence states the
+band vocabulary and a `high`/`extreme` count (never `elevated`'s own,
+never a raw score), and a static legend — `normal · elevated · high ·
+extreme` — sits beside `Reset view` at three of the four widths this
+product tests; at 390 it measurably does not fit beside the title and is
+hidden there, the shortfall and its condition recorded rather than
+silently dropped.
+
+**Watched working against a real backend, not only Storybook** — this
+developer's own running copy, with real stored composite scores (Task
+6.3.1's own measured session: 485 scored equities, `normal` 33.4%,
+`elevated` 41.4%, `high` 21.9%, `extreme` 3.3%, one instant on one local
+store rather than a distribution, `docs/GAPS.md` carries the re-measure).
+A live band update redraws the canvas without re-mounting it — a reader's
+pan survived a 28-second hold through a background re-render — reached
+through `MarketTopologyHandle.setBands`, an imperative call rather than a
+re-passed prop, which is what keeps the declined `React.memo` boundary
+(Story 6.2's own decision) closed by construction rather than reopened:
+this region still takes no prop that changes at feed cadence. **What no
+gated machine will ever see**: CI's store has zero bars and no provider,
+so composite generation never runs there and every equity draws `unscored`
+for ever — a `high` ring, an `extreme` ring and the recoloured fill are
+structurally unreachable on CI, the only machine that has drawn any of
+them is the one developer's store above. `TOPOLOGY.md` §4 carries the
+fuller account, including a real, substantive test-suite fix this story's
+own change required: `overview-degraded-grid.spec.ts`'s Task 6.2.4-era
+claim that the topology never varies with the overview aggregate went
+false the moment the sentence started reading live data, and was corrected
+to the real, current boundary rather than the feature being held back to
+avoid disturbing an outdated check.
 
 ### What a user can see today
 

@@ -5670,3 +5670,85 @@ a cross-cutting change outside Story 6.1's scope. **Owner: the next story that
 re-records `full.json` for its own reason**, or — failing one — the first
 story in this epic whose geometry figures need to be exactly right rather
 than conservatively close.
+
+## The topology's anomaly-band legend is hidden below 390 px, with nothing mechanical confirming it reappears above it
+
+**Added 2026-11-03 by Task 6.3.5, closing Story 6.3.**
+
+`MarketOverview.module.css`'s `.topologyLegend` carries
+`@media (width <= 390px) { display: none; }` — measured with `pnpm probe`
+at Task 6.3.4: the static `normal · elevated · high · extreme` key fits
+beside `Reset view` with the content box completely unchanged at
+1440/1024/768, and at 390 it does not (the title collapses to 0 px, the
+header grows 59 → 69 px, the content box loses exactly that 10 px). The
+CSS comment states the measurement and the condition for revisiting it —
+_the first story that grows this region's header at 390, or narrows the
+`Reset view` control enough to leave room beside it_ — but nothing in
+`pnpm verify` or `pnpm e2e` asserts that the legend is actually PRESENT at
+1024/768/1440 or actually ABSENT at 390. A future change could silently
+widen the breakpoint, or silently break the legend everywhere, and every
+check in this repository would stay green.
+
+**Re-measure:**
+
+```
+pnpm probe / --within "Market topology" --all
+```
+
+and read the `topologyLegend` row's box at each width — non-zero at
+1440/1024/768, `0×0` at 390.
+
+**Not mechanised.** A browser-level assertion over four widths is a real
+option (`overview-market-topology.spec.ts` already asserts other structural
+facts about this exact region) but was not added here, because this is a
+**cosmetic** fact (a glossary that duplicates vocabulary the accessible
+sentence already states in full) rather than a correctness one — the
+region works, and is accessible, with the legend absent at every width, so
+the cost of a dedicated spec was weighed against a low-consequence
+regression and not spent. **Owner: the first story that touches this
+region's header again** (a strong candidate: Story 6.4, whose own focus
+treatment may also want head-slot room) — add the assertion in the same
+change if the header's own geometry is already being touched, since the
+measurement will need re-taking then regardless.
+
+## The topology's real anomaly-band distribution is one measurement, on one local store, from one session
+
+**Added 2026-11-03 by Task 6.3.5, closing Story 6.3.**
+
+STORY.md's AC 5 (and this epic's own Epic 7 hand-off) states the real band
+distribution as `normal` 33.4%, `elevated` 41.4%, `high` 21.9%, `extreme`
+3.3% — counted once, by Task 6.3.1, against this one developer's local
+Postgres store's single stored `session_composite_scores` instant
+(session `2026-09-11`, 485 rows). It is corroborated by one independent
+figure (`CLAUDE.md`'s own citation of "16 `extreme` securities in the whole
+universe" from Task 5.6.3, same store, same session, read a different way)
+but is **not** a distribution across sessions — the inherited figure it
+replaced claimed to be a per-instant mean over an unstated number of
+instants, and this story's own replacement is explicit that it is **one**
+instant rather than a mean, precisely because nothing records how many
+instants the original was ever averaged over. Whether 33.4/41.4/21.9/3.3
+is typical of an ordinary session, or whether it is the one session this
+developer's store happens to hold data for, is unanswered — `ANOMALY.md`
+§0's own standing rule (almost every claim in Epic 5 is a claim about a
+_store_) applies here with the same force it always has.
+
+**Re-measure, on the deployed store, across more than one session:**
+
+```sql
+SELECT observed_at, band, count(*)
+FROM session_composite_scores
+GROUP BY observed_at, band
+ORDER BY observed_at, band;
+```
+
+against the production database, once it has accumulated more than the
+one session's worth of nightly passes this repository's own local copy
+currently holds.
+
+**Not mechanised, and not mechanisable as a `pnpm invariants` entry** — this
+is a claim about the shape of real market data, which varies session to
+session by definition, not a claim a static check could hold true or false.
+**Owner: whichever later story next needs a real figure for this
+distribution** (Epic 7's own hand-off above is the most likely first
+reader) — re-take it against the deployed store rather than citing this
+one instant forward.

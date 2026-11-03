@@ -109,3 +109,62 @@ fitted view. A node selection this story adds should decide explicitly
 whether `Reset view` also clears it — the control's own docblock says it
 "is a no-op while nothing is mounted," which does not yet say anything about
 a selection, because none existed when it was written.
+
+## Handed here by Story 6.3's close — 2026-11-03: the annulus is taken, and this story's focus treatment goes outside the footprint
+
+**Resolved at Story 6.3's own Gate 1, not left for this story to discover by
+collision.** `The graph at rest.dc.html` §03 reserves a 4-unit annulus
+around every equity's 8-unit ink (`TOPOLOGY_NODE_FOOTPRINT` 16 minus the
+ink, split evenly) and names it as double-booked: Story 6.3's anomaly ring
+and this story's focus/selection treatment were both drawn against the same
+4 px of room. The decision taken at 6.3's Gate 1, and acted on in
+`apps/frontend/src/topology/renderer-canvas.ts` (`ANOMALY_RING_OFFSET`,
+`ANOMALY_RING_WIDTH`): **Story 6.3's ring is 516-wide and must stay cheap
+and quiet; this story's focus is exactly one node at a time and can afford
+a louder treatment.** So 6.3 takes the annulus — `elevated`/`high`/`extreme`
+draw a ring centred in it, and `extreme` additionally recolours the node's
+own fill — and **this story's focus/selection ring must be drawn OUTSIDE
+the 16-unit footprint**, not layered into the same 4 px.
+
+**This costs nothing at the hit-test layer.** `nodeAt()`
+(`renderer-canvas.ts`) already targets the 16-unit **footprint** rather
+than the 8–12-unit ink, specifically so the 4 px annulus would be
+targetable by a cursor or a focus ring — which this story's own earlier
+note above already says. A focus treatment sitting outside the footprint
+needs no change to that threshold; it only needs its own geometry to start
+at radius 8 (half the footprint) rather than at the ink's own edge.
+
+**One finding from building the ring worth inheriting directly, since this
+story's own focus ring will face the identical question**: node ink is
+**constant in CSS pixels regardless of the container's fit scale** —
+`TOPOLOGY_NODE_INK[kind] * nodeScale`, where `nodeScale` answers only the
+explicit user zoom (`clampNodeScale(view.zoom)`, clamped [0.5, 1.5]), never
+the box the layout was fitted into. Task 6.3.2 went looking for a low-fit-
+scale state where a ring might need suppressing (parallel to
+`TOPOLOGY_SECTOR_LABEL_MIN_SCALE`) and found it does not exist under this
+renderer's own zoom model — a focus ring sized the same way will not need
+one either, and does not need re-deriving that this renderer has no such
+state.
+
+**And the live-region reversal trigger this story's own note above already
+named has FIRED ONCE, with Story 6.3 restating rather than retaking "no
+live region."** Task 6.3.3 wired the topology's accessible sentence to a
+live batch for the first time (a real anomaly band, or the honest "nothing
+scored yet" fallback, overwriting the paragraph's text on each update) —
+which is precisely the condition this story's own note calls out: _"the
+first change to this region a reader must be told about without having
+asked."_ Task 6.3.4, given the explicit choice to add a live region or
+restate the existing no-live-region decision, restated it: the sentence
+stays current when read rather than announced when it changes, the same
+call Story 6.2 made for the purely structural sentence. **What that means
+for THIS story**: the trigger is not a clean first-fire this story would be
+answering fresh — it already fired once, was looked at, and the product's
+standing answer is still no live region. A hover or a selection changing
+what a reader is told is a SECOND, independent firing of the same
+condition, and the live paragraph it would reach into is the one
+`applyAnomalyBands` (`MarketTopology.tsx`) already writes to imperatively,
+outside React's own reconciliation — this story's own note above (a second,
+dynamic element rather than a rewrite of the first) is the right shape to
+keep for exactly that reason: a `textContent` write that bypasses React is
+not a safe place to also append a transient hover/selection announcement
+without the two writers colliding.
