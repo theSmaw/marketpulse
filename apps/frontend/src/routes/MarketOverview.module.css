@@ -366,3 +366,37 @@
     min-height: auto;
   }
 }
+
+/*
+ * **The topology's band key — a static glossary, never a summary** (Task
+ * 6.3.4). `Unusual activity`'s `.bound` slot, copied rather than
+ * reinvented: the same micro-label treatment, the same ink, the same
+ * `white-space: nowrap` so four words separated by middots never wraps
+ * inside the header's flex row. Unlike `.bound` it names no state — the
+ * four band words are constant, so nothing here is ever recomputed from a
+ * frame.
+ */
+.topologyLegend {
+  composes: microLabel from "../styles/type.module.css";
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * **Measured with `pnpm probe`, not assumed (Task 6.3.4).** At 1440/1024/768
+ * the legend fits beside the title with the content box unchanged — header
+ * 59 px, content 998×413 / 570×413 / 686×413, all identical to the box
+ * without it. At 390 it does not: `meta` (351 px: the legend's 227 plus the
+ * button's 116 plus an 8 px gap) exceeds the 340 px header, which measured
+ * as the title collapsing to 0 px width, the header growing 59 → 69 px, and
+ * the content box losing exactly that 10 px (413 → 403). Hidden here rather
+ * than shipped broken — STORY.md's own Work item asks for the shortfall
+ * stated and handed on rather than silently dropped: the condition is
+ * *the first story that grows this region's header at 390, or narrows the
+ * Reset view control enough to leave room beside it*.
+ */
+@media (width <= 390px) {
+  .topologyLegend {
+    display: none;
+  }
+}

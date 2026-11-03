@@ -5828,6 +5828,28 @@ export const BREAKS = [
     expect: "amber-appears-once-in-the-rail",
   },
   {
+    name: "a-second-typescript-file-reads-the-anomaly-ramp",
+    proves:
+      "`amber-appears-once-in-the-rail`'s TypeScript-side clause (Task " +
+      "6.3.4) goes red when a SECOND `.ts`/`.tsx` file reads the amber ramp " +
+      'via `tokens["--anomaly-…"]`, beside `topology/palette.ts`\'s own ' +
+      "`anomalyHigh`/`anomalyExtreme` fields. Nothing else can see this: the " +
+      "CSS-only half of the check (the original clause) is textually blind " +
+      "to a `.ts` file — it filters to `.module.css` before it ever reads a " +
+      "line — so without this clause a second canvas-drawing surface could " +
+      "spend amber in TypeScript and every invariant would still read " +
+      "green, exactly the gap `styles/tokens.ts`'s own docblock predicted " +
+      "before Task 6.3.2 proved it real.",
+    file: "apps/frontend/src/components/AbnormalMove/AbnormalMove.tsx",
+    find: 'import { memo } from "react";',
+    replace:
+      'import { memo } from "react";\n' +
+      "// pnpm break: reverted automatically\n" +
+      'const plantedAmberRead = (tokens: Record<string, string>) => tokens["--anomaly-high"];',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "amber-appears-once-in-the-rail",
+  },
+  {
     name: "the-stored-score-is-read-rather-than-minted",
     proves:
       "`a-stored-composite-is-minted-from-its-answers` goes red on a reader " +

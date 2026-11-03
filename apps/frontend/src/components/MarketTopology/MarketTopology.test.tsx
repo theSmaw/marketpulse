@@ -456,4 +456,103 @@ describe("MarketTopology", () => {
       expect(lastSetBands).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("the accessible sentence's anomaly content — Task 6.3.4", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    /** The sentence `setBands`/`applyAnomalyBands` rewrites in place. */
+    const sentence = () =>
+      screen.getByText(/^A graph of every security we track/u);
+
+    it("states the band vocabulary and the high/extreme counts, never elevated's count or a cohort restatement", () => {
+      const bands = new Map([
+        [toTicker("AAPL"), "elevated"],
+        [toTicker("MSFT"), "high"],
+        [toTicker("NVDA"), "high"],
+        [toTicker("TSLA"), "extreme"],
+      ] as const);
+
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      const text = sentence().textContent;
+
+      // All four band words, because the sentence names the vocabulary.
+      for (const word of ["normal", "elevated", "high", "extreme"]) {
+        expect(text).toContain(word);
+      }
+
+      // **Counts for `high`/`extreme` only** — two `high`, one `extreme`,
+      // read off the same map rather than hard-coded.
+      expect(text).toContain("2 are high");
+      expect(text).toContain("1 are extreme");
+
+      // **Never `elevated`'s own count** — STORY.md note 2's reading: it is
+      // usually close to half the scored universe and would read as an
+      // alarm if stated as a number here.
+      expect(text).not.toMatch(/\d+ are elevated/u);
+
+      // **Never a cohort restatement** — `Unusual activity`'s own
+      // "Of the N companies we track, M were heard from…" sentence, which
+      // ADR 0029's one-fact-one-home rule forbids a second home for.
+      expect(text).not.toMatch(/Of the \d+ companies/u);
+
+      // **Never a raw score** (AC 8) — no "NN/100" and no bare 2-digit
+      // number standing in for a 0–100 reading the way `Unusual activity`'s
+      // own rows draw one.
+      expect(text).not.toMatch(/\/\s?100/u);
+      expect(text).not.toMatch(/\bscore\b/iu);
+
+      // Still points to the one surface that names the ten, once.
+      expect(text).toContain("Unusual activity");
+    });
+
+    it("states the honest-nothing clause, distinct from 'calm', when every equity is unscored", () => {
+      const bands = new Map([
+        [toTicker("AAPL"), "unscored"],
+        [toTicker("MSFT"), "unscored"],
+      ] as const);
+
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      const text = sentence().textContent;
+
+      // **"Unscored" is stated plainly, and "calm" appears only inside the
+      // NEGATIVE claim that nothing is drawn that way** — AC 4's own
+      // distinction, restated here: an absent score must not read as
+      // nothing-unusual.
+      expect(text).toContain("unscored");
+      expect(text).toMatch(/not? .*calm/iu);
+      expect(text).not.toContain("are high");
+      expect(text).not.toContain("are extreme");
+    });
+
+    it("leaves the plain structural sentence when no bands have ever been applied", () => {
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      const text = sentence().textContent;
+
+      expect(text).not.toContain("elevated");
+      expect(text).not.toContain("unscored");
+    });
+  });
 });

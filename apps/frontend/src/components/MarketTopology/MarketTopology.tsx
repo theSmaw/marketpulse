@@ -1,5 +1,5 @@
 import { useEffect, useId, useImperativeHandle, useRef } from "react";
-import type { Ref } from "react";
+import type { Ref, RefObject } from "react";
 
 import type { Ticker, TopologyGraph } from "@marketpulse/shared";
 
@@ -204,16 +204,8 @@ export function MarketTopology({
 }: MarketTopologyProps) {
   const frame = useRef<HTMLDivElement>(null);
   const renderer = useRef<TopologyRenderer | null>(null);
+  const sentence = useRef<HTMLParagraphElement>(null);
   const sentenceId = useId();
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      resetView: () => renderer.current?.reset(),
-      setBands: (treatments) => renderer.current?.setBands(treatments),
-    }),
-    [],
-  );
 
   const securities = universe.state === "loaded" ? universe.securities : null;
 
@@ -227,6 +219,28 @@ export function MarketTopology({
    * hard-coding `11` a second place.
    */
   const topology = securities === null ? null : topologySource(securities);
+
+  /**
+   * **`[topology]`, not `[]`** — unlike `resetView`, `setBands` needs the
+   * CURRENT graph to rebuild the accessible sentence
+   * ({@link applyAnomalyBands}), and `topology` is recomputed per render
+   * rather than held in a ref. Recreating the handle object when `topology`
+   * changes (a retry that lands a fresh universe, which is rare) keeps the
+   * closure fresh without a `topologyRef`-syncing effect to get wrong;
+   * `topology.current` on the CALLER's side is reassigned by
+   * `useImperativeHandle` itself and the identity change is invisible to it.
+   */
+  useImperativeHandle(
+    ref,
+    () => ({
+      resetView: () => renderer.current?.reset(),
+      setBands: (treatments) => {
+        if (topology === null) return;
+        applyAnomalyBands(renderer, sentence, topology.graph, treatments);
+      },
+    }),
+    [topology],
+  );
 
   /**
    * **`Reading the tracked universe.` behind `useWaited`'s 2,000 ms floor**
@@ -300,9 +314,9 @@ export function MarketTopology({
    * contract is written for whatever calls this prop next.
    */
   useEffect(() => {
-    if (bands === undefined) return;
-    renderer.current?.setBands(bands);
-  }, [bands]);
+    if (bands === undefined || topology === null) return;
+    applyAnomalyBands(renderer, sentence, topology.graph, bands);
+  }, [bands, topology]);
 
   if (universe.state === "loading") {
     return (
@@ -416,7 +430,7 @@ export function MarketTopology({
        * acceptance criterion 7 arriving at the one state that needed it
        * last).
        */}
-      <p id={sentenceId} className={styles.drawnSentence}>
+      <p id={sentenceId} ref={sentence} className={styles.drawnSentence}>
         {topologyDrawnSentence(topology.graph)}
       </p>
     </div>
@@ -460,6 +474,96 @@ function topologyDrawnSentence(graph: TopologyGraph): string {
     `A graph of every security we track, grouped into ${String(graph.clusters.length)} sectors ` +
     `around their benchmark ETFs, with the broad market at the centre.`
   );
+}
+
+/**
+ * The structural sentence above, extended with the anomaly encoding — the
+ * sentence a batch's `setBands` call writes in place of the initial one
+ * (Task 6.3.4).
+ *
+ * **One of two branches, never a third.** `treatments` is built by exactly
+ * two producers (`topology/anomaly-treatments.ts`): `anomalyTreatmentsFromWire`
+ * never writes `"unscored"`, and `unscoredAnomalyTreatments` writes nothing
+ * else — so one entry being `"unscored"` means every entry is, and the
+ * branch below reads the first value it finds as the whole population's
+ * answer rather than walking every one to confirm it.
+ *
+ * **States `high`/`extreme` counts only** (STORY.md's Work item 3) — the two
+ * bands that answer *where is it clustering*, never `elevated`'s count
+ * (which is usually close to half the scored universe, STORY.md note 2, and
+ * would read as an alarm) and never the ten named securities, which
+ * `Unusual activity` already owns (ADR 0029's one-fact-one-home rule, point
+ * 4). **Never a raw score** (AC 8) — only counts and band words.
+ */
+function topologyAnomalySentence(
+  graph: TopologyGraph,
+  treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
+): string {
+  const structure = topologyDrawnSentence(graph);
+
+  const nothingScored = [...treatments.values()].some(
+    (treatment) => treatment === "unscored",
+  );
+
+  if (nothingScored) {
+    // **Distinct wording from "the structure is drawn but nothing is scored
+    // yet"** (STORY.md's Work item 5) — "unscored" rather than "calm" is
+    // AC 4's own distinction, restated here in a sentence rather than only
+    // in a ring.
+    return (
+      `${structure} Nothing has been scored yet, so no security is drawn as ` +
+      `calm — every one is unscored.`
+    );
+  }
+
+  let high = 0;
+  let extreme = 0;
+
+  for (const treatment of treatments.values()) {
+    if (treatment === "high") high += 1;
+    else if (treatment === "extreme") extreme += 1;
+  }
+
+  return (
+    `${structure} Each equity also carries how unusual its recent behaviour ` +
+    `is, on a four-band scale from normal through elevated and high to ` +
+    `extreme. ${String(high)} are high and ${String(extreme)} are extreme. ` +
+    `The ten most unusual are named in Unusual activity.`
+  );
+}
+
+/**
+ * Redraws the renderer AND the accessible sentence together, from one
+ * treatment map (Task 6.3.4) — the two callers of
+ * `TopologyRenderer.setBands` ({@link MarketTopologyHandle.setBands} and the
+ * `bands` prop's own effect) share this rather than each updating the
+ * renderer and leaving the sentence to go stale.
+ *
+ * **A plain function taking its refs as arguments, not a closure held in
+ * component state** — so neither caller risks reading a stale `graph` from
+ * a `useImperativeHandle` factory whose own deps did not include it.
+ *
+ * **Mutates `sentence.current.textContent` directly, deliberately
+ * outside React's reconciliation of that node's children.** This is safe
+ * BECAUSE it is not fighting React: the `<p>`'s declared children
+ * (`{topologyDrawnSentence(topology.graph)}`) are a pure function of a
+ * value that is stable across re-renders, so React's own diff never finds
+ * a reason to touch this node again after the first commit — there is
+ * nothing to overwrite. The pattern breaks only if a future change makes
+ * that JSX expression itself reactive; if it does, this comment is the
+ * warning.
+ */
+function applyAnomalyBands(
+  renderer: RefObject<TopologyRenderer | null>,
+  sentence: RefObject<HTMLParagraphElement | null>,
+  graph: TopologyGraph,
+  treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
+): void {
+  renderer.current?.setBands(treatments);
+
+  if (sentence.current !== null) {
+    sentence.current.textContent = topologyAnomalySentence(graph, treatments);
+  }
 }
 
 /**
