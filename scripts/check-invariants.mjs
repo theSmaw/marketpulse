@@ -9271,10 +9271,12 @@ const INVARIANTS = [
   {
     id: "amber-appears-once-in-the-rail",
     claim:
-      "The anomaly ramp is read by exactly one shipped stylesheet — " +
+      "The anomaly ramp has exactly two shipped readers — " +
       "`AnomalyBadge.module.css`, as the chip's fill behind its written band " +
-      "name. No other component may spend amber, and no rule may put it in " +
-      "`color`.",
+      "name, and `topology/palette.ts`, as the topology's `high`/`extreme` " +
+      "ring and the `extreme` node's own fill (Task 6.3.2, corrected here at " +
+      "Task 6.3.4 from 'exactly one'). No other component may spend amber, " +
+      "and no CSS rule may put it in `color`.",
     check() {
       // **Task 5.6.5, and what it holds is Story 5.1's close, item 3**:
       // *amber appears exactly ONCE in the rail — as the band's fill behind
@@ -9307,9 +9309,12 @@ const INVARIANTS = [
       // attribute in markup or an inline style would each escape it — none of
       // which exists in this tree, and each of which is a conversation rather
       // than an edit.
-      const modules = sourceFilesUnder(
+      const frontendSource = sourceFilesUnder(
         resolve(REPO_ROOT, "apps/frontend/src"),
-      ).filter(({ path }) => path.endsWith(".module.css"));
+      );
+      const modules = frontendSource.filter(({ path }) =>
+        path.endsWith(".module.css"),
+      );
 
       if (modules.length === 0) {
         throw new InvariantFailure(
@@ -9394,6 +9399,68 @@ const INVARIANTS = [
             "\n    It measures under 2.2:1 on both page grounds and is a " +
             "fill-or-icon colour only. The band's name is what carries the " +
             "band; the fill is the redundancy behind it.",
+        );
+      }
+
+      // **The TypeScript side, added at Task 6.3.4.** `styles/tokens.ts`'s
+      // own docblock predicted this: a canvas reads colours in TypeScript,
+      // never through `var()`, so the CSS-only scan above is structurally
+      // blind to it. `topology/palette.ts` is the one shipped reader —
+      // `tokens["--anomaly-high"]` and `tokens["--anomaly-extreme"]`, the
+      // ring and the `extreme` fill — and this is a count of the OTHER
+      // `.ts`/`.tsx` files that do the same, which must be zero.
+      //
+      // **The clause a re-implementer cannot avoid**: `tokens[` indexed by a
+      // string naming the ramp. `tokens.ts`'s own `TOKEN_NAMES` array lists
+      // `"--anomaly-high"` etc. as array ENTRIES (declaring the token exists,
+      // for the startup-throw check) rather than as a `tokens[...]` READ, so
+      // the pattern below does not also flag the one file that has to name
+      // every token without spending any of them.
+      const tsFiles = frontendSource.filter(({ path }) =>
+        /\.tsx?$/u.test(path),
+      );
+
+      const spendsInTs = (text) =>
+        text
+          .split("\n")
+          .some(
+            (line) =>
+              !/^\s*(?:\*|\/\/)/u.test(line) &&
+              /\btokens\[\s*["'`]--(?:anomaly-|palette-amber)/u.test(line),
+          );
+
+      const spendingInTs = tsFiles.filter(({ text }) => spendsInTs(text));
+
+      const TOPOLOGY_HOME = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/topology/palette.ts",
+      );
+
+      if (!spendingInTs.some(({ path }) => path === TOPOLOGY_HOME)) {
+        throw new InvariantFailure(
+          `${relative(REPO_ROOT, TOPOLOGY_HOME)} no longer reads the ` +
+            "anomaly ramp, and this clause's TypeScript half is anchored on " +
+            "it. Either the topology stopped ringing `high`/`extreme` — in " +
+            "which case its amber position is gone — or the tokens were " +
+            "renamed and this half of the check now guards nothing.",
+        );
+      }
+
+      const elsewhereInTs = spendingInTs.filter(
+        ({ path }) => path !== TOPOLOGY_HOME,
+      );
+
+      if (elsewhereInTs.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhereInTs.length)} TypeScript file(s) besides ` +
+            "`topology/palette.ts` spend the anomaly ramp:\n      " +
+            elsewhereInTs
+              .map(({ path }) => relative(REPO_ROOT, path))
+              .join("\n      ") +
+            "\n    The ramp has exactly two shipped readers — the band " +
+            "chip's fill and the topology's ring/extreme-fill. A third " +
+            "reader is either a duplicate of one of those or a new surface " +
+            "spending amber this invariant was never told about.",
         );
       }
     },

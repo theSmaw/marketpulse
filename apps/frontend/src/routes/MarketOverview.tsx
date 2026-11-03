@@ -889,14 +889,39 @@ export function MarketOverview({
            * that is briefly inert.
            */
           meta={
-            <Button
-              aria-label="Reset view — the market topology"
-              variant="secondary"
-              icon="refresh"
-              onClick={() => topology.current?.resetView()}
-            >
-              Reset view
-            </Button>
+            <>
+              {/*
+               * **The band key** (Task 6.3.4) — a static, non-interactive
+               * glossary of the four band words, gated on `pnpm probe`
+               * confirming the room: measured 764 px of clear space between
+               * the heading and this slot at 1440, against ~140 px this
+               * string needs. No focusable children, no new tab stop; the
+               * vocabulary is also stated in `topologyDrawnSentence`
+               * (`MarketTopology.tsx`), so this is the sighted reader's
+               * equivalent rather than a second source of it.
+               */}
+              <span className={styles.topologyLegend}>
+                normal · elevated · high · extreme
+              </span>
+              {/*
+               * **`Reset view` — the way back from a drag or a zoom with no
+               * reload** (Task 6.2.3). A no-op while nothing is mounted
+               * (`MarketTopologyHandle.resetView`'s own contract), so the
+               * button is always present rather than appearing and
+               * disappearing with the universe's state — the same
+               * reasoning `Region` itself applies to being a tab stop
+               * unconditionally (ADR 0039): a control that comes and goes
+               * under a reader is worse than one that is briefly inert.
+               */}
+              <Button
+                aria-label="Reset view — the market topology"
+                variant="secondary"
+                icon="refresh"
+                onClick={() => topology.current?.resetView()}
+              >
+                Reset view
+              </Button>
+            </>
           }
         >
           <MarketTopology

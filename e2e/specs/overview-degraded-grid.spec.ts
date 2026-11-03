@@ -1827,13 +1827,11 @@ for (const width of WIDTHS) {
       // way the generic class machinery above would. Rows 01–12 and 14–17
       // vary only the OVERVIEW AGGREGATE and never touch `GET /securities`,
       // so the real local universe answers identically underneath every one
-      // of them — the topology region must read byte-for-byte the same on
-      // all fifteen. This is a SEPARATE assertion from the generic
-      // content-class partition above because the aggregate-only rows do not
-      // all share one declared class with each other (several share none at
-      // all), so the partition check has no way to state a claim that spans
-      // every row on one axis while the OTHER regions keep differing between
-      // them.
+      // of them. This is a SEPARATE assertion from the generic content-class
+      // partition above because the aggregate-only rows do not all share one
+      // declared class with each other (several share none at all), so the
+      // partition check has no way to state a claim that spans every row on
+      // one axis while the OTHER regions keep differing between them.
       //
       // **`preFloor` rows are excluded, and this is a real race the first
       // run of this check found rather than a guess.** `01-no-aggregate-
@@ -1845,6 +1843,31 @@ for (const width of WIDTHS) {
       // read after settling — fully drawn. Both are correct readings of a
       // real race; asserting them equal would be asserting a timing
       // coincidence rather than the claim this check is actually about.
+      //
+      // **"Byte-for-byte on all fifteen" went FALSE on 2026-11-03, by Task
+      // 6.3.3, and the claim above is corrected rather than merely
+      // restated.** The topology's own accessible sentence is no longer a
+      // pure function of the universe request alone: `MarketOverview.tsx`'s
+      // `applyAnomalyBands` reconciliation (AC 4) writes a SECOND sentence —
+      // "…Nothing has been scored yet, so no security is drawn as calm —
+      // every one is unscored." — the first time a page's own overview frame
+      // arrives with no real `anomalyBands` section, which is every fixture
+      // this file builds (none constructs a real composite score). **Every
+      // state here gets its OWN fresh page** (the loop's own comment, a few
+      // lines up), so that reconciliation's `useRef` starts false on every
+      // row — the axis that now splits the fifteen is not "which row ran
+      // first" but "did THIS row's own `drive` ever call `serveFeed` with an
+      // `overview` at all". Checked against every row's own `drive` function
+      // on this date: all fifteen call `serving(...)`/`servingThenHeldOutage
+      // (...)` (always an `overview`) **except** `02-no-aggregate-after-the-
+      // floor`, whose own comment says why — "the terminal no-frame state" —
+      // and whose `serveFeed(page, { feed: VENUE })` carries none. So the
+      // real, current claim is TWO constants rather than one: the fourteen
+      // rows that ever heard an overview read one sentence, and the one row
+      // that never did reads the plain structural sentence Story 6.2 shipped
+      // — and within each of those two groups, still byte-for-byte the same,
+      // because none of the fourteen build a real `anomalyBands` section
+      // either.
       const UNIVERSE_REQUEST_ROW_PREFIXES = ["13-", "18-", "19-", "20-", "21-"];
       const aggregateOnlyIds = new Set(
         STATES.filter(
@@ -1858,23 +1881,66 @@ for (const width of WIDTHS) {
       const aggregateOnlyRows = rows.filter((row) =>
         aggregateOnlyIds.has(row.state.id),
       );
-      const firstTopologyReading =
-        aggregateOnlyRows[0]?.reading["Market topology"];
 
       expect(
         aggregateOnlyRows.length,
         "the aggregate-only row set is empty — a renamed row id broke this check silently",
       ).toBeGreaterThan(0);
 
-      for (const row of aggregateOnlyRows) {
+      // **The one row this grid ever drives with no overview at all** — see
+      // the note above. Named explicitly rather than inferred from its
+      // reading, so a future row that ALSO withholds the overview is a
+      // decision this list has to be told about rather than one the check
+      // silently absorbs.
+      const NEVER_HEARD_AN_OVERVIEW = "02-no-aggregate-after-the-floor";
+
+      expect(
+        aggregateOnlyRows.some(
+          (row) => row.state.id === NEVER_HEARD_AN_OVERVIEW,
+        ),
+        `${NEVER_HEARD_AN_OVERVIEW} is not in the aggregate-only set any ` +
+          "more — the row was renamed or removed, and the split below has " +
+          "nothing to anchor its lone exception on",
+      ).toBe(true);
+
+      const [neverHeard, heardSome] = [
+        aggregateOnlyRows.filter(
+          (row) => row.state.id === NEVER_HEARD_AN_OVERVIEW,
+        ),
+        aggregateOnlyRows.filter(
+          (row) => row.state.id !== NEVER_HEARD_AN_OVERVIEW,
+        ),
+      ];
+
+      const neverHeardReading = neverHeard[0]?.reading["Market topology"];
+      const heardSomeReading = heardSome[0]?.reading["Market topology"];
+
+      expect(
+        neverHeardReading,
+        "AC 4's fallback leaked into the one row that never heard an " +
+          "overview at all — `MarketOverview.tsx`'s own `overview === " +
+          "undefined` early return should have left this row's sentence " +
+          "untouched",
+      ).not.toContain("Nothing has been scored yet");
+
+      for (const row of heardSome) {
         expect(
           row.reading["Market topology"],
-          `${row.state.id} reads a DIFFERENT Market topology than the other ` +
-            `aggregate-only rows at ${String(width)} — the region is supposed ` +
-            `to be a pure function of the universe request, which none of ` +
-            `these rows touch`,
-        ).toBe(firstTopologyReading);
+          `${row.state.id} reads a DIFFERENT Market topology than the ` +
+            `other rows that heard SOME overview, at ${String(width)} — ` +
+            `all fourteen build no real \`anomalyBands\` section, so AC 4's ` +
+            `fallback should read identically on every one of them`,
+        ).toBe(heardSomeReading);
       }
+
+      expect(
+        heardSomeReading,
+        "every row that heard an overview should carry AC 4's honest-" +
+          "nothing-scored clause, since none of this file's fixtures " +
+          "construct a real `anomalyBands` section",
+      ).toContain(
+        "Nothing has been scored yet, so no security is drawn as calm",
+      );
 
       // **The partial collisions, both halves.** A declared class is a claim
       // about whole keys; this is the same claim at the grain a surface has,
