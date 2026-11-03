@@ -111,6 +111,7 @@ export type {
   ReturnMessage,
   SnapshotMessage,
   SubscribeMessage,
+  WireAnomalyBands,
   WireFeedState,
   WireMarketBreadth,
   WireMarketMovers,

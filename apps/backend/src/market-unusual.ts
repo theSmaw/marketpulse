@@ -7,11 +7,13 @@ import {
 } from "@marketpulse/shared";
 
 import type {
+  AnomalyBand,
   AnomalyScore,
   CompositeFactor,
   ExcessMoveReference,
   MarketFeed,
   Ticker,
+  WireAnomalyBands,
   WireUnusualActivity,
   WireUnusualCohort,
   WireUnusualGeneration,
@@ -362,6 +364,43 @@ const cohortOfSelection = (selection: {
       };
 
 /**
+ * **The topology's own section — every cohort member, bucketed by band**
+ * (Task 6.3.1), from the SAME `cohort.members` {@link rowOf}'s caller cuts to
+ * ten. Costs one more pass over an array already in memory, not a second
+ * scoring loop.
+ *
+ * `undefined` where `scale` is — the largest-cohort selection found nothing
+ * to rank, which is CI's permanent state and `sessionSection`'s own "two
+ * nightly tables disagree" refusal. A `Record<AnomalyBand, …>` literal
+ * rather than a `switch`: it is exhaustive by construction — a fifth band
+ * added to `ANOMALY_BANDS` without a key here is `TS2741`, naming it.
+ *
+ * **Scoped to the composite's own population by construction, not by a
+ * filter here.** `members` is `cohort.members`, and the composite is never
+ * minted for the eleven sector SPDRs or the four market proxies — a sector
+ * ETF is its own benchmark, a broad-market fund has no sector — so none of
+ * them can appear in any bucket.
+ */
+function anomalyBandsOf(
+  members: readonly Candidate[],
+  scale: WireUnusualCohort | undefined,
+): WireAnomalyBands | undefined {
+  if (scale === undefined) return undefined;
+
+  const buckets: Record<AnomalyBand, string[]> = {
+    normal: [],
+    elevated: [],
+    high: [],
+    extreme: [],
+  };
+
+  for (const member of members)
+    buckets[member.outcome.band].push(member.symbol);
+
+  return { ...buckets, cohort: scale };
+}
+
+/**
  * **The section, ranked** — the one place a price percentile is computed for
  * more than one security.
  *
@@ -396,9 +435,20 @@ const cohortOfSelection = (selection: {
  * second, and inventing a refusal word for a state no reader can act on would
  * be a sentence nobody could write.
  */
-export function unusualActivity(
-  inputs: UnusualActivityInputs,
-): WireUnusualActivity {
+
+/**
+ * {@link unusualActivity}'s and `sessionSection`'s answer, widened by one
+ * field (Task 6.3.1) — still structurally a {@link WireUnusualActivity}
+ * wherever one is expected (every existing caller reads `.rows`, `.scored`
+ * and so on, unaffected), carrying the topology's band section as an extra
+ * property computed from the SAME pass rather than a second one over the
+ * market.
+ */
+export type UnusualPass = WireUnusualActivity & {
+  readonly anomalyBands?: WireAnomalyBands;
+};
+
+export function unusualActivity(inputs: UnusualActivityInputs): UnusualPass {
   const { moves, windowOf, baselineOf, grid, asOf } = inputs;
   const limit = inputs.rows ?? UNUSUAL_ROWS;
   const referenceOf = inputs.referenceOf;
@@ -576,6 +626,7 @@ export function unusualActivity(
   // securities AC 3 refuses in terms.
   const cohort = selectLargestCohort(candidates, (row) => row.outcome);
   const scale = cohortOfSelection(cohort);
+  const anomalyBands = anomalyBandsOf(cohort.members, scale);
 
   return {
     basis: "observed",
@@ -611,6 +662,7 @@ export function unusualActivity(
       ...(generation === undefined ? {} : { generation }),
     },
     refusals: { figure: figureRefusals, comparison: comparisonRefusals },
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
   };
 }
 
@@ -675,7 +727,7 @@ function sessionSection(
   composites: StoredCompositeRanking | undefined,
   tracked: number,
   limit: number,
-): WireUnusualActivity {
+): UnusualPass {
   if (ranking === undefined) {
     return {
       basis: "session",
@@ -689,9 +741,9 @@ function sessionSection(
       // with no rows still states what the comparison would have been of:
       // ADR 0043's measurement span, the sampler's stride and the store's
       // tape. What it carries no `generation` for is the one thing nothing
-      // stored can tell us. **And no `cohort`** — a region with no scored
-      // security has no scale to name, and naming one would be ADR 0029's
-      // fully-formed record about zero rows.
+      // stored can tell us. **And no `cohort`, and no `anomalyBands`** — a
+      // region with no scored security has no scale to name, and naming one
+      // would be ADR 0029's fully-formed record about zero rows.
       spanMinutes: RETURN_SPAN_MINUTES,
       baseline: {
         feed: BASELINE_FEED,
@@ -730,6 +782,7 @@ function sessionSection(
 
   const cohort = selectLargestCohort(candidates, (row) => row.outcome);
   const scale = cohortOfSelection(cohort);
+  const anomalyBands = anomalyBandsOf(cohort.members, scale);
 
   return {
     basis: "session",
@@ -776,6 +829,7 @@ function sessionSection(
         "split-discontinuity": pass.refusals.splitDiscontinuity,
       },
     },
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
   };
 }
 

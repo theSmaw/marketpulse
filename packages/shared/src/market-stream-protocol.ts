@@ -1156,6 +1156,77 @@ export interface WireSessionUnusual extends WireUnusualCounts {
 export type WireUnusualActivity = WireObservedUnusual | WireSessionUnusual;
 
 /**
+ * **Every scored equity, bucketed by composite anomaly band** (Task 6.3.1).
+ * Nothing here names a consumer — this is *what the server knows*, the same
+ * way {@link WireUnusualActivity} is, and the market topology is only its
+ * first reader.
+ *
+ * ## Four arrays, not a symbol-keyed map, and `normal` is listed explicitly
+ *
+ * Measured against the real frame: a `symbol → band` map over ~485 scored
+ * securities is **7,691 B**; four band-bucketed arrays are **3,059 B** for
+ * the identical data, because a band word is spelled once per array rather
+ * than once per security. `normal` travels anyway, even though it is by far
+ * the largest array, because the renderer's whole contract is *absence from
+ * every array means unscored* — a dropped or stale section must default to
+ * **we don't know**, never to **calm**, and that only holds if `normal` is
+ * a stated list rather than an inferred remainder.
+ *
+ * ## Scoped to the composite's own population, by construction
+ *
+ * Every symbol here is one of the 501 curated equities. The eleven sector
+ * SPDRs, the four market proxies and the hub are never in any of the four
+ * arrays — not a narrowing applied at the wire, but a consequence of
+ * `cohort.members` never holding one: the composite's population excludes
+ * them (a sector ETF is its own benchmark; a broad-market fund has no
+ * sector).
+ *
+ * ## One cohort, the largest — {@link WireUnusualCohort.others} is not represented here
+ *
+ * Built from the same `cohort.members` {@link WireUnusualActivity.rows} is
+ * cut from — the **largest** cohort only. A security scored on a smaller
+ * one (today: `0` of 485, the same figure `WireUnusualCohort.others`
+ * reports) is in neither this section nor the ranked one, and is unscored
+ * here by the same rule a security with no outcome at all gets.
+ * `ANOMALY_BAND_FLOORS`'s own reversal trigger — the day the volume factor
+ * contributes — is the day this stops being vacuous.
+ *
+ * ## Absent, never empty, where nothing is scored
+ *
+ * `undefined` in two states this bundle treats identically: no security has
+ * been scored at all (CI's permanent state), and the session arm's two
+ * nightly tables disagree (`sessionSection`'s own "never mix two sessions'
+ * halves" rule). Both are *this gateway has no band to report*, and the
+ * unscored treatment is the honest default either way — byte-free, since
+ * the whole section is omitted rather than sent as four empty arrays.
+ *
+ * ## Why this is optional on the PRODUCER side too, unlike `breadth`/`movers`/`unusual`
+ *
+ * Those three are required on `WireMarketOverviewInputs` because a
+ * frame carrying figures and no section would leave their own region's
+ * `waiting` state **false for ever** (Task 4.3.8's produced defect) — the
+ * region has nothing else to key its loading floor on. This section has no
+ * equivalent: `Market topology`'s own loading state is `useWaited`'d off
+ * the universe REQUEST (`GET /securities`), entirely independent of this
+ * aggregate, so there is no floor here for an always-required field to
+ * protect. True absence is this section's own ordinary, expected state —
+ * not only a rollback's — so it is optional on both sides rather than
+ * required-then-tolerated.
+ */
+export interface WireAnomalyBands {
+  /** Scored, and at or below the `elevated` floor. The largest array, always. */
+  readonly normal: readonly string[];
+  /** Scored, at or above the `elevated` floor and below `high`'s. */
+  readonly elevated: readonly string[];
+  /** Scored, at or above the `high` floor and below `extreme`'s. */
+  readonly high: readonly string[];
+  /** Scored, at or above the `extreme` floor. */
+  readonly extreme: readonly string[];
+  /** Which scale every symbol above was banded on. See {@link WireUnusualCohort}. */
+  readonly cohort: WireUnusualCohort;
+}
+
+/**
  * The aggregate itself, **nested rather than spread over the envelope**.
  *
  * Two reasons, and the second is the one that bites. It gives ADR 0031's
@@ -1481,6 +1552,18 @@ export interface WireMarketOverview {
    * {@link WireUnusualActivity}.
    */
   readonly unusual?: WireUnusualActivity;
+
+  /**
+   * **Every scored equity, bucketed by anomaly band** (Task 6.3.1) — the
+   * market topology's first reader, though nothing here names one.
+   *
+   * **Optional on the producer too, unlike `breadth`/`movers`/`unusual`** —
+   * see {@link WireAnomalyBands}'s own docblock for why: those three protect
+   * a region's own `waiting` floor, which this section has no equivalent
+   * of. Absent is CI's permanent state, every store's before its first
+   * scored batch, and a session whose two nightly tables disagree.
+   */
+  readonly anomalyBands?: WireAnomalyBands;
 }
 
 /**
@@ -2775,6 +2858,27 @@ const encodeUnusual = (unusual: WireUnusualActivity): JsonValue | undefined => {
   }
 };
 
+const anomalyBandsFields: WireFields<WireAnomalyBands> = {
+  normal: (symbols) => [...symbols],
+  elevated: (symbols) => [...symbols],
+  high: (symbols) => [...symbols],
+  extreme: (symbols) => [...symbols],
+  cohort: (cohort) => toWire(unusualCohortFields, cohort),
+};
+
+/**
+ * **The whole section, or nothing** — `encodeUnusual`'s own rule, for the
+ * same reason: a non-finite count anywhere in the cohort is not a figure a
+ * sentence can be built from, so the whole section is withheld rather than
+ * sent half-true.
+ */
+const encodeAnomalyBands = (bands: WireAnomalyBands): JsonValue | undefined => {
+  const counts = [bands.cohort.max, bands.cohort.scored, bands.cohort.others];
+  if (counts.some((count) => !Number.isFinite(count))) return undefined;
+
+  return toWire(anomalyBandsFields, bands);
+};
+
 const overviewFields: WireFields<
   Omit<
     WireMarketOverview,
@@ -2784,6 +2888,7 @@ const overviewFields: WireFields<
     | "movers"
     | "observedAt"
     | "unusual"
+    | "anomalyBands"
   >
 > = {
   computedAt: asIs,
@@ -2823,6 +2928,11 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
       ? undefined
       : encodeUnusual(overview.unusual);
 
+  const anomalyBands =
+    overview.anomalyBands === undefined
+      ? undefined
+      : encodeAnomalyBands(overview.anomalyBands);
+
   return {
     ...toWire(overviewFields, overview),
     // **Absent rather than `null`, in a branch, for the sector section's
@@ -2844,6 +2954,7 @@ const encodeOverview = (overview: WireMarketOverview): JsonValue => {
     ...(breadth === undefined ? {} : { breadth }),
     ...(movers === undefined ? {} : { movers }),
     ...(unusual === undefined ? {} : { unusual }),
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
   };
 };
 
@@ -3511,6 +3622,14 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
   // it (Task 5.4.3).
   const unusual = readUnusual(value.unusual);
 
+  // **The band section is optional on the read side for `unusual`'s
+  // reason** — a rollback pins a previous image — and an unreadable one is
+  // the same absence rather than a discarded frame carrying four true
+  // prices. Unlike `unusual`, this absence is also this section's own
+  // ordinary state (see `WireAnomalyBands`' docblock), so there is no
+  // defect to suspect merely because this key is missing.
+  const anomalyBands = readAnomalyBands(value.anomalyBands);
+
   // **The observation instant is optional on the read side too**, for
   // `sectors`' reason — a rollback pins a previous image — and anything that
   // is not a string is the same absence rather than a discarded frame
@@ -3530,6 +3649,7 @@ const readOverview = (value: unknown): WireMarketOverview | undefined => {
     ...(breadth === undefined ? {} : { breadth }),
     ...(movers === undefined ? {} : { movers }),
     ...(unusual === undefined ? {} : { unusual }),
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
   };
 };
 
@@ -3890,6 +4010,58 @@ const readUnusual = (value: unknown): WireUnusualActivity | undefined => {
     ...section,
     windowMinutes: value.windowMinutes,
   };
+};
+
+/** One band's array, or `undefined` for anything that is not a list of
+ * non-empty strings. */
+const readSymbolList = (value: unknown): readonly string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+
+  const symbols: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry === "") return undefined;
+    symbols.push(entry);
+  }
+
+  return symbols;
+};
+
+/**
+ * Task 6.3.1. **The whole section, or nothing** — `readUnusual`'s rule, and
+ * a frame from a previous image carrying none at all is this same absence
+ * rather than a discarded frame carrying four true prices.
+ */
+const readAnomalyBands = (value: unknown): WireAnomalyBands | undefined => {
+  if (!isRecord(value)) return undefined;
+
+  const normal = readSymbolList(value.normal);
+  const elevated = readSymbolList(value.elevated);
+  const high = readSymbolList(value.high);
+  const extreme = readSymbolList(value.extreme);
+
+  if (
+    normal === undefined ||
+    elevated === undefined ||
+    high === undefined ||
+    extreme === undefined
+  ) {
+    return undefined;
+  }
+
+  const cohort = readUnusualCohort(value.cohort);
+  if (cohort === undefined) return undefined;
+
+  const all = [...normal, ...elevated, ...high, ...extreme];
+
+  // **Every scored symbol appears in exactly one band, and the total is the
+  // cohort's own count** — the same partition check `readUnusual` applies to
+  // its rows, one level up: a section whose arrays overlap or whose total
+  // disagrees with the scale it claims is not a band section, it is four
+  // lists that happen to parse.
+  if (new Set(all).size !== all.length) return undefined;
+  if (all.length !== cohort.scored) return undefined;
+
+  return { normal, elevated, high, extreme, cohort };
 };
 
 /**

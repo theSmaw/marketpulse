@@ -17,12 +17,12 @@ import type {
   WireMarketBreadth,
   WireMarketOverview,
   WireOverviewFigure,
-  WireUnusualActivity,
 } from "@marketpulse/shared";
 import { topMovers } from "./market-movers.js";
 
 import type { CurrentObservation } from "./current-market-state.js";
 import type { EligibleMoves } from "./market-breadth.js";
+import type { UnusualPass } from "./market-unusual.js";
 
 /**
  * **The join** — a live observation against the previous session's stored
@@ -421,7 +421,24 @@ export interface WireMarketOverviewInputs {
    * conversion. `market-unusual.ts` is the one producer; what travels here is
    * its answer.
    */
-  readonly unusual: WireUnusualActivity;
+  /**
+   * **Widened to `UnusualPass` rather than `WireUnusualActivity`** (Task
+   * 6.3.1) — structurally identical wherever this field is read as the
+   * narrower type, carrying one extra optional property,
+   * {@link UnusualPass.anomalyBands}, that `toWireMarketOverview` reads back
+   * off this SAME value below.
+   *
+   * **Deliberately not a second top-level input.** The obvious shape — an
+   * `anomalyBands` parameter beside this one — would need its own key in
+   * `index.ts`'s call to this module, and `each-overview-section-names-its-
+   * own-set` requires every such key's value to be a **visible, inline**
+   * call naming the population it is over. Deriving the band section from
+   * this one, already-checked call instead means the topology's data costs
+   * the producer nothing beyond the `.map()` `anomalyBandsOf` already
+   * performs over `cohort.members` — not a second pass over the market, and
+   * not a second property for that check to learn about.
+   */
+  readonly unusual: UnusualPass;
 
   /**
    * **The join's whole answer** — every entry the aggregate was built from,
@@ -501,6 +518,14 @@ export function toWireMarketOverview(
     entries,
     asOf,
   } = inputs;
+
+  // **Read off `unusual`'s own extra property, never a second input** — see
+  // `WireMarketOverviewInputs.unusual`'s own docblock for why: a second
+  // top-level field here would need its own entry in
+  // `each-overview-section-names-its-own-set`'s `SECTIONS` list and its own
+  // visible, inline call in `index.ts`, for a value that is already sitting
+  // on the one this function was handed.
+  const anomalyBands = unusual.anomalyBands;
 
   // First-seen order, and only for figures that are actually **observed** —
   // a stored close's tape is not this frame's provenance, and claiming it
@@ -582,6 +607,7 @@ export function toWireMarketOverview(
     // are different types, and only the first is what this wire means.
     ...(ranked === undefined ? {} : { sectors: ranked }),
     ...(step === undefined ? {} : { sectorLadderStep: step }),
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
   };
 }
 
