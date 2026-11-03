@@ -35,6 +35,11 @@ export type { TopologyView, TopologyViewport } from "./fit.js";
 export { topologySource } from "./graph-source.js";
 export type { TopologySource } from "./graph-source.js";
 
+export {
+  anomalyTreatmentsFromWire,
+  unscoredAnomalyTreatments,
+} from "./anomaly-treatments.js";
+
 export { topologyPalette } from "./palette.js";
 export type { TopologyPalette } from "./palette.js";
 

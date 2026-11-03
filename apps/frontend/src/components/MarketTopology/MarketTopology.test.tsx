@@ -380,7 +380,7 @@ describe("MarketTopology", () => {
       mountCanvasTopology.mockImplementation(() => createFakeRenderer());
     });
 
-    it("calls the renderer's setBands once at mount, with an empty map when no bands prop was given", () => {
+    it("never calls the renderer's setBands when no bands prop was given — Task 6.3.3's tightened contract", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
@@ -388,13 +388,13 @@ describe("MarketTopology", () => {
         />,
       );
 
-      // **Both effects fire on the mounting render**, in declaration order —
-      // the mount effect first (so a renderer exists), then this one. A
-      // caller that never passes `bands` still reaches `setBands`, which is
-      // what makes "absent" and "an empty map" the same picture rather than
-      // two code paths this test would need to prove separately.
-      expect(lastSetBands).toHaveBeenCalledTimes(1);
-      expect(lastSetBands).toHaveBeenCalledWith(new Map());
+      // **Omitting `bands` must not call `setBands(new Map())`** — that
+      // would silently revert whatever the renderer already has back to
+      // `normal`, which is the "blanked on a quiet frame" defect AC 5
+      // forbids. The renderer's own mount-time default already draws
+      // `normal` for everyone, so skipping the call changes nothing visible
+      // while leaving a later real update free to hold.
+      expect(lastSetBands).not.toHaveBeenCalled();
     });
 
     it("redraws through setBands on a changed map, without re-mounting the renderer", () => {
