@@ -56,6 +56,7 @@ import {
 import type { TopologyView } from "./fit.js";
 import { TOPOLOGY_NODE_INK } from "./renderer.js";
 import type {
+  TopologyAnomalyTreatment,
   TopologyRenderer,
   TopologyRendererFactory,
   TopologyRendererOptions,
@@ -84,8 +85,84 @@ const ZOOM_PER_DELTA = 1.0015;
  */
 const EDGE_END_CLEARANCE = 1.5;
 
+/**
+ * **Unchanged for the anomaly ring, checked rather than assumed (Task
+ * 6.3.2).** The Work item this ring was built against asked whether a ring
+ * needs the same end-clearance treatment edges get, since a ring sitting
+ * flush against the halo has the same notching problem from the inside.
+ * `1.5` leaves an edge's computed endpoint — `ink/2 + 1.5`, 5.5 px for an
+ * equity — geometrically shy of the halo but reaching INTO where a `high`
+ * or `extreme` ring (centred at `ink/2 + 2`, up to 1.5 px either side of
+ * that) is painted. **It does not notch**, checked with `pnpm probe` at 20×
+ * crops of real ringed nodes with an incoming membership edge: the DRAW
+ * ORDER is what prevents it, not the numeric clearance — edges are stroked
+ * first, then node bodies, then this ring, each pass painting fully over
+ * whatever the one before left in its own area. The same mechanism already
+ * covers the halo covering an edge's end; this ring inherits it for free,
+ * which is why no new ring-specific clearance was added.
+ */
+
 /** Where a sector label sits above its cluster's bounding circle, in CSS pixels. */
 const LABEL_GAP = 8;
+
+/**
+ * Where the anomaly ring sits, beyond the equity ink's own radius — the
+ * MIDDLE of the 4 px annulus `The graph at rest.dc.html` §03 reserves,
+ * clear of the halo just inside it and the footprint edge Story 6.4's focus
+ * ring will own outside it (Task 6.3.2).
+ *
+ * `(TOPOLOGY_NODE_FOOTPRINT − TOPOLOGY_NODE_INK.equity) / 2` is the whole
+ * annulus (4); this is half of that, so the ring's own stroke — up to
+ * {@link ANOMALY_RING_WIDTH}'s widest, 3 px — has room on both sides without
+ * reaching either edge. **Provisional pending `pnpm probe`**, same discipline
+ * `TOPOLOGY_SECTOR_LABEL_MIN_SCALE` was derived with, not argued from here.
+ */
+const ANOMALY_RING_OFFSET =
+  (TOPOLOGY_NODE_FOOTPRINT - TOPOLOGY_NODE_INK.equity) / 2 / 2;
+
+/**
+ * The ring's own stroke width, in CSS pixels, **constant under zoom** — the
+ * edge/halo/label rule (`renderer.ts` §09's table) extended to the fourth
+ * treatment. Growing rather than a fixed weight: Decision 1's own wording is
+ * "growing in weight for `elevated`/`high`", so the order survives in
+ * greyscale on weight alone, with `extreme` the widest and the only one that
+ * also changes the node's own fill.
+ */
+const ANOMALY_RING_WIDTH = {
+  elevated: 1,
+  high: 2,
+  extreme: 3,
+} as const;
+
+/**
+ * The `unscored` node's own outline width, in CSS pixels — thinner than
+ * every ring, because this is the node's whole body rather than a band
+ * layered on top of one, and the design work's claim is an absence rather
+ * than a measurement: nothing to grow.
+ */
+const ANOMALY_UNSCORED_STROKE_WIDTH = 1;
+
+/**
+ * **No fit-scale suppression for `elevated`, measured rather than assumed
+ * (Task 6.3.2).** The Work item this ring was built against anticipated a
+ * "4 px node" state at low fit scale, parallel to
+ * {@link TOPOLOGY_SECTOR_LABEL_MIN_SCALE}'s own — and that state is not
+ * reachable. Node ink is `TOPOLOGY_NODE_INK[kind] * nodeScale`, where
+ * `nodeScale` answers the explicit USER zoom (`clampNodeScale(view.zoom)`,
+ * clamped to [0.5, 1.5]) and never the container's own fit scale — so an
+ * equity is 8 px (4–12 px across the zoom range) at every content box this
+ * layout is fitted into, identically at 1440 and at 390. Checked with
+ * `pnpm probe` against the real content box at 390×780 (fit scale 0.1639,
+ * the narrowest this screen reaches) and against the single most crowded
+ * real cluster, `TECHNOLOGY` at 768×800: both show heavy node OVERLAP, but
+ * it is **pre-existing node-density crowding**, present identically in
+ * Story 6.2's own shipped treatment with no ring at all — a control probed
+ * the same crop with no `bands` passed, and the overlap pattern is
+ * byte-for-byte the same clusters. A ring sitting on an already-crowded
+ * node is no more illegible than the node was before it had one. So this
+ * task adds no threshold: the condition the Work item was written to guard
+ * against does not occur under the shipped renderer's own zoom model.
+ */
 
 /**
  * **Decision 8 (Task 6.2.2): below this effective scale, no sector label
@@ -222,6 +299,63 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       ink: TOPOLOGY_NODE_INK[node.kind],
     });
   }
+
+  // --- Anomaly treatments, regrouped on every `setBands` call ------------
+  //
+  // **Scoped to equities, by construction** (Gate 1 Decision 3): this reads
+  // only `nodesByKind.get("equity")`, so a sector SPDR, a market proxy or
+  // the hub keyed in `bands` is silently ignored rather than drawn hollow or
+  // ringed — the fifteen landmarks are outside the encoding entirely, not a
+  // fifth case inside it.
+  //
+  // **Regrouped on `setBands`, not every frame.** A pan or a zoom redraws
+  // through `invalidate()` without a new band map arriving, and re-walking
+  // 501 equities on every one of those would be work this closure can avoid
+  // simply by doing it once per actual change instead.
+  //
+  // `bodyDefault` carries `normal` **and** `elevated` **and** `high`: all
+  // three share the exact same body (halo + `--chart-volume` fill) because
+  // only `extreme` touches the node's own fill (Decision 1) — so this is one
+  // path and one fill call for three of the five states, not three.
+  let bands: ReadonlyMap<Ticker, TopologyAnomalyTreatment> = new Map();
+  let bodyDefault: DrawableNode[] = [];
+  let bodyExtreme: DrawableNode[] = [];
+  let bodyUnscored: DrawableNode[] = [];
+  let ringElevated: DrawableNode[] = [];
+  let ringHigh: DrawableNode[] = [];
+  let ringExtreme: DrawableNode[] = [];
+
+  const regroupAnomalyTreatments = (): void => {
+    bodyDefault = [];
+    bodyExtreme = [];
+    bodyUnscored = [];
+    ringElevated = [];
+    ringHigh = [];
+    ringExtreme = [];
+
+    for (const drawable of nodesByKind.get("equity") ?? []) {
+      const treatment: TopologyAnomalyTreatment =
+        bands.get(drawable.node.symbol) ?? "normal";
+
+      if (treatment === "unscored") {
+        bodyUnscored.push(drawable);
+        continue;
+      }
+
+      if (treatment === "extreme") {
+        bodyExtreme.push(drawable);
+        ringExtreme.push(drawable);
+        continue;
+      }
+
+      bodyDefault.push(drawable);
+      if (treatment === "elevated") ringElevated.push(drawable);
+      else if (treatment === "high") ringHigh.push(drawable);
+      // "normal" draws in bodyDefault alone — no ring.
+    }
+  };
+
+  regroupAnomalyTreatments();
 
   const inkOf = new Map<Ticker, number>(
     graph.nodes.map((node) => [node.symbol, TOPOLOGY_NODE_INK[node.kind]]),
@@ -392,16 +526,23 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       context.stroke();
     }
 
-    // --- The three node kinds, one halo stroke and one fill each -----------
+    // --- The four body groups, one halo stroke and one fill each ----------
+    //
+    // Equity splits into two by anomaly treatment (Task 6.3.2): `bodyDefault`
+    // is `normal` **and** `elevated` **and** `high` — today's exact look,
+    // pixel-identical to Story 6.2's shipped node, which is Decision 1's own
+    // claim that only `extreme` touches the body. `bodyExtreme` is that one
+    // band, drawn in its own colour. Both are circles; sector SPDRs and
+    // market proxies are unchanged from Story 6.2.
     context.lineWidth = 2;
     context.strokeStyle = palette.halo;
 
-    for (const [kind, colour] of [
-      ["equity", palette.equity],
-      ["sector_etf", palette.sectorEtf],
-      ["index_etf", palette.marketProxy],
+    for (const [shape, drawables, colour] of [
+      ["circle", bodyDefault, palette.equity],
+      ["circle", bodyExtreme, palette.anomalyExtreme],
+      ["rect", nodesByKind.get("sector_etf") ?? [], palette.sectorEtf],
+      ["diamond", nodesByKind.get("index_etf") ?? [], palette.marketProxy],
     ] as const) {
-      const drawables = nodesByKind.get(kind) ?? [];
       if (drawables.length === 0) continue;
 
       context.beginPath();
@@ -410,10 +551,10 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         const at = worldToScreen(view, drawable.x, drawable.y);
         const half = (drawable.ink * nodeScale) / 2;
 
-        if (kind === "equity") {
+        if (shape === "circle") {
           context.moveTo(at.x + half, at.y);
           context.arc(at.x, at.y, half, 0, Math.PI * 2);
-        } else if (kind === "sector_etf") {
+        } else if (shape === "rect") {
           context.rect(at.x - half, at.y - half, half * 2, half * 2);
         } else {
           context.moveTo(at.x, at.y - half);
@@ -430,6 +571,56 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       context.stroke();
       context.fillStyle = colour;
       context.fill();
+    }
+
+    // --- The `unscored` equity — hollow, an outline rather than a fill ----
+    //
+    // No halo: a halo exists to separate a filled mark from a touching
+    // neighbour, and this mark has no fill to separate. One thin achromatic
+    // stroke is the whole treatment — "we don't know", never "calm" (AC 4).
+    if (bodyUnscored.length > 0) {
+      context.lineWidth = ANOMALY_UNSCORED_STROKE_WIDTH;
+      context.strokeStyle = palette.anomalyUnscored;
+      context.beginPath();
+
+      for (const drawable of bodyUnscored) {
+        const at = worldToScreen(view, drawable.x, drawable.y);
+        const half = (drawable.ink * nodeScale) / 2;
+        context.moveTo(at.x + half, at.y);
+        context.arc(at.x, at.y, half, 0, Math.PI * 2);
+      }
+
+      context.stroke();
+    }
+
+    // --- The anomaly ring, in the reserved annulus -------------------------
+    //
+    // Drawn OUTSIDE the body and its halo, never replacing either —
+    // `elevated`/`high`/`extreme` equities keep their ordinary body (or, for
+    // `extreme`, the recoloured one above) and gain this ring besides.
+    // Stroke width is the order's only channel once hue is gone in greyscale
+    // (Decision 2); the radius scales with the node's own `nodeScale` so the
+    // ring tracks the footprint at every zoom, same as the ink it surrounds.
+    for (const [drawables, colour, width] of [
+      [ringElevated, palette.anomalyElevated, ANOMALY_RING_WIDTH.elevated],
+      [ringHigh, palette.anomalyHigh, ANOMALY_RING_WIDTH.high],
+      [ringExtreme, palette.anomalyExtreme, ANOMALY_RING_WIDTH.extreme],
+    ] as const) {
+      if (drawables.length === 0) continue;
+
+      context.lineWidth = width;
+      context.strokeStyle = colour;
+      context.beginPath();
+
+      for (const drawable of drawables) {
+        const at = worldToScreen(view, drawable.x, drawable.y);
+        const radius =
+          (drawable.ink * nodeScale) / 2 + ANOMALY_RING_OFFSET * nodeScale;
+        context.moveTo(at.x + radius, at.y);
+        context.arc(at.x, at.y, radius, 0, Math.PI * 2);
+      }
+
+      context.stroke();
     }
 
     // --- The labels, at a constant size -----------------------------------
@@ -602,6 +793,11 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     resize: measure,
     reset: () => {
       view = fitView(layout, view.viewport);
+      invalidate();
+    },
+    setBands: (treatments) => {
+      bands = treatments;
+      regroupAnomalyTreatments();
       invalidate();
     },
     framesDrawn: () => frames,

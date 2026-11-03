@@ -27,6 +27,8 @@ import { createRef } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { toTicker } from "@marketpulse/shared";
+
 import type { TopologyRenderer } from "../../topology/index.js";
 import {
   FIXTURE_REQUEST_ID,
@@ -61,13 +63,18 @@ import type { MarketTopologyHandle } from "./MarketTopology.js";
  */
 let lastDestroy = vi.fn();
 
+/** Same reason as {@link lastDestroy}, for `setBands` (Task 6.3.2). */
+let lastSetBands = vi.fn();
+
 function createFakeRenderer(): TopologyRenderer {
   const frames = 1;
   lastDestroy = vi.fn();
+  lastSetBands = vi.fn();
   return {
     kind: "canvas",
     resize: vi.fn(),
     reset: vi.fn(),
+    setBands: lastSetBands,
     framesDrawn: () => frames,
     destroy: lastDestroy,
   };
@@ -87,6 +94,10 @@ const { mountCanvasTopology, FAKE_PALETTE } = vi.hoisted(() => ({
     dataFamily: "monospace",
     labelSizePx: 11,
     labelTrackingEm: 0.08,
+    anomalyUnscored: "black",
+    anomalyElevated: "black",
+    anomalyHigh: "black",
+    anomalyExtreme: "black",
   },
 }));
 
@@ -360,6 +371,89 @@ describe("MarketTopology", () => {
       expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
       expect(lastDestroy).not.toHaveBeenCalled();
       expect(renderer?.framesDrawn()).toBe(framesBefore);
+    });
+  });
+
+  describe("the anomaly-band update channel — Task 6.3.2", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    it("calls the renderer's setBands once at mount, with an empty map when no bands prop was given", () => {
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      // **Both effects fire on the mounting render**, in declaration order —
+      // the mount effect first (so a renderer exists), then this one. A
+      // caller that never passes `bands` still reaches `setBands`, which is
+      // what makes "absent" and "an empty map" the same picture rather than
+      // two code paths this test would need to prove separately.
+      expect(lastSetBands).toHaveBeenCalledTimes(1);
+      expect(lastSetBands).toHaveBeenCalledWith(new Map());
+    });
+
+    it("redraws through setBands on a changed map, without re-mounting the renderer", () => {
+      const universe = securitiesFixtureView("full");
+      const first = new Map([[toTicker("NVDA"), "elevated"]] as const);
+
+      const { rerender } = render(
+        <MarketTopology
+          universe={universe}
+          bands={first}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastSetBands).toHaveBeenLastCalledWith(first);
+
+      const second = new Map([[toTicker("NVDA"), "extreme"]] as const);
+
+      rerender(
+        <MarketTopology
+          universe={universe}
+          bands={second}
+          onRetry={() => undefined}
+        />,
+      );
+
+      // **The producer, not the wire** — same reason the memo-boundary test
+      // above reads the mount count rather than a render count: a redraw
+      // that happens to draw the same picture is invisible to anything but
+      // the call itself.
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastSetBands).toHaveBeenLastCalledWith(second);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
+
+    it("does not call setBands again across a re-render where the bands map is unchanged by identity", () => {
+      const universe = securitiesFixtureView("full");
+      const bands = new Map([[toTicker("NVDA"), "high"]] as const);
+
+      const { rerender } = render(
+        <MarketTopology
+          universe={universe}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(lastSetBands).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <MarketTopology
+          universe={universe}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(lastSetBands).toHaveBeenCalledTimes(1);
     });
   });
 });

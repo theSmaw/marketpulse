@@ -20,6 +20,14 @@
  * `grayscale(1)` changes nothing — the resting graph is already achromatic, so
  * **every bit of the amber ramp is unspent and is Story 6.3's**.
  *
+ * **Spent, in part, since 2026-11-03 by Task 6.3.2.** Four more fields read
+ * `--ink-disabled`/`--ink-secondary`/`--anomaly-high`/`--anomaly-extreme` for
+ * the anomaly-band ring and the `unscored` outline — see
+ * {@link TopologyPalette.anomalyElevated}'s own note for why `elevated` reads
+ * an ink token rather than `--anomaly-elevated` itself. The heading above is
+ * left standing as a historical record of this module's state at Story 6.1's
+ * close.
+ *
  * ## Why strings rather than packed numbers
  *
  * `styles/tokens.ts`' own docblock predicted that *"Epic 6's Sigma.js/WebGL
@@ -67,6 +75,32 @@ export interface TopologyPalette {
   readonly labelSizePx: number;
   /** `--letter-spacing-micro`, in em. */
   readonly labelTrackingEm: number;
+  /**
+   * The `unscored` equity's own stroke — an achromatic outline, no fill
+   * (Task 6.3.2). `--ink-disabled`: the same token this application already
+   * uses product-wide for *we have no figure for this*, which is the honest
+   * reading a node with no composite score wants, rather than a colour this
+   * module would be inventing for the occasion.
+   */
+  readonly anomalyUnscored: string;
+  /**
+   * The `elevated` ring. **`--ink-secondary`, never `--anomaly-elevated`** —
+   * Gate 1's Decision 2 is that the ring spends amber for `high`/`extreme`
+   * only and `elevated` is achromatic, so this reads the same ink the sector
+   * labels already use rather than the market-wide `--anomaly-elevated`
+   * token (`--palette-amber-pale`), which is a hue and would put colour on
+   * roughly 40% of the graph in the one ramp this screen's chrome already
+   * spends on degraded states.
+   */
+  readonly anomalyElevated: string;
+  /** The `high` ring. `--anomaly-high`. */
+  readonly anomalyHigh: string;
+  /**
+   * The `extreme` ring, **and** the only band whose node fill this changes
+   * too (`AnomalyBand`'s own fourth value). `--anomaly-extreme`, measured at
+   * shaping against `--surface-raised` at 3.050:1.
+   */
+  readonly anomalyExtreme: string;
 }
 
 /**
@@ -144,5 +178,9 @@ export function topologyPalette(): TopologyPalette {
       "--letter-spacing-micro",
       tokens["--letter-spacing-micro"],
     ),
+    anomalyUnscored: tokens["--ink-disabled"],
+    anomalyElevated: tokens["--ink-secondary"],
+    anomalyHigh: tokens["--anomaly-high"],
+    anomalyExtreme: tokens["--anomaly-extreme"],
   };
 }

@@ -1,7 +1,7 @@
 import { useEffect, useId, useImperativeHandle, useRef } from "react";
 import type { Ref } from "react";
 
-import type { TopologyGraph } from "@marketpulse/shared";
+import type { Ticker, TopologyGraph } from "@marketpulse/shared";
 
 import type {
   SecuritiesFailure,
@@ -12,7 +12,10 @@ import {
   topologyPalette,
   topologySource,
 } from "../../topology/index.js";
-import type { TopologyRenderer } from "../../topology/index.js";
+import type {
+  TopologyAnomalyTreatment,
+  TopologyRenderer,
+} from "../../topology/index.js";
 import { Button } from "../Button/Button.js";
 import { useWaited } from "../MarketProxyStrip/use-waited.js";
 import styles from "./MarketTopology.module.css";
@@ -82,6 +85,29 @@ export interface MarketTopologyProps {
   readonly probe?: (() => void) | undefined;
 
   /**
+   * Each equity's anomaly treatment, by symbol (Task 6.3.2). Absent from
+   * this map entirely draws `normal` — today's shipped node.
+   *
+   * **Not wired to anything live yet.** This story builds the renderer's
+   * update channel and the visual ladder, provable from a Storybook control
+   * over the real universe; which wire state produces which map, and
+   * whether the whole prop is omitted versus an empty map, is Task 6.3.3's
+   * decision. `undefined` and `new Map()` are the same picture either way —
+   * every equity drawn `normal` — so nothing here forces that choice early.
+   *
+   * **A second effect, not the mount effect's own deps.** The mount effect
+   * traced its deps to `[topology, probe, sentenceId]` for Story 6.2's
+   * declined memo boundary (this file's own module docblock) specifically
+   * because none of them change at feed cadence; `bands` is the one the
+   * module docblock's reversal trigger named in advance, and folding it into
+   * the SAME effect would re-mount the canvas — destroying a reader's pan
+   * and zoom — on every batch once Task 6.3.3 wires it live. Keeping it
+   * separate is what makes `setBands`'s whole redraw-without-remount
+   * contract reachable from this component at all.
+   */
+  readonly bands?: ReadonlyMap<Ticker, TopologyAnomalyTreatment> | undefined;
+
+  /**
    * Ask for the universe again. `useSecurities().retry`, at every call site.
    *
    * **Required rather than optional** (Task 6.1.3), which is `UniverseTable`'s
@@ -126,6 +152,7 @@ export interface MarketTopologyHandle {
 export function MarketTopology({
   universe,
   probe,
+  bands,
   onRetry,
   ref,
 }: MarketTopologyProps) {
@@ -207,6 +234,16 @@ export function MarketTopology({
       refusal?.remove();
     };
   }, [topology, probe, sentenceId]);
+
+  /**
+   * **The redraw-without-remount channel, kept apart from the mount effect
+   * above on purpose** (Task 6.3.2) — see {@link MarketTopologyProps.bands}.
+   * A no-op while nothing is mounted (`renderer.current` is `null` in every
+   * state but `loaded`), same shape as `resetView`'s own no-op contract.
+   */
+  useEffect(() => {
+    renderer.current?.setBands(bands ?? new Map());
+  }, [bands]);
 
   if (universe.state === "loading") {
     return (
