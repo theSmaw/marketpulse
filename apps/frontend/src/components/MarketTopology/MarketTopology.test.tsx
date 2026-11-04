@@ -29,7 +29,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { toTicker } from "@marketpulse/shared";
 
-import type { TopologyRenderer } from "../../topology/index.js";
+import type {
+  TopologyAnomalyTreatment,
+  TopologyHoverTarget,
+  TopologyRenderer,
+} from "../../topology/index.js";
 import {
   FIXTURE_REQUEST_ID,
   LOADING_UNIVERSE,
@@ -37,7 +41,7 @@ import {
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
-import { MarketTopology } from "./MarketTopology.js";
+import { MarketTopology, topologyReadoutLines } from "./MarketTopology.js";
 import type { MarketTopologyHandle } from "./MarketTopology.js";
 
 /**
@@ -98,6 +102,7 @@ const { mountCanvasTopology, FAKE_PALETTE } = vi.hoisted(() => ({
     anomalyElevated: "black",
     anomalyHigh: "black",
     anomalyExtreme: "black",
+    hoverGround: "black",
   },
 }));
 
@@ -553,6 +558,215 @@ describe("MarketTopology", () => {
 
       expect(text).not.toContain("elevated");
       expect(text).not.toContain("unscored");
+    });
+  });
+
+  describe("the hover readout — Task 6.4.1", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    /** The plate itself, which exists in the `loaded` state only. */
+    const plate = (): HTMLElement => {
+      const found = document.querySelector("[data-topology-readout]");
+      if (found === null) throw new Error("no readout plate was rendered");
+      return found as HTMLElement;
+    };
+
+    /** One of the plate's four fact lines, by its own `data-readout`. */
+    const line = (field: string): string =>
+      plate().querySelector(`[data-readout="${field}"]`)?.textContent ?? "";
+
+    /**
+     * The `onHover` the component handed the renderer at mount — **the
+     * channel itself**, which is what Done-when 5 is about: hover arrives
+     * through a mount option rather than through a prop or a state setter, so
+     * there is no path by which it could re-render this component.
+     */
+    const hoverChannel = (): ((
+      hovered: TopologyHoverTarget | null,
+    ) => void) => {
+      const options = mountCanvasTopology.mock.calls[0]?.[1] as
+        { onHover?: (hovered: TopologyHoverTarget | null) => void } | undefined;
+      const channel = options?.onHover;
+      if (channel === undefined)
+        throw new Error("the renderer was mounted with no onHover channel");
+      return channel;
+    };
+
+    const mount = (): void => {
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+    };
+
+    it("reserves the plate and draws the idle instruction before anything is hovered", () => {
+      mount();
+
+      expect(plate().dataset.topologyReadout).toBe("idle");
+      expect(
+        screen.getByText("Point at a security to see what it is."),
+      ).toBeTruthy();
+      // The four fact slots exist and are empty — reserved room rather than a
+      // plate that grows when a reader points at something.
+      for (const field of ["ticker", "name", "sector", "band"]) {
+        expect(line(field)).toBe("");
+      }
+    });
+
+    it("writes a hovered equity's four facts without re-rendering or re-mounting anything", () => {
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {
+        /* a React act() warning would land here */
+      });
+
+      mount();
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+
+      // **Called OUTSIDE `act()`, deliberately.** If hover went through React
+      // state this would both fail to update the DOM synchronously and log
+      // React's own "not wrapped in act(...)" error — so the two assertions
+      // below are the producer-side evidence that it does not.
+      hoverChannel()({
+        node: {
+          symbol: toTicker("NVDA"),
+          label: "NVIDIA Corporation",
+          kind: "equity",
+          cluster: "technology",
+        },
+        treatment: "extreme",
+      });
+
+      expect(plate().dataset.topologyReadout).toBe("reading");
+      expect(line("ticker")).toBe("NVDA");
+      expect(line("name")).toBe("NVIDIA Corporation");
+      expect(line("sector")).toBe("Technology");
+      expect(line("band")).toBe("extreme");
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+      expect(errors).not.toHaveBeenCalled();
+
+      errors.mockRestore();
+    });
+
+    it("returns to the idle instruction when the pointer leaves every node", () => {
+      mount();
+      const hover = hoverChannel();
+
+      hover({
+        node: {
+          symbol: toTicker("AAPL"),
+          label: "Apple Inc.",
+          kind: "equity",
+          cluster: "technology",
+        },
+        treatment: "normal",
+      });
+      expect(line("ticker")).toBe("AAPL");
+
+      hover(null);
+
+      expect(plate().dataset.topologyReadout).toBe("idle");
+      // **Cleared rather than left behind**: a plate still naming the last
+      // node a pointer passed over reads as a selection, which this story
+      // does not have yet.
+      expect(line("ticker")).toBe("");
+      expect(line("band")).toBe("");
+    });
+  });
+
+  /**
+   * The vocabulary, as a pure function — the half of this surface jsdom can
+   * check, since the renderer that produces a `TopologyHoverTarget` needs a
+   * 2d context (this file's own note at the top).
+   */
+  describe("topologyReadoutLines — Task 6.4.1", () => {
+    /** An equity, with the band under test. */
+    const equity = (
+      treatment: TopologyAnomalyTreatment | null,
+    ): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker("JNJ"),
+        label: "Johnson & Johnson",
+        kind: "equity",
+        cluster: "health_care",
+      },
+      treatment,
+    });
+
+    it("takes the ticker and the name off the node, with no join", () => {
+      const lines = topologyReadoutLines(equity("normal"));
+
+      expect(lines.ticker).toBe("JNJ");
+      expect(lines.name).toBe("Johnson & Johnson");
+    });
+
+    it("writes the sector as SECTOR_LABELS writes it, never a transform of the slug", () => {
+      // `"Health Care"` and `"Healthcare"` are the same slug and different
+      // words, and a string transform picks one silently — `security.ts`'s own
+      // note, and the reason this reads the map.
+      expect(topologyReadoutLines(equity("normal")).sector).toBe("Health Care");
+      expect(topologyReadoutLines(equity("normal")).sector).not.toBe(
+        "Health care",
+      );
+    });
+
+    it("renders each band word verbatim, exactly as AnomalyBadge does", () => {
+      for (const band of ["normal", "elevated", "high", "extreme"] as const) {
+        expect(topologyReadoutLines(equity(band)).band).toBe(band);
+      }
+    });
+
+    it("states an unscored equity's absence rather than leaving a blank or reading it as normal", () => {
+      // CI's permanent state and every deployment's first ~46 seconds, so the
+      // most-drawn line on this surface rather than an edge case.
+      expect(topologyReadoutLines(equity("unscored")).band).toBe(
+        "Not scored yet",
+      );
+      expect(topologyReadoutLines(equity(null)).band).toBe("Not scored yet");
+      expect(topologyReadoutLines(equity("unscored")).band).not.toBe("normal");
+    });
+
+    it("says the fifteen landmarks are not scored, which is a different claim from unscored", () => {
+      // Gate 1's Decision 3 excludes them from the encoding entirely, so
+      // `unscored` here would claim a failed attempt to score something
+      // nobody tried to score.
+      const sectorEtf = topologyReadoutLines({
+        node: {
+          symbol: toTicker("XLK"),
+          label: "Technology Select Sector SPDR Fund",
+          kind: "sector_etf",
+          cluster: "technology",
+        },
+        treatment: null,
+      });
+
+      expect(sectorEtf.band).toBe("Benchmarks are not scored");
+      expect(sectorEtf.sector).toBe("Technology");
+    });
+
+    it("draws no sector line at all for a market proxy, and no placeholder", () => {
+      // `cluster === null` is a COMPLETE answer — an index proxy does not
+      // belong to a sector — so the slot is empty rather than carrying a dash
+      // or the word "none". Its room is still reserved; that is the
+      // stylesheet's job.
+      const proxy = topologyReadoutLines({
+        node: {
+          symbol: toTicker("QQQ"),
+          label: "Invesco QQQ Trust",
+          kind: "index_etf",
+          cluster: null,
+        },
+        treatment: null,
+      });
+
+      expect(proxy.sector).toBe("");
+      expect(proxy.band).toBe("Benchmarks are not scored");
+      expect(proxy.ticker).toBe("QQQ");
     });
   });
 });

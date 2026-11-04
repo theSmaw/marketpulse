@@ -101,6 +101,20 @@ export interface TopologyPalette {
    * shaping against `--surface-raised` at 3.050:1.
    */
   readonly anomalyExtreme: string;
+  /**
+   * The ground disc under the node a reader is pointing at (Task 6.4.1) —
+   * radius 12 CSS px at zoom 1, from `Hover, select, and the way out.dc.html`.
+   *
+   * **`--surface-sunken`, a VALUE step and no hue at all.** Hover is a
+   * transient, pointer-only state over a picture whose entire colour budget is
+   * spent on the anomaly ramp (`anomalyHigh`/`anomalyExtreme`): a hue here
+   * would compete with a measurement. A value step also survives
+   * `grayscale(1)` unchanged, which is this product's standing rule that colour
+   * is never the sole encoding of anything — and the disc is not the sole
+   * encoding either way, because the cursor changes and the readout plate
+   * fills with words.
+   */
+  readonly hoverGround: string;
 }
 
 /**
@@ -182,5 +196,6 @@ export function topologyPalette(): TopologyPalette {
     anomalyElevated: tokens["--ink-secondary"],
     anomalyHigh: tokens["--anomaly-high"],
     anomalyExtreme: tokens["--anomaly-extreme"],
+    hoverGround: tokens["--surface-sunken"],
   };
 }

@@ -13,8 +13,10 @@
  * §26 puts `topology/` in three parts — `renderer`, `layout`, `interaction` —
  * and what is here is **two** of them. The layout is not in this module at all:
  * it is `packages/shared`'s, because Epic 7 reads positions server-side, and
- * `fit.ts` is the only pixel-aware half. Interaction is pan and zoom only;
- * hover and selection are Story 6.4's.
+ * `fit.ts` is the only pixel-aware half. ~~Interaction is pan and zoom only;
+ * hover and selection are Story 6.4's.~~ **Half false since 2026-11-04 (Task
+ * 6.4.1): interaction is pan, zoom and HOVER** — `hit-test.ts` is what a
+ * reader is pointing at, in screen pixels. Selection is still Task 6.4.2's.
  */
 
 export {
@@ -48,8 +50,16 @@ export {
   TOPOLOGY_NODE_SCALE_CEILING,
   TOPOLOGY_NODE_SCALE_FLOOR,
 } from "./renderer.js";
+export {
+  TOPOLOGY_NODE_TARGET_ANNULUS,
+  topologyNodeAt,
+  topologyTargetRadius,
+} from "./hit-test.js";
+export type { TopologyHitCandidate } from "./hit-test.js";
+
 export type {
   TopologyAnomalyTreatment,
+  TopologyHoverTarget,
   TopologyRenderer,
   TopologyRendererFactory,
   TopologyRendererKind,
