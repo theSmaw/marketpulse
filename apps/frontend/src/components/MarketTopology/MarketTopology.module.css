@@ -161,3 +161,160 @@
 .drawnSentence {
   composes: visuallyHidden from "../../styles/a11y.module.css";
 }
+
+/*
+ * **The hover readout plate** (Task 6.4.1) — what the node under the pointer
+ * is, in words, bottom-left inside the frame.
+ *
+ * ## Its room is reserved, in every state and at every width
+ *
+ * Gate 1's decision: *always reserve it*. A plate that appears on hover
+ * changes this region's height, and this region shares a grid row with
+ * `Sector performance` and `Movers` at two of the four widths — so a plate
+ * that grew by 30 px on hover would step the whole lower page every time a
+ * reader's pointer crossed a node. `MARKET-OVERVIEW.md` §1.4's trigger, which
+ * has fired twice on this region already.
+ *
+ * The height is **five line slots plus the padding and the border**, stated
+ * once here, and the rows are fixed rather than content-sized — so the idle
+ * instruction, a two-line company name, a proxy with no sector and an
+ * `extreme` equity are all exactly the same box. `block-size` and
+ * `grid-template-rows` are two statements of one fact and they agree by
+ * construction, because both are written from `--line-height-micro`.
+ *
+ * **Two slots for the name, and the second one is empty today — measured by
+ * looking, after a comment here claimed otherwise.** `pnpm probe
+ * / --within "Market topology"`, 2026-11-04: the plate resolves **288×98 at
+ * all four widths**, with 270 px of content width (the `18rem` cap binds even
+ * at 390, where `100% − 2·--space-8` would be 292). The longest name in the
+ * tracked universe is `Cognizant Technology Solutions Corporation Class A`,
+ * 50 characters, and a 4× screenshot of it hovered shows it fitting **one**
+ * line — so the second slot currently draws as a gap between the identity
+ * (ticker, name) and the classification (sector, band), which is how it reads
+ * on screen and is why it is kept.
+ *
+ * It is still a name slot rather than a spacer: a longer name consumes it
+ * (`line-clamp: 2`) instead of pushing the sector and the band out of a box
+ * whose height is fixed and whose overflow is hidden. The plate is 98 px
+ * either way, which is the property Done-when 4 is about.
+ *
+ * ## `pointer-events: none`, which is load-bearing rather than tidy
+ *
+ * The plate sits over the bottom-left corner of the canvas, where there are
+ * real nodes. Without this, moving the pointer onto the plate would be moving
+ * it OFF the canvas — the renderer would fire `pointerleave`, the plate would
+ * blank, and the pointer would then be over the canvas again. A flickering
+ * readout, from an element whose whole job is to be read.
+ */
+.readout {
+  position: absolute;
+  inset-block-end: var(--space-8);
+  inset-inline-start: var(--space-8);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: repeat(5, var(--line-height-micro));
+  /* Five line slots, the padding, and the 1 px border on each side. */
+  block-size: calc(5 * var(--line-height-micro) + 2 * var(--space-8) + 2px);
+  inline-size: min(calc(100% - 2 * var(--space-8)), 18rem);
+  padding: var(--space-8);
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1px solid var(--rule-hairline);
+  pointer-events: none;
+}
+
+/*
+ * One of the two states, and never both: the instruction spans all five slots
+ * (it wraps to two or three of them at 390), the four facts take one slot
+ * each but the name, which takes two.
+ *
+ * Switched on the plate's own `data-topology-readout` rather than on a class,
+ * because the writer is imperative — one attribute write per hover change,
+ * against four class toggles — and because a browser spec can read an
+ * attribute and cannot read a hashed class name.
+ */
+.readout[data-topology-readout="reading"] .readoutIdle,
+.readout[data-topology-readout="idle"] .readoutTicker,
+.readout[data-topology-readout="idle"] .readoutName,
+.readout[data-topology-readout="idle"] .readoutSector,
+.readout[data-topology-readout="idle"] .readoutBand {
+  display: none;
+}
+
+.readoutIdle {
+  grid-row: 1 / -1;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
+
+/*
+ * The ticker, in `--font-data` — the figures-and-identifiers face, for the
+ * reason `.command` above reads it: an identifier is the one string on this
+ * surface a proportional face genuinely damages. `--font-size-dense` inside a
+ * `--line-height-micro` slot, which is 13 px of type in a 16 px line box.
+ */
+.readoutTicker {
+  composes: dataCell from "../../styles/type.module.css";
+  grid-row: 1;
+  overflow: hidden;
+  color: var(--ink-primary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-micro);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The company or fund name, in **two** reserved slots, clamped rather than
+ * clipped: a third line of a long name would push the sector and the band out
+ * of a box whose height is fixed, and `overflow: hidden` on the plate would
+ * take them away silently. The ellipsis says there was more.
+ */
+.readoutName {
+  display: -webkit-box;
+  grid-row: 2 / 4;
+  overflow: hidden;
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/*
+ * The sector, as `SECTOR_LABELS` writes it. An empty slot for the four market
+ * proxies — reserved room, no placeholder, because `cluster === null` is a
+ * complete answer rather than a missing one.
+ */
+.readoutSector {
+  grid-row: 4;
+  overflow: hidden;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * The band word, verbatim and lower case, as `AnomalyBadge` renders it — or
+ * one of the two stated absences.
+ *
+ * **No hue, and that is the same decision Task 6.3.4 took for the legend.**
+ * `market.css` resolves `--anomaly-high`, `--feed-stale`, `--service-degraded`
+ * and `--provenance-synthetic` all to `--palette-amber`, so tinting this word
+ * would put the band and the chrome's degraded vocabulary in one hue on one
+ * screen; `amber-appears-once-in-the-rail` enforces it. The word carries
+ * itself, and the ring on the node beside it carries the weight — so the
+ * reading survives `grayscale(1)` on two channels rather than none.
+ */
+.readoutBand {
+  composes: microLabel from "../../styles/type.module.css";
+  grid-row: 5;
+  overflow: hidden;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

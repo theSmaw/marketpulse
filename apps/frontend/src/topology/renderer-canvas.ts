@@ -49,14 +49,15 @@ import {
   fitView,
   panBy,
   reviewport,
-  screenToWorld,
   worldToScreen,
   zoomAbout,
 } from "./fit.js";
 import type { TopologyView } from "./fit.js";
+import { topologyNodeAt } from "./hit-test.js";
 import { TOPOLOGY_NODE_INK } from "./renderer.js";
 import type {
   TopologyAnomalyTreatment,
+  TopologyHoverTarget,
   TopologyRenderer,
   TopologyRendererFactory,
   TopologyRendererOptions,
@@ -104,6 +105,23 @@ const EDGE_END_CLEARANCE = 1.5;
 
 /** Where a sector label sits above its cluster's bounding circle, in CSS pixels. */
 const LABEL_GAP = 8;
+
+/**
+ * The radius of the ground disc drawn under the hovered node, in **CSS pixels
+ * at zoom 1** — 12, from `Hover, select, and the way out.dc.html` (Task
+ * 6.4.1).
+ *
+ * 12 rather than the footprint's own 8: the disc has to read as ground
+ * **under** a node that already fills a 16 px footprint, including a 3 px
+ * `extreme` ring in the reserved annulus, so a disc the size of the footprint
+ * would be hidden by the thing it is meant to sit behind. It scales with
+ * `nodeScale` for the same reason the ring does — it is part of the mark, and a
+ * constant-radius disc at zoom 8 is a dot under a 12 px ink.
+ *
+ * It is drawn **first in the frame**, before the edges, so every later pass
+ * paints over it: a disc drawn last would cover the node it is announcing.
+ */
+const HOVER_GROUND_RADIUS = 12;
 
 /**
  * Where the anomaly ring sits, beyond the equity ink's own radius — the
@@ -240,7 +258,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   container: HTMLElement,
   options: TopologyRendererOptions,
 ): TopologyRenderer => {
-  const { graph, layout, palette, probe, labelledBy } = options;
+  const { graph, layout, palette, probe, labelledBy, onHover } = options;
 
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
@@ -299,6 +317,18 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       ink: TOPOLOGY_NODE_INK[node.kind],
     });
   }
+
+  /**
+   * Every node, in one flat array, for the hit test (Task 6.4.1).
+   *
+   * Built **once at mount** beside the three draw groups rather than flattened
+   * per pointer move: a pointer move is the one event on this canvas that can
+   * arrive at frame cadence, and three `Map` reads plus an allocation per move
+   * is work this closure can simply not do. `DrawableNode` already is a
+   * `TopologyHitCandidate` structurally — node, x, y in layout units — so this
+   * is a second view of the same objects and not a second copy of them.
+   */
+  const hitCandidates: DrawableNode[] = [...nodesByKind.values()].flat();
 
   // --- Anomaly treatments, regrouped on every `setBands` call ------------
   //
@@ -470,6 +500,80 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   let lastPointerY = 0;
   let cursor = "";
 
+  /**
+   * **Where the pointer last was, in client coordinates — kept independent
+   * of `dragging`** (Task 6.4.1). `lastPointerX`/`lastPointerY` above are a
+   * drag's own delta tracking and are not updated by an ordinary hover move;
+   * this pair is, and `NaN` means "not currently over the canvas" (set by
+   * {@link onPointerLeave}). It exists so a view that changes **without** a
+   * pointer event of its own — a `ctrl`/`⌘`-wheel zoom, or a resize — can
+   * still ask what is now under a pointer that has not itself moved.
+   */
+  let lastHoverClientX = Number.NaN;
+  let lastHoverClientY = Number.NaN;
+
+  /**
+   * **The node under the pointer, held HERE and nowhere else** (Task 6.4.1,
+   * this task's own constraint).
+   *
+   * A `let` in the mount closure, beside `bands` and `dragging`, for the
+   * reason those two are here: hover changes at pointer-move cadence, and
+   * `MarketTopology`'s declined `React.memo` boundary is closed by
+   * construction only while nothing in this region re-renders at that cadence.
+   * A `useState` here would re-render the landing page's primary content area
+   * on every pixel of pointer travel, which is the one shape that region's own
+   * reversal trigger was written to catch — and it would be a second home for
+   * a fact the renderer has to know anyway, because it draws the ground disc.
+   */
+  let hovered: DrawableNode | null = null;
+
+  /**
+   * What `hovered` currently IS, as the caller is told it — the node together
+   * with what it is **drawn** as.
+   *
+   * The treatment is read from `bands` rather than handed back by the caller,
+   * which is what keeps the readout and the picture one fact: a caller holding
+   * its own copy of the band map could render `elevated` beside a node drawn
+   * `high` for as long as it takes one live batch to reach one and not the
+   * other. `?? "normal"` is the renderer's own drawing default (`setBands`'s
+   * contract — a symbol absent from the map draws `normal`), so this reports
+   * the drawn state and never a nullish third thing.
+   *
+   * **`null` for the fifteen landmarks, by the same construction that excludes
+   * them from the encoding**: `bands` is only ever consulted for an equity, so
+   * a sector SPDR or a market proxy keyed in it cannot leak a band here any
+   * more than it can leak one into the drawing.
+   */
+  const hoverTarget = (drawable: DrawableNode): TopologyHoverTarget => ({
+    node: drawable.node,
+    treatment:
+      drawable.node.kind === "equity"
+        ? (bands.get(drawable.node.symbol) ?? "normal")
+        : null,
+  });
+
+  /**
+   * Set `hovered`, and tell the caller — **only when it actually changed**.
+   *
+   * Compared by the `DrawableNode`'s own identity, which is stable for the
+   * renderer's whole lifetime (built once at mount), so this is an identity
+   * test rather than a symbol comparison that would need a null branch.
+   */
+  const setHovered = (next: DrawableNode | null): void => {
+    if (next === hovered) return;
+
+    hovered = next;
+
+    const wanted = next === null ? "grab" : "pointer";
+    if (wanted !== cursor) {
+      cursor = wanted;
+      canvas.style.cursor = wanted;
+    }
+
+    onHover?.(next === null ? null : hoverTarget(next));
+    invalidate();
+  };
+
   const draw = (): void => {
     pending = null;
     frames += 1;
@@ -484,6 +588,21 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     if (width <= 0 || height <= 0) return;
 
     const nodeScale = clampNodeScale(view.zoom);
+
+    // --- The hovered node's ground disc, under everything ------------------
+    //
+    // One `fill()` for one node — there is never more than one hovered node,
+    // so this is not a batched group and does not want to be. Drawn FIRST so
+    // the edges, the body, the halo and the anomaly ring all paint over it;
+    // see {@link HOVER_GROUND_RADIUS} for why it is wider than the footprint.
+    if (hovered !== null) {
+      const at = worldToScreen(view, hovered.x, hovered.y);
+      context.fillStyle = palette.hoverGround;
+      context.beginPath();
+      context.moveTo(at.x + HOVER_GROUND_RADIUS * nodeScale, at.y);
+      context.arc(at.x, at.y, HOVER_GROUND_RADIUS * nodeScale, 0, Math.PI * 2);
+      context.fill();
+    }
 
     // --- The two edge kinds, one batched path each -------------------------
     //
@@ -668,6 +787,40 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     pending ??= requestAnimationFrame(draw);
   };
 
+  /**
+   * The `DrawableNode` under a screen point, or `null`.
+   *
+   * **The geometry is `hit-test.ts`'s and the units are CSS pixels** (Task
+   * 6.4.1). This function used to do the comparison itself, in **layout
+   * units**, against a threshold of `8` — which is half the footprint in the
+   * layout's own space and therefore a hit radius that shrank with the
+   * container's fit scale while the drawn mark did not. At 390 that was
+   * **1.311 px of target under an 8 px-wide mark**, measured; `hit-test.ts`'s
+   * own docblock carries the table and the four probed fit scales.
+   *
+   * It returns the `DrawableNode` rather than the `TopologyNode` so `hovered`
+   * can hold one identity: the hover state, the ground disc's own coordinates
+   * and the reported target are then all the same object, and nothing has to
+   * look a placement back up by symbol.
+   */
+  const nodeAt = (screenX: number, screenY: number): DrawableNode | null =>
+    topologyNodeAt(view, hitCandidates, screenX, screenY);
+
+  /**
+   * Re-test `lastHoverClientX`/`Y` against the CURRENT view, for a view
+   * change that has no pointer event of its own to carry fresh coordinates
+   * — a resize (`measure`) or a `ctrl`/`⌘`-wheel zoom (`onWheel`).
+   *
+   * A no-op while the pointer is not known to be over the canvas at all
+   * (`NaN`, set by {@link onPointerLeave}) — there is nothing to re-test.
+   */
+  const rehover = (): void => {
+    if (Number.isNaN(lastHoverClientX)) return;
+
+    const box = canvas.getBoundingClientRect();
+    setHovered(nodeAt(lastHoverClientX - box.left, lastHoverClientY - box.top));
+  };
+
   const measure = (): void => {
     const box = container.getBoundingClientRect();
     const ratio = globalThis.devicePixelRatio;
@@ -681,34 +834,10 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         : reviewport(view, layout, { width: box.width, height: box.height });
 
     invalidate();
-  };
-
-  /**
-   * The node under a screen point, or `null`.
-   *
-   * A linear scan over the layout's own coordinates — no quadtree, no spatial
-   * index. 516 placements is ~5 µs, and a structure here would be
-   * infrastructure built before the iteration that needs it. The threshold is
-   * the **footprint** (16 layout units, half of it either side) rather than the
-   * ink, so the 4 units Story 6.3's band and Story 6.4's ring have reserved are
-   * already targetable.
-   */
-  const nodeAt = (screenX: number, screenY: number): TopologyNode | null => {
-    const at = screenToWorld(view, screenX, screenY);
-    let best: TopologyNode | null = null;
-    let bestDistance = 8;
-
-    for (const drawables of nodesByKind.values()) {
-      for (const drawable of drawables) {
-        const distance = Math.hypot(drawable.x - at.x, drawable.y - at.y);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = drawable.node;
-        }
-      }
-    }
-
-    return best;
+    // **A resize moves the market under a stationary pointer too** (Task
+    // 6.4.1) — the same reasoning `onPointerMove`'s drag branch already
+    // acts on, arriving by a route with no pointer event to re-hit-test from.
+    rehover();
   };
 
   const onPointerDown = (event: PointerEvent): void => {
@@ -719,6 +848,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   };
 
   const onPointerMove = (event: PointerEvent): void => {
+    const box = canvas.getBoundingClientRect();
+    // Tracked unconditionally, not only while dragging — see
+    // `lastHoverClientX`'s own docblock.
+    lastHoverClientX = event.clientX;
+    lastHoverClientY = event.clientY;
+
     if (dragging === event.pointerId) {
       view = panBy(
         view,
@@ -728,22 +863,34 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       lastPointerX = event.clientX;
       lastPointerY = event.clientY;
       invalidate();
+      // **The hit test runs during a drag too, against the NEW view.** A pan
+      // moves the market under a stationary pointer, so the node under it
+      // genuinely changes — leaving `hovered` where it was would leave the
+      // readout naming a security that is no longer there, and clearing it
+      // would blank the plate for the length of every drag.
+      setHovered(nodeAt(event.clientX - box.left, event.clientY - box.top));
       return;
     }
 
     // Hit-testing runs on every move, as Sigma's picking buffer does, so the
-    // two candidates are measured doing the same work. The style write is
-    // guarded: an unconditional assignment is a layout invalidation per move.
-    const box = canvas.getBoundingClientRect();
-    const wanted =
-      nodeAt(event.clientX - box.left, event.clientY - box.top) === null
-        ? "grab"
-        : "pointer";
+    // two candidates are measured doing the same work. The cursor write and
+    // the hover report are both guarded inside `setHovered`: an unconditional
+    // style assignment is a layout invalidation per move, and an
+    // unconditional `onHover` is a DOM write per move.
+    setHovered(nodeAt(event.clientX - box.left, event.clientY - box.top));
+  };
 
-    if (wanted !== cursor) {
-      cursor = wanted;
-      canvas.style.cursor = wanted;
-    }
+  /**
+   * The pointer left the canvas — nothing is hovered (Task 6.4.1).
+   *
+   * Without this the plate keeps naming whatever the pointer passed over on
+   * its way out, which reads as a selection this story does not have yet
+   * (that is Task 6.4.2) rather than as a reading of where the pointer is.
+   */
+  const onPointerLeave = (): void => {
+    lastHoverClientX = Number.NaN;
+    lastHoverClientY = Number.NaN;
+    setHovered(null);
   };
 
   const onPointerUp = (event: PointerEvent): void => {
@@ -776,12 +923,16 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       event.clientY - box.top,
     );
     invalidate();
+    // **A zoom moves the market under a stationary pointer too** (Task
+    // 6.4.1) — see `rehover`'s own docblock.
+    rehover();
   };
 
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("wheel", onWheel, { passive: false });
 
   const observer = new ResizeObserver(measure);
@@ -798,6 +949,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     setBands: (treatments) => {
       bands = treatments;
       regroupAnomalyTreatments();
+      // **The readout is told again, for the SAME node** (Task 6.4.1). A
+      // reader holding the pointer still through a live batch is looking at a
+      // band that has just been redrawn; a plate that kept the old word would
+      // be a figure disagreeing with the picture two centimetres away. This is
+      // the one call of `onHover` that is not a change of node.
+      if (hovered !== null) onHover?.(hoverTarget(hovered));
       invalidate();
     },
     framesDrawn: () => frames,
@@ -808,6 +965,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
       canvas.remove();
     },

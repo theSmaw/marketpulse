@@ -30,6 +30,7 @@ import type {
   Ticker,
   TopologyGraph,
   TopologyLayout,
+  TopologyNode,
 } from "@marketpulse/shared";
 
 import type { TopologyPalette } from "./palette.js";
@@ -47,6 +48,29 @@ import type { TopologyPalette } from "./palette.js";
  * score — it is the absence of one, STORY.md AC 4's own distinction.
  */
 export type TopologyAnomalyTreatment = AnomalyBand | "unscored";
+
+/**
+ * What a reader is pointing at, as the renderer reports it (Task 6.4.1).
+ *
+ * **The treatment travels WITH the node**, which is this task's own
+ * constraint: the renderer already holds the band map (`setBands`), so a
+ * caller that re-derived the band from a second copy of it would be two homes
+ * for one fact — and the two could disagree for exactly as long as it takes a
+ * live batch to reach one and not the other.
+ *
+ * `treatment` is `null` for the fifteen landmark nodes — the eleven sector
+ * SPDRs and the four market proxies — because Gate 1's Decision 3 excludes
+ * them from the anomaly encoding **entirely** rather than drawing them
+ * unscored. `null` here is therefore *nobody tried to score this*, which is a
+ * different sentence from `"unscored"`'s *we tried and have no answer*, and
+ * the readout spells them differently.
+ */
+export interface TopologyHoverTarget {
+  /** The node itself — `symbol`, `label`, `kind` and `cluster` are all on it. */
+  readonly node: TopologyNode;
+  /** What this node is currently DRAWN as, or `null`. See the docblock. */
+  readonly treatment: TopologyAnomalyTreatment | null;
+}
 
 /** Which implementation drew. Carried on the renderer so a figure can name it. */
 export type TopologyRendererKind = "canvas" | "sigma";
@@ -110,6 +134,26 @@ export interface TopologyRendererOptions {
    * sentence beside it to point to.
    */
   readonly labelledBy?: string | undefined;
+  /**
+   * Called when the node under the pointer **changes** — never on every
+   * pointer move (Task 6.4.1).
+   *
+   * `null` means the pointer is over no node, or has left the canvas
+   * altogether. It is also called again, with the same node, when a live
+   * `setBands` changes what that node is drawn as while a reader is still
+   * pointing at it — a readout that went stale under a static pointer would be
+   * a figure that is wrong about the picture beside it.
+   *
+   * **A push rather than a getter, and it must not reach React state.** Hover
+   * changes at pointer-move cadence, and `MarketTopology`'s declined
+   * `React.memo` boundary (that component's own module docblock) is closed by
+   * construction only while nothing in this region re-renders at that
+   * cadence. So the application's implementation of this writes the readout
+   * plate's text content directly, the same way `applyAnomalyBands` already
+   * writes the accessible sentence.
+   */
+  readonly onHover?:
+    ((hovered: TopologyHoverTarget | null) => void) | undefined;
 }
 
 /** A mounted renderer. */

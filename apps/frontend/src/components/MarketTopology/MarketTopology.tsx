@@ -1,6 +1,7 @@
 import { useEffect, useId, useImperativeHandle, useRef } from "react";
 import type { Ref, RefObject } from "react";
 
+import { SECTOR_LABELS } from "@marketpulse/shared";
 import type { Ticker, TopologyGraph } from "@marketpulse/shared";
 
 import type {
@@ -14,6 +15,7 @@ import {
 } from "../../topology/index.js";
 import type {
   TopologyAnomalyTreatment,
+  TopologyHoverTarget,
   TopologyRenderer,
 } from "../../topology/index.js";
 import { Button } from "../Button/Button.js";
@@ -206,6 +208,14 @@ export function MarketTopology({
   const renderer = useRef<TopologyRenderer | null>(null);
   const sentence = useRef<HTMLParagraphElement>(null);
   const sentenceId = useId();
+  /**
+   * The readout plate (Task 6.4.1) — **a ref rather than state, which is this
+   * task's whole constraint.** Hover changes at pointer-move cadence; the
+   * renderer reports it through `onHover` and {@link writeTopologyReadout}
+   * writes this element's text content directly, so nothing in this component
+   * re-renders when a reader moves the pointer across 516 nodes.
+   */
+  const plate = useRef<HTMLDivElement>(null);
 
   const securities = universe.state === "loaded" ? universe.securities : null;
 
@@ -266,6 +276,20 @@ export function MarketTopology({
         palette: topologyPalette(),
         probe,
         labelledBy: sentenceId,
+        /*
+         * **The hover channel, and it deliberately adds no effect dependency**
+         * (Task 6.4.1). This arrow is created *inside* the effect, so it is not
+         * a value the deps array could name; it closes over `plate` (a ref,
+         * stable for this component's lifetime) and a module-level function,
+         * so there is no stale capture for it to be wrong about either. That
+         * is what keeps this effect's deps exactly
+         * `[topology, probe, sentenceId]` — the list Story 6.2's declined
+         * `React.memo` boundary is argued from, this file's own module
+         * docblock.
+         */
+        onHover: (hoveredTarget) => {
+          writeTopologyReadout(plate.current, hoveredTarget);
+        },
       });
       renderer.current = mounted;
     } catch (error) {
@@ -433,8 +457,164 @@ export function MarketTopology({
       <p id={sentenceId} ref={sentence} className={styles.drawnSentence}>
         {topologyDrawnSentence(topology.graph)}
       </p>
+      {/*
+       * **The readout plate — a real DOM element, sibling to the canvas, never
+       * painted into it** (Task 6.4.1, and this component's own standing rule:
+       * painted text is unreachable by a screen reader, unassertable below a
+       * browser and invisible to `overview-degraded-grid.spec.ts`).
+       *
+       * **Every line is declared here and empty, and filled imperatively.**
+       * The children React owns are a constant (nothing), so React's own diff
+       * never finds a reason to touch these nodes again after the first
+       * commit — exactly the condition `applyAnomalyBands` relies on for the
+       * accessible sentence, and the same warning applies: if a future change
+       * makes any of these JSX children reactive, this is where it breaks.
+       *
+       * **`data-readout` rather than a class for each line**, because a
+       * browser spec cannot import a CSS module's hashed class names and the
+       * four facts are exactly what Done-when 6 asserts.
+       *
+       * **Five reserved line slots in every state** (`grid-template-rows` in
+       * the stylesheet): the ticker, **two** for the name, the sector, and the
+       * band — with the idle instruction spanning all five. The second name
+       * slot is empty for every name in today's universe (measured; the
+       * stylesheet carries the figures and why it is kept anyway). So the
+       * plate is one height whatever is in it, which is `Movers`' held-row
+       * lesson — a region that changes height steps the whole lower page —
+       * carried from rows to lines.
+       */}
+      <div className={styles.readout} ref={plate} data-topology-readout="idle">
+        <p className={styles.readoutIdle} data-readout="idle">
+          {TOPOLOGY_READOUT_IDLE}
+        </p>
+        <span className={styles.readoutTicker} data-readout="ticker" />
+        <span className={styles.readoutName} data-readout="name" />
+        <span className={styles.readoutSector} data-readout="sector" />
+        <span className={styles.readoutBand} data-readout="band" />
+      </div>
     </div>
   );
+}
+
+/**
+ * What the plate says when the pointer is over nothing (Task 6.4.1).
+ *
+ * **Deliberately silent about the keyboard**, though the design canvas
+ * (`Hover, select, and the way out.dc.html`) and this task's own brief both
+ * spell a sentence naming one. That route does not exist until Task 6.4.3
+ * wires arrow-key traversal — "a claim about a mechanism reads identically
+ * whether the mechanism is there or not" is this repository's own rule, and
+ * a hint naming a key that does nothing is exactly that claim. Task 6.4.3
+ * widens this string once `Tab` and the arrow keys actually walk the graph;
+ * until then it names only what is true.
+ */
+const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";
+
+/**
+ * The four lines the plate draws for one hovered node — **the whole of this
+ * task's vocabulary, in one pure function** (Task 6.4.1).
+ *
+ * Exported so `MarketTopology.test.tsx` can assert the words without a canvas:
+ * jsdom has no 2d context, so the renderer that produces a
+ * {@link TopologyHoverTarget} is unreachable below `pnpm e2e`, and the
+ * vocabulary is the half of this that is checkable here.
+ *
+ * **No join, anywhere.** `symbol` and `label` are already on `TopologyNode`
+ * (Story 6.1 put them there for exactly this); the sector reads
+ * `SECTOR_LABELS` directly, never a string transform of the slug, because
+ * `"Health Care"` and `"Healthcare"` are the same slug and different words and
+ * a transform picks one silently (`security.ts`'s own note). The band is the
+ * treatment the renderer already computed and is never re-derived from a score
+ * here — there is no score on this surface to re-derive one from.
+ *
+ * **An empty string is a line that does not draw**, never a placeholder: the
+ * four market proxies have `cluster === null`, which is a complete answer
+ * (*an index proxy does not belong to a sector*) rather than a missing one, so
+ * the sector slot is blank rather than carrying a dash or the word *none*. The
+ * slot's room is still reserved, which is the stylesheet's job and not this
+ * function's.
+ */
+export function topologyReadoutLines(hovered: TopologyHoverTarget): {
+  readonly ticker: string;
+  readonly name: string;
+  readonly sector: string;
+  readonly band: string;
+} {
+  const { node, treatment } = hovered;
+
+  return {
+    ticker: node.symbol,
+    name: node.label,
+    sector: node.cluster === null ? "" : SECTOR_LABELS[node.cluster],
+    band: topologyReadoutBand(node.kind, treatment),
+  };
+}
+
+/**
+ * The band line, and the two absences that are **not** the same absence (Task
+ * 6.4.1, Done-when 3).
+ *
+ * - The **fifteen landmark nodes** — the eleven sector SPDRs and the four
+ *   market proxies — carry no band at all. Gate 1's Decision 3 excludes them
+ *   from the anomaly encoding entirely, so drawing `"unscored"` here would
+ *   claim a failed attempt to score something **nobody tried to score**. The
+ *   sentence says which: `Benchmarks are not scored`.
+ * - An **equity** with no score draws `Not scored yet` — a stated absence, and
+ *   never a blank line and never read as `normal`. This is CI's permanent
+ *   state (no bars, no provider, no composite generation) and every
+ *   deployment's first ~46 seconds, so it is the most-drawn line on this
+ *   surface rather than an edge case.
+ *
+ * Otherwise it is the band **word itself**, verbatim and lower case, exactly as
+ * `AnomalyBadge` renders it — one vocabulary for one scale, so a reader meeting
+ * `elevated` on a node and `elevated` in `Unusual activity`'s heading is
+ * meeting one word.
+ */
+function topologyReadoutBand(
+  kind: TopologyHoverTarget["node"]["kind"],
+  treatment: TopologyAnomalyTreatment | null,
+): string {
+  if (kind !== "equity") return "Benchmarks are not scored";
+  if (treatment === null || treatment === "unscored") return "Not scored yet";
+
+  return treatment;
+}
+
+/**
+ * Write one hovered node — or the idle instruction — into the plate (Task
+ * 6.4.1).
+ *
+ * **Module-level and taking the element as an argument**, for
+ * `applyAnomalyBands`' own reason: the arrow the mount effect passes as
+ * `onHover` then closes over a ref and this function and nothing else, so it
+ * adds no dependency to an effect whose deps list is load-bearing.
+ *
+ * **`textContent`, outside React's reconciliation**, and the condition that
+ * makes it safe is in the plate's own JSX comment: the nodes written to here
+ * have no React-declared children to overwrite.
+ *
+ * The `data-topology-readout` attribute carries the state rather than a class,
+ * so the stylesheet switches between the instruction and the four facts on one
+ * attribute and a browser spec can read which state the plate is in without
+ * knowing a hashed class name.
+ */
+function writeTopologyReadout(
+  plate: HTMLElement | null,
+  hovered: TopologyHoverTarget | null,
+): void {
+  if (plate === null) return;
+
+  plate.dataset.topologyReadout = hovered === null ? "idle" : "reading";
+
+  const lines =
+    hovered === null
+      ? { ticker: "", name: "", sector: "", band: "" }
+      : topologyReadoutLines(hovered);
+
+  for (const [field, value] of Object.entries(lines)) {
+    const line = plate.querySelector(`[data-readout="${field}"]`);
+    if (line !== null) line.textContent = value;
+  }
 }
 
 /**
