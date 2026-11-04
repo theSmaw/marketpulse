@@ -1,6 +1,6 @@
 # Story 6.4 — Hover, Select, & the Way Out
 
-**Status:** Not started
+**Status:** **Gate 1 approved 2026-11-04 — decomposed into five tasks.**
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.3
 **Epic scope covered:** Hover/select interactions
@@ -60,19 +60,68 @@ press Enter and the security page opens. By keyboard as well as by pointer.
 
 ## Open decisions — for the Product Owner
 
-1. **What do arrow keys do in a graph?** Options with different costs: walk the
+1. ~~**What do arrow keys do in a graph?** Options with different costs: walk the
    nodes of one cluster in a declared order (band, then ticker); walk between
    clusters; or nothing, with selection reached only through a list. The third is
-   the honest minimum and the least exciting.
-2. **Does selecting a node change the rest of `/`?** A selection that filtered
+   the honest minimum and the least exciting.~~ — **SETTLED at Gate 1,
+   2026-11-04: a tree walk.** `Down` enters a cluster from its sector ETF (or
+   the first sector ETF from the centre), `Up` exits the opposite way,
+   `Left`/`Right` moves among siblings — **clamped** within a cluster, keyed
+   on **ticker** rather than band, because the band map updates at feed
+   cadence and a reader's position must never move under their stationary
+   hands (the story's own "band, then ticker" suggestion above is refused on
+   exactly this mechanism); **wrapped** around the sector ring, because it is
+   drawn as a closed ellipse and wrapping matches the picture. `Home`/`End`
+   jump to the ends of the current group. The third option floated above —
+   "nothing, selection reached only through a list" — turned out not to be
+   coherent as a minimum: there is no list of all 516 anywhere on `/`
+   (`Unusual activity` is ten rows), building one fires Epic 14's named
+   `/`-wide clause, and a pointer-only selection that also navigates would be
+   a WCAG 2.1.1 failure of the same shape this repository already paid for
+   once (the `disabled`-control `aria-describedby` defect). Task 6.4.3.
+2. ~~**Does selecting a node change the rest of `/`?** A selection that filtered
    `Unusual activity` or the movers would be the first cross-region interaction
    in this product, and ADR 0023's reversal trigger is _the first piece of state
-   two features must agree about that neither owns_. Worth taking deliberately.
+   two features must agree about that neither owns_. Worth taking deliberately.~~
+   — **SETTLED at Gate 1, 2026-11-04: no.** Selection is local to this
+   region only — it drives the ring, the readout, and where focus is; it is
+   not in the URL; nothing else on `/` reads it. The use case the question
+   was weighing ("is this node also unusual?") is already answered by the
+   node's own anomaly ring without a filter, and a filter would usually
+   produce an empty `Unusual activity`/`Movers` list whose denominator
+   sentence no longer describes what is on screen, since a selected node is
+   rarely in either top-10. ADR 0023's reversal trigger is left **unfired,
+   deliberately** — its own condition (_the first piece of state two
+   features must agree about that neither owns_) is exactly what this
+   decision declines to create. Reversal trigger for revisiting this:
+   **the first story in which two regions on this screen must agree about
+   which security the reader is looking at** (Epic 7 or 8 are the likely
+   source) — a condition, not a story number.
+3. **One click/Enter to leave a node, or two?** Not in the story's own list,
+   but surfaced while shaping it: does selecting a node and leaving it from
+   it happen in one act or two? **SETTLED at Gate 1, 2026-11-04: two.**
+   Click/Tab+arrow selects (ring + readout); a second click, or Enter, on
+   the readout's ticker anchor opens the security page. Matches this
+   product's standing "the figure is never the link" rule (Story 4.6) and
+   avoids a stray pan that happens to end over a node navigating away by
+   accident.
+4. **Does the hover/selection readout always reserve its room, or only when
+   active?** Also surfaced while shaping. **SETTLED at Gate 1, 2026-11-04:
+   always reserved**, in every state at every width (idle state is a plain
+   instruction), matching every other region on this screen that pays for a
+   fixed height rather than letting the page jump.
 
 ## Design work
 
 The hover surface, the selected state, and the focus treatment on a canvas. All
-three are new; none has a page.
+three are new; none has a page. — **Drawn and published at Gate 1, 2026-11-04**:
+[`Hover, select, and the way out.dc.html`](https://claude.ai/design/p/727b5b14-fe78-47c1-9d9c-fb84b6ce5280)
+— a pale ground disc for hover, its dark twin for selection (drawn under
+Story 6.3's own body/halo/ring layers rather than replacing any of them), a
+focus ring outside the 16-unit footprint drawn inset (`.frame`'s own
+`overflow: hidden` clips an outward one), and a fixed, always-reserved
+readout plate rather than a cursor-following tooltip (which would clip
+inside this region's frame at narrow widths).
 
 ## Out of scope
 
