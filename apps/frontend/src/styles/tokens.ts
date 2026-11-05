@@ -80,6 +80,11 @@ const TOKEN_NAMES = [
   "--surface-page",
   "--surface-raised",
   "--surface-sunken",
+  // Added 2026-11-04 by Task 6.4.2, and it is the first JavaScript consumer
+  // this token has ever had: the topology's **selected** node draws a dark
+  // ground disc under it, the hover disc's twin inverted, and a canvas cannot
+  // read a CSS class.
+  "--surface-inverse",
   "--ink-primary",
   "--ink-secondary",
   "--ink-disabled",

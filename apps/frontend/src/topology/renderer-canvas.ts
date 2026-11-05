@@ -44,6 +44,7 @@ import type {
   TopologyPlacement,
 } from "@marketpulse/shared";
 
+import { isTopologyClick } from "./click-gesture.js";
 import {
   clampNodeScale,
   fitView,
@@ -122,6 +123,20 @@ const LABEL_GAP = 8;
  * paints over it: a disc drawn last would cover the node it is announcing.
  */
 const HOVER_GROUND_RADIUS = 12;
+
+/**
+ * The radius of the ground disc drawn under the **selected** node, in CSS
+ * pixels at zoom 1 — {@link HOVER_GROUND_RADIUS}'s own figure, because the
+ * design canvas draws selection as the hover disc's dark twin rather than as a
+ * second size (Task 6.4.2).
+ *
+ * **Stated as its own constant rather than reusing the hover one by name**, so
+ * that the day the canvas gives selection a different geometry there is a
+ * figure to change rather than a shared constant to fork under a reader who
+ * thinks they are editing hover. The equality is the claim, and it is written
+ * here where both are visible.
+ */
+const SELECTION_GROUND_RADIUS = HOVER_GROUND_RADIUS;
 
 /**
  * Where the anomaly ring sits, beyond the equity ink's own radius — the
@@ -258,7 +273,8 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   container: HTMLElement,
   options: TopologyRendererOptions,
 ): TopologyRenderer => {
-  const { graph, layout, palette, probe, labelledBy, onHover } = options;
+  const { graph, layout, palette, probe, labelledBy, onHover, onSelect } =
+    options;
 
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
@@ -528,8 +544,47 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   let hovered: DrawableNode | null = null;
 
   /**
-   * What `hovered` currently IS, as the caller is told it — the node together
+   * **The node a reader has committed to** (Task 6.4.2) — a third state,
+   * distinct from {@link hovered} in every way that matters.
+   *
+   * It **persists**: the pointer leaving the node does not clear it, a pan does
+   * not clear it, and `reset()` does not clear it. It is cleared by a click on
+   * empty canvas (and, from Task 6.4.3, by `Escape`). It is what the dark
+   * ground disc draws under and what the readout plate's **one anchor**
+   * resolves its `href` from.
+   *
+   * A `let` here beside `hovered` rather than only in React, even though the
+   * selected symbol genuinely does reach React state: the renderer has to know
+   * it anyway, because it draws the ground. React holds the **symbol**, for the
+   * one thing only React can do — render an `<a>` — and this holds the drawable
+   * node, which is what a draw call needs. That is one fact in the renderer and
+   * a projection of it in React, not two homes for one fact: the projection is
+   * written only by {@link setSelectedNode} and is never read back here.
+   */
+  let selected: DrawableNode | null = null;
+
+  /**
+   * The press in progress, for {@link onPointerUp} to decide whether it was a
+   * click or a pan (Task 6.4.2).
+   *
+   * `downPointer` is kept **separately from `dragging`** rather than folded
+   * into it, because the two answer different questions and are cleared at
+   * different times: `dragging` is *this pointer is panning the view*, and this
+   * is *this pointer's press has not yet been classified*. `pointercancel`
+   * clears this one without classifying anything, which is this task's own
+   * requirement — a cancelled press selects nothing.
+   */
+  let downPointer: number | null = null;
+  let downX = 0;
+  let downY = 0;
+  let downAt = 0;
+
+  /**
+   * What a node currently IS, as the caller is told it — the node together
    * with what it is **drawn** as.
+   *
+   * **Read by both `onHover` and `onSelect`** (Task 6.4.2), which is why it is
+   * named for neither.
    *
    * The treatment is read from `bands` rather than handed back by the caller,
    * which is what keeps the readout and the picture one fact: a caller holding
@@ -544,7 +599,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * a sector SPDR or a market proxy keyed in it cannot leak a band here any
    * more than it can leak one into the drawing.
    */
-  const hoverTarget = (drawable: DrawableNode): TopologyHoverTarget => ({
+  const targetOf = (drawable: DrawableNode): TopologyHoverTarget => ({
     node: drawable.node,
     treatment:
       drawable.node.kind === "equity"
@@ -570,7 +625,26 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       canvas.style.cursor = wanted;
     }
 
-    onHover?.(next === null ? null : hoverTarget(next));
+    onHover?.(next === null ? null : targetOf(next));
+    invalidate();
+  };
+
+  /**
+   * Set {@link selected}, and tell the caller — **only when it actually
+   * changed** (Task 6.4.2), compared by the `DrawableNode`'s own identity for
+   * {@link setHovered}'s reason.
+   *
+   * Clicking a different node **moves** the selection rather than adding to it:
+   * there is one `selected` and this assigns it, so the additive case is
+   * unrepresentable rather than guarded against. `null` — a click that
+   * hit-tested to nothing — clears it.
+   */
+  const setSelectedNode = (next: DrawableNode | null): void => {
+    if (next === selected) return;
+
+    selected = next;
+
+    onSelect?.(next === null ? null : targetOf(next));
     invalidate();
   };
 
@@ -602,6 +676,55 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       context.moveTo(at.x + HOVER_GROUND_RADIUS * nodeScale, at.y);
       context.arc(at.x, at.y, HOVER_GROUND_RADIUS * nodeScale, 0, Math.PI * 2);
       context.fill();
+    }
+
+    // --- The selected node's ground disc, over hover and under all else ----
+    //
+    // **After the hover disc and before everything else** (Task 6.4.2), which
+    // is one decision rather than two:
+    //
+    //   * *after hover* because when the selected node IS the hovered one the
+    //     two discs are the same circle, and the light hover wash painted on
+    //     top of the dark selection ground would read as the selection having
+    //     been lost by pointing at it. Selection is the stronger, persisting
+    //     state, so it wins the overlap. The consequence is deliberate and
+    //     worth stating: hovering the node you have already selected changes
+    //     no disc — what answers the pointer there is the cursor and the
+    //     readout's own words;
+    //   * *before everything else* because the edges, the body, the halo and
+    //     the anomaly ring all paint over it. Selection adds a ground; it
+    //     re-encodes nothing Story 6.3 draws, which is what keeps the band
+    //     readable on a selected node (measured: contrast only improves).
+    //
+    // **It carries the SAME 1 px `halo` stroke every node's own body does,
+    // found on review rather than before this task shipped.**
+    // `palette.selectionGround` (`--surface-inverse`) is byte-identical to
+    // `palette.sectorEtf`/`palette.marketProxy` (both `--ink-primary`) —
+    // both `#181c23` — so selecting one of the fifteen landmark nodes (the
+    // eleven sector SPDRs, the four proxies, the hub) painted a dark disc
+    // under a dark body and the node vanished into its own ground,
+    // photographed and confirmed before this line existed. An equity's own
+    // paler fill never collided, which is why the first pass missed it
+    // entirely. The halo is this renderer's existing answer to exactly this
+    // shape of problem — "separate a filled mark from a touching one" — and
+    // a disc stroked in it stays legible against any node's fill, landmark
+    // included, without a second token.
+    if (selected !== null) {
+      const at = worldToScreen(view, selected.x, selected.y);
+      context.beginPath();
+      context.moveTo(at.x + SELECTION_GROUND_RADIUS * nodeScale, at.y);
+      context.arc(
+        at.x,
+        at.y,
+        SELECTION_GROUND_RADIUS * nodeScale,
+        0,
+        Math.PI * 2,
+      );
+      context.fillStyle = palette.selectionGround;
+      context.fill();
+      context.lineWidth = 1;
+      context.strokeStyle = palette.halo;
+      context.stroke();
     }
 
     // --- The two edge kinds, one batched path each -------------------------
@@ -840,8 +963,21 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     rehover();
   };
 
+  /**
+   * A press starts a **potential** pan and a **potential** click (Task 6.4.2).
+   *
+   * Which it turns out to have been is decided at `pointerup`, by
+   * `isTopologyClick` over how far the pointer travelled and how long it was
+   * down — never here, because a press carries no information about either yet.
+   * The pan itself is unchanged and still begins on the first move: a press
+   * that never moves pans by zero.
+   */
   const onPointerDown = (event: PointerEvent): void => {
     dragging = event.pointerId;
+    downPointer = event.pointerId;
+    downX = event.clientX;
+    downY = event.clientY;
+    downAt = performance.now();
     lastPointerX = event.clientX;
     lastPointerY = event.clientY;
     canvas.setPointerCapture(event.pointerId);
@@ -893,7 +1029,54 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     setHovered(null);
   };
 
+  /**
+   * The press ends — and **this is where a click is told from a pan** (Task
+   * 6.4.2).
+   *
+   * The hit test runs at the **up** position rather than at the down one. Over
+   * a click they are within `TOPOLOGY_CLICK_MAX_TRAVEL_PX` of each other by
+   * construction, and the up position is where the reader's hand finished, so
+   * it is the honest one of the two.
+   */
   const onPointerUp = (event: PointerEvent): void => {
+    if (dragging !== event.pointerId) return;
+    dragging = null;
+
+    const wasClick =
+      downPointer === event.pointerId &&
+      isTopologyClick({
+        travelPx: Math.hypot(event.clientX - downX, event.clientY - downY),
+        elapsedMs: performance.now() - downAt,
+      });
+
+    downPointer = null;
+
+    if (canvas.hasPointerCapture(event.pointerId))
+      canvas.releasePointerCapture(event.pointerId);
+
+    if (!wasClick) return;
+
+    // **A click that hit-tests to nothing CLEARS the selection**, rather than
+    // being ignored — clicking empty canvas is a mouse-only reader's way back,
+    // and `Escape` (Task 6.4.3) is the keyboard's. `nodeAt` answering `null`
+    // is that gesture, so no separate branch is needed for it.
+    const box = canvas.getBoundingClientRect();
+    setSelectedNode(nodeAt(event.clientX - box.left, event.clientY - box.top));
+  };
+
+  /**
+   * The press was taken away from us — **classify nothing** (Task 6.4.2).
+   *
+   * `pointercancel` is the browser deciding the gesture belongs to it (a
+   * native scroll claiming the touch, the window losing focus mid-press), and
+   * a press that was cancelled is not a reader's click however short it was.
+   * Clearing `downPointer` is what makes {@link onPointerUp}'s own first
+   * conjunct refuse it, and this handler is split out from that one precisely
+   * so the two cannot be confused: `pointercancel` was wired to `onPointerUp`
+   * until this task, when ending a drag was all there was to do.
+   */
+  const onPointerCancel = (event: PointerEvent): void => {
+    downPointer = null;
     if (dragging !== event.pointerId) return;
     dragging = null;
     if (canvas.hasPointerCapture(event.pointerId))
@@ -931,7 +1114,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
-  canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
   canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("wheel", onWheel, { passive: false });
 
@@ -954,7 +1137,14 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // band that has just been redrawn; a plate that kept the old word would
       // be a figure disagreeing with the picture two centimetres away. This is
       // the one call of `onHover` that is not a change of node.
-      if (hovered !== null) onHover?.(hoverTarget(hovered));
+      if (hovered !== null) onHover?.(targetOf(hovered));
+      // **And the SELECTED node is told again too** (Task 6.4.2), for exactly
+      // the same reason one line up. The plate shows the selection whenever
+      // nothing is hovered — which is most of the time, since a selection
+      // outlives the pointer — so a band that changed under a selected node
+      // with the pointer elsewhere would leave the plate's word disagreeing
+      // with the ring on screen, and nothing would ever correct it.
+      if (selected !== null) onSelect?.(targetOf(selected));
       invalidate();
     },
     framesDrawn: () => frames,
@@ -964,7 +1154,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
-      canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
       canvas.remove();

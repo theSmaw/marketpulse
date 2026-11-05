@@ -115,6 +115,26 @@ export interface TopologyPalette {
    * fills with words.
    */
   readonly hoverGround: string;
+  /**
+   * The ground disc under the **selected** node (Task 6.4.2) — the hover
+   * disc's dark twin, same radius, from
+   * `Hover, select, and the way out.dc.html`.
+   *
+   * **`--surface-inverse`, and the direction of the step is the whole
+   * decision.** Hover is a light value step and selection is a dark one, so
+   * the two states are told apart by **polarity** rather than by amount — a
+   * distinction that survives `grayscale(1)` and does not need the two discs
+   * side by side to be read. It spends no hue, for `hoverGround`'s own reason:
+   * this picture's entire colour budget is the anomaly ramp, and a hue here
+   * would compete with a measurement.
+   *
+   * **It is drawn UNDER the node's body, halo and anomaly ring, never instead
+   * of any of them** — selection adds a ground, it re-encodes nothing Story
+   * 6.3 draws. Measured at shaping: contrast only improves on every existing
+   * treatment against this ground (equity body 3.50 → 4.88:1, `high` ring
+   * 1.92 → 8.89:1, `extreme` 3.05 → 5.60:1).
+   */
+  readonly selectionGround: string;
 }
 
 /**
@@ -197,5 +217,6 @@ export function topologyPalette(): TopologyPalette {
     anomalyHigh: tokens["--anomaly-high"],
     anomalyExtreme: tokens["--anomaly-extreme"],
     hoverGround: tokens["--surface-sunken"],
+    selectionGround: tokens["--surface-inverse"],
   };
 }

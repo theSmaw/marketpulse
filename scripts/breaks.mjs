@@ -6244,4 +6244,45 @@ export const BREAKS = [
     command: ["pnpm", "--filter", "@marketpulse/frontend", "test", "fit.test"],
     expect: "clamps a pan that would take the market off screen entirely",
   },
+  {
+    name: "a-second-affordance-on-a-topology-node",
+    proves:
+      "`no-second-affordance-on-a-topology-node` goes red on an " +
+      "`Investigate` control appearing beside the topology's one anchor — " +
+      "Story 6.4's acceptance criterion 6, which is an unwritable negative " +
+      "as stated and is split into three bounded claims, of which this is " +
+      "the only one that can see a control somebody ADDS later.\n\n" +
+      "**The plant is the temptation rather than an absurdity.** Epic 7 is " +
+      "the deterministic-investigations epic and Epic 10 makes it agentic, " +
+      "and a graph node is the most natural place in this product to hang " +
+      "*investigate this* off. Nothing else would catch it: `tsc` is happy, " +
+      "`pnpm lint` has no opinion, and the component-level enumeration test " +
+      "counts controls in `MarketTopology`'s own subtree — so a second " +
+      "affordance written into the RENDERER, where the click that produces " +
+      "a selection already lives, is invisible to it.\n\n" +
+      "**The CORPUS was proved separately and is the load-bearing half**, " +
+      "because a break edits the file the check was written around. This " +
+      "entry plants in `components/MarketTopology/`; the corpus covers " +
+      "`topology/` as well, and that half was proved by hand at Task 6.4.2 " +
+      "with a `const INVESTIGATE_HOTSPOT_RADIUS = 10;` in " +
+      "`renderer-canvas.ts` — reported at `renderer-canvas.ts:39`, one " +
+      "failure, with the `/** … */` line above it correctly NOT reported, " +
+      "because comments are stripped. The two trees are one surface by this " +
+      "repository's own convention and a check over either alone is green " +
+      "on the other.\n\n" +
+      "**The second conjunct was proved too, and it is the one that stops a " +
+      "vacuous pass.** Rewriting the plate's `<Link to={securityPath(…)}>` " +
+      "to a `<span>` goes red on the positive anchor instead: a ban on a " +
+      "SECOND affordance is worth nothing over a surface with none at all, " +
+      "which is what this one was until this task.",
+    file: "apps/frontend/src/components/MarketTopology/MarketTopology.tsx",
+    find: 'const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";',
+    replace:
+      'const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";\n' +
+      "\n" +
+      "// pnpm break: reverted automatically\n" +
+      'const TOPOLOGY_SELECTED_ACTION = "Investigate this security";',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "no-second-affordance-on-a-topology-node",
+  },
 ];

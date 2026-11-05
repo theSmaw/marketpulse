@@ -1,9 +1,12 @@
-import { useEffect, useId, useImperativeHandle, useRef } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import type { Ref, RefObject } from "react";
+import { Link } from "react-router";
 
 import { SECTOR_LABELS } from "@marketpulse/shared";
 import type { Ticker, TopologyGraph } from "@marketpulse/shared";
 
+import { cx } from "../../cx.js";
+import { securityPath } from "../../routes/paths.js";
 import type {
   SecuritiesFailure,
   SecuritiesView,
@@ -171,6 +174,14 @@ export interface MarketTopologyHandle {
    * **A no-op while nothing is mounted** (loading, empty, failed, or no
    * renderer could start) — there is nothing to reset, and a caller does not
    * have to ask first.
+   *
+   * **It does not clear a selection** (Task 6.4.2, and this docblock predates
+   * selection existing). It resets pan and zoom and nothing else: the control
+   * is named for the **view**, and Gate 1's decision keeps clearing a selection
+   * to `Escape` (Task 6.4.3) and to clicking empty canvas. A reader who has
+   * selected a security and then lost the market is asking for the market back;
+   * silently forgetting their security besides is a second act they did not
+   * request, and it would take the plate's one anchor away with it.
    */
   resetView(): void;
 
@@ -216,6 +227,69 @@ export function MarketTopology({
    * re-renders when a reader moves the pointer across 516 nodes.
    */
   const plate = useRef<HTMLDivElement>(null);
+
+  /**
+   * **The one piece of this surface's interaction state that reaches React,
+   * and the reason is that only React can render an `<a>`** (Task 6.4.2).
+   *
+   * A Canvas2D node has no DOM element of its own, so it cannot hold a
+   * `<Link>`, and 516 overlay anchors would trip `CLAUDE.md`'s named Epic 14
+   * condition — *the first surface on `/` that renders one element per tracked
+   * security*, priced at ≈48 ms of added frame — besides being the wrong shape.
+   * The resolution needs **no change** to
+   * `one-home-for-imperative-navigation`: **one** anchor, the readout plate's
+   * ticker, whose `href` is resolved at render from the selected symbol's own
+   * identity. No `navigate()` exists anywhere in the topology's code.
+   *
+   * **It holds the symbol the plate is currently OFFERING to open, which is
+   * the selected symbol exactly when the plate is showing it** — see
+   * {@link topologyOpenableSymbol}. It is `null` both when nothing is selected
+   * and when the pointer is reading a *different* node, because in that second
+   * state the plate's ticker line says `AAPL` while the selection is `NVDA`,
+   * and an anchor there would be a destination the reader cannot see. Holding
+   * the bare selection instead and conditioning the anchor on it was the first
+   * implementation and `MarketTopology.test.tsx` refused it.
+   *
+   * **A symbol rather than a node**, because `securityPath` is all this is for;
+   * the renderer keeps the drawable node it needs to draw the ground disc.
+   *
+   * **It changes on a click, and on the pointer crossing the selected node's
+   * own edge — never at pointer-move cadence.** Hover itself stays a ref
+   * (below) and {@link show} writes this only when the answer actually changes,
+   * so a reader sweeping the pointer across 516 nodes with something selected
+   * re-renders this component at most twice: once entering the selected node,
+   * once leaving it. Story 6.2's declined `React.memo` boundary is argued from
+   * **feed** cadence, which this is not — the mount effect's deps are still
+   * exactly `[topology, probe, sentenceId]`.
+   */
+  const [openable, setOpenable] = useState<Ticker | null>(null);
+
+  /**
+   * **What the plate is CURRENTLY showing, as two refs rather than one**
+   * (Task 6.4.2).
+   *
+   * The plate shows whichever is relevant: the hovered node if one is hovered,
+   * otherwise the selected node, otherwise the idle instruction — so the writer
+   * needs both and `hovered ?? chosen` is that rule, written once, in
+   * {@link show} below.
+   *
+   * **Refs rather than state for both.** Hover changes at pointer-move cadence,
+   * which is Task 6.4.1's whole constraint; and `chosen` holds the node and the
+   * band a *sentence* is built from, which is a different fact from the symbol
+   * an `href` is built from — deriving one from the other would mean looking the
+   * node and its current band back up by symbol, which is exactly the second
+   * copy of the band map `TopologyHoverTarget`'s own docblock refuses. Both are
+   * written by {@link show}'s two callers and nowhere else, so they cannot
+   * disagree.
+   *
+   * `offered` mirrors {@link openable} so that {@link show} — which lives in the
+   * mount effect's closure and would capture the FIRST render's state value
+   * for ever — can tell a real change from a repeat without reading state at
+   * all.
+   */
+  const hovered = useRef<TopologyHoverTarget | null>(null);
+  const chosen = useRef<TopologyHoverTarget | null>(null);
+  const offered = useRef<Ticker | null>(null);
 
   const securities = universe.state === "loaded" ? universe.securities : null;
 
@@ -269,6 +343,33 @@ export function MarketTopology({
     let mounted: TopologyRenderer | null = null;
     let refusal: HTMLParagraphElement | null = null;
 
+    /**
+     * **Draw the plate from whichever of the two states is relevant** — the
+     * hovered node, else the selection, else the idle instruction (Task
+     * 6.4.2).
+     *
+     * The pointer leaving a node no longer returns the plate to the idle
+     * instruction when something is selected; it returns it to the
+     * **selection**. That is what makes the anchor's destination and the
+     * plate's displayed ticker the same string by construction rather than by
+     * agreement — and it is why `TOPOLOGY_READOUT_IDLE` is still reachable
+     * only when there is genuinely nothing to say.
+     *
+     * `setOpenable` is called **only when the answer changes**, compared
+     * against `offered` rather than against state: this function lives in the
+     * effect's closure, so reading `openable` here would read the first
+     * render's value for ever.
+     */
+    const show = (): void => {
+      writeTopologyReadout(plate.current, hovered.current ?? chosen.current);
+
+      const next = topologyOpenableSymbol(hovered.current, chosen.current);
+      if (next === offered.current) return;
+
+      offered.current = next;
+      setOpenable(next);
+    };
+
     try {
       mounted = mountCanvasTopology(container, {
         graph: topology.graph,
@@ -287,8 +388,26 @@ export function MarketTopology({
          * `React.memo` boundary is argued from, this file's own module
          * docblock.
          */
+        /*
+         * **One function behind both channels** (Task 6.4.2), because *what
+         * the plate shows* is one rule over two inputs and writing it twice is
+         * how the hovered line and the anchor's destination would come to
+         * disagree. Declared inside the effect for `onHover`'s own reason — it
+         * closes over four refs, two module-level functions and `setOpenable`,
+         * whose identity `useState` guarantees is stable, so it adds no
+         * dependency and the deps stay `[topology, probe, sentenceId]`.
+         */
         onHover: (hoveredTarget) => {
-          writeTopologyReadout(plate.current, hoveredTarget);
+          hovered.current = hoveredTarget;
+          show();
+        },
+        /*
+         * **The selection channel, and the one place a pointer event on this
+         * canvas reaches React state at all** (Task 6.4.2).
+         */
+        onSelect: (selectedTarget) => {
+          chosen.current = selectedTarget;
+          show();
         },
       });
       renderer.current = mounted;
@@ -317,8 +436,50 @@ export function MarketTopology({
       if (renderer.current === mounted) renderer.current = null;
       mounted?.destroy();
       refusal?.remove();
+      // **A new renderer starts with nothing hovered and nothing selected**
+      // (Task 6.4.2), so these have to go with it. This effect re-runs only on
+      // `topology` identity — a retry that lands a fresh universe — and the
+      // symbol selected in the old graph may not be in the new one, which
+      // would leave the anchor pointing at a security the picture no longer
+      // draws.
+      //
+      // **`setOpenable(null)` IS called here, found owed on review.** The
+      // first draft argued it didn't need to be — that `openable`'s own
+      // `useEffect` below would re-read it from a new `topology` anyway — and
+      // that effect is keyed on `[openable]`, which does not change just
+      // because `topology` did: nulling these three refs updates nothing a
+      // re-render would see. Without this line the plate keeps the OLD
+      // ticker's text and the OLD symbol's `<Link>` live until the next
+      // hover, which is exactly CLAUDE.md's own "a claim about a mechanism
+      // reads identically whether the mechanism is there or not." A state
+      // write from a cleanup is ordinary React — it schedules a re-render of
+      // a still-mounted component — and the React Compiler's own rules raise
+      // nothing on it.
+      hovered.current = null;
+      chosen.current = null;
+      offered.current = null;
+      setOpenable(null);
     };
   }, [topology, probe, sentenceId]);
+
+  /**
+   * **Re-write the plate after React has committed a changed selection** (Task
+   * 6.4.2) — and it is load-bearing rather than belt-and-braces.
+   *
+   * The ticker slot is a `<span>` while nothing is selected and a `<Link>`
+   * once something is, so `selected` going from `null` to a symbol makes React
+   * **replace that element** — and the `textContent` the `onSelect` callback
+   * had just written lands on the node being thrown away. Writing again here,
+   * after the commit, is what fills the fresh one.
+   *
+   * It reads the refs rather than `selected` so there is one rule for what the
+   * plate shows (`hovered ?? chosen`) and not a second, nearly-identical one.
+   * Idempotent with the synchronous write in the callback: both put the same
+   * four strings in the same four slots.
+   */
+  useEffect(() => {
+    writeTopologyReadout(plate.current, hovered.current ?? chosen.current);
+  }, [openable]);
 
   /**
    * **The redraw-without-remount channel, kept apart from the mount effect
@@ -487,7 +648,54 @@ export function MarketTopology({
         <p className={styles.readoutIdle} data-readout="idle">
           {TOPOLOGY_READOUT_IDLE}
         </p>
-        <span className={styles.readoutTicker} data-readout="ticker" />
+        {/*
+         * **The one activatable thing on this surface, and it is an anchor
+         * exactly when the ticker on screen IS the selected one** (Task
+         * 6.4.2).
+         *
+         * The plate shows the hovered node if one is hovered and the selection
+         * otherwise, so the two cases this condition separates are:
+         *
+         *   * **hovering the selected node, or nothing hovered with something
+         *     selected** — the displayed ticker and the selected ticker are the
+         *     same string, and the anchor's destination is what is on screen;
+         *   * **hovering an unselected node, or idle with nothing selected** —
+         *     plain text, as Task 6.4.1 built it.
+         *
+         * Which is to say the anchor's `href` and the plate's own ticker line
+         * are identical **by construction**: there is no state in which this
+         * surface offers to open something other than the thing it is naming.
+         * The alternative — an anchor that persists while the plate reads a
+         * different node under the pointer — is this screen's own *the figure
+         * is never the link* rule broken from the other side: a destination a
+         * reader cannot see.
+         *
+         * **`<Link>` rather than `<a>`**, which is `RankedList`'s precedent and
+         * this application's convention for an internal route: a bare `<a>` is
+         * a document load that throws the whole SPA away.
+         *
+         * **No children declared on either branch**, which is the plate's own
+         * standing condition — the text is written imperatively, and React's
+         * diff must never have a reason to touch these nodes. The effect above
+         * is what refills the element React replaces when this condition flips.
+         */}
+        {openable === null ? (
+          <span className={cx(styles.readoutTicker)} data-readout="ticker" />
+        ) : (
+          <Link
+            to={securityPath(openable)}
+            className={cx(styles.readoutTicker, styles.readoutTickerLink)}
+            data-readout="ticker"
+            /*
+             * **What a browser spec reads this anchor's identity off**, the
+             * same attribute and for the same reason `RankedList`'s rows carry
+             * one: the accessible name is the bare ticker, written as text
+             * content, and an attribute is what can be asserted without
+             * depending on the write having landed.
+             */
+            data-ticker={openable}
+          />
+        )}
         <span className={styles.readoutName} data-readout="name" />
         <span className={styles.readoutSector} data-readout="sector" />
         <span className={styles.readoutBand} data-readout="band" />
@@ -509,6 +717,44 @@ export function MarketTopology({
  * until then it names only what is true.
  */
 const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";
+
+/**
+ * **Which symbol, if any, the plate is currently offering to OPEN** (Task
+ * 6.4.2) — the whole of the one-anchor rule, as a pure function.
+ *
+ * The plate shows the hovered node if one is hovered and the selection
+ * otherwise, and the ticker is a real anchor **exactly when the shown symbol
+ * is the selected symbol**. So there are three answers and two of them are
+ * `null`:
+ *
+ *   * nothing selected — nothing to open, whatever the pointer is reading;
+ *   * something selected and the pointer reading a DIFFERENT node — the plate's
+ *     ticker line says `AAPL` while the selection is `NVDA`, and an anchor
+ *     there would be a destination the reader cannot see. This screen's own
+ *     *the figure is never the link* rule, broken from the other side;
+ *   * something selected and either nothing hovered or the selected node
+ *     hovered — the displayed ticker and the destination are one string.
+ *
+ * **Stated as a function so that the property is provable rather than
+ * inspectable.** `MarketTopology.test.tsx` asserts the third case directly,
+ * which is the one a reader meets most: a selection outlives the pointer, so
+ * *nothing hovered with something selected* is the state this surface sits in
+ * between acts.
+ *
+ * Compared **by symbol** rather than by object identity: the renderer calls
+ * `onSelect` again with a fresh target for the same node when a live `setBands`
+ * changes its band, and so does `onHover`.
+ */
+export function topologyOpenableSymbol(
+  hovered: TopologyHoverTarget | null,
+  chosen: TopologyHoverTarget | null,
+): Ticker | null {
+  if (chosen === null) return null;
+  if (hovered !== null && hovered.node.symbol !== chosen.node.symbol)
+    return null;
+
+  return chosen.node.symbol;
+}
 
 /**
  * The four lines the plate draws for one hovered node — **the whole of this

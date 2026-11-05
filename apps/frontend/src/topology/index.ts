@@ -16,7 +16,12 @@
  * `fit.ts` is the only pixel-aware half. ~~Interaction is pan and zoom only;
  * hover and selection are Story 6.4's.~~ **Half false since 2026-11-04 (Task
  * 6.4.1): interaction is pan, zoom and HOVER** — `hit-test.ts` is what a
- * reader is pointing at, in screen pixels. Selection is still Task 6.4.2's.
+ * reader is pointing at, in screen pixels. ~~Selection is still Task 6.4.2's.~~
+ * **False since 2026-11-04 (Task 6.4.2): interaction is pan, zoom, hover and
+ * SELECTION** — `click-gesture.ts` is what tells a click from a pan, and the
+ * selected node is the renderer's own state (`renderer-canvas.ts`), reported
+ * out through `TopologyRendererOptions.onSelect` so that React can render the
+ * **one** anchor this surface has.
  */
 
 export {
@@ -41,6 +46,13 @@ export {
   anomalyTreatmentsFromWire,
   unscoredAnomalyTreatments,
 } from "./anomaly-treatments.js";
+
+export {
+  TOPOLOGY_CLICK_MAX_DURATION_MS,
+  TOPOLOGY_CLICK_MAX_TRAVEL_PX,
+  isTopologyClick,
+} from "./click-gesture.js";
+export type { TopologyPressGesture } from "./click-gesture.js";
 
 export { topologyPalette } from "./palette.js";
 export type { TopologyPalette } from "./palette.js";

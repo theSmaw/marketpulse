@@ -267,6 +267,49 @@
 }
 
 /*
+ * **The ticker as the one thing on this surface a reader can open** (Task
+ * 6.4.2) — applied beside `.readoutTicker` rather than composed from it, which
+ * is `RankedList`'s `.ticker` + `.tickerLink` precedent exactly. Two classes on
+ * one element in one stylesheet, this rule landing after the one above it, so
+ * which declaration wins is readable here rather than decided by the bundle's
+ * import order (`a-compose-never-carries-an-override`'s whole subject).
+ *
+ * **It declares no property `.readoutTicker` declares**, so there is no
+ * override to lose: the ink is that rule's `--ink-primary`, which beats the
+ * user agent's own anchor colour for the ordinary reason author styles do.
+ *
+ * ## `pointer-events: auto` is the load-bearing line
+ *
+ * The plate is `pointer-events: none` and the comment above says why — the
+ * plate sits over real nodes, and without it moving the pointer onto the plate
+ * would fire `pointerleave` on the canvas and flicker the readout. This one
+ * element has to be an exception, because a link nothing can click is not a
+ * link. It costs nothing in the state it exists in: the anchor is rendered only
+ * when the plate is showing the SELECTED node, so the `pointerleave` it does
+ * fire returns the plate to that same selection — the same four strings, the
+ * same ticker, no flicker. There is no state in which pointing at this anchor
+ * changes what it says.
+ *
+ * ## The affordance is an underline, painted rather than laid out
+ *
+ * `RankedList.tickerLink`'s own rule and its reason, which applies with more
+ * force here: this plate is a fixed 98 px box of five fixed line slots, so a
+ * border or a weight change on hover would reflow the lines inside a region
+ * that `Movers`' held-row lesson is written across. Hover and focus are one
+ * drawing because they are one statement — *this is what will open*.
+ */
+.readoutTickerLink {
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.readoutTickerLink:hover,
+.readoutTickerLink:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/*
  * The company or fund name, in **two** reserved slots, clamped rather than
  * clipped: a third line of a long name would push the sector and the band out
  * of a box whose height is fixed, and `overflow: hidden` on the plate would

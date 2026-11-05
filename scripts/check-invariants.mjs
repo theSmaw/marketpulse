@@ -10653,6 +10653,151 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "no-second-affordance-on-a-topology-node",
+    claim:
+      "A node in the market topology has exactly ONE activatable thing — the " +
+      "readout plate's ticker anchor. No `Investigate` control and no second " +
+      "affordance exists anywhere under `apps/frontend/src/topology/` or " +
+      "`apps/frontend/src/components/MarketTopology/`.",
+    check() {
+      // **Task 6.4.2, Story 6.4's acceptance criterion 6.**
+      //
+      // ## Why this is a check rather than a sentence in a document
+      //
+      // AC 6 is a NEGATIVE — *no second affordance exists on a node* — and an
+      // unwritable one as stated, because "affordance" has no spelling a grep
+      // can look for. The task splits it into three bounded claims: an
+      // enumeration of the region's controls (`MarketTopology.test.tsx`), a
+      // determinism assertion on activating the one anchor
+      // (`overview-market-topology-hover.spec.ts`), and this — the one that
+      // can see the thing the other two cannot, which is a control somebody
+      // ADDS later.
+      //
+      // The word is `Investigate` because that is the specific temptation:
+      // Epic 7 is the deterministic-investigations epic, Epic 10 makes it
+      // agentic, and a graph node is the most natural place in this product to
+      // hang *investigate this* off. Epic 5's own Gate 1 settled exactly this
+      // question for a list row and the same reasoning governs a node: a
+      // reader who can activate two things on one mark has to choose before
+      // they know what either does, and on a canvas — where there is no DOM
+      // element to focus and no second tab stop to reach — a second affordance
+      // cannot be reached by keyboard at all.
+      //
+      // ## The clause a re-implementer cannot avoid
+      //
+      // `/investigat/i` rather than a shape. Not `<button`, not `onClick`,
+      // not `role="button"`: those are spellings of an implementation and a
+      // second affordance can be any of them or none. Whatever gets built,
+      // **it has to be named**, and in this product's vocabulary the name is
+      // this word — `Investigate`, `onInvestigate`, `investigate(`,
+      // `startInvestigation` all contain it. A control named something else
+      // entirely escapes, which is why this is one of three claims and not
+      // the only one: the enumeration test catches an unnamed control by
+      // COUNTING, and this catches a named one by reading.
+      //
+      // ## Both directories, and comments stripped
+      //
+      // Two trees, because the surface is split across them by this
+      // repository's own convention — the renderer and its interaction under
+      // `topology/`, the component and its plate under
+      // `components/MarketTopology/`. A check over one would be green on the
+      // other, and `onSelect`'s handler lives in the component while the click
+      // that produces it lives in the renderer, so a plausible author of an
+      // `Investigate` control could reach for either.
+      //
+      // Comments are stripped for `no-renderer-type-in-the-graph-model`'s own
+      // reason, and this file is the reason it matters: the paragraph you are
+      // reading names the word nine times, as the argument for why it is
+      // absent. **A check a prose explanation of the prohibition can trip is a
+      // check nobody can keep green.**
+      const DIRECTORIES = [
+        "apps/frontend/src/topology",
+        "apps/frontend/src/components/MarketTopology",
+      ];
+
+      /**
+       * **The positive anchor, and it is the one that makes this check mean
+       * something.** A ban on a SECOND affordance is worth nothing over a
+       * surface with none at all — which is what this one was until Task
+       * 6.4.2, and which is exactly how `one-home-for-imperative-navigation`
+       * argues its own anchor. So the one anchor has to still be there: the
+       * plate's ticker resolving a destination from the selected symbol's own
+       * identity, at render.
+       */
+      const ANCHORED =
+        "apps/frontend/src/components/MarketTopology/MarketTopology.tsx";
+
+      const anchored = withoutComments(
+        readAnchored(resolve(REPO_ROOT, ANCHORED)),
+      );
+
+      if (!anchored.includes("securityPath(") || !anchored.includes("<Link")) {
+        throw new InvariantFailure(
+          `${ANCHORED} no longer renders a \`<Link to={securityPath(…)}>\`, ` +
+            "so the topology has no activatable thing on a node at all. This " +
+            "check refuses a SECOND affordance, and over a surface with zero " +
+            "of them there is nothing to refuse — the absence is the failure " +
+            "rather than the pass.",
+        );
+      }
+
+      const offenders = [];
+
+      for (const directory of DIRECTORIES) {
+        for (const { path, text } of sourceFilesUnder(
+          resolve(REPO_ROOT, directory),
+        )) {
+          // Stories and tests are excluded for `shippedSourceFiles`' own
+          // reason: neither reaches a reader. A story that drew an
+          // `Investigate` control would still be caught, because the control
+          // itself would have to live in a shipped file for the story to
+          // render it.
+          if (/\.(?:test|stories)\.tsx?$/u.test(path)) continue;
+
+          // Comments BLANKED rather than removed, newlines kept, so the line
+          // number reported is the line in the FILE — `withoutTrailingComments`
+          // deletes a block comment's own newlines along with it, found on
+          // review when a planted offender at a known line was reported over
+          // 300 lines early. `no-random-in-the-shared-model`'s own idiom,
+          // reused rather than re-derived.
+          const lines = text
+            .replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+              comment.replace(/[^\n]/gu, " "),
+            )
+            .replace(/(^|[^:])\/\/[^\n]*/gu, "$1")
+            .split("\n");
+
+          for (const [index, line] of lines.entries()) {
+            if (!/investigat/iu.test(line)) continue;
+            offenders.push(
+              `${relative(REPO_ROOT, path)}:${String(index + 1)}\n        ${line.trim()}`,
+            );
+          }
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) under the topology's own ` +
+            "source name an investigation affordance:\n      " +
+            offenders.join("\n      ") +
+            "\n    A node in this graph has exactly ONE activatable thing " +
+            "(Story 6.4's acceptance criterion 6), and it is the readout " +
+            "plate's ticker anchor. Epic 5's Gate 1 settled the same " +
+            "question for a list row: a reader who can activate two things " +
+            "on one mark has to choose before they know what either does. " +
+            "On a canvas it is worse than on a row — a node has no DOM " +
+            "element of its own, so a second affordance has no focusable " +
+            "home and cannot be reached by keyboard at all.\n    If Epic 7 " +
+            "or Epic 10 genuinely needs this, the decision is a design one " +
+            "(where does it live, how is it reached without a pointer, what " +
+            "happens to the one anchor) and it is taken in a story rather " +
+            "than by deleting this check.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
