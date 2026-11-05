@@ -40,8 +40,13 @@ import {
   securitiesFixtureRetryingView,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
+import { renderWithContext } from "../../test-render.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
-import { MarketTopology, topologyReadoutLines } from "./MarketTopology.js";
+import {
+  MarketTopology,
+  topologyOpenableSymbol,
+  topologyReadoutLines,
+} from "./MarketTopology.js";
 import type { MarketTopologyHandle } from "./MarketTopology.js";
 
 /**
@@ -676,6 +681,397 @@ describe("MarketTopology", () => {
       // does not have yet.
       expect(line("ticker")).toBe("");
       expect(line("band")).toBe("");
+    });
+  });
+
+  describe("selection, and the one way out — Task 6.4.2", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    const plate = (): HTMLElement => {
+      const found = document.querySelector("[data-topology-readout]");
+      if (found === null) throw new Error("no readout plate was rendered");
+      return found as HTMLElement;
+    };
+
+    const line = (field: string): string =>
+      plate().querySelector(`[data-readout="${field}"]`)?.textContent ?? "";
+
+    /** The ticker slot, whatever element it currently is. */
+    const tickerSlot = (): HTMLElement => {
+      const found = plate().querySelector('[data-readout="ticker"]');
+      if (found === null) throw new Error("no ticker slot was rendered");
+      return found as HTMLElement;
+    };
+
+    /**
+     * The two channels the renderer was mounted with. Read off the mount
+     * options rather than through a prop, which is the producer-side evidence
+     * that selection arrives the same way hover does — see
+     * {@link hoverChannel}'s own note in the block above.
+     */
+    const channels = (): {
+      readonly hover: (hovered: TopologyHoverTarget | null) => void;
+      readonly select: (selected: TopologyHoverTarget | null) => void;
+    } => {
+      const options = mountCanvasTopology.mock.calls[0]?.[1] as
+        | {
+            onHover?: (hovered: TopologyHoverTarget | null) => void;
+            onSelect?: (selected: TopologyHoverTarget | null) => void;
+          }
+        | undefined;
+      const hover = options?.onHover;
+      const select = options?.onSelect;
+      if (hover === undefined || select === undefined)
+        throw new Error("the renderer was mounted without both channels");
+      return { hover, select };
+    };
+
+    const target = (
+      symbol: string,
+      label: string,
+      treatment: TopologyAnomalyTreatment | null = "normal",
+    ): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker(symbol),
+        label,
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment,
+    });
+
+    const NVDA = target("NVDA", "NVIDIA Corporation", "extreme");
+    const AAPL = target("AAPL", "Apple Inc.", "normal");
+
+    const mount = (): void => {
+      renderWithContext(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+    };
+
+    it("draws no link at all until something is selected", () => {
+      mount();
+
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
+      expect(tickerSlot().tagName).toBe("SPAN");
+    });
+
+    it("turns the ticker into one anchor at the selected security's own path", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+
+      const links = screen.getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]?.getAttribute("href")).toBe("/securities/NVDA");
+      // **The href and the displayed ticker are one string**, which is the
+      // property the conditional is written for: there is no state in which
+      // this surface offers to open something other than what it is naming.
+      expect(line("ticker")).toBe("NVDA");
+      expect(links[0]?.dataset.ticker).toBe("NVDA");
+    });
+
+    it("keeps the four facts on the plate after React replaces the ticker element", () => {
+      // **The defect this is written against is invisible without it.** The
+      // callback writes `textContent` and THEN sets state; React replaces the
+      // `<span>` with an `<a>`, and the text lands on the node being thrown
+      // away. The plate would read blank with a correct `href` beside it.
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+
+      expect(plate().dataset.topologyReadout).toBe("reading");
+      expect(line("ticker")).toBe("NVDA");
+      expect(line("name")).toBe("NVIDIA Corporation");
+      expect(line("sector")).toBe("Technology");
+      expect(line("band")).toBe("extreme");
+    });
+
+    it("keeps naming the selected node when the pointer leaves every node", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+      // Hover somewhere else, then off the canvas entirely. **In `act()`,
+      // unlike the hover block above**: crossing the selected node's own edge
+      // is the one hover transition that legitimately changes whether there is
+      // an anchor, so it is the one that re-renders. See the last test in this
+      // block for the claim that no OTHER hover does.
+      act(() => {
+        channels().hover(AAPL);
+      });
+      expect(line("ticker")).toBe("AAPL");
+      act(() => {
+        channels().hover(null);
+      });
+
+      // **Selection PERSISTS** (Done-when 1): the plate returns to the
+      // selection rather than to the idle instruction, which is what makes
+      // the anchor's ticker and the drawn ticker the same string even with the
+      // pointer gone.
+      expect(plate().dataset.topologyReadout).toBe("reading");
+      expect(line("ticker")).toBe("NVDA");
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+    });
+
+    it("draws the hovered node as plain text while a DIFFERENT node is selected", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+      act(() => {
+        channels().hover(AAPL);
+      });
+
+      // The plate reads AAPL and there is no anchor on it, because the anchor
+      // exists exactly when the shown ticker IS the selected one. An anchor
+      // reading `AAPL` and pointing at NVDA is the state this rules out —
+      // a destination a reader cannot see, which is this screen's own *the
+      // figure is never the link* rule broken from the other side.
+      expect(line("ticker")).toBe("AAPL");
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
+    });
+
+    it("re-reads the anchor when the hovered node IS the selected one", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+      act(() => {
+        channels().hover(NVDA);
+      });
+
+      const links = screen.getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]?.getAttribute("href")).toBe("/securities/NVDA");
+      expect(line("ticker")).toBe("NVDA");
+    });
+
+    it("moves the selection to a different node rather than adding to it", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+      act(() => {
+        channels().select(AAPL);
+      });
+
+      const links = screen.getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]?.getAttribute("href")).toBe("/securities/AAPL");
+      expect(line("ticker")).toBe("AAPL");
+    });
+
+    it("clears the selection and returns to the idle instruction", () => {
+      mount();
+
+      act(() => {
+        channels().select(NVDA);
+      });
+      act(() => {
+        channels().select(null);
+      });
+
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
+      expect(tickerSlot().tagName).toBe("SPAN");
+      expect(plate().dataset.topologyReadout).toBe("idle");
+      expect(line("ticker")).toBe("");
+      expect(
+        screen.getByText("Point at a security to see what it is."),
+      ).toBeTruthy();
+    });
+
+    it("re-reads a selected node's band without moving the anchor", () => {
+      // What `setBands` reaches: the renderer calls `onSelect` again with the
+      // SAME node when a live batch changes its band, because the plate is
+      // usually showing the selection and a stale word there would disagree
+      // with the ring on screen.
+      mount();
+
+      act(() => {
+        channels().select(target("NVDA", "NVIDIA Corporation", "unscored"));
+      });
+      expect(line("band")).toBe("Not scored yet");
+
+      act(() => {
+        channels().select(NVDA);
+      });
+
+      expect(line("band")).toBe("extreme");
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+      // One mount throughout — a band change must not re-mount the canvas.
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
+
+    it("still does not re-render on an ordinary hover, because nothing is openable", () => {
+      // **The producer-side half of the memo-boundary claim, re-taken for this
+      // task** (Story 6.2's AC 8). Selection added one `useState` to this
+      // component, so the question *does a pointer move re-render the landing
+      // page\'s primary content area* had to be asked again. It does not while
+      // nothing is selected: `topologyOpenableSymbol` answers `null` for every
+      // hover, so `show()` never reaches `setOpenable`.
+      //
+      // Called OUTSIDE `act()` deliberately — a state update here would both
+      // fail to appear synchronously and log React\'s own "not wrapped in
+      // act(...)" error, which is what the spy below reads.
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {
+        /* a React act() warning would land here */
+      });
+
+      mount();
+      const { hover } = channels();
+
+      hover(NVDA);
+      hover(AAPL);
+      hover(null);
+
+      expect(errors).not.toHaveBeenCalled();
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+
+      errors.mockRestore();
+    });
+
+    it("leaves a selection alone when the view is reset", () => {
+      // Done-when 4. `resetView` is named for the VIEW; clearing is `Escape`'s
+      // (Task 6.4.3) and empty canvas's.
+      const handle = createRef<MarketTopologyHandle>();
+      renderWithContext(
+        <MarketTopology
+          ref={handle}
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        channels().select(NVDA);
+      });
+
+      act(() => {
+        handle.current?.resetView();
+      });
+
+      expect(screen.getAllByRole("link")).toHaveLength(1);
+      expect(line("ticker")).toBe("NVDA");
+    });
+
+    /**
+     * **AC 6's second bounded claim: the controls, by ENUMERATION rather than
+     * by the absence of a name** (Task 6.4.2).
+     *
+     * The invariant `no-second-affordance-on-a-topology-node` catches a second
+     * affordance that is NAMED; this catches one that is not, by counting. It
+     * is an exhaustive list over this component's own subtree — `Reset view`
+     * lives in `Region`'s `meta` slot in `MarketOverview.tsx`, outside this
+     * tree entirely (that file's own note), so the browser spec is where the
+     * region's full set is counted and this is where the component's is.
+     */
+    describe("the exhaustive control enumeration — AC 6", () => {
+      /** Every activatable thing in the rendered tree, as `role · name`. */
+      const controls = (): readonly string[] =>
+        [...screen.queryAllByRole("link"), ...screen.queryAllByRole("button")]
+          .map(
+            (element) =>
+              `${element.tagName === "A" ? "link" : "button"} · ${(element.getAttribute("aria-label") ?? element.textContent).trim()}`,
+          )
+          .sort();
+
+      it("offers nothing at all before a selection", () => {
+        mount();
+        expect(controls()).toStrictEqual([]);
+      });
+
+      it("offers exactly the one ticker anchor once a node is selected", () => {
+        mount();
+
+        act(() => {
+          channels().select(NVDA);
+        });
+
+        expect(controls()).toStrictEqual(["link · NVDA"]);
+      });
+
+      it("offers nothing while the pointer is reading a different node", () => {
+        mount();
+
+        act(() => {
+          channels().select(NVDA);
+        });
+        act(() => {
+          channels().hover(AAPL);
+        });
+
+        expect(controls()).toStrictEqual([]);
+      });
+
+      it("offers exactly Try again where the universe failed, and no link", () => {
+        renderWithContext(
+          <MarketTopology
+            universe={securitiesFixtureView("unavailable")}
+            onRetry={() => undefined}
+          />,
+        );
+
+        expect(controls()).toStrictEqual([
+          "button · Try again — the market topology",
+        ]);
+      });
+    });
+  });
+
+  /**
+   * The one-anchor rule, as a pure function — three answers, two of them
+   * `null` (Task 6.4.2).
+   */
+  describe("topologyOpenableSymbol — Task 6.4.2", () => {
+    const at = (symbol: string): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker(symbol),
+        label: `${symbol} Inc.`,
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment: "normal",
+    });
+
+    it("offers nothing while nothing is selected, whatever the pointer reads", () => {
+      expect(topologyOpenableSymbol(null, null)).toBeNull();
+      expect(topologyOpenableSymbol(at("NVDA"), null)).toBeNull();
+    });
+
+    it("offers the selection when the pointer has left the canvas", () => {
+      // **The state this surface sits in between acts**, because a selection
+      // outlives the pointer. If this answered `null` the anchor would vanish
+      // the moment a reader moved their hand.
+      expect(topologyOpenableSymbol(null, at("NVDA"))).toBe("NVDA");
+    });
+
+    it("offers the selection when the selected node is the one being read", () => {
+      // Compared by SYMBOL, not identity: `onHover` and `onSelect` each mint a
+      // fresh target for the same node when a live `setBands` lands.
+      expect(topologyOpenableSymbol(at("NVDA"), at("NVDA"))).toBe("NVDA");
+    });
+
+    it("offers NOTHING while the pointer reads a different node", () => {
+      // An anchor here would point at NVDA under a line reading AAPL — a
+      // destination the reader cannot see.
+      expect(topologyOpenableSymbol(at("AAPL"), at("NVDA"))).toBeNull();
     });
   });
 

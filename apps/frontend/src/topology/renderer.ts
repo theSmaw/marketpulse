@@ -50,7 +50,18 @@ import type { TopologyPalette } from "./palette.js";
 export type TopologyAnomalyTreatment = AnomalyBand | "unscored";
 
 /**
- * What a reader is pointing at, as the renderer reports it (Task 6.4.1).
+ * What a reader is pointing at — **or has selected** — as the renderer reports
+ * it (Task 6.4.1; the second half added at Task 6.4.2).
+ *
+ * **One type for both channels, deliberately.** `onHover` and `onSelect` report
+ * the same thing about a node (which node, and what it is drawn as) and the
+ * readout plate draws whichever of the two is currently relevant — so a second
+ * near-identical interface would be two names for one fact, and the `?? `
+ * fallback that picks between them would not typecheck without a converter
+ * nobody needs. The name is left as `TopologyHoverTarget` rather than widened
+ * to `TopologyTarget`: it is referenced by `onHover`'s own contract, by
+ * `MarketTopology.tsx` and by two test files, and a rename across them is churn
+ * that buys a word.
  *
  * **The treatment travels WITH the node**, which is this task's own
  * constraint: the renderer already holds the band map (`setBands`), so a
@@ -154,6 +165,36 @@ export interface TopologyRendererOptions {
    */
   readonly onHover?:
     ((hovered: TopologyHoverTarget | null) => void) | undefined;
+  /**
+   * Called when the **selected** node changes — a click on a node selects it, a
+   * click on empty canvas clears it, a click on a different node moves it
+   * (Task 6.4.2).
+   *
+   * **Selection is a third state and it is not hover.** It persists: it
+   * survives the pointer leaving the node, it survives a pan, and it survives
+   * `Reset view` (which is named for the view). `null` means nothing is
+   * selected.
+   *
+   * **A click rather than a press**, told apart from a pan by
+   * `isTopologyClick` — a drag that happens to end over a node must not select
+   * it, which is Gate 1's two-step decision ("the figure is never the link"
+   * arriving at a canvas) and the reason there is a threshold here at all.
+   *
+   * **This one DOES reach React state, and it is the only thing on this
+   * surface that may.** A Canvas2D node has no DOM element of its own, so it
+   * cannot hold a `<Link>`; the resolution is **one** anchor — the readout
+   * plate's ticker — whose `href` is resolved at render from the selected
+   * symbol's own identity, and only React can render that. Hover stays
+   * renderer-internal (see {@link onHover}) because it changes at pointer-move
+   * cadence; a selection changes on a click, which is not a cadence.
+   *
+   * It is also called again with the **same** node when a live `setBands`
+   * changes what that node is drawn as, for `onHover`'s own reason: the plate
+   * may be showing the selection, and a word that went stale under it would
+   * disagree with the picture beside it.
+   */
+  readonly onSelect?:
+    ((selected: TopologyHoverTarget | null) => void) | undefined;
 }
 
 /** A mounted renderer. */
@@ -168,6 +209,12 @@ export interface TopologyRenderer {
    * means a reader can never lose the market entirely, but it is still a
    * market that has been dragged and zoomed, and this is the way back with
    * no reload.
+   *
+   * **It does not clear the selection** (Task 6.4.2). The control is named for
+   * the **view**, and Gate 1's decision keeps clearing a selection to `Escape`
+   * (Task 6.4.3) and to clicking empty canvas. A reader who has committed to a
+   * security and then lost the market is asking for the market back, not for
+   * their security to be forgotten.
    */
   reset(): void;
   /**
