@@ -119,3 +119,37 @@ density **within** a cluster carries over; what does not carry over is
 anything about edges that cross **between** clusters, which now travel
 through a ring with 130.3 layout units of worst cluster-circle gap rather
 than 56.8.
+
+## Handed here by Story 6.4's close — 2026-11-06: node crowding inside a cluster is a real, measured, ALREADY-ACCEPTED fact — not a structural guarantee this story can assume still holds after it draws edges
+
+**The 17.83-unit figure above answers "how far apart are the two closest
+node CENTRES" — it does not answer "can a reader's pointer or keyboard
+still tell two nodes apart," and those two questions came apart measurably
+while this story's sibling was being built.** Story 6.4's own hit-test
+(`apps/frontend/src/topology/hit-test.ts`, Task 6.4.1) and its own
+interaction probe (`scripts/topology-interaction-probe.mjs`, Task 6.4.3)
+measured the **densest real cluster** (`TECHNOLOGY`, the largest in the
+tracked universe) at the narrowest width this product tests (390): a
+single equity's own hit-test target reached **0.0 px** — not a small but
+positive number, genuinely contested at the node's own measured centre,
+because `topologyNodeAt` hands back whichever of two neighbours is nearer
+and at that fit scale neither is unambiguously nearer. **This is not a
+regression and it is not new** — Story 6.2/6.3 had already measured and
+accepted the same visual crowding (heavy node overlap in `TECHNOLOGY` at
+narrow fit scales) before Story 6.4 ever touched interaction; what Story
+6.4 adds is the first confirmation that the crowding reaches the
+**hit-test**, not only the ink.
+
+**What this means for correlation edges specifically.** Whatever strength
+threshold or `N` this story settles on (Open Decision 1's own question), the
+edges it draws will run through — and very likely terminate inside — the
+same crowded clusters this measurement already found contested. An edge
+drawn to the WRONG node in a crowded pair is a silent, wrong-looking claim
+about correlation rather than a missed click; the stakes of the same
+crowding are higher here than they were for a click or a keypress. **Before
+this story ships edges, re-run `scripts/topology-interaction-probe.mjs` (or
+its successor) against the layout AS THIS STORY LEAVES IT** — adding edges
+does not move node positions, so the 0.0 px figure itself should not change
+by construction, but confirm that rather than assume it, since this
+document is exactly the kind of inherited claim CLAUDE.md's own "measure
+rather than cite" rule warns against carrying forward unverified.

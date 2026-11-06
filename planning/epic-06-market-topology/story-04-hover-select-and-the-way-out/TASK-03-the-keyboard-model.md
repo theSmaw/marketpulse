@@ -322,8 +322,11 @@ key seeds the selection at the centre and every later key moves it, so the
 focused node **is** the selected node and the ring is always inside the dark
 disc. A second ink would be a value no frame can reach, which is this
 repository's own rule about a claim with no mechanism behind it. One field,
-`palette.focusRing` (`--ink-inverse`, **14.6:1** on `--surface-inverse`), with
-the condition for the second written beside it.
+`palette.focusRing` (`--ink-inverse`, ~~**14.6:1**~~ — corrected 2026-11-06
+at this story's close to **14.98:1**, the WCAG formula applied directly to
+`#eef0f5` on `#181c23`; the verdict against ADR 0026's floor is unchanged —
+on `--surface-inverse`), with the condition for the second written beside
+it.
 
 **2. The first version of the probe measured a histogram of the whole picture
 and reported it as geometry.** It matched `--ink-inverse`'s own `#eef0f5` in

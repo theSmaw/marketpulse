@@ -108,3 +108,33 @@ before either ships, or after one has; **check which of the two has landed
 before taking the margin**, and `TOPOLOGY_NODE_SCALE_FLOOR`/`_CEILING`
 (0.5–1.5, already clamped at zoom) is the existing precedent for keeping a
 scaled quantity inside a bounded range rather than growing without limit.
+
+## Handed here by Story 6.4's close — 2026-11-06: this story is the one most likely to BREAK node crowding's own measured bound, directly rather than as a side effect
+
+**A node size encoding changes the one thing Story 6.5's own hand-off (above
+this one, written the same day) warns is already contested: screen-space
+separation between neighbours.** Story 6.4 measured (Task 6.4.1's hit-test,
+Task 6.4.3's interaction probe) that the densest real cluster
+(`TECHNOLOGY`) already has at least one node whose hit-test target reaches
+**0.0 px** at the narrowest tested width (390) — contested at its own
+centre, because `topologyNodeAt` returns whichever of two neighbours is
+nearer and neither is unambiguously nearer there today. **Story 6.5's own
+edges do not move anything and so cannot make this worse by construction;
+this story's own node size DOES move something** — `TOPOLOGY_NODE_INK`
+scaled by whatever this story's size quantity resolves to will, for any
+node drawn larger than today's constant 8/10/12 px, shrink the clear space
+to its neighbours by exactly the amount it grows, and the 0.0 px finding
+means there is **no slack left to spend** in `TECHNOLOGY` at 390 before
+this story ships anything.
+
+**Concretely, before taking `TOPOLOGY_NODE_SCALE_FLOOR`/`_CEILING`'s
+0.5–1.5 range as the safe envelope for a size encoding**: that range was
+derived for the existing constant ink and the existing hit-test (the one
+Task 6.4.1 repaired to read screen pixels from the ink, not the other way
+around) — it was never checked against the crowding figure above, because
+nothing drew a variable size when it was chosen. This story owes a fresh
+measurement of the SAME `scripts/topology-interaction-probe.mjs` figures
+(or its successor) with its own size encoding applied, at 390 specifically,
+before accepting the inherited 0.5–1.5 range as sufficient. If the range
+needs narrowing to keep `TECHNOLOGY`'s hit targets above zero, that is this
+story's own finding to make and record — not an assumption to inherit.

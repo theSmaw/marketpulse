@@ -36,10 +36,20 @@ encoding shipped too.** Story 6.3 wired a real composite band — a ring
 weighted `elevated`/`high`/`extreme`, `extreme` recolouring the node's own
 fill, an accessible sentence stating the vocabulary and the counts, a
 static legend at three of four widths — onto the live graph, watched
-working against this developer's own real local backend. What bounds the
+working against this developer's own real local backend. ~~What bounds the
 sections below now is narrower still: **node sizing, correlation edges,
 interaction and live updates** — Stories 6.4–6.8 — remain Storybook-only or
-unbuilt, and §2's renderer figures are still local, one-laptop ones (§4).
+unbuilt, and §2's renderer figures are still local, one-laptop ones
+(§4).~~ — **narrower again since 2026-11-06: interaction shipped.** Story
+6.4 made every node something a reader can interrogate and leave from — by
+pointer (hover reads it, click selects it, the readout's one anchor opens
+it) and by keyboard (Tab into the region, arrow keys walk the graph as a
+tree, Enter opens, Escape clears) — and a screen-reader user gets the same
+capability through a dedicated announcement region, not a degraded
+substitute. What bounds the sections below now is narrower still: **node
+sizing, correlation edges and live updates** — Stories 6.5–6.8 — remain
+Storybook-only or unbuilt, and §2's renderer figures are still local,
+one-laptop ones (§4).
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 
@@ -121,6 +131,62 @@ non-deterministic collision pass, which acceptance criterion 3 refuses); the
 reversal trigger is a condition — _the first zoom level at which the layout's
 own geometry leaves 26px of clear ground beside every node in the viewport_ —
 not a default.
+
+### 3.1 Two defects a person found by looking, and what shipped against each (2026-11-06)
+
+Story 6.4's own closing review drove the real running app and photographed two
+things nothing mechanical in this repository can see. Both were repaired in the
+same change; **both repairs are scoped, and one of them is explicitly a
+mitigation rather than a fix.**
+
+**The readout plate covers real nodes.** `.readout` is a 288×98 card inside the
+canvas's own frame, bottom-left, and `fitView`/`measure()` fit the **entire**
+frame box with no notion that part of it is covered — **14 securities behind it
+at 1440, 46 at 1024, 64 (12.7% of the universe) at 768, 0 at 390**. A reader can
+select one of them and then see neither its selection ring nor its ground disc.
+The plate's ground is now `color-mix(in srgb, var(--surface-raised) 80%,
+transparent)`, the first translucent colour anywhere in `apps/frontend/src`
+(`opacity` was refused: it fades the five lines of type with the ground). The
+80% is measured, and the measurement's surprise is that **the type is not the
+binding constraint** — `--ink-secondary` over a field of solid `--ink-primary`
+is still 6.14:1 at 80% — while a node's own perceivability through the plate
+reaches only **1.232:1**. So a node behind the plate is now perceivable and is
+still not legible: its band, its ticker and the direction of its ring are not
+readable through the card. `docs/GAPS.md` carries the residue, the two real
+fixes (carve the plate's footprint out of the fitted viewport; move the plate
+into a reserved row beneath the canvas) and the condition that owns them —
+**the first story that changes what this region's canvas is fitted into.**
+
+**The focus ring is nearly invisible in a dense cluster**, measured at
+**1.01:1** by the reviewer. Task 6.4.3 had flagged it as a question of
+treatment; it is not. `palette.focusRing`'s own argument for a single ink rests
+on the ring _always being drawn inside `selectionGround`'s dark disc_, and that
+premise is false: the disc is drawn **first** in the frame, so in `TECHNOLOGY`
+the neighbours' bodies and their 1 px `--surface-raised` halos cover most of it
+and the pale ring lands on near-white. The ring is now **two-tone** — the same
+light `--ink-inverse` stroke at the same radius, with a 1 px `--ink-primary`
+companion immediately **outside** it (12 → 13 px at zoom 1). Outward is the
+load-bearing half: the light ring's inner edge does not move, so the clearance
+Story 6.3's `extreme` ring handed this story by name is unchanged **by
+construction** rather than by hoping. The floor it buys is arithmetic over the
+shipped tokens — on every ground this picture can put under the ring (the dark
+disc, a white halo, an edge, an equity body, an amber band ring) the better of
+the two tones clears **4.88:1**, the worst case being the mid-value equity body,
+which is exactly the ground no single ink of either polarity can serve.
+
+**One instrument caveat travels with that second figure.**
+`scripts/topology-interaction-probe.mjs`' `banded` clearance was re-run against
+a control with the dark stroke disabled: **4.99 / 5.23 / 5.21 px** at 1440 /
+1024 / 768 before, **5.10 / 3.33 / 3.26** after, reproducible to two decimals.
+At 1440 the instrument's own self-check holds — `outer − inner` reads 4.48
+against a drawn 4.5 — and the clearance there is unchanged (+0.11, noise). At
+1024 and 768 it reads **6.00 and 6.11 against the same drawn 4.5**, 1.5 px wider
+than anything on the canvas, because `diffCanvas` takes its centre as the
+centroid of the changed pixels and a wider annulus displaces it; the same
+displacement shortens `inner` by ~0.95 and lengthens `bandOuter` by ~1.00, which
+is the whole of the apparent loss. **Every reported figure is still positive at
+every width**, and the geometric claim — nothing added is drawn inside radius 12
+at zoom 1 — is exact.
 
 ## 4. What no machine and no person has seen — the running section every later story amends
 
@@ -320,3 +386,25 @@ not a default.
   6.4's** — the repair is for the route to re-apply its held treatment map
   when the handle changes, which is `MarketOverview.tsx`'s `useRef` policy
   and not this story's code.
+- ~~**Added 2026-11-06 (Task 6.4.5, closing Story 6.4): what no gated machine
+  and no person has ever seen for this story's own feature.**~~ — **half
+  discharged hours later, same task, while photographing an unrelated
+  defect.** CI's permanent `unscored` state (no bars, no provider, no
+  composite generation) means **no gated run** has ever shown the readout
+  plate a real band word — every hover/selection spec authors the band
+  through `serveFeed`/`sendOverview`, the same mechanism Story 6.3's own
+  specs use, because nothing else can produce one on CI. But **a person
+  has**: driving the real local store while verifying a different fix, the
+  plate read `STZ / ELEVATED`, `WMT / NORMAL` and, by the keyboard walk,
+  `ADBE / HIGH` — none of them an authored frame. `docs/GAPS.md`'s own
+  entry (Task 6.4.5) carries the full, struck-and-corrected account: what
+  remains genuinely unseen is `extreme` specifically, and a store holding
+  both scored and unscored equities at once, tied to the same deployed-
+  store sitting Epic 5's own composite score already owes
+  (`LIVE-REHEARSAL.md` row 5.6). And **no person with a real screen reader
+  has heard any of this region** — the announcement's cadence (one sentence
+  per repeat of a held arrow key, across a cluster of up to 83 members), the
+  band word read aloud after a sector name, and the comma-joined four-fact
+  sentence's own legibility are all unanswerable from a DOM, which
+  `docs/GAPS.md`'s eleventh screen-reader-listening entry (also Task 6.4.5)
+  states plainly rather than leaves implicit.

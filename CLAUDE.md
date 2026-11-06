@@ -161,8 +161,8 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): three of nine stories complete, 2026-11-03, and
-the graph now draws what it means.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): four of nine stories complete, 2026-11-06, and
+the graph is now a place a reader leaves from.** Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -210,9 +210,8 @@ independent answer. The route's cold load was re-measured for real and is
 not in breach: **0 of 10 loads over 50ms**, worst rAF gap **18.6–18.7ms**
 against a 24.7/34.7ms baseline taken before this story landed.
 `MARKET-OVERVIEW.md` §1.1, §1.4 and §9 and `TOPOLOGY.md` carry the fuller
-account; what remains Storybook-only or unbuilt is everything the next six
-stories still own — node size, correlation edges, interaction and live
-updates.
+account; what remains Storybook-only or unbuilt is everything the next five
+stories still own — node size, correlation edges and live updates.
 
 **And since 2026-11-03 the graph's nodes carry what the market is doing,
 not only how it is organised — Story 6.3, the half of this epic's exit
@@ -260,6 +259,61 @@ claim that the topology never varies with the overview aggregate went
 false the moment the sentence started reading live data, and was corrected
 to the real, current boundary rather than the feature being held back to
 avoid disturbing an outdated check.
+
+**And since 2026-11-06 every node is something a reader can interrogate and
+leave from, by pointer and by keyboard — Story 6.4, which makes the graph
+the twenty-fifth-plus destination on this screen rather than a picture.**
+Point at a node and a plate reads its ticker, name, sector and band in the
+same vocabulary `Unusual activity`'s own row uses (one shared builder, and
+for the band one shared TypeScript type, so a second spelling is a compile
+error rather than a review finding). Click to select it: a dark ground
+disc persists under the node (survives the pointer leaving, survives a
+pan), and the plate's ticker becomes the one real, render-resolved anchor
+on this surface — `one-home-for-imperative-navigation` is unchanged, with
+zero `navigate()` calls anywhere in the topology's own files, because the
+anchor's `href` is derived from the selection rather than moved
+imperatively. Click the anchor (or press Enter once Tab has reached it)
+and the security's own page opens; click empty canvas, or press Escape,
+and the selection clears. **The keyboard model is a tree walk, Gate-1
+approved and measured rather than defaulted**: `Down` enters a cluster
+from its sector ETF, `Up` exits the opposite way, `Left`/`Right` move among
+siblings — clamped within a cluster, keyed on ticker never on an index or
+on the band (which updates at feed cadence and must never move a reader's
+position under their stationary hands) — and wrapped around the eleven-
+sector ring, which is drawn as a closed ellipse. A visible focus ring sits
+outside the 16-unit footprint Story 6.3's own annulus reserved, measured
+by difference (snapshot the canvas, change one thing, read the pixels that
+moved) rather than argued: **9.7 → 12.1 CSS px at every width**, clearing
+Story 6.3's own `high` ring by **≈5 px** on three of the four widths this
+product tests, with the fourth left as an honest, unexplained absence
+rather than a guessed pass.
+
+**A screen-reader user gets the identical path, not a degraded one** — the
+first region on this screen to announce on purpose rather than stay
+deliberately silent. A second, persistent, visually-hidden `role="status"`
+paragraph speaks one sentence on a real selection change (never on hover,
+never on a live band update re-reporting the same selection, which would
+otherwise speak at a listener 6.8–16.1 times a minute), separate from the
+graph's own static structural sentence so the two writers never collide.
+**What no person has verified is the one thing that matters most**: no
+one with a real screen reader has heard any of this, which `docs/GAPS.md`
+carries as its eleventh screen-reader-listening entry, with an owner and a
+concrete method, before Epic 11 hands this surface to an agent.
+
+**One real accessibility defect was found and fixed while building this,
+the kind every later story in this repository is asked to look for rather
+than assume away.** `Region`'s existing dropped-focus backstop does not
+fire for this surface, because the selected anchor's removal is driven by
+the topology's own component state rather than by `Region` re-rendering —
+an ordinary mouse movement across a different node could silently drop a
+keyboard reader to `<body>`. Repaired with a narrow recovery path back to
+the canvas (continuity with where `Escape` already returns a reader,
+rather than one level out to `Region`'s own section), independently
+reproduced by a second developer before merge: `document.activeElement`
+read `BODY` with the fix removed, `CANVAS` with it restored. A narrower,
+pre-existing asymmetry in that same recovery guard was found on the same
+review and left as a named, owned `docs/GAPS.md` entry rather than risk an
+unreviewed late change to a focus-management effect.
 
 ### What a user can see today
 
