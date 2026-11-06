@@ -67,6 +67,7 @@ data layer. Write each one when the decision is actually made, not in advance.
 | [0046](0046-what-a-composite-score-is-what-it-refuses-and-where-its-guarantee-ends.md)                                    | What a composite score is, what it refuses, and where its guarantee ends                                    | Accepted |
 | [0047](0047-a-derived-statistic-reads-the-raw-store-and-refuses-rather-than-adjusts.md)                                   | A derived statistic reads the raw store and refuses rather than adjusts                                     | Accepted |
 | [0048](0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md) | The topology renderer chosen by measurement, where the graph model lives, and why the layout is closed form | Accepted |
+| [0049](0049-a-derived-relationship-is-keyed-by-a-canonical-pair-and-the-stored-top-n-is-a-selection.md)                   | A derived relationship is keyed by a canonical pair, and the stored top-N is a selection                    | Accepted |
 
 **0024 was written on 2026-09-11, out of order, and the gap it filled is worth
 remembering.** It was reserved by Story 2.11 and three planning documents cited it by

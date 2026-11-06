@@ -28,6 +28,25 @@ export type {
   PercentileRefusal,
   ReturnBaselineRefusal,
 } from "./return-baseline.js";
+// The pairwise return correlation's vocabulary AND its arithmetic (Task
+// 6.5.1) — the first derived quantity in this product that is about two
+// securities. The arithmetic is here rather than in the backend because a
+// correlation is a pure function of two series and needs no calendar, no grid
+// and no handle; what is deliberately NOT here is the top-N selection, which
+// is a property of a drawn surface and lives beside the pass.
+export {
+  CORRELATION_CONFIDENCE_Z,
+  CORRELATION_LOOKBACK_SESSIONS,
+  CORRELATION_MINIMUM_OVERLAP,
+  CORRELATION_REFUSALS,
+  correlationIsSignificant,
+  pearsonCorrelation,
+} from "./return-correlation.js";
+export type {
+  CorrelationOutcome,
+  CorrelationRefusal,
+  ReturnSeries,
+} from "./return-correlation.js";
 // The volume factor's vocabulary (Task 5.5.4). Six words, one list, because a
 // producer picks one and a browser prints a sentence for it — and no two of
 // them are the same sentence.

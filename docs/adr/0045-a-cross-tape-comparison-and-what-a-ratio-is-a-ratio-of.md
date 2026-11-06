@@ -230,3 +230,52 @@ point the choice is between the settled-session alternative above and no factor.
 **level** and that somebody wants compared across tapes anyway. Decision 1 says
 refuse; if that is ever overridden, it is overridden here rather than in a
 module.
+
+## Amended 2026-11-06 by Task 6.5.1 — where the tape lives for a pairwise correlation, and the bias this choice does NOT address
+
+**Decision 1 permits this comparison and decision 3 does not reach it, and the
+second half is the one worth recording.** A pairwise correlation of two
+securities' 5-minute returns is the clearest **intensive** quantity this product
+has computed: it is a ratio within one tape on both legs, it is scale-free, and
+it survives the two tapes disagreeing about how much of the market they saw.
+Decision 1's test answers it in one line and needs no extension. The
+_"this governs more than volume"_ sentence in the Consequences named Epics 6 and
+9 as the first to meet it; Epic 6 has, and the answer was yes.
+
+**Decision 3 — the tape belongs in the KEY of anything derived from one —
+deliberately does NOT apply to `return_correlations`.** The tape is on the row
+and on the pass row and in neither key, unlike `volume_baselines`'
+`(security_id, observed_at, feed)`. The whole force of decision 3 is in its own
+clause — _a tape choice **that carries a reversal trigger** can flip_ — and
+Story 5.5's Gate 1 chose a same-tape `iex` baseline **with a stated trigger**,
+so a flip against a session-only key would have rewritten every row with
+nothing recording the change. Nothing about this computation carries such a
+trigger: both legs are read on the one tape `BASELINE_FEED` names, in the read
+the price baseline already issues, and there is no candidate second tape and no
+decision pending. The column is kept on the row because invariant 6 is that
+provenance is **displayed, never implied**, and because `0014` §5's rule stands
+— what the pass applied is stored, so a rollback cannot leave a runner and a
+reader two values apart. It is declared `never` on update in `schema.ts`, so an
+upsert that rewrote a row's tape is a **compile error**: a tape change here is a
+recompute, which is the one operation that cannot leave a coefficient and a
+tape label out of step.
+
+**And the bias this choice does not address is named rather than absorbed.** A
+correlation being scale-free makes it safe across tapes; it does **not** make it
+safe across **coverage**. Two securities' 5-minute grids intersect only where
+both printed a bar at the same anchor, and median stored coverage is 82.8% with
+a long thin tail — `ERIE` at 2.1%. So a thinly-traded security's overlap with
+any partner is smaller, its coefficients attenuate toward zero, and a ranking by
+`|r|` is **biased against exactly the securities a reader can least
+independently verify**. Measured on the first real pass: the retained set's
+counted overlap runs **466 to 4,620** with a mean of 4,004, a tenfold spread
+within one generation.
+
+This is accepted rather than repaired — Story 6.5's own Open Decision 2 took it
+explicitly, against a daily-close alternative whose Fisher-z standard error of
+≈0.13 at n = 60 would have made a top-5 selection re-order close to randomly
+from one night to the next. It is **not** the shape decision 1 refuses: the
+quantity is intensive, so no multiplier is being applied and no cross-tape level
+is being compared. It is an **attenuation from sample size**, which the
+significance floor bounds (a thin pair must clear a wider interval) and does not
+remove. `docs/GAPS.md` carries it with an owner and a re-measure condition.

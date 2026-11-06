@@ -1642,6 +1642,212 @@ export interface SessionCompositeScorePassesTable {
   recorded_at: ColumnType<Date, Date | undefined, Date>;
 }
 
+/**
+ * `return_correlations` — the 60-session pairwise correlation of 5-minute
+ * returns between **two** equities, keyed by the session it is FOR and stored
+ * only for the pairs a top-N per node retains (Task 6.5.1). See
+ * `../migrations/0018_return_correlations.sql`, which is the source of truth
+ * this mirrors and which carries the decisions, and
+ * [ADR 0049](../../../docs/adr/0049-a-derived-relationship-is-keyed-by-a-canonical-pair-and-the-stored-top-n-is-a-selection.md),
+ * which is the pair-keyed family's own decision.
+ * [ADR 0044](../../../docs/adr/0044-a-derived-aggregate-is-computed-nightly-and-keyed-by-the-session-it-is-for.md)
+ * is the nightly mechanism, which this **instantiates rather than extends**.
+ *
+ * ## **DERIVED AND RECOMPUTABLE. Recompute with `pnpm baselines`.**
+ *
+ * The **tenth derived table in this schema** — {@link
+ * ReturnCorrelationPassesTable} is the eleventh, counting as ADR 0044's own
+ * amendments do. Changing `N`, the significance
+ * level, the overlap floor, the window, the grid stride, the tape, the
+ * candidate population or the canonicalisation rule is a delete and a re-run,
+ * never a backfill. **`N` is already known to be provisional**: Story 6.5's
+ * Open Decision 1 defers the figure to Task 6.5.3's own measurement, so the
+ * first thing that happens to this table is that every row is recomputed.
+ *
+ * ## The two ways it differs from every derived table before it
+ *
+ * **It is keyed by a PAIR**, which no sibling is, and the pair is canonicalised
+ * on **ticker** rather than on `security_id` — because ids are assigned in
+ * row-insertion order and CI's store and the deployed store disagree about
+ * that order, so an id-ordered key would canonicalise differently between them
+ * with every row well-formed on both (migration §3).
+ *
+ * **A row is a SELECTION rather than a measurement of one subject.** 125,250
+ * candidate pairs produce on the order of 2,500 rows, and the three ways a
+ * pair gets no row — refused, below significance, not retained — are counted on
+ * {@link ReturnCorrelationPassesTable} rather than stored. So counting rows
+ * answers *how many edges did we draw* and nothing else, which is why the
+ * companion row carries two population chains at two grains.
+ */
+export interface ReturnCorrelationsTable {
+  /** `bigint generated always as identity`. {@link SecuritiesTable.id}'s reasoning. */
+  id: GeneratedAlways<string>;
+
+  /**
+   * **The security whose TICKER sorts lower**, and the other one.
+   * `securities.id`, real foreign keys with no `on delete`; `string` because
+   * they are `bigint`s. `never` on update: a row does not change which pair it
+   * describes.
+   *
+   * The canonicalisation is the **writer's**, on tickers, and
+   * The database's own backstop is
+   * `return_correlations_one_row_per_unordered_pair`, a unique index over
+   * `least`/`greatest` of the two ids, which refuses the reverse orientation of
+   * a stored pair **without** needing to know the ticker order. A
+   * `check (security_low_id < security_high_id)` would have refused legitimate
+   * rows, because ticker order and id order are different orders — migration
+   * §3 carries that finding in full.
+   */
+  security_low_id: ColumnType<string, string, never>;
+  security_high_id: ColumnType<string, string, never>;
+
+  /**
+   * **The window's END** — {@link ReturnBaselinesTable.observed_at}'s note
+   * applies unchanged, including why the reserved name is taken deliberately
+   * so Epic 13's plugin covers this table generically. No default.
+   *
+   * `never` on update: with the two security ids, this is the generation — and
+   * it **leads** the unique key here, unlike every sibling, because every read
+   * of this table is *every retained pair of one session* (migration §7).
+   */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **Pearson's `r`, signed**, in `[-1, 1]`. `numeric(18, 6)`, so `string` on
+   * read — README §4's rule with no exception for a number that is not money,
+   * and six decimals is three orders of magnitude finer than the significance
+   * floor at the best `n` this product reaches (0.029 at n = 4,620).
+   *
+   * The **sign** is kept and the **magnitude** is what the ranking uses, which
+   * is {@link SessionReturnPercentilesTable.percent}'s own split: an
+   * anti-correlation is a real relationship, and a reader of the row cannot
+   * recover a sign from a magnitude.
+   */
+  coefficient: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The counted overlap `n`** — grid anchors present in **both** series,
+   * never `60 × 77` and never either leg's own `sample_count`. Median stored
+   * coverage is 82.8%, so an intersection is strictly smaller than either
+   * side. `bigint`, so `string` on read.
+   *
+   * It is on the row because the significance test is a function of both `r`
+   * and `n`, and a reader holding the row cannot re-derive it.
+   */
+  sample_count: ColumnType<string, string | number, string | number>;
+
+  /** What the pass applied, not what a later bundle believes — `0014` §5. */
+  lookback_sessions: ColumnType<number, number, number>;
+  span_minutes: ColumnType<number, number, number>;
+
+  /**
+   * **The tape both legs were read on** — `BASELINE_FEED`'s `sip`. It is on
+   * the row for invariant 6's reason and **not in the key**, which is where
+   * this diverges from {@link VolumeBaselinesTable}: ADR 0045 §3's rule is
+   * about a tape choice carrying a *reversal trigger*, and this computation
+   * carries none. Migration §8.
+   */
+  feed: ColumnType<MarketFeed, MarketFeed, never>;
+
+  /** {@link ReturnBaselinesTable.recorded_at}'s note, unchanged. */
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
+/**
+ * `return_correlation_passes` — one row per pass, so the populations a surface
+ * states are **counted by the pass** rather than by counting the rows that
+ * survived it (Task 6.5.1). ADR 0044's 2026-10-16 generalisation, fifth
+ * application, and the clearest case it has had: the rows are a **selection**,
+ * so counting them says nothing about how many pairs were considered, refused
+ * or cut.
+ *
+ * **Two population chains at two grains**, because a security-grain refusal
+ * removes **~500 candidate pairs at a stroke** and one undifferentiated
+ * `refused` count cannot express that:
+ *
+ * - **security grain, a PARTITION** — `eligible + split_discontinuity +
+ *   absent = tracked`, held by
+ *   `return_correlation_passes_securities_partition`.
+ * - **pair grain, a NESTING** — `retained + below_significance ≤ computed ≤
+ *   candidate`, held by `return_correlation_passes_pairs_nest`, with the two
+ *   refusal counts partitioning the `candidate − computed` gap.
+ *
+ * `below_significance_count` is deliberately **outside** the refusal partition:
+ * *we could not measure this* and *we measured this and it is not
+ * distinguishable from zero* are different facts with different repairs.
+ */
+export interface ReturnCorrelationPassesTable {
+  id: GeneratedAlways<string>;
+
+  /** The window's end, and the natural key: one pass per session. No default. */
+  observed_at: ColumnType<Date, Date, never>;
+
+  /**
+   * **The security grain — three populations that partition.** `tracked` is the
+   * active **equities** (501 today, never spelled), which is
+   * `equityTickers()`' population rather than the wider tracked one, because
+   * no landmark node ever forms a correlation edge (migration §6).
+   *
+   * `bigint`, so `string` on read: README §4's rule for a count.
+   */
+  tracked_equities_count: ColumnType<string, string | number, string | number>;
+  eligible_equities_count: ColumnType<string, string | number, string | number>;
+  /** The price pass's own verdict, inherited rather than re-evaluated. */
+  split_discontinuity_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  /** No stored grid pair at all — CI's permanent state for every equity. */
+  absent_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The pair grain — three populations that nest.** `candidate` is
+   * `C(eligible, 2)` — 125,250 at 501 — counted by the pass rather than
+   * derived by a reader, because `0014` §4's rule is that a surface states its
+   * own denominator.
+   */
+  candidate_pairs_count: ColumnType<string, string | number, string | number>;
+  computed_pairs_count: ColumnType<string, string | number, string | number>;
+  /** In some node's top-N AND significant. The rows this pass wrote. */
+  retained_pairs_count: ColumnType<string, string | number, string | number>;
+
+  /**
+   * **The two pair-grain refusals**, which partition the `candidate −
+   * computed` gap. The vocabulary is `CORRELATION_REFUSALS` in
+   * `packages/shared`; two columns rather than a `jsonb` bag, so a third
+   * member is a migration somebody has to write.
+   */
+  too_few_overlapping_samples_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+  zero_variance_count: ColumnType<string, string | number, string | number>;
+
+  /** **The CUT, which is not a refusal.** See this interface's own note. */
+  below_significance_count: ColumnType<
+    string,
+    string | number,
+    string | number
+  >;
+
+  /**
+   * **The `N` this pass applied.** The one parameter already known to be
+   * provisional — Story 6.5's Open Decision 1 defers the figure to Task
+   * 6.5.3's measurement — so this column is what makes two generations
+   * computed under two values of it tellable apart.
+   */
+  retained_n: ColumnType<number, number, number>;
+
+  /** The rest of what the pass applied; `0014` §5. */
+  lookback_sessions: ColumnType<number, number, number>;
+  span_minutes: ColumnType<number, number, number>;
+  feed: ColumnType<MarketFeed, MarketFeed, never>;
+
+  recorded_at: ColumnType<Date, Date | undefined, Date>;
+}
+
 export interface Database {
   securities: SecuritiesTable;
   market_bars: MarketBarsTable;
@@ -1657,4 +1863,6 @@ export interface Database {
   excess_move_baseline_passes: ExcessMoveBaselinePassesTable;
   session_composite_scores: SessionCompositeScoresTable;
   session_composite_score_passes: SessionCompositeScorePassesTable;
+  return_correlations: ReturnCorrelationsTable;
+  return_correlation_passes: ReturnCorrelationPassesTable;
 }

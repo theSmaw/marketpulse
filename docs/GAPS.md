@@ -6034,3 +6034,73 @@ native context menu over a product's own interactive canvas is a problem is a
 product question, not a correctness one. **Owner: the Product Owner, at this
 story's own Gate 2** — a disposition is owed before Story 6.8 (filtering)
 adds a third kind of press to the same surface.
+
+## A thinly-traded security's correlations attenuate toward zero, so the edge ranking is biased against exactly the securities a reader can least verify
+
+**Added 2026-11-06 by Task 6.5.1, and accepted rather than discovered** —
+Story 6.5's own Open Decision 2 took this trade explicitly at Gate 1 and asked
+for it to be named here rather than silently absorbed.
+
+A pairwise correlation is computed over the anchors **both** securities printed
+a 5-minute grid bar on. Median stored coverage is 82.8% with a long thin tail —
+`ERIE` at 2.1% — so a thinly-traded security's overlap with any partner is
+smaller than a liquid one's, and a correlation measured over fewer shared
+observations **attenuates toward zero**. The edge layer ranks by `|r|`, so the
+securities with the least stored history are systematically the least likely to
+be drawn with an edge at all: a reader looking at the graph sees the most liquid
+names related to each other, and the names they would most want corroboration
+for drawn as isolated.
+
+**Measured on the first real pass** (this developer's populated local store,
+48.8 M bars, 60 sessions ending 2026-09-11): the retained set's counted overlap
+runs **466 to 4,620**, mean **4,004** — a tenfold spread **within one
+generation**. The thin end is not a theoretical tail.
+
+**What is already in place, and why it is not a repair.** The significance floor
+is a two-tailed 95% Fisher-z interval on the pair's **own** counted overlap, so
+it widens as the overlap falls — a pair at `n = 4` needs `|r| > 0.961` and one
+at `n = 4,620` needs `|r| > 0.029`. That **bounds** the damage: a thin pair
+cannot be promoted on noise. It does nothing about the direction of the bias,
+because attenuation moves a thin pair's coefficient **down** and the floor only
+refuses it; neither pushes it back up. There is no honest correction — scaling a
+coefficient by a coverage ratio is the computed adjustment `PROVIDER.md` §3.5
+forbids and ADR 0045 rejected for volume, under the same argument: an applied
+correction's error is invisible.
+
+**And the alternative was rejected on a worse number.** A 60-session
+**daily-close** correlation has a uniform `n = 60` and therefore no coverage
+bias at all — and a Fisher-z standard error of **≈0.13**, so a top-5 selection
+over it re-orders close to randomly from one night to the next, which would make
+a measurement read as a judgement. The 5-minute grid gives SE ≈ 0.015 at the
+ceiling and costs no additional read of `market_bars`.
+
+**Re-measure**, on any store with bars, by reading the pass's own summary line:
+
+```
+pnpm baselines 2>/dev/null | grep "retained correlations"
+```
+
+which prints `|r| <min>–<max>, n <min>–<max> (mean <n>), <k> of <total>
+same-sector (<share>%)`. The figure to watch is the **low end of the `n`
+range**: if it falls further while the retained count holds, the bias is
+growing. On the deployed store, against the generation a session actually drew:
+
+```sql
+SELECT min(sample_count), max(sample_count), avg(sample_count), count(*)
+FROM return_correlations
+WHERE observed_at = (SELECT max(observed_at) FROM return_correlations);
+```
+
+**Not mechanised, and not mechanisable as a `pnpm invariants` entry** — this is
+a claim about the shape of real market coverage, which varies by security and by
+session, not a claim a static check could hold true or false. The nearest
+mechanical thing would be a floor on the retained set's minimum `n`, which is a
+**second** bound on top of the derived one and is exactly the chosen round number
+Story 6.5's AC 4 forbids.
+
+**Owner: the first story that compares correlation strength ACROSS securities of
+very different liquidity** — a surface that says _this security's strongest
+relationship is weaker than that one's_, or a node-size encoding keyed on how
+many edges a node has (Story 6.6 is the nearest candidate, and node size is its
+own). Until then the bias affects which edges are drawn and not any figure a
+reader is shown, because no surface prints a coefficient at all.
