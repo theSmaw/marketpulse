@@ -196,6 +196,48 @@ const FOCUS_RING_RADIUS =
   TOPOLOGY_NODE_FOOTPRINT / 2 + FOCUS_RING_OFFSET + FOCUS_RING_WIDTH / 2;
 
 /**
+ * The dark companion stroke's own width, in CSS pixels — **1, the same
+ * hairline every node's halo is** (2026-11-06).
+ *
+ * `palette.focusRingEdge`'s docblock carries the measurement and the reason
+ * the ring needs two tones at all. This is the geometric half of that
+ * decision, and it has three parts:
+ *
+ * * **1 px rather than 2.** The light ring is the mark and this is its edge,
+ *   which is the halo's own relationship to a node body — so it takes the
+ *   halo's weight. It is also what keeps the total addition to 1 px.
+ * * **Constant under zoom**, like every other stroke this renderer draws.
+ * * **OUTSIDE the light ring rather than inside, and that is the load-bearing
+ *   half.** Inside would have spent the clearance Story 6.3's `extreme` ring
+ *   handed this story by name: {@link FOCUS_RING_RADIUS}'s own note measures
+ *   that gap at 2.5 px at zoom 1 against an `extreme` ring's outer edge of
+ *   7.5, and a 1 px stroke moved inside would take 1.5 px of it. Outside, the
+ *   light ring's inner edge does not move at all, so **the clearance figure
+ *   `scripts/topology-interaction-probe.mjs` reports is unchanged by this
+ *   change by construction** rather than by hoping — which is the whole reason
+ *   the tone was added outward.
+ */
+const FOCUS_RING_EDGE_WIDTH = 1;
+
+/**
+ * Where the dark companion stroke's centre line sits, in CSS pixels at zoom 1
+ * — `FOCUS_RING_RADIUS + FOCUS_RING_WIDTH/2 + FOCUS_RING_EDGE_WIDTH/2` =
+ * **12.5**, so it spans **12 → 13** and butts against the light ring's own
+ * outer edge with no gap and no overlap.
+ *
+ * The one thing it lands on is the selection disc's own 1 px halo stroke,
+ * which straddles radius 12 (11.5 → 12.5) — see
+ * {@link SELECTION_GROUND_RADIUS}. That is accepted for the reason the light
+ * ring's own overlap with it was: this pass is drawn after the disc, so it
+ * paints over that half-pixel rather than being hidden by it, and the halo's
+ * job (separating a dark disc from a dark landmark body) is an interior one
+ * this does not touch. What a reader sees at the disc's edge is the dark
+ * stroke, which is the same value the disc is.
+ */
+const FOCUS_RING_EDGE_RADIUS =
+  FOCUS_RING_RADIUS + FOCUS_RING_WIDTH / 2 + FOCUS_RING_EDGE_WIDTH / 2;
+
+/**
  * Where the anomaly ring sits, beyond the equity ink's own radius — the
  * MIDDLE of the 4 px annulus `The graph at rest.dc.html` §03 reserves,
  * clear of the halo just inside it and the footprint edge Story 6.4's focus
@@ -1138,15 +1180,35 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // Story 6.4.2's measurement of the ground disc being *largely overpainted
     // by its own neighbours* is the evidence that it would happen.
     //
-    // **One ring, because the focused node IS the selected node** — see
-    // `palette.focusRing`'s own docblock for why the design work's second ink
-    // is not written. `focusWithin` rather than a `:focus-visible` read:
-    // focus genuinely sits on either the canvas or the plate's anchor while a
-    // reader walks, and a heuristic that got that wrong would fail by drawing
-    // nothing, which is the one direction nobody can see.
+    // **One ring position, because the focused node IS the selected node** —
+    // and **two tones at that position**, which is the defect this story's own
+    // closing review re-confirmed at 1.01:1: drawn last protects this ring
+    // from being overpainted, and protects it from nothing at all about what
+    // is painted UNDER it, which in a dense cluster is a neighbour's
+    // near-white halo rather than the dark disc the light ink was measured
+    // against. `palette.focusRingEdge` carries the table;
+    // {@link FOCUS_RING_EDGE_RADIUS} carries the geometry and why the dark
+    // tone goes outward rather than inward.
+    //
+    // **The dark stroke first and the light one second**, so where they meet
+    // the light ink — the mark itself — owns the shared half-pixel of
+    // antialiasing rather than being eaten by its own edge.
+    //
+    // `focusWithin` rather than a `:focus-visible` read: focus genuinely sits
+    // on either the canvas or the plate's anchor while a reader walks, and a
+    // heuristic that got that wrong would fail by drawing nothing, which is
+    // the one direction nobody can see.
     if (focusWithin && selected !== null) {
       const at = worldToScreen(view, selected.x, selected.y);
       const radius = FOCUS_RING_RADIUS * nodeScale;
+      const edgeRadius = FOCUS_RING_EDGE_RADIUS * nodeScale;
+
+      context.lineWidth = FOCUS_RING_EDGE_WIDTH;
+      context.strokeStyle = palette.focusRingEdge;
+      context.beginPath();
+      context.moveTo(at.x + edgeRadius, at.y);
+      context.arc(at.x, at.y, edgeRadius, 0, Math.PI * 2);
+      context.stroke();
 
       context.lineWidth = FOCUS_RING_WIDTH;
       context.strokeStyle = palette.focusRing;

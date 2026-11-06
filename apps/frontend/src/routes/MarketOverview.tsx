@@ -201,6 +201,19 @@ export function MarketOverview({
    * universe is this page's dependency rather than one region's context, and
    * the three options are owed a comparison with a measurement.
    *
+   * **It fired, silently, at Task 6.3.3 — found and recorded here at Story
+   * 6.4's close rather than when it happened.** `equitySymbols` below reads
+   * `security.kind`, a second field off the same universe, for the anomaly
+   * band's `unscored` fallback population. The condition's own "at that
+   * point" clause did not follow: `equitySymbols` is a second, independent
+   * `useMemo` over `universe` rather than the universe becoming a page-wide
+   * dependency something else reaches through, so the comparison the trigger
+   * says is owed was never taken. Left as a finding rather than repaired —
+   * two narrow memos reading two different fields off one map is not yet the
+   * shape the trigger was written to catch, and re-deriving the comparison
+   * now, after the fact and with no third reader waiting on it, would be
+   * solving a problem this file does not have.
+   *
    * ## The failure is quiet, by construction
    *
    * `useSecurities` never throws and this route never reads its failure state:

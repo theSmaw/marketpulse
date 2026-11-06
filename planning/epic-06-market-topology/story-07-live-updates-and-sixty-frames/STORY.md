@@ -83,3 +83,41 @@ arriving is marked, and the picture stays smooth while it happens.
 
 Filtering and the degraded set (6.8), the synthetic 5,000-node mode — that is
 Epic 14's, and §27 says so.
+
+## Handed here by Story 6.4's close — 2026-11-06: the reversal condition for whether a selection leaves the topology region, named in advance and aimed at this story
+
+**Story 6.4's Gate 1 decided a selected node is local to the topology
+region only — it does not filter `Unusual activity`, `Movers`, or anything
+else on `/`, and ADR 0023's reversal trigger (_the first piece of state two
+features must agree about that neither owns_) was left deliberately
+unfired.** That decision carries its own stated condition for revisiting
+it, written into Story 6.4's own `STORY.md` rather than only argued in
+passing: **the first story in which two regions on this screen must agree
+about which security the reader is looking at.**
+
+**This story is the most likely one to fire it, by its own subject.** Live
+updates change what a node looks like while a reader may be looking at one
+in particular — if this story's own per-node staleness/arrival treatment
+(Open Decision 2 above) ever needs to know _which node the reader currently
+cares about_ to do something sensible with it (dimming everything else
+while one node updates, say, or pausing a decaying mark on the selected
+node specifically), that is exactly the shape of two regions needing to
+agree about one security that neither owns. **Read Story 6.4's own
+selection mechanism before assuming a new one is needed**: the selection
+itself lives in the RENDERER (`let selected`, `renderer-canvas.ts`) —
+deliberately not in React state, because the renderer needs it anyway to
+draw the selection's own ground disc — and is reported out through
+`TopologyRendererOptions.onSelect`. `MarketTopology.tsx` holds only a
+**derived** value in `useState<Ticker | null>` (`openable`, the answer to
+"is this symbol currently the one real anchor should point at," built by
+`topologyOpenableSymbol` from the renderer's report), never the selection
+itself. If this story needs the selection from outside `MarketTopology`,
+the question is whether to lift the RENDERER's own fact up (to
+`MarketOverview.tsx`, or further) rather than to invent a second selection
+mechanism alongside it — a second home for the same fact is exactly how
+two selections come to disagree, which is the whole reason Story 6.4 kept
+the renderer as the one owner in the first place. If this story's own
+live-update treatment does NOT need to know the selection, say so
+explicitly and leave the condition unfired for the next story — the
+trigger is a condition, not a deadline, and firing it without a real need
+is the thing Story 6.4's own Gate 1 declined to do.

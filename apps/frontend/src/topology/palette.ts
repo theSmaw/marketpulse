@@ -137,8 +137,12 @@ export interface TopologyPalette {
   readonly selectionGround: string;
   /**
    * The focus ring drawn around the node a keyboard reader is on (Task
-   * 6.4.3) — `--ink-inverse`, and **one ink rather than the two the design
-   * work specified**.
+   * 6.4.3) — `--ink-inverse`, the **light** half of a two-tone ring whose
+   * dark half is {@link TopologyPalette.focusRingEdge}.
+   *
+   * **It was one ink until 2026-11-06 and the paragraph below is why that was
+   * wrong** — kept rather than rewritten, because the reasoning was sound and
+   * the premise it rests on is the thing that turned out to be false.
    *
    * The canvas's treatment names two, *light ink on the pale ground and
    * `--ink-inverse` on the dark selected ground*, because it was drawn
@@ -152,12 +156,74 @@ export interface TopologyPalette {
    * no mechanism behind it; the day a focus position can outlive a
    * selection, it is one field and the measurement is recorded here.
    *
-   * Measured against `--surface-inverse`: **14.6:1**, so ADR 0026's standing
-   * exception does not fire. It is not the sole encoding either way — the
-   * dark ground disc and the readout plate's words both carry the state, and
-   * the ring survives `grayscale(1)` on value alone.
+   * **The false premise is _always drawn inside the dark disc_.** The disc is
+   * drawn FIRST in the frame and every later pass paints over it, which is
+   * Task 6.4.2's own deliberate order — so inside a crowded cluster
+   * (`TECHNOLOGY`, ~20 overlapping neighbours each carrying a 1 px
+   * `--surface-raised` halo) the neighbours' bodies and halos cover most of
+   * the disc, and this ring, drawn last, lands on near-white halo rather than
+   * on the dark ground it was measured against. Task 6.4.3 flagged it and
+   * routed it as a question of treatment; this story's own closing review
+   * re-confirmed it by driving the real app, at **1.01:1** in spots, which is
+   * not a question of treatment but a ring nobody can see.
+   *
+   * Measured against `--surface-inverse` (`#eef0f5` on `#181c23`, the
+   * WCAG relative-luminance formula applied directly to the shipped
+   * tokens): **14.98:1** — corrected 2026-11-06 at this story's close from
+   * an unreproducible **14.6:1** this docblock carried until then. Either
+   * figure clears ADR 0026's standing-exception floor by roughly 5×, so
+   * nothing about the verdict moved; only the number was wrong, caught by
+   * recomputing it rather than re-citing it. It is not the sole encoding
+   * either way — the dark ground disc and the readout plate's words both
+   * carry the state, and the ring survives `grayscale(1)` on value alone.
    */
   readonly focusRing: string;
+  /**
+   * The focus ring's **dark** companion stroke, drawn immediately outside the
+   * light one — `--ink-primary` (2026-11-06).
+   *
+   * ## Why a second tone rather than a different one
+   *
+   * {@link TopologyPalette.focusRing}'s own note has the defect: in a dense
+   * cluster the selection disc is largely overpainted by its neighbours, so
+   * the ground under this ring is **unknown**. The standing answer to *a mark
+   * must be legible against a ground it cannot know* is a mark carrying both
+   * tones, so that whichever ground arrives, one half of it contrasts — the
+   * same reasoning as the 1 px `halo` every node already carries, and the
+   * same reasoning as the platform's own two-tone focus indicators. A single
+   * ink cannot be chosen here at all: this picture's grounds run from
+   * `--surface-inverse` (#181c23) to `--surface-raised` (#ffffff), which is
+   * every value there is.
+   *
+   * Measured by the WCAG relative-luminance formula over the shipped tokens,
+   * against the two grounds that actually occur:
+   *
+   * | ground                           | `focusRing` (#eef0f5) | `focusRingEdge` (#181c23) |
+   * | -------------------------------- | --------------------- | ------------------------- |
+   * | `--surface-inverse`, the disc    | **14.98:1**           | 1.00:1                    |
+   * | `--surface-raised`, a halo       | 1.14:1                | **17.08:1**               |
+   * | `--chart-grid`, an edge          | 1.11:1                | **13.47:1**               |
+   * | `--chart-volume`, an equity body | 3.07:1                | **4.88:1**                |
+   * | `--anomaly-high`, a band ring    | 1.69:1                | **8.89:1**                |
+   *
+   * The diagonal is the claim: **on every ground this picture can put under
+   * the ring, the better of the two tones clears 4.88:1** — so the ring's own
+   * floor is that figure rather than the 1.01:1 the reviewer photographed,
+   * and the worst case is the mid-value equity body, which is exactly the
+   * ground a single ink of either polarity cannot serve.
+   *
+   * ## `--ink-primary` rather than a new token, and no hue
+   *
+   * It is the ink this renderer already draws the fifteen landmark nodes in,
+   * and it is byte-identical to `selectionGround`'s `--surface-inverse` — so
+   * the dark half of the ring is the same value as the ground the light half
+   * was designed against, which is what makes the pair read as one mark
+   * rather than as two rings. No hue, for `hoverGround`'s and
+   * `anomalyElevated`'s standing reason: this picture's entire colour budget
+   * is the anomaly ramp, and the ring survives `grayscale(1)` on value alone
+   * — twice over now, in both directions.
+   */
+  readonly focusRingEdge: string;
 }
 
 /**
@@ -242,5 +308,6 @@ export function topologyPalette(): TopologyPalette {
     hoverGround: tokens["--surface-sunken"],
     selectionGround: tokens["--surface-inverse"],
     focusRing: tokens["--ink-inverse"],
+    focusRingEdge: tokens["--ink-primary"],
   };
 }

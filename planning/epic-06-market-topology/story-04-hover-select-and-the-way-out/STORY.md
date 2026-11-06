@@ -147,9 +147,19 @@ not a blank canvas.** `fit.ts`'s `TopologyView` (pan, zoom, a clamped
 viewport) and `renderer-canvas.ts`'s `nodeAt()` hit-test already exist and
 are reused rather than rebuilt: pan is drag, zoom is `ctrl`/`⌘` + wheel, and
 a plain wheel scrolls the page (`touch-action: pan-y`) — a hover or a
-keyboard-driven selection must not fight either gesture, and `nodeAt`'s own
-16-unit footprint threshold (not the 8–12-unit ink) is already sized to be
-the thing a cursor or a focus ring targets.
+keyboard-driven selection must not fight either gesture, and ~~`nodeAt`'s
+own 16-unit footprint threshold (not the 8–12-unit ink) is already sized to
+be the thing a cursor or a focus ring targets~~ — **false, measured and
+corrected 2026-11-04 by Task 6.4.1.** `nodeAt` compared in **layout units**
+(8, half the footprint) against a mark drawn in **constant CSS pixels**, so
+the hit radius shrank with the container's fit scale while the ink did not
+— at 390 the targetable radius was ≈1.3 px under an 8 px-wide mark, three
+times narrower than what a reader could see, and it was narrower than the
+ink at **every** width, not only the narrowest. Task 6.4.1 repaired the
+comparison to screen pixels (`apps/frontend/src/topology/hit-test.ts`),
+measured at all four widths with `pnpm probe` rather than argued; the
+annulus the paragraph below reserves is genuinely targetable only since
+that fix.
 
 **`Reset view` (`MarketTopologyHandle.resetView`) is a shared control, not
 this story's to re-invent.** It already exists, wired to a button in
@@ -175,13 +185,20 @@ draw a ring centred in it, and `extreme` additionally recolours the node's
 own fill — and **this story's focus/selection ring must be drawn OUTSIDE
 the 16-unit footprint**, not layered into the same 4 px.
 
-**This costs nothing at the hit-test layer.** `nodeAt()`
-(`renderer-canvas.ts`) already targets the 16-unit **footprint** rather
-than the 8–12-unit ink, specifically so the 4 px annulus would be
-targetable by a cursor or a focus ring — which this story's own earlier
-note above already says. A focus treatment sitting outside the footprint
-needs no change to that threshold; it only needs its own geometry to start
-at radius 8 (half the footprint) rather than at the ink's own edge.
+**This costs nothing at the hit-test layer** — true once the fix above
+landed, false as originally argued. ~~`nodeAt()` (`renderer-canvas.ts`)
+already targets the 16-unit **footprint** rather than the 8–12-unit ink,
+specifically so the 4 px annulus would be targetable by a cursor or a
+focus ring~~ — **the footprint was the right thing to target; the
+comparison that targeted it was in the wrong units, which this story's
+earlier note above now corrects.** A focus treatment sitting outside the
+footprint needed no change to **which** threshold applies, only to the
+units the repaired threshold is measured in; it still needs its own
+geometry to start at radius 8 (half the footprint) rather than at the
+ink's own edge, and Task 6.4.3 drew it there, measured against Story 6.3's
+own ring at three of the four widths (`TASK-03-the-keyboard-model.md`'s own
+record carries the fourth as an honest, unexplained absence rather than an
+argued pass).
 
 **One finding from building the ring worth inheriting directly, since this
 story's own focus ring will face the identical question**: node ink is

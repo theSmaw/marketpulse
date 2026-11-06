@@ -5839,6 +5839,14 @@ treatment may also want head-slot room) — add the assertion in the same
 change if the header's own geometry is already being touched, since the
 measurement will need re-taking then regardless.
 
+**Candidate checked and not touched, 2026-11-06 at Story 6.4's close.**
+That story's own focus/selection treatment stayed entirely inside
+`MarketTopology`'s own frame (a readout plate, bottom-left inside the
+canvas's own box) rather than in the region's `meta` slot where `Reset
+view` and this legend sit — `MarketOverview.module.css` was not touched by
+any of Story 6.4's five tasks. The owner clause stands unfired, for the
+next story that genuinely does touch this header.
+
 ## The topology's real anomaly-band distribution is one measurement, on one local store, from one session
 
 **Added 2026-11-03 by Task 6.3.5, closing Story 6.3.**
@@ -5880,3 +5888,149 @@ session by definition, not a claim a static check could hold true or false.
 distribution** (Epic 7's own hand-off above is the most likely first
 reader) — re-take it against the deployed store rather than citing this
 one instant forward.
+
+## ~~The topology's hover/selection readout has never shown a real band word, on any machine~~ — DISCHARGED the same day
+
+**Added 2026-11-06 by Task 6.4.5, closing Story 6.4 — and discharged hours
+later by the same task, while photographing an unrelated defect.** Driving the
+running pair against this developer's local store, the plate was read three
+times with a real composite score behind it: `STZ / Consumer Staples /
+ELEVATED` and `WMT / Consumer Staples / NORMAL` by pointer, and `ADBE /
+Technology / HIGH` by the keyboard walk — all three photographed at 3×, none of
+them an authored frame. So the specific claim below is false: a real `high`
+band has reached this specific DOM element on a real store. **What is NOT
+discharged is `extreme`, and `Not scored yet` against a store that has scores
+for some equities and not others.** The entry is kept in full below, struck
+rather than deleted, because the reasoning is still the right reasoning for
+those two and because _the measurement was taken by going to USE the surface
+rather than by reading about it_, which is this repository's own recurring
+lesson arriving on an entry four hours old.
+
+AC 1 reads a scored equity's band into the plate — `elevated`, `high`,
+`extreme`, or the stated absence `Not scored yet` — and the browser specs
+that assert this (`overview-market-topology-hover.spec.ts`) author the band
+through `serveFeed`/`sendOverview`, reusing Story 6.3's own mocking
+mechanism, precisely because no gated store can produce a real one: CI has
+zero bars and no composite generation, and the local developer store this
+epic has otherwise drawn real bands from (Task 6.3.5's own distribution
+entry, immediately above this one) was not exercised through the hover
+plate specifically while writing this story — every manual check recorded
+in Tasks 6.4.1–6.4.4 either used an authored frame or found the local
+store returning `unscored` for the equity under the pointer at the time.
+
+So the chain is real (the vocabulary is shared with `Unusual activity`'s
+own builder, proved by the same tests that prove everything else about
+this surface) but the specific claim _a reader who hovers a real `high` or
+`extreme` equity sees the right word in this plate_ has been exercised
+only against an authored frame, never against a real composite score
+reaching this specific DOM element. Task 6.3.5's own entry already covers
+the ring, the legend, and the accessible sentence seeing a real band on one
+local store and one session; this entry is narrower and newer — the
+**readout plate** specifically, which did not exist until this story.
+
+**Re-measure**: open `/` against a store with real `session_composite_scores`
+rows (the same local Postgres instance Task 6.3.1 used, or the deployed
+store once Epic 5's nightly pass has run against it), hover an equity this
+epic's own composite score has marked `high` or `extreme`, and read the
+plate's own `band` line — it must show the word, not `Not scored yet`.
+
+**Not mechanised** — the same reasoning as Task 6.3.5's own entry: this
+needs a real store with real scores, which no gated run produces and which
+an authored frame can only simulate rather than prove. **Owner: whichever
+later story next sits in front of a real composite-scored store with this
+region on screen** — the deployed-store sitting `LIVE-REHEARSAL.md` already
+owes Epic 5's own composite score (row 5.6) is the natural first occasion,
+since it already requires exactly this precondition.
+
+## The topology's readout plate still covers real nodes, and translucency only makes them perceivable rather than legible
+
+**Added 2026-11-06 by Task 6.4.5, closing Story 6.4 — a defect a UX reviewer
+found by driving the real running app, and one nothing mechanical can see.**
+
+`MarketTopology.module.css`'s `.readout` is a 288×98 card positioned inside the
+canvas's own frame, bottom-left. The renderer's `fitView`/`measure()`
+(`apps/frontend/src/topology/fit.ts`, `renderer-canvas.ts`) fit the **entire**
+frame box; neither has any notion that part of that box is covered. Counted
+against the shipped layout: **14 securities sit behind the plate at 1440, 46 at
+1024, 64 — 12.7% of the universe — at 768, and 0 at 390**, where the plate's own
+`100% - 2 * --space-8` cap puts it clear of the fitted graph. A reader can
+select one of them — by the keyboard walk, or by pointing through the plate's
+`pointer-events: none` — and then see neither its selection ring nor its ground
+disc, because the card describing it is drawn over it.
+
+**What shipped is a mitigation, chosen deliberately over the two real fixes.**
+The plate's ground became `color-mix(in srgb, var(--surface-raised) 80%,
+transparent)` — the first translucent colour anywhere in `apps/frontend/src` —
+so whatever the canvas drew behind it survives as a wash. The 80% is measured
+(the table is in that rule's own docblock) and the binding constraint turned out
+**not** to be the type: `--ink-secondary`, this plate's palest ink, is still
+6.14:1 over a field of solid `--ink-primary` at 80%. What binds is the other
+side — a node's own perceivability against the plate's ground reaches only
+**1.232:1**, and the selection ring against its own disc only **1.480:1**.
+
+**So the residue is this: a node behind the plate is now perceivable and is
+still not legible.** Its ticker label, its anomaly band and the direction of its
+ring are all unreadable through the card, and at 768 that is true of 64
+securities at once. The two fixes that would actually close it are both larger
+than this change:
+
+- **Carve the plate's footprint out of the fitted viewport**, so the graph is
+  never laid out under it. This reworks `fitView`'s symmetric centring and
+  everything that reads it — the pan clamp, the zoom clamp, `reviewport` — and
+  moves where the whole graph sits on screen at every width, which is a visible
+  change to a picture three stories have measured.
+- **Move the plate out of the canvas into a reserved row beneath it.** This
+  changes the region's own height budget, which Stories 5.4 and 6.2 each
+  measured and asserted against `MarketOverview.module.css`'s grid, and
+  `MARKET-OVERVIEW.md` §1.4's trigger has already fired on this region twice.
+
+**Re-measure**: `pnpm probe / --within "Market topology"` for the plate's box,
+then count nodes under it — the figures above were counted at 1440, 1024, 768
+and 390 against the shipped layout; and look at a 3× crop of the plate with a
+node selected behind it, which is the only way to judge whether 80% is the right
+trade.
+
+**Not mechanised, and it is not obvious that it can be.** Nothing below a
+browser computes a layout, and nothing in this repository compares two drawings
+of the topology (see the screenshot-diff entry above) — so _a card is covering
+part of a picture_ is a judgement a person makes by looking. **Owner: the first
+story that changes what this region's canvas is fitted into** — a node-size
+encoding (Story 6.6), a correlation-edge pass (6.5) or live updates (6.7) each
+touch the fit, and the carve-out belongs with whichever of them moves it first.
+
+## A canvas node now carries a second, unauthored affordance: the browser's own context menu
+
+**Added 2026-11-06 by Task 6.4.5, closing Story 6.4 — flagged at Task 6.4.2's
+own close, routed here rather than decided, because nobody ever took the
+decision it asked for.**
+
+Before Task 6.4.1 the topology was a picture; nothing on it responded to a
+press at all. Since Task 6.4.2 a node is pressable, and `canvas` elements get a
+browser's native `contextmenu` ("Save image as…", "Inspect") for free, on a
+right-click or a long-press, with no code in this product asking for it.
+Task 6.4.2's own record named this in as many words — _"worth a decision
+somewhere in this story rather than here, since it is now a second, unauthored
+affordance on a surface AC6 is explicit about having exactly one"_ — and no
+later task in this story (6.4.3, 6.4.4, or this one) took it up. **This is an
+open decision reaching the story's own close undecided, not a new finding.**
+
+AC6 refused a second **product** affordance (`Investigate`) on exactly this
+reasoning — a row, or a node, has one activatable thing, and a second is two
+answers to what a press does. A native OS/browser menu is not that same kind
+of thing (it is not drawn by this product, is not reachable by keyboard, and
+is identical to what any other canvas on the web offers), but it is still a
+second response to the same press a selection now answers, and nothing has
+ever asked whether that is acceptable, confusing, or worth suppressing with
+`onContextMenu={e => e.preventDefault()}`.
+
+A second, smaller finding travels with it, same task: `onPointerDown` does not
+filter `event.button`/`isPrimary`, so a right-click also selects the node
+underneath, alongside opening the menu above it — a pre-existing shape (a drag
+answered the same way before this story), newly consequential now that a
+press commits to something.
+
+**Not mechanised, and a judgement call rather than a defect**: whether a
+native context menu over a product's own interactive canvas is a problem is a
+product question, not a correctness one. **Owner: the Product Owner, at this
+story's own Gate 2** — a disposition is owed before Story 6.8 (filtering)
+adds a third kind of press to the same surface.

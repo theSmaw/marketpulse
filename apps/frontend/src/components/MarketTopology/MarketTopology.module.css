@@ -240,6 +240,63 @@
  * it OFF the canvas — the renderer would fire `pointerleave`, the plate would
  * blank, and the pointer would then be over the canvas again. A flickering
  * readout, from an element whose whole job is to be read.
+ *
+ * ## The ground is TRANSLUCENT, and it is the only translucency in this tree
+ *
+ * **Found by a person looking at the real running app at this story's close,
+ * and invisible to everything mechanical.** The plate is 288x98 of opaque
+ * `--surface-raised` in the canvas's own bottom-left corner, and the canvas's
+ * `fitView`/`measure()` fit the ENTIRE frame box with no idea that a card
+ * covers part of it - so the plate sits on top of real nodes. Counted against
+ * the shipped layout: **14 securities hidden behind it at 1440, 46 at 1024,
+ * 64 (12.7% of the universe) at 768, 0 at 390**, where the plate's own
+ * `100% - 2 * --space-8` cap puts it clear of the fitted graph. A reader can
+ * select one of them - by the keyboard walk, or by pointing through
+ * `pointer-events: none` - and then see neither its selection ring nor its
+ * ground disc, because the card describing it is drawn over it.
+ *
+ * `color-mix(..., transparent)` on the background rather than `opacity` on the
+ * element: `opacity` fades the five lines of type with the ground, which
+ * trades the defect for a worse one. **It is the first translucent colour in
+ * `apps/frontend/src` - grepped before it was written, and there is no
+ * `color-mix`, no `rgba(`, no alpha hex and no `backdrop-filter` anywhere in
+ * this tree.** No blur travels with it for that reason: a `backdrop-filter`
+ * would be a second new CSS feature bought for a card nobody has asked to
+ * frost.
+ *
+ * **80%, and the number is measured rather than taken.** The WCAG
+ * relative-luminance formula applied to the shipped tokens, with the plate
+ * composited over each thing the renderer can draw behind it:
+ *
+ * | plate | `--ink-secondary` over a landmark field | over an equity field | an equity vs the plate's own ground | the selection ring vs its disc |
+ * | ----- | --------------------------------------- | -------------------- | ---------------------------------- | ------------------------------ |
+ * | 100%  | 9.32:1                                  | 9.32:1               | **1.000:1**                        | **1.000:1**                    |
+ * | 90%   | 7.63:1                                  | 8.41:1               | 1.108:1                            | 1.207:1                        |
+ * | 85%   | 6.86:1                                  | 7.98:1               | 1.168:1                            | 1.334:1                        |
+ * | 80%   | **6.14:1**                              | 7.56:1               | **1.232:1**                        | **1.480:1**                    |
+ * | 70%   | 4.84:1                                  | 6.77:1               | 1.377:1                            | 1.851:1                        |
+ *
+ * **The type is not the binding constraint and that was the surprise** - the
+ * worst reading in the table is `--ink-secondary` (the sector and the band,
+ * this plate's palest ink) over a field of solid `--ink-primary`, and at 80%
+ * it is still 6.14:1 against a 4.5:1 floor, with ~7.6:1 for the realistic
+ * case of overlapping equity discs. What binds is the other direction: a
+ * node's own perceivability only reaches 1.232:1 at 80%, and buying much more
+ * of it means spending the type's headroom down towards the floor. 90% was
+ * drafted first and rejected by looking at a 3x crop: at 1.108:1 - a figure
+ * this repository's own greyscale rule calls *hue is the entire difference* at
+ * 1.04:1 - the node behind the plate reads as nothing at all.
+ *
+ * **So this is a MITIGATION and this docblock says so rather than implying a
+ * repair.** A node behind the plate is now perceivable; it is not legible, and
+ * its anomaly band certainly is not. The two real fixes - shrinking the
+ * canvas's fitted viewport to carve out the plate's footprint, or moving the
+ * plate into a reserved footer row below the canvas - are both out of scope
+ * here, one because it reworks `fitView`'s symmetric centring (and the pan and
+ * zoom clamps that read it) and one because it changes this region's own height
+ * budget, which Stories 5.4 and 6.2 each measured and asserted against
+ * `MarketOverview.module.css`'s grid. `docs/GAPS.md` carries the residue with
+ * its own condition.
  */
 .readout {
   position: absolute;
@@ -253,7 +310,8 @@
   inline-size: min(calc(100% - 2 * var(--space-8)), 18rem);
   padding: var(--space-8);
   overflow: hidden;
-  background: var(--surface-raised);
+  /* See the table above: 80%, measured, and a mitigation rather than a fix. */
+  background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
   border: 1px solid var(--rule-hairline);
   pointer-events: none;
 }
