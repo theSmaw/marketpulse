@@ -1,4 +1,4 @@
-import { SECTOR_LABELS } from "@marketpulse/shared";
+import { SECTOR_LABELS, TOPOLOGY_HUB } from "@marketpulse/shared";
 import type {
   SecuritiesResponse,
   Security,
@@ -11,6 +11,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
+import { expectNoAxeViolations } from "../support/axe.js";
 import { serveFeed } from "../support/feed.js";
 import { backendOrigin } from "../support/pair.js";
 
@@ -900,6 +901,331 @@ test("activating the one anchor produces exactly one outcome — AC 6's determin
   await expect(
     page.getByRole("heading", { level: 1, name: /Security Explorer/u }),
   ).toBeVisible();
+
+  await expectNothingFailedToRender(page);
+});
+
+// ---------------------------------------------------------------------------
+// **The accessible path** (Task 6.4.4) — what this region ANNOUNCES, where
+// focus goes when the one anchor is taken away, and the one case nothing below
+// a browser can see: pointer and keyboard interleaved.
+//
+// ## Why here rather than in the keyboard spec
+//
+// Two of the three subjects below need **real coordinates** — a pointer has to
+// hover a specific node and then the keyboard has to walk to a different one —
+// and {@link discoverNodes} is the expensive apparatus that produces them. The
+// keyboard driving it needs in return is `tabToCanvas` and `focused`, which are
+// thirty lines; `discoverNodes` is sixty and is this file's own docblocked
+// account of why the sweep is synthetic and every assertion is not. Moving the
+// cheap half beats copying the expensive one.
+//
+// ## What `axe` is and is not, recorded explicitly because the task asks
+//
+// `expectNoAxeViolations` is a **gate and a floor, never coverage** —
+// `e2e/support/axe.ts`' own docblock argues this at length and Story 1.9's
+// rejection of an axe pass as accessibility coverage stands unchanged. What it
+// can see here is contrast against the real cascade and the whole-document
+// rules a Storybook fragment structurally cannot satisfy. What it cannot see is
+// every claim this task is actually about: whether a `role="status"` region
+// empty on mount and later filled is **spoken at all**, whether an unprompted
+// polite update queues behind a sentence in progress or replaces it, and
+// whether six facts arriving as one sentence are pleasant to listen to. Those
+// are a person with a real screen reader's, and `docs/GAPS.md` carries them.
+
+/** The region's one announcement region — Task 6.4.4's own element. */
+const announcement = (page: Page) =>
+  topologyRegion(page).locator('p[role="status"]');
+
+/**
+ * The active element, as `tagName` and the ticker it carries if it is the one
+ * anchor — `overview-market-topology-keyboard.spec.ts`' own helper, because
+ * *where focus landed* is the one thing only this level can see.
+ *
+ * Read in one `evaluate` rather than through two locators, because the claim is
+ * about one instant and two round trips can straddle a focus move.
+ */
+async function focused(
+  page: Page,
+): Promise<{ readonly tag: string; readonly ticker: string | null }> {
+  return page.evaluate(() => {
+    const element = document.activeElement;
+    return {
+      tag: element === null ? "none" : element.tagName,
+      ticker:
+        element instanceof HTMLElement
+          ? (element.dataset.ticker ?? null)
+          : null,
+    };
+  });
+}
+
+/**
+ * Walk `Tab` from the region's own `<section>` until the canvas has focus.
+ *
+ * `Tab` rather than `canvas.focus()`: a tab stop a reader cannot reach by
+ * tabbing is not a tab stop.
+ */
+async function tabToCanvas(page: Page): Promise<number> {
+  await topologyRegion(page).focus();
+
+  for (let stops = 1; stops <= 4; stops += 1) {
+    await page.keyboard.press("Tab");
+    if ((await focused(page)).tag === "CANVAS") return stops;
+  }
+
+  throw new Error("Tab never reached the topology canvas from its own region");
+}
+
+/** Press a key and wait for the plate to name `expected`. */
+async function pressFor(
+  page: Page,
+  key: string,
+  expected: string,
+): Promise<void> {
+  await page.keyboard.press(key);
+  // **Polled, never read once** — Task 6.4.2's own lesson: the plate is
+  // written synchronously from the renderer's callback but the React commit
+  // that replaces the ticker element with an anchor is not.
+  await expect.poll(() => plateLine(page, "ticker")).toBe(expected);
+}
+
+/** Open `/` with a quiet feed and bring the region into view. */
+async function openForAccess(page: Page): Promise<void> {
+  await serveFeed(page, { overview: overviewWith(undefined) });
+  await page.goto(OVERVIEW);
+  await expect(topologyCanvas(page)).toBeVisible();
+  await topologyCanvas(page).scrollIntoViewIfNeeded();
+}
+
+test("the announcement region is one hidden live region, silent until a selection changes", async ({
+  page,
+}) => {
+  const universe = await securities(page);
+  await openForAccess(page);
+
+  // **Exactly one, and it is a `status`.** Two live regions in one place is
+  // `FRONTEND-STATE.md` §7's hazard — two regions updated in the same moment,
+  // queued in an order no component controls.
+  await expect(announcement(page)).toHaveCount(1);
+  await expect(announcement(page)).toHaveAttribute("role", "status");
+
+  // **Silent on arrival**, which is what stops a page the reader has only just
+  // opened announcing something.
+  await expect(announcement(page)).toHaveText("");
+
+  // **And it takes no room, which is the one thing only a browser can see.**
+  // `composes: visuallyHidden` is a class-name concatenation resolved by
+  // stylesheet order (CLAUDE.md's own named trap), and a CSS-module typo is
+  // completely silent below here — it typechecks, lints, builds and renders
+  // the sentence in the middle of the graph.
+  const box = await announcement(page).boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.width).toBeLessThanOrEqual(2);
+  expect(box?.height).toBeLessThanOrEqual(2);
+
+  const found = await discoverNodes(page);
+  const { security, at } = pick(found, universe, "equity");
+
+  // **Hover says nothing**, at pointer-move cadence and at rest.
+  await page.mouse.move(at.x, at.y);
+  await expect.poll(() => plateLine(page, "ticker")).toBe(security.symbol);
+  await expect(announcement(page)).toHaveText("");
+
+  // **Selecting speaks**, and the sentence is grounded against
+  // `GET /securities` fetched by this spec rather than against the page.
+  await clickAt(page, at);
+  // **A throw rather than a `?? "technology"` fallback.** An equity with no
+  // sector is not a state this universe has, and the alternative spelling
+  // would turn one into an assertion against somebody else's sector label —
+  // green on an expectation nobody wrote, which is this suite's own named
+  // trap one file over.
+  const sector = security.sector;
+  if (sector === null)
+    throw new Error(`${security.symbol} is an equity with no sector`);
+
+  await expect
+    .poll(() => announcement(page).textContent())
+    .toBe(
+      `Selected ${security.symbol}, ${security.name}, ` +
+        `${SECTOR_LABELS[sector]}, Not scored yet.`,
+    );
+
+  // **The structural sentence is untouched** — two imperative writers, two
+  // nodes, and this is the only level both are visible in one DOM.
+  await expect(
+    topologyRegion(page).getByText(/^A graph of every security we track/u),
+  ).toHaveCount(1);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("pointer and keyboard interleaved — the keyboard's node is the one that opens, AC 7", async ({
+  page,
+}) => {
+  const universe = await securities(page);
+  await openForAccess(page);
+
+  const found = await discoverNodes(page);
+  const { security: hoveredOnly, at } = pick(found, universe, "equity");
+
+  // **1. A real pointer hovers node X.** Nothing is selected yet, so there is
+  // nothing to open and nothing to announce.
+  await page.mouse.move(at.x, at.y);
+  await expect.poll(() => plateLine(page, "ticker")).toBe(hoveredOnly.symbol);
+  await expect(announcement(page)).toHaveText("");
+  await expect(tickerAnchor(page)).toHaveCount(0);
+
+  // **2. The keyboard takes over and walks to a DIFFERENT node.** The first
+  // key seeds the centre of the market, whichever key it is — `TOPOLOGY_HUB`
+  // comes from `@marketpulse/shared`, not from the page.
+  await tabToCanvas(page);
+  await page.keyboard.press("ArrowDown");
+  // **Polled on the ANNOUNCEMENT rather than on the plate, and that is the
+  // state this test exists for.** The plate shows `hovered ?? chosen`, so
+  // while the pointer is still physically over X the ticker line reads X —
+  // not the node the key just selected. The announcement is the selection's
+  // own observable, which is what makes it readable here at all.
+  await expect
+    .poll(() => announcement(page).textContent())
+    .toContain(`Selected ${TOPOLOGY_HUB},`);
+  expect(TOPOLOGY_HUB).not.toBe(hoveredOnly.symbol);
+
+  // **The two states coexist and the plate shows the one it is supposed to.**
+  // The pointer is still physically over X; the selection is the hub. The
+  // plate shows the HOVERED node — so the ticker on screen is X — and there is
+  // therefore NO anchor, because an anchor here would be a destination the
+  // reader cannot see (`topologyOpenableSymbol`'s third case).
+  //
+  // This is the state-collision case nothing below a browser can produce: it
+  // needs a real pointer position and a real key press to exist at once.
+  await expect(tickerAnchor(page)).toHaveCount(0);
+  expect(await plateLine(page, "ticker")).toBe(hoveredOnly.symbol);
+
+  // **3. Move the pointer off the graph**, which is what a reader who has
+  // switched to the keyboard does without thinking about it. The plate
+  // returns to the SELECTION rather than to the idle instruction, and the
+  // anchor comes back.
+  await page.mouse.move(at.x, at.y - 400);
+  await expect.poll(() => plateLine(page, "ticker")).toBe(TOPOLOGY_HUB);
+  await expect(tickerAnchor(page)).toHaveCount(1);
+  await expect(tickerAnchor(page)).toHaveAttribute(
+    "href",
+    `/securities/${TOPOLOGY_HUB}`,
+  );
+
+  // **4. `Enter` opens the KEYBOARD's node.** Focus is back on the anchor, so
+  // this is the browser's own activation of an `<a href>`.
+  await expect
+    .poll(() => focused(page))
+    .toStrictEqual({
+      tag: "A",
+      ticker: TOPOLOGY_HUB,
+    });
+  await page.keyboard.press("Enter");
+
+  await expect.poll(() => pathNow(page)).toBe(`/securities/${TOPOLOGY_HUB}`);
+  // **Not the node the pointer was over**, which is the whole assertion.
+  expect(pathNow(page)).not.toBe(`/securities/${hoveredOnly.symbol}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: /Security Explorer/u }),
+  ).toBeVisible();
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a pointer crossing a different node does not drop a keyboard reader to the body", async ({
+  page,
+}) => {
+  // **The defect Task 6.4.4 found, from the one level it is reachable at.**
+  // `renderer-canvas.ts`' `Escape` handler claimed `Region`'s dropped-focus
+  // backstop catches an anchor removed under a focused reader; it does not —
+  // the removal is driven by `MarketTopology`'s own state, so `Region` never
+  // re-renders and its layout effect never runs again. The reachable gesture
+  // is not `Escape` (already covered) but a plain mouse movement over a
+  // different node while a keyboard reader holds the anchor.
+  const universe = await securities(page);
+  await openForAccess(page);
+
+  const found = await discoverNodes(page);
+  const { security: other, at } = pick(found, universe, "equity");
+
+  await tabToCanvas(page);
+  await pressFor(page, "ArrowDown", TOPOLOGY_HUB);
+  await expect
+    .poll(() => focused(page))
+    .toStrictEqual({ tag: "A", ticker: TOPOLOGY_HUB });
+  expect(other.symbol).not.toBe(TOPOLOGY_HUB);
+
+  // The anchor goes, because the plate is now naming a node that is not the
+  // selection.
+  await page.mouse.move(at.x, at.y);
+  await expect(tickerAnchor(page)).toHaveCount(0);
+
+  // **Back on the canvas**, which is where `Escape` already puts a reader —
+  // inside the region rather than on the body, and able to carry straight on.
+  await expect
+    .poll(() => focused(page))
+    .toStrictEqual({
+      tag: "CANVAS",
+      ticker: null,
+    });
+
+  // And carrying on works: the next arrow key moves from where they were.
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(() => plateLine(page, "ticker")).not.toBe(other.symbol);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("axe is clean in every state this story adds — a floor, never coverage", async ({
+  page,
+}) => {
+  const universe = await securities(page);
+  await openForAccess(page);
+
+  // **1. Idle** — the plate's instruction, the hidden sentence, the hidden
+  // key hints and an empty live region.
+  await expectNoAxeViolations(page, "the market topology, nothing selected");
+
+  const found = await discoverNodes(page);
+  const { at } = pick(found, universe, "equity");
+
+  // **2. Hovering, by a real pointer.** The plate holds four facts and the
+  // ticker is plain text rather than a link.
+  await page.mouse.move(at.x, at.y);
+  await expect(plate(page)).toHaveAttribute("data-topology-readout", "reading");
+  await expectNoAxeViolations(page, "the market topology, a node hovered");
+
+  // **3. Selected by a POINTER** — the one anchor exists, unfocused. Its
+  // accessible name is the bare ticker, which is the case `link-name` and
+  // `color-contrast` both have an opinion about.
+  await clickAt(page, at);
+  await expect(tickerAnchor(page)).toHaveCount(1);
+  await expectNoAxeViolations(
+    page,
+    "the market topology, a node selected by pointer",
+  );
+
+  // **4. Selected by a KEYBOARD** — the same anchor with DOM focus on it, and
+  // the live region holding a sentence rather than empty, which is a different
+  // accessibility tree from state 3 rather than the same one.
+  await page.keyboard.press("Escape");
+  // **The pointer comes off the graph first**, or the plate goes on reading
+  // the hovered node and `pressFor`'s observable is the wrong one — the
+  // interleaved test above is where that distinction is the subject.
+  await page.mouse.move(at.x, at.y - 400);
+  await expect(plate(page)).toHaveAttribute("data-topology-readout", "idle");
+  await tabToCanvas(page);
+  await pressFor(page, "ArrowDown", TOPOLOGY_HUB);
+  await expect
+    .poll(() => focused(page))
+    .toStrictEqual({ tag: "A", ticker: TOPOLOGY_HUB });
+  await expect(announcement(page)).not.toHaveText("");
+  await expectNoAxeViolations(
+    page,
+    "the market topology, a node selected by keyboard, focus on the anchor",
+  );
 
   await expectNothingFailedToRender(page);
 });

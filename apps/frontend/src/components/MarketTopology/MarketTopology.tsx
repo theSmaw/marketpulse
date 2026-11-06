@@ -229,6 +229,29 @@ export function MarketTopology({
   const plate = useRef<HTMLDivElement>(null);
 
   /**
+   * **The announcement region — a SECOND element, never a write into the
+   * sentence `applyAnomalyBands` already owns** (Task 6.4.4).
+   *
+   * This is the live-region reversal trigger — *the first change to this
+   * region a reader must be told about without having asked* — firing a
+   * second time, and the answer was settled in advance by Story 6.3's own
+   * close: a new node. Two imperative writers on one paragraph is precisely
+   * the collision {@link applyAnomalyBands}' safety argument depends on not
+   * happening, and the two strings are two different claims anyway — that one
+   * is *what the graph is*, reached through `aria-labelledby` by a reader who
+   * went looking; this one is *what just changed*, spoken at a reader who did
+   * not.
+   *
+   * **Written imperatively, like the plate and for the same reason.**
+   * `onSelect` is called by the renderer on every live `setBands` as well as
+   * on a real selection (source `"band"`), so routing this through `useState`
+   * would put a render at feed cadence on the one region that has never taken
+   * one. A live region announces on a DOM mutation whoever made it; React is
+   * not involved either way.
+   */
+  const announcement = useRef<HTMLParagraphElement>(null);
+
+  /**
    * **The one piece of this surface's interaction state that reaches React,
    * and the reason is that only React can render an `<a>`** (Task 6.4.2).
    *
@@ -322,6 +345,22 @@ export function MarketTopology({
    */
   const keyboardSelection = useRef(false);
 
+  /**
+   * **Whether the one anchor is the thing currently holding DOM focus** — the
+   * bit that makes the focus recovery below precise rather than a grab (Task
+   * 6.4.4).
+   *
+   * Set when {@link anchor} is actually focused and consulted on the way out.
+   * Without it the recovery cannot tell *the reader's focus was on the element
+   * we just removed* from *nothing was focused at all*, and a pointer-only
+   * reader — who never had focus in this region and must not be given it,
+   * Task 6.4.3's own rule — would get a focus ring from a mouse gesture.
+   *
+   * A reader who tabs away themselves leaves this `true` and is unaffected,
+   * because the recovery's second condition is that **nobody** holds focus.
+   */
+  const anchorHeldFocus = useRef(false);
+
   const securities = universe.state === "loaded" ? universe.securities : null;
 
   /**
@@ -373,6 +412,18 @@ export function MarketTopology({
 
     let mounted: TopologyRenderer | null = null;
     let refusal: HTMLParagraphElement | null = null;
+
+    /*
+     * **The announcement element, copied out of its ref for the cleanup**
+     * (Task 6.4.4) — `react-hooks/exhaustive-deps`' own instruction, and it is
+     * the right one here for a reason worth stating: the `<p>` is rendered
+     * unconditionally and is never unmounted, so the node this holds at the
+     * end of the effect's life is the same node it held at the start. The rule
+     * is guarding against a ref whose target React has replaced, which this
+     * one structurally cannot have — but a local is free and the lint rule is
+     * at `--max-warnings 0`.
+     */
+    const live = announcement.current;
 
     /**
      * **Draw the plate from whichever of the two states is relevant** — the
@@ -444,8 +495,30 @@ export function MarketTopology({
           // anchor this selection makes openable, which is the effect below;
           // calling `focus()` from here would reach the element React is
           // about to replace.
-          if (source !== "band")
+          /*
+           * **`"band"` is not a selection change, and this is the one guard
+           * that keeps a socket from speaking** (Task 6.4.4).
+           *
+           * `renderer-canvas.ts` re-reports the already-selected node with
+           * source `"band"` after every `setBands`, so the plate's band word
+           * does not go stale against the ring beside it. The node is the
+           * same node and the reader did nothing — announcing there would
+           * mean a feed batch, 6.8–16.1 of them a minute, interrupting a
+           * listener who had asked for nothing, which is the whole of the
+           * discipline this region has kept since Story 6.2.
+           *
+           * **Both facts inside one guard because they are one fact**: this
+           * call either is a real selection change (so remember the device
+           * and say so) or it is a redraw of the current one (so neither).
+           * `setSelectedNode` early-returns when the node is unchanged, so
+           * every call that reaches here with a pointer or a key source is a
+           * node the reader actually moved to — there is no repeat to
+           * de-duplicate.
+           */
+          if (source !== "band") {
             keyboardSelection.current = source === "keyboard";
+            writeTopologyAnnouncement(announcement.current, selectedTarget);
+          }
           show();
         },
       });
@@ -498,6 +571,15 @@ export function MarketTopology({
       chosen.current = null;
       offered.current = null;
       setOpenable(null);
+      // **Emptied rather than announced** (Task 6.4.4). The selection is
+      // genuinely gone — a fresh universe may not even contain the symbol —
+      // so leaving the old sentence in the accessibility tree would be a
+      // stale claim, for `setOpenable(null)`'s own reason one line up. But a
+      // retried `GET /securities` is not the reader clearing anything, and
+      // `Selection cleared.` here would be this region speaking at a listener
+      // about a request they never made. An empty live region has nothing to
+      // say, which is the correct amount.
+      if (live !== null) live.textContent = "";
     };
   }, [topology, probe, sentenceId]);
 
@@ -535,7 +617,61 @@ export function MarketTopology({
     // `Escape` (where the renderer has already put focus on the canvas) or a
     // fresh universe (where focus is wherever the reader left it and moving
     // it would be this component taking focus for a request nobody made).
-    if (openable !== null && keyboardSelection.current) anchor.current?.focus();
+    //
+    // **Known asymmetry, routed rather than fixed here** (`docs/GAPS.md`,
+    // Task 6.4.4's close): this guard asks only "was the last selection made
+    // by a key", never "is focus still somewhere that cares" — so a reader
+    // who has since `Tab`bed to an unrelated control, then rests a real
+    // pointer near the graph (an ordinary mouse movement, no key pressed),
+    // can have focus pulled back here. `keyboardSelection` has no path that
+    // clears it short of a fresh pointer selection.
+    if (openable !== null && keyboardSelection.current) {
+      anchor.current?.focus();
+      anchorHeldFocus.current = anchor.current !== null;
+      return;
+    }
+
+    /*
+     * **The reader is put back on the canvas when the anchor is removed from
+     * under them** (Task 6.4.4), and this is a REPAIR rather than a new
+     * feature — see this task's record and the component test that found it.
+     *
+     * Task 6.4.3's `Escape` handler says, in as many words, that an element
+     * removed while it holds focus drops focus to the body *"which is the
+     * state `Region`'s own backstop catches by focusing its `<section>`"*.
+     * **It does not.** `Region`'s recovery is a `useLayoutEffect` on
+     * `Region`, and the anchor's removal happens in a commit `Region` does
+     * not participate in — `openable` is this component's own state, so the
+     * re-render that replaces the `<a>` with a `<span>` re-renders this
+     * subtree alone and that effect never runs again. Measured: focus lands
+     * on `<body>`, which is CLAUDE.md's own named trap — a claim about a
+     * mechanism reads identically whether the mechanism is there or not.
+     *
+     * **And the reachable gesture is not `Escape` at all.** That path was
+     * already covered, by the renderer focusing the canvas *before* clearing.
+     * What was not is `topologyOpenableSymbol` answering `null` because the
+     * **pointer crossed a different node** while a keyboard reader held the
+     * anchor: the plate's ticker is then naming a node that is not the
+     * selection, the anchor must go (a destination the reader cannot see),
+     * and nothing in that gesture moves focus anywhere. A stray mouse
+     * movement over a 998 px canvas lands a keyboard reader on the body.
+     *
+     * **The canvas rather than the section**, which is the one judgement
+     * here: it is where `Escape` already puts them, it is inside the region
+     * rather than one level further out than anybody asked to go, and the
+     * reader can carry straight on walking with the next arrow key.
+     *
+     * **Two conditions, and the second is why this is not a focus grab.**
+     * `anchorHeldFocus` says the focus that was lost was ours;
+     * `activeElement === document.body` says nobody has taken it since. With
+     * either one missing this would move focus for a reader who never gave
+     * it — which is exactly the shape `Region`'s own three conditions have,
+     * arriving one level down, the same way ADR 0039's rejected shape did.
+     */
+    if (openable === null && anchorHeldFocus.current) {
+      anchorHeldFocus.current = false;
+      if (document.activeElement === document.body) renderer.current?.focus();
+    }
   }, [openable]);
 
   /**
@@ -695,6 +831,30 @@ export function MarketTopology({
       <p id={keyHintIdFor(sentenceId)} className={styles.keyHint}>
         {TOPOLOGY_KEY_HINT}
       </p>
+      {/*
+       * **What this region ANNOUNCES, as against what it says when asked**
+       * (Task 6.4.4) — see {@link announcement}'s own docblock for why this is
+       * a second element rather than a clause on the sentence above.
+       *
+       * **`role="status"` and never `alert`**, `ChartReading.tsx`'s precedent:
+       * a selection is a fact the reader produced, not an emergency, and
+       * `alert` is assertive — it interrupts.
+       *
+       * **Persistent, never conditionally unmounted, and silent on mount.** A
+       * live region a browser only discovers at the moment it is filled is a
+       * region many readers never announce at all; the mechanism needs the
+       * element to have been in the tree before the text arrived. Which is
+       * also why it carries no React-declared children — same standing
+       * condition as the plate's own lines and the sentence above: React's
+       * diff must never find a reason to touch this node, because
+       * {@link writeTopologyAnnouncement} owns its text.
+       *
+       * **Not a target of `aria-labelledby` or `aria-describedby` from
+       * anywhere.** The canvas points at the two paragraphs above it; a label
+       * that changed under a reader every time they pressed an arrow key
+       * would be a third meaning for one element.
+       */}
+      <p className={styles.announcement} role="status" ref={announcement} />
       {/*
        * **The readout plate — a real DOM element, sibling to the canvas, never
        * painted into it** (Task 6.4.1, and this component's own standing rule:
@@ -997,6 +1157,67 @@ function writeTopologyReadout(
     const line = plate.querySelector(`[data-readout="${field}"]`);
     if (line !== null) line.textContent = value;
   }
+}
+
+/**
+ * **The one sentence a selection change is spoken as** (Task 6.4.4).
+ *
+ * **Built from {@link topologyReadoutLines} and nothing else**, which is this
+ * region's one-vocabulary rule taken seriously rather than stated: the four
+ * facts a listener gets are the four facts on the plate, the same strings from
+ * the same function, so the spoken account and the drawn one cannot drift. A
+ * second phrasing here — a prettier sector, a band read as a clause — would be
+ * a second home for one fact and `ADR 0029`'s point 4 forbids exactly that.
+ *
+ * **The empty field is dropped rather than padded.** The four market proxies
+ * have no sector (`cluster === null`, a complete answer rather than a missing
+ * one), and the plate reserves that line's room silently; a sentence has no
+ * room to reserve, so it simply has one clause fewer. There is no corresponding
+ * case for the band — {@link topologyReadoutLines} always answers it, with one
+ * of the two stated absences where there is no word.
+ *
+ * **Clearing SPEAKS**, which is Done-when 2's second half and is the one place
+ * this differs from the plate: the plate returns to its idle instruction, which
+ * is a thing on screen a listener cannot see changing. `Escape` is something
+ * the reader did, and a key press that produces silence is indistinguishable
+ * from a key press that did not land. It is deliberately **not** what a fresh
+ * universe does — see the mount effect's cleanup, which empties this region
+ * instead.
+ *
+ * **It names the act** (`Selected …`), and that is not a fourth fact: without
+ * it the sentence is a bare list of four nouns arriving out of nowhere, and the
+ * listener has no way to tell *this is now selected* from *this is what you are
+ * passing over*. The pair `Selected …` / `Selection cleared.` is what makes the
+ * two halves of this region's one gesture read as a pair.
+ */
+export function topologyAnnouncement(
+  selected: TopologyHoverTarget | null,
+): string {
+  if (selected === null) return "Selection cleared.";
+
+  const { ticker, name, sector, band } = topologyReadoutLines(selected);
+  const facts = [ticker, name, sector, band].filter((fact) => fact !== "");
+
+  return `Selected ${facts.join(", ")}.`;
+}
+
+/**
+ * Write one selection change into the announcement region (Task 6.4.4).
+ *
+ * **Module-level and taking the element as an argument**, for
+ * {@link writeTopologyReadout}'s and `applyAnomalyBands`' own reason: the
+ * arrow the mount effect passes as `onSelect` then closes over refs and
+ * module-level functions only, so it adds no dependency to an effect whose
+ * deps list — `[topology, probe, sentenceId]` — is load-bearing in three
+ * documents.
+ */
+function writeTopologyAnnouncement(
+  region: HTMLElement | null,
+  selected: TopologyHoverTarget | null,
+): void {
+  if (region === null) return;
+
+  region.textContent = topologyAnnouncement(selected);
 }
 
 /**

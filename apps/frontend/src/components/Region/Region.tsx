@@ -267,6 +267,42 @@ export function Region({
    * **Focus moving is acceptable; activating is not.** Nothing here presses
    * anything.
    *
+   * ## And there is a fourth condition nobody wrote down: THIS COMPONENT HAS
+   * ## TO RE-RENDER IN THE COMMIT THAT REMOVES THE ELEMENT
+   *
+   * **Measured 2026-11-06 by Task 6.4.4, and it is a real bound on everything
+   * above rather than a footnote.** The effect is a `useLayoutEffect` on
+   * `Region`, so it runs after a render **of `Region`** — and it reads
+   * `was.isConnected`, which is still `true` in the commit where the region's
+   * content is handed down from above and only goes false in whatever commit
+   * actually removes the element.
+   *
+   * Every state this was written against is driven from **outside**: the route
+   * re-renders `Region` with different children (`movers === undefined`), or
+   * the `ErrorBoundary` inside it sets this component's own state. In both the
+   * removal and a `Region` render are the same commit and the backstop fires.
+   *
+   * **A removal driven by a CHILD's own state is not**, and `MarketTopology`
+   * is the first one in this product: the readout plate's single anchor comes
+   * and goes with `openable`, that state lives in `MarketTopology`, and the
+   * re-render that replaces the `<a>` with a `<span>` re-renders that subtree
+   * **alone**. `Region` does not render, this effect does not run, and a
+   * focused reader is left on `<body>` — produced in Chromium
+   * (`overview-market-topology-hover.spec.ts`, `"tag": "BODY"` with the
+   * recovery removed) and in jsdom.
+   *
+   * It is **not repaired here**, and that is a decision: a region cannot
+   * observe a descendant's commits without a `MutationObserver` or a
+   * focus-loss listener, and both are a worse answer than the child — which
+   * knows exactly which element it removed and why — putting focus somewhere
+   * deliberate. `MarketTopology`'s `[openable]` effect does that, with these
+   * same two conditions one level down, and lands the reader on the canvas
+   * rather than out here on the section.
+   *
+   * **So the rule for the next region: if your content comes and goes from
+   * your OWN state and any of it is focusable, this does not cover you.**
+   * `Region` covers content that comes and goes from above.
+   *
    * ## And it costs a reader their order hold, which is not this one's defect
    *
    * `focus()` here fires `focusin` on this same box, so a region passing

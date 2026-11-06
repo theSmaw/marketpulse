@@ -3260,6 +3260,134 @@ security page with a reader during a session, listen without touching the
 keyboard for two minutes, then explore the region line by line and write down
 whether the four lines agreed.
 
+## An ELEVENTH entry for the standing screen-reader item — the first region in this product that announces ON PURPOSE, and a cadence set by how long a key is held
+
+**Added 2026-11-06 by Task 6.4.4**, and it is the first entry in this list
+written about a region that **does** speak rather than about one that
+deliberately does not. Every entry before it asks _is the silence right_ or
+_what does a listener get from an update nobody asked for_. This one inverts
+both halves: the update is one the reader unambiguously **did** ask for — they
+pressed a key — and the question is what they are handed for it.
+
+`MarketTopology` now carries a second, persistent, visually-hidden
+`<p role="status">`, written only on a real selection change (never on hover,
+never on the renderer's `"band"` re-report after a live batch). It speaks one
+sentence of the four facts the readout plate draws —
+`Selected NVDA, NVIDIA Corporation, Technology, extreme.` — and
+`Selection cleared.` on the way out. The decision, the second element rather
+than a write into the paragraph `applyAnomalyBands` already owns, and the
+`"band"` guard are in `MarketTopology.tsx`'s own docblocks.
+
+**Four things only a person with a reader can answer, and the first is new to
+this list.**
+
+**The cadence is set by how long a key is held, not by a feed.** Every prior
+entry's worst case is the market's own rate — the chart's 477 ms, this page's
+6.8–16.1 batches a minute. Here a reader walking a cluster with `ArrowRight`
+held down generates **one announcement per repeat of the key**, at the
+platform's own auto-repeat rate (tens of milliseconds, not hundreds), across a
+cluster that can hold **83 members**. So the honest form of entry one's
+question arrives at its extreme: whether an unprompted — here, a _rapidly
+prompted_ — polite update **queues behind the sentence in progress or replaces
+it** decides whether holding an arrow key produces one sentence, eighty-three
+sentences read to the end, or eighty-three truncations. The three outcomes are
+indistinguishable from a DOM, from a timing, and by an agent, and only the
+third is acceptable.
+
+**Is the band word heard as a band?** The last clause is the bare word —
+`extreme`, `high`, `elevated`, `normal` — verbatim and lower case, which is
+this product's one-vocabulary rule (`AnomalyBadge` spends the same words, and
+the region's own visible legend reads `normal · elevated · high · extreme`).
+Read aloud after a sector name, `…, Technology, extreme.` may land as a band or
+as an adjective about the company. The two stated absences in the same slot are
+whole clauses (`Not scored yet`, `Benchmarks are not scored`) and almost
+certainly do not have the problem, which makes the comparison worth listening
+for rather than reasoning about.
+
+**Is the comma list a sentence?** Four facts separated by `, ` is one `<p>` and
+one string, so unlike entry four's `·` problem there is no punctuation a reader
+has to decide how to speak — but a listener still has to hold _ticker, name,
+sector, band_ in order with no connecting words, and whether that reads as an
+identification or as a list is a judgement about listening.
+
+**And the key hints are read on arrival, once, at forty words.** The canvas
+takes `aria-describedby` pointing at `TOPOLOGY_KEY_HINT` — three sentences
+naming the arrow keys, `Home`/`End`, `Enter` and `Escape` — so a reader
+arriving at this region by `Tab` is handed the graph's structural sentence
+(`aria-labelledby`) **and** that description before they have pressed anything.
+Whether the pair is orienting or is a wall is unanswerable from the tree, and
+it is the one thing here a listener meets before any of the above.
+
+Every half an instrument can do is done. The element's existence, its `role`,
+its silence on mount, which call writes it, that a `"band"` re-report does
+**not**, that hover does not, and that it never touches the structural
+sentence's own node are asserted in `MarketTopology.test.tsx`; the single live
+region, its 1×1 box against the real cascade, and the sentence grounded against
+`GET /securities` are asserted in
+`e2e/specs/overview-market-topology-hover.spec.ts`, which also runs
+`expectNoAxeViolations` over four states — **a floor, never coverage**, and
+none of the four questions above is in axe's reach.
+
+**Owner: the same person with the same screen reader, before Epic 11 hands this
+surface to an agent.** **Re-measure:** open `/` with a reader, `Tab` to the
+market topology, walk one cluster key by key and then **hold** an arrow key for
+two seconds, and write down how many sentences you heard and whether any of
+them finished.
+
+## The topology's focus-recovery effect can pull focus back after a reader has deliberately moved on
+
+**Added 2026-11-06 by Task 6.4.4, found on review rather than before this task
+shipped, and left as a routed finding rather than repaired in the same
+change** — the condition it bears on is Task 6.4.3's own code, and a late,
+unreviewed change to a focus-management effect is a worse risk than a
+documented gap.
+
+Task 6.4.4's own repair (the entry above this one) restores DOM focus to the
+canvas when a keyboard-held selection's anchor is removed out from under a
+reader and nobody else has claimed focus since. The guard that decides
+whether to act is `openable !== null && keyboardSelection.current` — and
+`keyboardSelection` is a ref set to `true` the moment ANY keyboard selection
+is made (`MarketTopology.tsx`), with no code path that clears it back to
+`false` except a fresh selection by pointer. So the effect does not ask
+_is focus still somewhere that cares about this region_ before acting — only
+_was the last selection made by a key_.
+
+**Reproduced in jsdom with a throwaway probe (deleted after confirming it):**
+keyboard-select a node inside the topology region, then `Tab` forward to an
+unrelated control **outside** the region (a sibling button), then move a real
+pointer across a different topology node and back off it. Two pointer moves
+with no key pressed: `openable` goes `null` then non-`null` again as the
+plate's "offered" symbol changes, the effect's guard is satisfied purely from
+the stale `keyboardSelection.current === true`, and focus is pulled from the
+unrelated button back onto the topology's own anchor — a control the reader
+had deliberately left is abandoned with no key pressed at all.
+
+**This is the asymmetric half of a backstop whose safe half IS tested.**
+`MarketTopology.test.tsx`'s own `leaves focus alone where the reader had
+already moved it elsewhere` covers a reader moving focus to another control
+and the effect correctly not acting _while nothing about `openable` changes in
+the meantime_ — it does not cover the case where `openable` churns (an
+ordinary consequence of an ordinary mouse resting near the graph) after the
+reader has moved on. The two cases look identical by name and are not: one is
+asserted, the other is not even a scenario the test file names.
+
+**Not mechanised and not obviously worth a `pnpm invariants` entry** — the
+defect is a sequencing question over two independent DOM/ref states rather
+than a static property grep can see, and a browser spec driving it would be
+this story's fourth canvas-interaction race to guard against, for a path that
+has not yet been shown to reach a real reader (it needs an ordinary mouse
+resting near the graph after a keyboard reader has tabbed away, which is a
+plausible but not yet observed sequence).
+
+**Owner: the next task or story that touches
+`MarketTopology.tsx`'s focus-recovery effect or `keyboardSelection`'s own
+lifecycle** — Story 6.7 (live updates) and 6.8 (filtering) are both candidates,
+since either could change how often `openable` churns while a reader's
+attention is elsewhere. **Re-measure:** keyboard-select a node, `Tab` to a
+control outside the region, move a real pointer across the graph and off it,
+and read `document.activeElement` — it must still be the control the reader
+tabbed to.
+
 ## No feed this repository can run offline produces the cadence that IS the cost, so every local per-tick figure on `/` is a fraction of the real render count
 
 **Added 2026-10-10 by Task 4.8.10, at Story 4.8's close, and it is the premise
