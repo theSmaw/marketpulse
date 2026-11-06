@@ -1,6 +1,6 @@
 # Story 6.5 — Correlation Edges, Computed Nightly, & the Strongest N
 
-**Status:** Not started
+**Status:** **Gate 1 approved 2026-11-06 — decomposed into four tasks.**
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.2
 **Epic scope covered:** Correlation relationships · Edge strength (the data half)
@@ -76,25 +76,110 @@ a sector diagram. Edges carry a strength a reader can see.
 
 ## Open decisions — for the Product Owner
 
-1. **What is N?** §10 says _strongest N per node_ without a number. At 500 nodes,
-   N = 5 is 2,500 edge slots and §28's target is _several thousand edges_, which
-   fits; N = 20 does not. The figure should come from a measurement of
-   readability and frame rate, not from the target.
-2. **What window, and does it update intraday?** A 60-session correlation is a
-   slow-moving quantity; recomputing it live is expensive and probably
-   meaningless. Nightly is the recommendation.
-3. **Does a weak correlation draw a weak edge, or no edge?** The second is what
-   §10's _strongest N_ implies and is cheaper to read.
+1. ~~**What is N?** §10 says _strongest N per node_ without a number. At 500
+   nodes, N = 5 is 2,500 edge slots and §28's target is _several thousand
+   edges_, which fits; N = 20 does not. The figure should come from a
+   measurement of readability and frame rate, not from the target.~~ —
+   **PARTIALLY SETTLED at Gate 1, 2026-11-06: the figure itself is deferred to
+   Task 6.5.3's own measurement, as the decision's own text already asked —
+   what is settled now is the SELECTION MECHANISM the figure will be applied
+   under.** A node's top-N is not symmetric (A's strongest five may not
+   include B even where B's strongest five include A), so "retain the
+   strongest N per node" under-specifies the drawn set by roughly a factor of
+   two depending on which reading is taken. **Union, stored once**: a pair is
+   retained if it is in EITHER endpoint's own top-N, written as a single
+   canonically-ordered row (ordered by **ticker**, not `security_id` — the two
+   stores disagree on row-insertion order and a `security_id`-ordered key
+   would silently canonicalise differently between CI and the deployment).
+   Each node's exact top-N is fully recoverable from the stored union with no
+   redundant row and no nullable rank column: filter the retained rows
+   touching that node, sort by `|r|` descending, take N — correct by
+   construction, because every one of a node's own top-N members is
+   guaranteed present in the union. Rejected: **intersection** (mutual top-N
+   only), which can leave a node with zero drawn edges despite real, strong
+   correlations, reading on screen as "this relates to nothing"; and
+   **directed, stored twice**, which costs roughly double the rows for a
+   per-node rank ordinal nothing today asks for. **Reversal trigger, a
+   condition:** _the first surface that must state a node's own rank among
+   its neighbours_ (e.g. "your 2nd-strongest partner") — only then does the
+   directed form earn its cost.
+2. ~~**What window, and does it update intraday?** A 60-session correlation is
+   a slow-moving quantity; recomputing it live is expensive and probably
+   meaningless. Nightly is the recommendation.~~ — **SETTLED at Gate 1,
+   2026-11-06: nightly, and the window is the existing 60-session
+   `return_baselines` grid of 5-minute returns, not daily closes.** Nightly
+   because a 60-session correlation cannot move visibly within one session
+   and §10 asks for a relationship to inform a shape the market-data store
+   already updates slowly; the hiding question was never "nightly or live"
+   but "daily or intraday returns," which decides whether the ranking means
+   anything at all. A 60-session **daily**-close correlation has a Fisher-z
+   standard error of ≈0.13 at n = 60 — a top-5 selection over a statistic that
+   imprecise re-orders close to randomly from one night to the next, which
+   would make a measurement read as a judgement. The 60-session **5-minute**
+   grid `return_baselines` already samples gives n up to 4,620 and SE ≈ 0.015,
+   and costs **no additional read of `market_bars`** — Task 6.5.1 accumulates
+   each security's return vector as a by-product of the window
+   `compute-baselines.ts` already reads per security, rather than opening a
+   second pass. The known cost of this choice — thinly-traded securities
+   under-sample the grid and their pairwise coefficients attenuate toward
+   zero, which biases a ranking against exactly the securities a reader can
+   least independently verify — is named rather than hidden, with a
+   `docs/GAPS.md` entry at this story's close rather than a silent
+   acceptance.
+3. ~~**Does a weak correlation draw a weak edge, or no edge?** The second is
+   what §10's _strongest N_ implies and is cheaper to read.~~ — **SETTLED at
+   Gate 1, 2026-11-06: no edge below a DERIVED floor.** A retained pair is
+   refused — no row, not a faint one — if its coefficient is not
+   statistically distinguishable from zero at that pair's own counted
+   overlap `n` (a Fisher-z confidence interval excluding 0), which is Story
+   5.3's own discipline (_the minimum sample is derived, not chosen_) applied
+   to a quantity Story 5.3 never had to rank. A chosen round threshold (e.g.
+   `|r| ≥ 0.5`) was rejected as exactly the kind of number AC 4 already
+   forbids. Sparse is a correct, honest outcome, and a weak edge — until
+   Story 6.6 ships the visual encoding that would distinguish it from a
+   strong one — is a claim the data does not support.
+4. **New at Gate 1, 2026-11-06 — which pairs are eligible at all?** Not in the
+   story's own list, but the shaping found it undecided: does a correlation
+   edge connect any two of the 501 active equities (same-sector pairs
+   included), or only cross-sector pairs, or does it extend to the sector
+   ETFs and market proxies too? **SETTLED: the 501 active equities, same- and
+   cross-sector pairs both eligible, no landmark node (the eleven sector
+   SPDRs, the four proxies, the hub) ever forms a correlation edge** — the
+   same exclusion Story 6.3 already applies to the anomaly encoding, and for
+   an added reason here: `SPY` correlates with nearly every equity in the
+   universe, and admitting it (or any sector ETF) to the candidate set would
+   make every cluster independently discover a strong correlation to the
+   centre, which is the starburst §10's own constraint exists to prevent. The
+   first real pass **measures and reports** what share of the retained set
+   turns out to be same-sector — if that share is near 100%, the edge layer
+   is mostly restating the clustering the membership edges already draw
+   rather than adding the cross-cluster information this story's own "what
+   the user can see" promises, and that finding is reported at this story's
+   close rather than assumed away now.
+5. **New at Gate 1, 2026-11-06 — `SecurityExplorer.tsx`'s `Connected
+securities` region.** Reserved since Epic 5's own shaping for "which
+   securities move with this one and the evidence for saying so" — exactly
+   this story's data — and claimed by no story in Epic 6's nine. **SETTLED:
+   left alone.** Its placeholder is reworded at this story's close to name a
+   condition rather than an epic, the same correction Task 5.7.4 made to
+   `Anomaly history`'s placeholder once that one's "names an epic" claim went
+   stale. Filling that region is a later, explicit decision — this story
+   ships only the topology's own edges.
 
 ## Design work
 
-Edge weight as a visible property, and what the graph looks like when a security
-has **no** computable correlations — which on CI is every security, for ever.
+Edge weight as a visible property **(Story 6.6's)**; what the graph looks like
+when a security has **no** computable correlations — which on CI is every
+security, for ever — settled above as "no new ink, the accessible sentence and
+any head-slot legend carry the fact instead" and detailed in Task 6.5.2.
 
 ## Out of scope
 
 Node sizing (6.6), live updates (6.7). The edge's **visual** strength beyond
-presence is 6.6's.
+presence is 6.6's. Hover/select/keyboard reachability of an edge itself —
+this surface stays node-only, and the gap is handed to Story 6.6's own file
+at this story's close rather than left implicit. Filling
+`SecurityExplorer.tsx`'s `Connected securities` region — Open decision 5.
 
 ## Handed here by Story 6.2's close — 2026-11-01: the ring this story's edges are drawn against is no longer the one §10's figure assumed
 
