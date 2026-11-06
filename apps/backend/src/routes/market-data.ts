@@ -62,8 +62,11 @@ import type {
   BarSeriesPayload,
   BarSeriesResponse,
   BarSource,
+  CorrelationPayload,
   MarketDataResponse,
   MarketFeed,
+  RelationshipsPassPayload,
+  RelationshipsResponse,
   SecurityStatus,
   SeriesCoverage,
   SeriesCoveragePayload,
@@ -79,7 +82,9 @@ import type { JsonSchemaProperty } from "../json-schema.js";
 import type { MarketBarsRepository } from "../market-bars.js";
 import type { MarketDataProviderSelection } from "../config.js";
 import type { MarketData } from "../market-data.js";
+import type { RelationshipsCache } from "../relationships-cache.js";
 import { REPLAY_FEED } from "../replay-stream.js";
+import type { StoredCorrelationGeneration } from "../return-correlation-store.js";
 import type { SecuritiesRepository } from "../securities.js";
 import { createSeriesCache, seriesCacheControl } from "../series-cache.js";
 import type { SeriesCache } from "../series-cache.js";
@@ -414,6 +419,185 @@ export function toBarSeriesResponse(
 }
 
 // ---------------------------------------------------------------------------
+// GET /market-data/relationships — the response schema (Task 6.5.2).
+//
+// The **third** route in this namespace, and the first whose subject is a pair
+// of securities rather than one. It is here rather than in a file of its own
+// for the reason the second one is: `/market-data` is the namespace as well as
+// a resource (`MARKET-DATA-API.md` §1), a schema belongs beside the route that
+// serves it, and splitting would put a third registration of one namespace in
+// `index.ts`.
+//
+// ## The `satisfies` guard, applied twice more — and `pass` is the one key the
+// ## required list deliberately omits
+//
+// `/securities`' own departure from the derived-`required` idiom, for exactly
+// its reason: `required: Object.keys(...)` would mark `pass` required, and a
+// required property the handler omits is a runtime 500 — which is **every
+// response from a store that has never run the pass**, i.e. every response on
+// CI and on every laptop before the first `pnpm baselines`. So the literal is
+// one of two keys, and the one it omits is the one whose absence carries
+// meaning (`relationships-response.ts`' own three states).
+//
+// `correlations` **is** listed: it is always sent, empty where nothing was
+// retained, because an absent array would give *nothing was retained* a second
+// spelling.
+
+const correlationProperties = {
+  low: { type: "string" },
+  high: { type: "string" },
+  // **Plain `"number"` and nothing nullable anywhere in this body**, which is
+  // the decision `relationships-response.ts` argues: a `null` under a declared
+  // `"number"` reaches the wire as **`0`** — a plausible coefficient reading
+  // *these two do not move together*, which is a claim this product does not
+  // make from a serialiser accident. A pair with no measurable coefficient has
+  // no row at all.
+  r: { type: "number" },
+  n: { type: "number" },
+} satisfies Record<keyof CorrelationPayload, JsonSchemaProperty>;
+
+const correlationSchema: JsonSchemaProperty = {
+  type: "object",
+  properties: correlationProperties,
+  required: Object.keys(correlationProperties),
+};
+
+const relationshipsPassProperties = {
+  observedAt: { type: "string" },
+  trackedEquities: { type: "number" },
+  eligibleEquities: { type: "number" },
+  splitDiscontinuity: { type: "number" },
+  absent: { type: "number" },
+  candidatePairs: { type: "number" },
+  computedPairs: { type: "number" },
+  retainedPairs: { type: "number" },
+  tooFewOverlappingSamples: { type: "number" },
+  zeroVariance: { type: "number" },
+  belowSignificance: { type: "number" },
+  retainedN: { type: "number" },
+  lookbackSessions: { type: "number" },
+  spanMinutes: { type: "number" },
+  // `enum` from the const array the type is built from, so the wire's
+  // vocabulary and the type's members cannot disagree — the guard `/health`
+  // and `apiErrorSchema` carry, and invariant 6's own requirement that the
+  // tape is displayed rather than implied.
+  feed: { type: "string", enum: MARKET_FEEDS },
+} satisfies Record<keyof RelationshipsPassPayload, JsonSchemaProperty>;
+
+const relationshipsProperties = {
+  correlations: { type: "array", items: correlationSchema },
+  pass: {
+    type: "object",
+    properties: relationshipsPassProperties,
+    required: Object.keys(relationshipsPassProperties),
+  },
+} satisfies Record<keyof RelationshipsResponse, JsonSchemaProperty>;
+
+const relationshipsSchema = {
+  response: {
+    200: {
+      type: "object",
+      properties: relationshipsProperties,
+      // See the note above: a literal, and `pass` is not in it.
+      required: ["correlations"],
+    },
+    400: apiErrorSchema,
+    500: apiErrorSchema,
+    503: apiErrorSchema,
+  },
+};
+
+/**
+ * The instant a request asked about, or the refusal to serve it.
+ *
+ * **An explicit `asOf` rather than a bare clock read**, which is the discipline
+ * `buildTopologyGraph`'s own Epic 13 hand-off asks for in as many words: *a
+ * replay-aware reader is one that is HANDED an instant rather than one that
+ * reads a clock*. Nothing sends one today — the frontend's request carries no
+ * parameters at all — and the parameter exists so that when something does,
+ * the read is already a function of its argument rather than a rewrite.
+ *
+ * **It refuses rather than falls back**, three ways, and each refusal is a
+ * sentence: a repeated key (which arrives as an **array**, the shape
+ * `series-request.ts` exists to refuse), a string that is not an instant, and
+ * anything else. The alternative — ignoring an `asOf` we could not read and
+ * answering as of now — is the one behaviour invariant 4 forbids by name: a
+ * reader asking about a past session and being handed the present without
+ * being told.
+ */
+function parseAsOf(
+  value: unknown,
+  instant: Date,
+): { readonly atOrBefore: Date } | { readonly refusal: string } {
+  if (value === undefined) return { atOrBefore: instant };
+
+  if (typeof value !== "string") {
+    return {
+      refusal:
+        "asOf is for one instant. Repeating the parameter asks for two, and " +
+        "a relationship set is as of one moment.",
+    };
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return {
+      refusal: `"${value}" is not an instant. Expected an ISO timestamp, for example 2026-09-11T20:00:00Z.`,
+    };
+  }
+
+  return { atOrBefore: parsed };
+}
+
+/**
+ * One generation, as the wire carries it.
+ *
+ * **The absence is the shape rather than a field**, which is this payload's
+ * whole decision: a store with no pass sends `{ correlations: [] }` and
+ * nothing else, so *we have never measured* and *we measured and kept nothing*
+ * are two different bodies rather than one body with a zero in it.
+ *
+ * `observedAt` is the pass row's own instant, serialised. **Never the request's
+ * clock** — a body served from the cache and one read fresh carry the same
+ * instant, because the instant is a property of the data, which is the defect
+ * `the-overview-note-dates-an-observation` exists for one surface over.
+ */
+export function toRelationshipsResponse(
+  generation: StoredCorrelationGeneration | undefined,
+): RelationshipsResponse {
+  if (generation === undefined) return { correlations: [] };
+
+  const { pass, correlations } = generation;
+
+  return {
+    correlations: correlations.map((pair) => ({
+      low: pair.low,
+      high: pair.high,
+      r: pair.r,
+      n: pair.n,
+    })),
+    pass: {
+      observedAt: pass.observedAt.toISOString(),
+      trackedEquities: pass.trackedEquities,
+      eligibleEquities: pass.eligibleEquities,
+      splitDiscontinuity: pass.splitDiscontinuity,
+      absent: pass.absent,
+      candidatePairs: pass.candidatePairs,
+      computedPairs: pass.computedPairs,
+      retainedPairs: pass.retainedPairs,
+      tooFewOverlappingSamples: pass.refusals.tooFewOverlappingSamples,
+      zeroVariance: pass.refusals.zeroVariance,
+      belowSignificance: pass.belowSignificance,
+      retainedN: pass.retainedN,
+      lookbackSessions: pass.parameters.lookbackSessions,
+      spanMinutes: pass.parameters.spanMinutes,
+      feed: pass.parameters.feed,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The route
 // ---------------------------------------------------------------------------
 
@@ -432,6 +616,22 @@ export interface MarketDataRouteDependencies {
 
   /** The bar store `GET /market-data/bars` reads. */
   readonly bars: MarketBarsRepository;
+
+  /**
+   * The nightly correlation generation `GET /market-data/relationships`
+   * serves (Task 6.5.2).
+   *
+   * **Required rather than optional**, which is `MarketTopologyProps.onRetry`'s
+   * own precedent and the stronger contract by one failure mode: a defaulted
+   * reader is a route that answers `{ correlations: [] }` — *no pass has ever
+   * run* — on a deployment whose store is full of them, and that body is
+   * indistinguishable on screen from the truth. A caller with no store has a
+   * decision to make, not a dependency to omit.
+   *
+   * Narrowed to the one method this route calls, so the dependency says what
+   * it uses and a test needs one stub function.
+   */
+  readonly relationships: Pick<RelationshipsCache, "generationAsOf">;
 
   /**
    * The universe, for the one question this route asks of it.
@@ -553,6 +753,7 @@ export function createMarketDataRoutes(
     marketData,
     bars,
     securities,
+    relationships,
     now = () => new Date(),
     cache = createSeriesCache(),
   } = dependencies;
@@ -780,6 +981,84 @@ export function createMarketDataRoutes(
         return reply
           .code(200)
           .send(toBarSeriesResponse(served.series, security.status));
+      },
+    );
+
+    // `GET /market-data/relationships` — which securities move together, as
+    // the newest nightly pass measured it (Task 6.5.2, ADR 0049).
+    //
+    // ## The status table
+    //
+    // | Situation                                  | Answer |
+    // | ------------------------------------------ | ------ |
+    // | An `asOf` that is not one readable instant | 400 `BAD_REQUEST`, the refusal's own sentence |
+    // | No pass at or before the instant           | 200, `{ "correlations": [] }` and **no `pass`** |
+    // | A pass that retained nothing               | 200, its figures, `correlations: []` |
+    // | A pass with retained pairs                 | 200, both |
+    // | The database is unavailable                | 503 `SERVICE_UNAVAILABLE` |
+    // | Anything uncaught                          | 500 `INTERNAL_ERROR`, never the thrown message |
+    //
+    // Rows 2 and 3 are the pair ADR 0029's first rule turns on, and they are
+    // the reason this body's shape is what it is rather than a count: a graph
+    // that joined only the row table would under-report and look correct.
+    //
+    // ## No `querystring` schema, which is this file's own settled decision
+    //
+    // `/market-data/bars`' note above carries the measurement and it applies
+    // unchanged: ajv would refuse a repeated key in **Fastify's** error shape
+    // and vocabulary before the handler ran, leaving {@link parseAsOf}'s own
+    // sentences as dead code for exactly the inputs they were written for, and
+    // it would coerce rather than judge. One request, one error vocabulary.
+    //
+    // ## No `Cache-Control`, and therefore no `ETag` — stated rather than
+    // ## omitted
+    //
+    // `installResponseValidator` computes an `ETag` only for a response whose
+    // handler set `Cache-Control`, so saying nothing is how a route opts out —
+    // the mechanism `GET /market-data` already uses. The freshness lifetime
+    // this route would want is *until tonight's pass*, which is a calendar
+    // question (`seriesCacheControl` answers the analogous one for a window)
+    // and is a derivation this task has no measurement for: the server-side
+    // cache already removes the repeated read, and the body is on the order of
+    // 100 kB rather than the 190 kB `/securities` serves uncompressed with no
+    // answer cache at all. **The condition for deriving one: the first reader
+    // of this route that is not one request per page load.**
+    app.get<{ Querystring: { readonly asOf?: unknown } }>(
+      "/market-data/relationships",
+      { schema: relationshipsSchema },
+      async (request, reply) => {
+        const parsed = parseAsOf(request.query.asOf, now());
+
+        if ("refusal" in parsed) {
+          // At `info` with the refused value, not at `warn`: a refused
+          // request is ordinary traffic and the client's mistake, and Task
+          // 1.7.1's property is that a healthy server is silent at `warn`.
+          request.log.info(
+            { asOf: request.query.asOf },
+            "relationships request refused",
+          );
+
+          return reply
+            .code(400)
+            .send(apiError("BAD_REQUEST", parsed.refusal, request.id));
+        }
+
+        const generation = await throughDatabase("The correlation store", () =>
+          relationships.generationAsOf(parsed.atOrBefore),
+        );
+
+        // The two empty answers, told apart in the log as well as on the wire
+        // — because here, unlike `/market-data/bars`, the client genuinely can
+        // tell them apart and the operator's view should not be the weaker of
+        // the two.
+        if (generation === undefined) {
+          request.log.debug(
+            { asOf: parsed.atOrBefore },
+            "no correlation generation is stored at or before this instant",
+          );
+        }
+
+        return reply.code(200).send(toRelationshipsResponse(generation));
       },
     );
 

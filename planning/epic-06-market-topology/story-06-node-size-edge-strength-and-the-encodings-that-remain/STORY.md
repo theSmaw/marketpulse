@@ -138,3 +138,52 @@ measurement of the SAME `scripts/topology-interaction-probe.mjs` figures
 before accepting the inherited 0.5–1.5 range as sufficient. If the range
 needs narrowing to keep `TECHNOLOGY`'s hit targets above zero, that is this
 story's own finding to make and record — not an assumption to inherit.
+
+## Handed here by Task 6.5.2 — 2026-11-06: an edge is now a drawn, measured thing that a reader cannot point at, hover, select or reach with a key, and this story inherits that gap
+
+**`/`'s topology draws a dashed edge for every retained correlation pair since
+2026-11-06, and the edge is not an affordance of any kind.** Story 6.5 ships
+nodes-only interaction, deliberately and with Gate 1's own agreement — but
+that decision was taken when the only edges were curated memberships, which
+say nothing a reader could want to interrogate. A correlation edge **is a
+measurement**: it has a signed coefficient, a counted overlap `n` (466–4,620
+on the one real generation), a 60-session window and a tape, none of which is
+reachable from anywhere on this screen. A reader who sees two securities joined
+and wants to know _how strongly_ has nowhere to go.
+
+**Three things this story needs to decide, and they are not one decision.**
+
+1. **Is an edge hoverable at all?** `hit-test.ts` answers _which node is under
+   this pointer_ and has no concept of a segment. A point-to-segment test over
+   1,860 edges is a different cost and a different ambiguity problem from the
+   node test, which is already measured as **contested at 0.0 px** in
+   `TECHNOLOGY` at 390 (Story 6.4's own hand-off above) — and an edge passes
+   _through_ that same crowding, so an edge hit-test inside a cluster would be
+   resolving between a node and several edges in the same few pixels.
+2. **If it is, what does the plate say?** The readout has **five reserved line
+   slots** and a fixed height (`Movers`' held-row lesson carried from rows to
+   lines); an edge's four facts do not obviously fit the ticker / name / sector
+   / band shape a node's do, and a second plate layout is a second height.
+3. **Can a keyboard reader reach one?** `walk.ts` is a tree walk over nodes
+   keyed on ticker. An edge has no position in that tree, and the obvious
+   answer — _from a selected node, walk its own edges_ — would make the walk's
+   own shape depend on the correlation set, which changes nightly and is absent
+   entirely on CI. Story 6.4's rule that the band must never move a reader's
+   position under their stationary hands applies here with more force.
+
+**What is already true and should not be re-derived.** The edge's own weight is
+on the model (`TopologyCorrelationEdge.weight`, signed, required) and reaches
+the renderer today unused — this story's own _edge strength_ encoding is the
+first reader of it. The route serves the counted overlap `n` per pair
+(`CorrelationPayload`), which is **not** on the model and would have to be
+carried there if a readout ever states it; that is a deliberate omission rather
+than an oversight, because nothing drew it.
+
+**And one measurement this story should take before it changes the edge's
+appearance at all**, because the figures exist and were taken against the real
+generation: `renderer-canvas.ts`' `CORRELATION_EDGE_CLEARANCE_SHARE` records
+the per-width share of correlation segments whose two endpoints' node bodies
+cover them entirely — **0 / 127 / 82 / 395 of 1,860** at 1440 / 1024 / 768 / 390. Those segments draw ink that nothing can see, and a **heavier** stroke for
+a strong edge does not change that: the cover is the node's own radius. A
+weight encoding spent on width alone is therefore invisible for 21.2% of the
+drawn set at 390.

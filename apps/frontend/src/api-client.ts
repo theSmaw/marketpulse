@@ -6,8 +6,10 @@ import {
   isBarSeriesResponse,
   isHealthResponse,
   isMarketDataResponse,
+  isRelationshipsResponse,
   isSecuritiesResponse,
   type MarketDataResponse,
+  type RelationshipsResponse,
   REQUEST_ID_HEADER,
   type SecuritiesResponse,
 } from "@marketpulse/shared";
@@ -375,6 +377,45 @@ export function getMarketData(
   options?: ApiRequestOptions,
 ): Promise<ApiResult<MarketDataResponse>> {
   return apiRequest("/market-data", isMarketDataResponse, options);
+}
+
+/**
+ * `GET /market-data/relationships` — which securities move together, as the
+ * newest nightly pass measured it (Task 6.5.2).
+ *
+ * The **fifth** request shape, and a fifth call to `apiRequest` for the reason
+ * {@link getSecurities} writes out: the base URL, the five-second deadline,
+ * composing the caller's abort signal with it, reading the correlation id off a
+ * response the browser only lets us see because `exposedHeaders` names it, and
+ * the seven outcomes are each invisible at a call site.
+ *
+ * The predicate is `isRelationshipsResponse`, imported from `packages/shared`
+ * beside the shape it checks. Read its header before interpreting an
+ * `unreadable-body` from this endpoint, because **two answers here look like
+ * failures and are not**: `{ "correlations": [] }` with **no `pass`** is *no
+ * nightly pass has ever run* — the permanent state of CI and of every store
+ * before the first `pnpm baselines` — and a present `pass` with an empty array
+ * is *we measured 122,760 pairs and kept none*. Both are 200s and both are
+ * accepted; the surface draws a different sentence for each.
+ *
+ * ## No parameter, and the route's own `asOf` is deliberately not passed
+ *
+ * That route takes an explicit as-of instant so the read is a function of its
+ * argument rather than of a clock — the discipline `buildTopologyGraph`'s own
+ * Epic 13 hand-off asks for. **A browser is the wrong place to choose one**,
+ * which is `bar-series-query.ts`' own recorded rule: a browser knows a
+ * timezone and only the server knows the market date. Omitting it asks for
+ * *the newest pass there is*, which is the only question this screen has. The
+ * parameter arrives at a call site when a replay has a clock to hand it.
+ */
+export function getRelationships(
+  options?: ApiRequestOptions,
+): Promise<ApiResult<RelationshipsResponse>> {
+  return apiRequest(
+    "/market-data/relationships",
+    isRelationshipsResponse,
+    options,
+  );
 }
 
 /**

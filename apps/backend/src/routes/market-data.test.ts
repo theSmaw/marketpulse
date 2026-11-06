@@ -12,6 +12,7 @@
 
 import {
   isMarketDataResponse,
+  isRelationshipsResponse,
   toBarSeries,
   toSeriesProvenance,
   toTicker,
@@ -21,6 +22,7 @@ import {
 import type {
   ApiError,
   BarSeriesResponse,
+  RelationshipsResponse,
   Security,
   TimeRange,
 } from "@marketpulse/shared";
@@ -34,6 +36,11 @@ import type {
   DatedBarRow,
   MarketBarsRepository,
 } from "../market-bars.js";
+import type {
+  StoredCorrelation,
+  StoredCorrelationGeneration,
+  StoredCorrelationPass,
+} from "../return-correlation-store.js";
 import type { MarketData } from "../market-data.js";
 import { resolveMarketData } from "../market-data.js";
 import { loadConfig } from "../config.js";
@@ -50,6 +57,7 @@ let app: FastifyInstance | undefined;
 afterEach(async () => {
   await app?.close();
   app = undefined;
+  asked.length = 0;
 });
 
 async function serverWith(marketData: MarketData): Promise<FastifyInstance> {
@@ -314,7 +322,25 @@ interface RouteOptions {
    * suite having to remember to clear one.
    */
   readonly cache?: SeriesCache;
+  /**
+   * What the correlation cache answers for `/market-data/relationships`
+   * (Task 6.5.2). Left out by every bars test, which is the arrangement that
+   * matters: `undefined` is *no pass has ever run*, the state of CI and of
+   * every store before the first `pnpm baselines`.
+   */
+  readonly generation?: StoredCorrelationGeneration | undefined;
+  /** Thrown by the correlation cache instead of answering. */
+  readonly relationshipsFails?: Error;
 }
+
+/**
+ * Every instant the relationships route asked the cache about, in order.
+ *
+ * A module-level array rather than a per-server one so a test can read it
+ * after the injection without threading a handle back out of `barsServer`.
+ * Cleared in `afterEach` beside the server.
+ */
+const asked: Date[] = [];
 
 async function barsServer(
   options: RouteOptions = {},
@@ -349,6 +375,16 @@ async function barsServer(
           options.lookupFails !== undefined
             ? Promise.reject(options.lookupFails)
             : Promise.resolve("security" in options ? options.security : NVDA),
+      },
+      relationships: {
+        generationAsOf: (atOrBefore) => {
+          if (options.relationshipsFails !== undefined) {
+            return Promise.reject(options.relationshipsFails);
+          }
+
+          asked.push(atOrBefore);
+          return Promise.resolve(options.generation);
+        },
       },
       now: () => options.now ?? NOW,
       ...(options.cache !== undefined ? { cache: options.cache } : {}),
@@ -1374,5 +1410,242 @@ describe("the bars route's answer cache", () => {
     const response = await down.inject({ method: "GET", url: BARS_PATH });
 
     expect(response.statusCode).toBe(503);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /market-data/relationships (Task 6.5.2).
+//
+// The three states `relationships-response.ts` argues are three different
+// bodies, and the assertions below are on the **raw** body rather than on
+// `response.json()` wherever the difference between an absent key and a
+// present zero is the thing being checked — which is exactly the trap
+// `routes/securities.ts` measured, and `response.json()` is what would hide
+// it.
+
+const RELATIONSHIPS_PATH = "/market-data/relationships";
+
+/** A generation with one pair in it, as the store hands one back. */
+function generationWith(
+  correlations: readonly StoredCorrelation[],
+  overrides: Partial<StoredCorrelationPass> = {},
+): StoredCorrelationGeneration {
+  return {
+    pass: {
+      observedAt: new Date("2026-09-11T20:00:00.000Z"),
+      trackedEquities: 501,
+      eligibleEquities: 496,
+      splitDiscontinuity: 5,
+      absent: 0,
+      candidatePairs: 122_760,
+      computedPairs: 122_760,
+      retainedPairs: correlations.length,
+      refusals: { tooFewOverlappingSamples: 0, zeroVariance: 0 },
+      belowSignificance: 20_752,
+      retainedN: 5,
+      parameters: { lookbackSessions: 60, spanMinutes: 5, feed: "sip" },
+      ...overrides,
+    },
+    correlations,
+  };
+}
+
+const ONE_PAIR: readonly StoredCorrelation[] = [
+  { low: toTicker("AAPL"), high: toTicker("MSFT"), r: -0.84, n: 4620 },
+];
+
+describe("GET /market-data/relationships", () => {
+  it("serves the retained pairs and the pass's own figures", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      correlations: [{ low: "AAPL", high: "MSFT", r: -0.84, n: 4620 }],
+      pass: {
+        observedAt: "2026-09-11T20:00:00.000Z",
+        trackedEquities: 501,
+        eligibleEquities: 496,
+        splitDiscontinuity: 5,
+        absent: 0,
+        candidatePairs: 122_760,
+        computedPairs: 122_760,
+        retainedPairs: 1,
+        tooFewOverlappingSamples: 0,
+        zeroVariance: 0,
+        belowSignificance: 20_752,
+        retainedN: 5,
+        lookbackSessions: 60,
+        spanMinutes: 5,
+        feed: "sip",
+      },
+    });
+  });
+
+  // The **signed** coefficient reaches the wire, because −0.84 and +0.84 are
+  // opposite facts about the market and a magnitude cannot give the sign back.
+  it("keeps the coefficient's sign", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    expect(response.json<RelationshipsResponse>().correlations[0]?.r).toBe(
+      -0.84,
+    );
+  });
+
+  // The first of the contract's three states and the permanent state of the
+  // only machine that gates a merge.
+  it("omits `pass` entirely where no pass has ever run", async () => {
+    const instance = await barsServer({ generation: undefined });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    expect(response.statusCode).toBe(200);
+    // The RAW body: `pass` must be absent rather than present as `null`, and
+    // `response.json()` would make `undefined` and absent look the same.
+    expect(response.body).toBe('{"correlations":[]}');
+  });
+
+  // The second, and the reason the first is an absence rather than a zero: a
+  // pass that measured 122,760 pairs and kept none of them is a different
+  // answer from never having measured, and a reader must be able to draw them
+  // differently.
+  it("tells a pass that retained nothing apart from no pass at all", async () => {
+    const instance = await barsServer({ generation: generationWith([]) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    const body = response.json<RelationshipsResponse>();
+
+    expect(body.correlations).toEqual([]);
+    expect(body.pass?.retainedPairs).toBe(0);
+    expect(body.pass?.candidatePairs).toBe(122_760);
+  });
+
+  it("answers the shape the shared predicate promises, in every state", async () => {
+    // The guard the frontend validates with, applied to the real bodies this
+    // route produces — so a schema that strips a field it needs is red here
+    // rather than an `unreadable-body` on the landing page.
+    for (const generation of [
+      undefined,
+      generationWith([]),
+      generationWith(ONE_PAIR),
+    ]) {
+      const instance = await barsServer({ generation });
+
+      const response = await instance.inject({
+        method: "GET",
+        url: RELATIONSHIPS_PATH,
+      });
+
+      expect(isRelationshipsResponse(response.json())).toBe(true);
+      await instance.close();
+      app = undefined;
+    }
+  });
+
+  // **The read is a function of its argument, and this is the assertion that
+  // says so.** `buildTopologyGraph`'s own Epic 13 hand-off asks for a reader
+  // that is HANDED an instant rather than one that reads a clock; nothing
+  // sends an `asOf` today, so without this the parameter would be untested
+  // until a replay needed it.
+  it("reads the store as of the instant it was asked about", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    await instance.inject({
+      method: "GET",
+      url: `${RELATIONSHIPS_PATH}?asOf=2026-08-01T13:30:00.000Z`,
+    });
+
+    expect(asked).toEqual([new Date("2026-08-01T13:30:00.000Z")]);
+  });
+
+  it("falls back to the route's own clock when no asOf is given", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    await instance.inject({ method: "GET", url: RELATIONSHIPS_PATH });
+
+    expect(asked).toEqual([NOW]);
+  });
+
+  // It refuses rather than falling back to now, which is the one behaviour
+  // invariant 4 forbids by name: a reader asking about a past session and
+  // being handed the present without being told.
+  it("refuses an asOf it cannot read, in this product's own vocabulary", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: `${RELATIONSHIPS_PATH}?asOf=yesterday`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<ApiError>().code).toBe("BAD_REQUEST");
+    expect(response.json<ApiError>().message).toContain("is not an instant");
+    // And it did not reach the store at all.
+    expect(asked).toEqual([]);
+  });
+
+  // A repeated key arrives as an **array**, which is the shape
+  // `series-request.ts` exists to refuse one route over — and a relationship
+  // set is as of one moment.
+  it("refuses a repeated asOf rather than picking one", async () => {
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: `${RELATIONSHIPS_PATH}?asOf=2026-08-01T13:30:00Z&asOf=2026-09-01T13:30:00Z`,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<ApiError>().code).toBe("BAD_REQUEST");
+    expect(asked).toEqual([]);
+  });
+
+  it("answers 503 when the store is unavailable, not an empty relationship set", async () => {
+    // The distinction this product's own failure handling rests on: *we could
+    // not read this* must not arrive as *there are no relationships*, which is
+    // a well-formed body making a false claim.
+    const instance = await barsServer({
+      relationshipsFails: refusedConnection(),
+    });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json<ApiError>().code).toBe("SERVICE_UNAVAILABLE");
+  });
+
+  it("sets no Cache-Control, and therefore carries no ETag", async () => {
+    // Stated as a test because it is a decision rather than an oversight —
+    // `installResponseValidator` computes an `ETag` only for a response whose
+    // handler set `Cache-Control`, and the freshness lifetime this route would
+    // want is a calendar derivation this task has no measurement for.
+    const instance = await barsServer({ generation: generationWith(ONE_PAIR) });
+
+    const response = await instance.inject({
+      method: "GET",
+      url: RELATIONSHIPS_PATH,
+    });
+
+    expect(response.headers["cache-control"]).toBeUndefined();
+    expect(response.headers.etag).toBeUndefined();
   });
 });

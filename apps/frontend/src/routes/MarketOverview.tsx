@@ -42,6 +42,7 @@ import {
   type LiveFeedView,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
+import { useRelationships } from "../use-relationships.js";
 import { useSecurities } from "../use-securities.js";
 import styles from "./MarketOverview.module.css";
 
@@ -232,6 +233,18 @@ export function MarketOverview({
    * otherwise grow an error state over a missing word.
    */
   const { view: universe, retry: retryUniverse } = useSecurities();
+
+  /**
+   * **The measured edge layer, fetched once** (Task 6.5.2) — read by one
+   * region and so fetched here beside the universe rather than inside it,
+   * which is this route's own arrangement for every other region's data.
+   *
+   * There is no retry and no failure rendering at this level on purpose: a
+   * measurement that could not be read costs the topology one clause of its
+   * accessible sentence and nothing else, because the graph is a function of
+   * the universe and the correlation set is merged into it.
+   */
+  const relationships = useRelationships();
   const names = useMemo(
     () =>
       universe.state === "loaded"
@@ -940,6 +953,18 @@ export function MarketOverview({
           <MarketTopology
             ref={topology}
             universe={universe}
+            /*
+             * **Which securities move together — a SECOND request, and this
+             * region's first dependency whose failure costs it no ink** (Task
+             * 6.5.2). `useRelationships()` holds one state object and replaces
+             * it only on a settled response, so this prop's identity changes
+             * once per page load rather than at feed cadence: the module
+             * docblock's declined `React.memo` boundary in
+             * `MarketTopology.tsx` is unaffected, and its reversal trigger —
+             * *the first prop this region takes that changes at feed cadence*
+             * — is still unmet.
+             */
+            relationships={relationships}
             /*
              * **`useSecurities().retry` — Decision 3 makes this region the
              * owner of *the tracked universe is not available*** (Task

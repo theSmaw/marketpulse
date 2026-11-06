@@ -3,10 +3,15 @@ import type { Ref, RefObject } from "react";
 import { Link } from "react-router";
 
 import { SECTOR_LABELS } from "@marketpulse/shared";
-import type { Ticker, TopologyGraph } from "@marketpulse/shared";
+import type {
+  Ticker,
+  TopologyCorrelation,
+  TopologyGraph,
+} from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
 import { securityPath } from "../../routes/paths.js";
+import type { RelationshipsView } from "../../use-relationships.js";
 import type {
   SecuritiesFailure,
   SecuritiesView,
@@ -91,6 +96,31 @@ import styles from "./MarketTopology.module.css";
 export interface MarketTopologyProps {
   /** The universe, in whichever state `use-securities.ts` has it. */
   readonly universe: SecuritiesView;
+
+  /**
+   * Which securities move together, in whichever state
+   * `use-relationships.ts` has it (Task 6.5.2).
+   *
+   * **A second, independent request, and the whole point is that this one
+   * failing changes no ink.** The graph is built from {@link universe} and the
+   * measured edges are merged into it, so `loading`, `never-measured` and
+   * `failed` all draw the picture this region drew before Story 6.5 existed —
+   * byte for byte, nodes and membership edges and all. What differs between
+   * the four states is **one clause of the accessible sentence**, which is
+   * where this region says which of them it is in.
+   *
+   * That is `PRODUCT_SPEC.md` §36's degrade-locally rule arriving inside one
+   * region for the first time. Until this prop existed, this region had
+   * exactly one failure state — *the universe request itself failed* — and it
+   * blanked the whole graph, correctly, because the universe **is** its
+   * subject. A missing measurement is not.
+   *
+   * **Required rather than optional**, which is {@link onRetry}'s own
+   * precedent and the stronger contract by one failure mode: an omitted prop
+   * would draw an edge-less graph that says nothing about why, and *nobody
+   * asked* and *nothing was measured* are not the same claim.
+   */
+  readonly relationships: RelationshipsView;
 
   /**
    * Called once per **drawn frame**, from inside the renderer's own loop.
@@ -210,6 +240,7 @@ export interface MarketTopologyHandle {
 
 export function MarketTopology({
   universe,
+  relationships,
   probe,
   bands,
   onRetry,
@@ -372,7 +403,38 @@ export function MarketTopology({
    * cluster count from the graph the canvas actually drew rather than
    * hard-coding `11` a second place.
    */
-  const topology = securities === null ? null : topologySource(securities);
+  const topology =
+    securities === null
+      ? null
+      : topologySource(securities, measuredPairs(relationships));
+
+  /**
+   * **One clause about the measured edges, built at render and read by BOTH
+   * writers of the accessible sentence** (Task 6.5.2).
+   *
+   * The sentence has two authors: this component's own JSX, and
+   * {@link applyAnomalyBands}, which overwrites `textContent` imperatively on
+   * every live band update. **So a clause that only one of them knew about
+   * would be deleted by the other** — the band write would drop it on the
+   * next batch, 6.8–16.1 times a minute. Passing it to both is what keeps
+   * them from clobbering each other, and it is why this is a string computed
+   * here rather than a second imperative writer: there is no live update to
+   * this picture's edge layer at all (Story 6.7 owns that), so the clause is
+   * **static for the page's lifetime** once the measurement has settled.
+   *
+   * It is also why React touching this node again is not a problem it would
+   * otherwise be: the paragraph's declared children change exactly once, when
+   * the measurement settles — and `topology`'s own identity changes in the
+   * same render, which re-runs the mount effect and starts the renderer fresh
+   * with no bands applied. So the two writers are never out of step: either
+   * React has just written `structure + clause` over a freshly mounted canvas
+   * with no band to lose, or a batch has written `structure + bands + clause`
+   * and React has no reason to touch the node again.
+   */
+  const correlationClause = topologyCorrelationClause(
+    topology?.graph ?? null,
+    relationships,
+  );
 
   /**
    * **`[topology]`, not `[]`** — unlike `resetView`, `setBands` needs the
@@ -390,10 +452,21 @@ export function MarketTopology({
       resetView: () => renderer.current?.reset(),
       setBands: (treatments) => {
         if (topology === null) return;
-        applyAnomalyBands(renderer, sentence, topology.graph, treatments);
+        applyAnomalyBands(
+          renderer,
+          sentence,
+          topology.graph,
+          treatments,
+          correlationClause,
+        );
       },
     }),
-    [topology],
+    // **`correlationClause` joins `topology` here** (Task 6.5.2): the band
+    // write composes the sentence and would otherwise close over the clause
+    // this component held when the handle was last made. It is a **string**,
+    // so the dependency compares by value and the handle is recreated exactly
+    // once — when the measurement settles — rather than on every render.
+    [topology, correlationClause],
   );
 
   /**
@@ -693,8 +766,14 @@ export function MarketTopology({
    */
   useEffect(() => {
     if (bands === undefined || topology === null) return;
-    applyAnomalyBands(renderer, sentence, topology.graph, bands);
-  }, [bands, topology]);
+    applyAnomalyBands(
+      renderer,
+      sentence,
+      topology.graph,
+      bands,
+      correlationClause,
+    );
+  }, [bands, topology, correlationClause]);
 
   if (universe.state === "loading") {
     return (
@@ -809,7 +888,14 @@ export function MarketTopology({
        * last).
        */}
       <p id={sentenceId} ref={sentence} className={styles.drawnSentence}>
-        {topologyDrawnSentence(topology.graph)}
+        {/*
+         * **One expression and therefore one text node**, which is the
+         * standing condition this paragraph lives under: `applyAnomalyBands`
+         * owns `textContent`, so React must have exactly one child here to
+         * replace rather than two to reconcile. See
+         * {@link correlationClause} for why both writers carry the clause.
+         */}
+        {`${topologyDrawnSentence(topology.graph)}${correlationClause}`}
       </p>
       {/*
        * **What the keyboard does, attached to the thing a key press can
@@ -1341,12 +1427,151 @@ function applyAnomalyBands(
   sentence: RefObject<HTMLParagraphElement | null>,
   graph: TopologyGraph,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
+  correlationClause: string,
 ): void {
   renderer.current?.setBands(treatments);
 
   if (sentence.current !== null) {
-    sentence.current.textContent = topologyAnomalySentence(graph, treatments);
+    // **The correlation clause is re-appended here**, because this write
+    // replaces the whole string. Without it the measured-edge clause would
+    // survive exactly as long as the next live batch took to arrive — the
+    // two-writers problem `correlationClause`'s own note describes, and the
+    // reason the clause is a parameter rather than something this function
+    // could work out for itself.
+    sentence.current.textContent = `${topologyAnomalySentence(graph, treatments)}${correlationClause}`;
   }
+}
+
+/**
+ * **What the drawn graph says about the measured edges — one clause, three
+ * absence states and one presence state** (Task 6.5.2, Story 6.5's own design
+ * work).
+ *
+ * ## It states a POPULATION and a REACH, never an edge
+ *
+ * `measured-set.ts`' rule as every other region on `/` applies it, and here
+ * the temptation it refuses is specific: a per-edge fact (*AAPL moves with
+ * MSFT*) is 1,860 facts in a hidden paragraph, which is a wall rather than a
+ * fallback, and it would also be the one claim on this surface a listener
+ * could not check against anything. So the clause says **how many pairs are
+ * drawn, how many securities they reach, and out of what** — and names no
+ * ticker at all, which is also what keeps it stable while a live band update
+ * rewrites the sentence around it.
+ *
+ * ## The figures are read off the DRAWN graph and the PRODUCER's pass, never
+ * ## derived from one another
+ *
+ * `edges` and `reach` come from the merged graph, because that is what is on
+ * screen: `withCorrelationEdges` drops a pair naming a security the universe
+ * no longer tracks, so `pass.retainedPairs` can legitimately exceed what is
+ * drawn and the sentence must not claim the larger number. Everything that is
+ * **not** on screen — the candidate population, the window, the `N` — comes
+ * off the pass row, because a surface stating its own denominator must state
+ * the producer's figure rather than a count of what survived to it
+ * (`the-population-is-never-a-literal`'s own rule, one region over).
+ *
+ * ## Four states, four sentences, and the first three draw identical ink
+ *
+ * `loading` is the **absence of a clause** rather than a clause about an
+ * absence — the discipline `Movers`' age line already follows: nothing has
+ * happened yet, and a sentence saying so is a sentence that will be wrong in
+ * 200 ms. The other three each say which of them it is, because *we have never
+ * measured this*, *we measured and kept nothing* and *we could not read the
+ * measurement* are three different facts with three different repairs, and
+ * nothing else on the screen distinguishes them.
+ */
+function topologyCorrelationClause(
+  graph: TopologyGraph | null,
+  relationships: RelationshipsView,
+): string {
+  if (graph === null) return "";
+
+  switch (relationships.state) {
+    case "loading":
+      return "";
+
+    case "failed":
+      // **The one sentence this story adds for a degraded read**, and what it
+      // does not say is the point: no `Try again`, no correlation id, no
+      // status word. The graph beside it is correct and complete about its own
+      // subject; one layer of it is missing, and that is the whole claim.
+      return (
+        " Which securities move together could not be read, so only the" +
+        " sector groupings are drawn."
+      );
+
+    case "never-measured":
+      // CI's permanent state, and every laptop's before the first
+      // `pnpm baselines`. **Not "no securities move together"** — which would
+      // be a measurement we have not made.
+      return (
+        " Which securities move together has not been measured here, so no" +
+        " security is joined to another."
+      );
+
+    case "measured": {
+      const { pass } = relationships;
+      const measured = graph.edges.filter(
+        (edge) => edge.kind === "return_correlation",
+      );
+
+      // `toLocaleString("en-US")` for every count, which is this
+      // application's own idiom for a counted population in prose
+      // (`return-percentile.ts`' `of 4,620 5-minute returns`,
+      // `volume-ratio.ts`' `80 IEX minutes`). A bare `122760` in a spoken
+      // sentence is a figure a reader has to count the digits of.
+      const sessions = `${pass.lookbackSessions.toLocaleString("en-US")} trading sessions`;
+      const candidates = pass.candidatePairs.toLocaleString("en-US");
+
+      if (measured.length === 0) {
+        return (
+          ` No pair of securities moved together closely enough to draw:` +
+          ` ${candidates} pairs were measured over` +
+          ` ${sessions} and none was kept.`
+        );
+      }
+
+      const reach = new Set<Ticker>();
+      for (const edge of measured) {
+        reach.add(edge.from);
+        reach.add(edge.to);
+      }
+
+      const equities = graph.nodes.filter(
+        (node) => node.kind === "equity",
+      ).length;
+
+      // `measured.length === 1 ? "pair" : "pairs"` — this application's own
+      // idiom for a counted noun in spoken prose (`measured-set.ts`'
+      // `count === 1 ? "minute" : "minutes"`), so a store with exactly one
+      // retained correlation does not read "1 pairs" to a listener.
+      const drawnNoun = measured.length === 1 ? "pair" : "pairs";
+
+      return (
+        ` Securities that moved together are joined by a dashed edge:` +
+        ` ${measured.length.toLocaleString("en-US")} ${drawnNoun}, reaching` +
+        ` ${reach.size.toLocaleString("en-US")} of the` +
+        ` ${equities.toLocaleString("en-US")} equities, from ${candidates}` +
+        ` pairs measured over ${sessions} with the strongest` +
+        ` ${pass.retainedN.toLocaleString("en-US")} kept for each security.`
+      );
+    }
+  }
+}
+
+/**
+ * The measured pairs a `RelationshipsView` carries, or `null` for none.
+ *
+ * **`null` for all three of the other states**, and that is the structural
+ * half of this story's degraded behaviour: `topologySource(securities, null)`
+ * is byte-identical to the graph this region drew before Story 6.5, so *the
+ * measurement is in flight*, *there is none* and *we could not read it* cannot
+ * differ by a pixel. They differ by the clause above and by nothing else.
+ */
+function measuredPairs(
+  relationships: RelationshipsView,
+): readonly TopologyCorrelation[] | null {
+  return relationships.state === "measured" ? relationships.correlations : null;
 }
 
 /**

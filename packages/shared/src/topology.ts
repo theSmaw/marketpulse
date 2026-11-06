@@ -35,6 +35,21 @@
  * {@link IndexEtfSecurity.sector} is absent rather than null, rather than an
  * optional number every reader has to branch on.
  *
+ * **That trigger FIRED on 2026-11-06 (Task 6.5.2) and was honoured to the
+ * letter rather than reinterpreted.** `TOPOLOGY_EDGE_KINDS` has a third
+ * member, `TopologyEdge` is a union of {@link TopologyMembershipEdge} and
+ * {@link TopologyCorrelationEdge}, and the weight is **required on the new
+ * kind and structurally absent on the two old ones** — not optional anywhere.
+ * What the trigger's own wording did not say, and what this file settles
+ * instead, is **where the correlation comes from**: {@link buildTopologyGraph}
+ * is unchanged, down to its signature, and the merge is
+ * {@link withCorrelationEdges} — a second pure function taking the measured
+ * set as an **argument**. So the builder stays a function of the curated
+ * universe alone (which is what Epic 7's server-side readers and Epic 13's
+ * replay refusal are both written against), and the one thing in this model
+ * that is not derivable from a `Security[]` is the one thing a caller has to
+ * hand it.
+ *
  * `STORY.md`'s design work is the argument for what is drawn; this file is the
  * vocabulary. Where they disagree, the one with the rejected alternatives in it
  * is the one that was thought about.
@@ -68,22 +83,30 @@ export const TOPOLOGY_HUB: Ticker = toTicker("SPY");
 /**
  * Why two nodes are joined.
  *
- * Two members, and both are **curated facts rather than measurements** — which
- * is why neither carries a weight and why the design work leaves dash unspent
- * for the first kind that is a measurement.
+ * ~~Two members, and both are **curated facts rather than measurements**~~ —
+ * **three since 2026-11-06 (Task 6.5.2), and the third is the measurement the
+ * other two reserved a channel for.** The struck sentence is kept because it
+ * is the premise the module docblock's own reversal trigger was written
+ * against, and that trigger has now fired exactly as worded.
  *
  * - `sector_membership` — an equity to its sector's benchmark ETF, 501 of them.
  * - `index_membership` — a sector ETF to {@link TOPOLOGY_HUB}, eleven of them.
+ * - `return_correlation` — two equities whose 60-session grids of 5-minute
+ *   returns move together, **as a nightly pass measured them** (ADR 0049).
+ *   The only kind carrying a weight, and the only kind that is not derivable
+ *   from the curated universe: it arrives as a second, explicit input through
+ *   {@link withCorrelationEdges} rather than as something
+ *   {@link buildTopologyGraph} reads.
  *
- * `PRODUCT_SPEC.md` §10 names two further relationships, and neither is here:
- * *common industry* is curated and free but would add an edge set an order of
- * magnitude denser with no benchmark node to converge on, and *strong
- * historical return correlation* needs 60 sessions and a nightly pass. Both are
- * later stories' and both arrive as new members of this list.
+ * `PRODUCT_SPEC.md` §10 names one further relationship and it is still not
+ * here: *common industry* is curated and free but would add an edge set an
+ * order of magnitude denser with no benchmark node to converge on. It is a
+ * later story's and arrives as a new member of this list.
  */
 export const TOPOLOGY_EDGE_KINDS = [
   "sector_membership",
   "index_membership",
+  "return_correlation",
 ] as const;
 
 /** One of {@link TOPOLOGY_EDGE_KINDS}. */
@@ -136,7 +159,7 @@ export interface TopologyNode {
 }
 
 /**
- * One relationship, as a pair of symbols.
+ * One **membership** relationship, as a pair of symbols.
  *
  * **`from` is the member and `to` is the thing it belongs to**, for both kinds
  * — equity → its sector's ETF, sector ETF → the hub. The adjacency is
@@ -146,16 +169,68 @@ export interface TopologyNode {
  * in both kinds and a reader walking `from` is always walking **up** the
  * containment chain.
  *
- * No weight. See the module docblock for the condition under which one arrives.
+ * **No `weight`, and it is structurally absent rather than optional** — the
+ * shape the module docblock pre-committed to, which is
+ * {@link IndexEtfSecurity.sector}'s own distinction and not a style: under
+ * `exactOptionalPropertyTypes` a `weight?: number` would make every reader
+ * branch on an absence that cannot occur, and would let a renderer encode a
+ * membership's strength, of which there is none.
  */
-export interface TopologyEdge {
+export interface TopologyMembershipEdge {
   /** The member. */
   readonly from: Ticker;
   /** What it belongs to. */
   readonly to: Ticker;
-  /** See {@link TOPOLOGY_EDGE_KINDS}. */
-  readonly kind: TopologyEdgeKind;
+  /** The two curated kinds. See {@link TOPOLOGY_EDGE_KINDS}. */
+  readonly kind: "sector_membership" | "index_membership";
 }
+
+/**
+ * One **measured** relationship between two equities (Task 6.5.2, ADR 0049).
+ *
+ * ## `from` is the lexicographically LOWER ticker, always
+ *
+ * Which is a convention this kind introduces rather than one it inherits:
+ * {@link TopologyMembershipEdge}'s `from` is *the member*, and a correlation
+ * has no member and no containment — it is symmetric, and a pair stored once
+ * needs an order to be stored *in*. The order is the **ticker** order, which
+ * is `0018` §3's own canonicalisation and ADR 0049's, chosen there because
+ * `securities.id` is assigned in row-insertion order and CI's store and the
+ * deployed store disagree about that order. So the stored row and the drawn
+ * edge agree about which end is which **by sharing one rule**, rather than by
+ * two layers happening to sort the same way — and {@link TopologyGraph}'s
+ * byte-comparable sort therefore survives a store whose ids run backwards.
+ *
+ * ## The weight is REQUIRED, signed, and not re-judged here
+ *
+ * The coefficient *is* the edge: a correlation with no number is not a weaker
+ * claim, it is no claim. **Signed** rather than a magnitude, because −0.9 and
+ * +0.9 are opposite facts about the market and a renderer that wants the
+ * magnitude can take one; a model that threw the sign away could not give it
+ * back. Nothing here applies a floor — STORY.md's resolved Open Decision 3 is
+ * *no edge below a derived floor*, enforced by the pass through a Fisher-z
+ * interval at that pair's own counted overlap, which is a statistical
+ * judgement over a sample this model never sees.
+ */
+export interface TopologyCorrelationEdge {
+  /** The pair's lower ticker. See this type's own note. */
+  readonly from: Ticker;
+  /** The pair's higher ticker. */
+  readonly to: Ticker;
+  readonly kind: "return_correlation";
+  /** Pearson's `r` over the two return grids, signed, in `[-1, 1]`. */
+  readonly weight: number;
+}
+
+/**
+ * One relationship — a membership or a measurement.
+ *
+ * **A discriminated union on `kind` rather than one interface with an optional
+ * weight**, which is the module docblock's own pre-committed shape: a reader
+ * that has narrowed to `return_correlation` has a `number`, and a reader
+ * holding a membership edge cannot ask for one at all.
+ */
+export type TopologyEdge = TopologyMembershipEdge | TopologyCorrelationEdge;
 
 /**
  * One sector, with its members.
@@ -204,6 +279,39 @@ export interface TopologyGraph {
 /** `Array.prototype.sort` comparator over two tickers, ascending. */
 function bySymbol(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/**
+ * {@link TopologyGraph.edges}' own order — `from`, then `to`, then `kind` —
+ * **in one place**, because two producers write that array now (Task 6.5.2).
+ *
+ * It is the whole of what makes two runs over one input byte-comparable, which
+ * `topology-layout.ts` and Story 6.1's renderer comparison both rest on, and a
+ * second copy of it in {@link withCorrelationEdges} is how the two would come
+ * to disagree about an edge whose `from` and `to` match a membership edge's.
+ */
+function byEdge(left: TopologyEdge, right: TopologyEdge): number {
+  return (
+    bySymbol(left.from, right.from) ||
+    bySymbol(left.to, right.to) ||
+    bySymbol(left.kind, right.kind)
+  );
+}
+
+/**
+ * One measured pair, as {@link withCorrelationEdges} takes it.
+ *
+ * **The wire's own field names and no renderer vocabulary** — `low`/`high` are
+ * `0018`'s columns and `CorrelationPayload`'s fields, so the route's body is
+ * this type's shape with nothing in between to map wrongly; `r` is the
+ * coefficient, spelled as `return-correlation.ts` spells it. Orientation is
+ * *not* trusted: see that function's own account.
+ */
+export interface TopologyCorrelation {
+  readonly low: Ticker;
+  readonly high: Ticker;
+  /** Pearson's `r`, signed. */
+  readonly r: number;
 }
 
 /**
@@ -293,7 +401,10 @@ export function buildTopologyGraph(
       .sort(bySymbol),
   })).sort((left, right) => bySymbol(left.id, right.id));
 
-  const edges: TopologyEdge[] = [];
+  // `TopologyMembershipEdge[]` rather than `TopologyEdge[]`: this function
+  // produces no measurement, and the narrower type is what makes that a
+  // compile error rather than a comment.
+  const edges: TopologyMembershipEdge[] = [];
 
   // One membership edge per tracked equity, to its own sector's benchmark.
   // `SECTOR_ETFS` is the one home for that pairing and is read rather than
@@ -335,12 +446,88 @@ export function buildTopologyGraph(
     }
   }
 
-  edges.sort(
-    (left, right) =>
-      bySymbol(left.from, right.from) ||
-      bySymbol(left.to, right.to) ||
-      bySymbol(left.kind, right.kind),
-  );
+  edges.sort(byEdge);
 
   return { nodes, edges, clusters };
+}
+
+/**
+ * Add the measured edges to a graph. **Pure and total** — the same two inputs
+ * twice give the same bytes, and the graph handed in is not touched (Task
+ * 6.5.2).
+ *
+ * ## Why this is not a second argument to {@link buildTopologyGraph}
+ *
+ * That function is *the market's arrangement as the curated universe records
+ * it*, and three readers depend on it being exactly that: Epic 7 answers
+ * structural questions about the graph server-side, Epic 13 has to **refuse** a
+ * replayed topology rather than fall back to today's roster, and Story 6.1's
+ * renderer comparison rests on one graph from one input. A correlation is none
+ * of those things — it is a nightly measurement that exists on one store and
+ * not another — so it arrives as a separate step, and a caller with no
+ * measurement simply does not take it.
+ *
+ * ## Three refusals, each one ADR 0029 applied to a line
+ *
+ * 1. **An endpoint that is not a node is dropped**, which is
+ *    {@link buildTopologyGraph}'s own `present.has()` discipline: a retained
+ *    pair naming a security untracked since the pass ran is a real, reachable
+ *    state, and an edge to a node nothing drew is a dangling reference every
+ *    renderer then has to decide what to do about.
+ * 2. **A self-pair is dropped.** `0018`'s `return_correlations_no_self_pair`
+ *    makes it unstorable, so this guards a caller rather than a row — and the
+ *    thing it prevents is a zero-length segment, which is the one input the
+ *    renderer's own end-clearance arithmetic cannot shorten.
+ * 3. **A repeated pair is dropped, first occurrence kept**, in either
+ *    orientation. Two rows for one pair are two strokes on one line — double
+ *    ink a reader reads as a stronger relationship, and a reach count that
+ *    over-reports. The store's own unique index refuses it; a second home for
+ *    the measured set (a cache, a merge of two generations) would not.
+ *
+ * **It does NOT filter on node kind**, and that is deliberate: *no landmark
+ * node ever forms a correlation pair* is the pass's rule (STORY.md's resolved
+ * Open Decision 4, asserted on the producer), and a second copy of it here
+ * would be a second home for one judgement — which is also the one that would
+ * go stale first, because this function cannot see why a pair was eligible.
+ * The condition for moving it here: **a second producer of correlation input
+ * that is not `return_correlations`.**
+ *
+ * @param correlations the retained pairs, in any order and any orientation
+ */
+export function withCorrelationEdges(
+  graph: TopologyGraph,
+  correlations: readonly TopologyCorrelation[],
+): TopologyGraph {
+  const present = new Set<string>(graph.nodes.map((node) => node.symbol));
+  const seen = new Set<string>();
+
+  const measured: TopologyCorrelationEdge[] = [];
+
+  for (const pair of correlations) {
+    if (pair.low === pair.high) continue;
+    if (!present.has(pair.low) || !present.has(pair.high)) continue;
+
+    // The canonical order is the TICKER order, resolved here rather than
+    // trusted from the caller — see {@link TopologyCorrelationEdge}. A row
+    // that arrives the other way round is the same edge, and sorting it here
+    // is what makes `seen` able to recognise it as one.
+    const [from, to] =
+      bySymbol(pair.low, pair.high) <= 0
+        ? [pair.low, pair.high]
+        : [pair.high, pair.low];
+
+    const key = `${from} ${to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    measured.push({ from, to, kind: "return_correlation", weight: pair.r });
+  }
+
+  // **One comparator, the builder's own**, so the three kinds interleave by
+  // one rule rather than correlation edges landing in a block of their own —
+  // which is what keeps `TopologyGraph`'s stated byte-comparable-sort
+  // guarantee a property of the whole array rather than of two halves of it.
+  const edges = [...graph.edges, ...measured].sort(byEdge);
+
+  return { nodes: graph.nodes, edges, clusters: graph.clusters };
 }

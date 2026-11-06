@@ -6104,3 +6104,61 @@ relationship is weaker than that one's_, or a node-size encoding keyed on how
 many edges a node has (Story 6.6 is the nearest candidate, and node size is its
 own). Until then the bias affects which edges are drawn and not any figure a
 reader is shown, because no surface prints a coefficient at all.
+
+## No gated machine draws a correlation edge, and the dash reset that keeps every other mark in the frame undashed is invisible to every level
+
+**Added 2026-11-06 by Task 6.5.2**, which is the task that put the measured
+edges on screen — so the claims below are the ones that task leaves standing
+rather than ones it found lying around.
+
+**CI's store has 516 securities, zero bars, no provider and no nightly
+correlation pass**, so `GET /market-data/relationships` answers
+`{"correlations":[]}` with **no `pass`** there, for ever. Every gated run draws
+the same graph the topology drew before Story 6.5 existed, and the one clause
+it checks is _this has not been measured here_. The three things no gated
+machine will ever see are **a drawn correlation edge**, **the measured clause's
+real figures**, and **the clamp below doing anything at all** — the branch that
+clamps a short segment is not entered when the array is empty.
+
+**The dash reset is the sharpest half, because nothing can see it fail.**
+`renderer-canvas.ts` sets `context.setLineDash([3, 2])` for the correlation
+batch and resets it with `setLineDash([])` immediately after the stroke. Delete
+the reset and **every later pass in the frame is dashed** — four node bodies,
+the `unscored` outline, two anomaly rings, both focus rings — on a store that
+has correlations. jsdom has no 2d context (the component tests mock the
+renderer whole), `pnpm e2e`'s own topology spec compares the canvas's data URL
+between two arms and would see **both** arms change together on a store with
+no pass, and on CI the branch is not entered at all. So the only machine that
+could ever catch it is a developer's populated store, by looking.
+
+**Re-measure**, on a store with a nightly pass (`pnpm baselines` after a
+backfill):
+
+```
+pnpm probe / --within "Market topology"
+```
+
+and look at `.probe/1440x900.png` at a node: a dashed node outline or a dashed
+anomaly ring is the defect. The positive control is that the **edges** are
+dashed and the **nodes** are not.
+
+**The drop figures this task derived its clamp from are one store, one
+generation, one session** — 1,860 pairs over 496 eligible equities, the four
+content boxes `pnpm probe` reports for `/` (996/568/684/306 × 411). The clamp's
+own claim — _no correlation edge is dropped at any width, and the only one that
+shows no ink is one its two endpoints' bodies cover entirely_ — is arithmetic
+and does not depend on that generation, but the **share** covered does: at 390
+it was 395 of 1,860 (21.2%), and that share is a function of node density in
+the real clusters, which moves with the curated universe.
+
+**Not mechanisable as a `pnpm invariants` entry.** A grep can see that
+`setLineDash([])` is present in the file; it cannot see that it is reached on
+every path that set a rhythm, which is the thing that matters, and a check that
+asserts the text is present would be green on the defect the day somebody moves
+the reset inside a conditional. What would catch it is the screenshot-diff
+mechanism `docs/GAPS.md` already records this repository as not having.
+
+**Owner: the first sitting that opens `/` against a store with a nightly
+correlation pass** — which is this developer's own machine today and the
+deployment from the first night `backfill.yml` runs after this ships. Story
+6.5's own close is the nearest scheduled one.

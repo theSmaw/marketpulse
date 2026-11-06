@@ -1,7 +1,12 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 
 import { SECTOR_ETFS } from "@marketpulse/shared";
-import type { SecuritiesResponse, Ticker } from "@marketpulse/shared";
+import type {
+  RelationshipsPassPayload,
+  SecuritiesResponse,
+  Ticker,
+  TopologyCorrelation,
+} from "@marketpulse/shared";
 
 import {
   LOADING_UNIVERSE,
@@ -10,6 +15,7 @@ import {
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
 import type { TopologyAnomalyTreatment } from "../../topology/index.js";
+import type { RelationshipsView } from "../../use-relationships.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import { toSecuritiesView } from "../../use-securities.js";
 import { MarketTopology } from "./MarketTopology.js";
@@ -221,6 +227,142 @@ const MARKET_PROXIES = filteredUniverse(
 );
 
 /**
+ * **No nightly correlation pass has run** (Task 6.5.2) — the state every
+ * machine that gates a merge is permanently in (CI has zero bars, no provider
+ * and no generation), and every laptop's before the first `pnpm baselines`.
+ *
+ * The picture is byte-identical to the one this component drew before Story
+ * 6.5 existed, which is the whole claim: the measured edges are **merged** into
+ * the graph, so an absent measurement is an absent merge rather than a
+ * different drawing.
+ */
+const NO_MEASUREMENT: RelationshipsView = { state: "never-measured" };
+
+/**
+ * A pass whose figures are **the real ones**, from Task 6.5.1's own recorded
+ * run against this developer's populated store:
+ *
+ * ```
+ * correlation pairs — 1860 retained of 122760 computed of 122760 candidate;
+ *   0 too few overlapping samples, 0 zero variance,
+ *   20752 below significance (a cut, not a refusal), at N = 5
+ * ```
+ *
+ * Quoted rather than invented, because the accessible sentence states these
+ * figures and a workshop reader checking the wording should be checking it
+ * against numbers the product has actually produced.
+ */
+const MEASURED_PASS: RelationshipsPassPayload = {
+  observedAt: "2026-09-11T20:00:00.000Z",
+  trackedEquities: 501,
+  eligibleEquities: 496,
+  splitDiscontinuity: 5,
+  absent: 0,
+  candidatePairs: 122_760,
+  computedPairs: 122_760,
+  retainedPairs: 1860,
+  tooFewOverlappingSamples: 0,
+  zeroVariance: 0,
+  belowSignificance: 20_752,
+  retainedN: 5,
+  lookbackSessions: 60,
+  spanMinutes: 5,
+  feed: "sip",
+};
+
+/**
+ * **A measured set of the real shape — same-sector-heavy, N = 5 per node**
+ * (Task 6.5.2).
+ *
+ * The shape rather than the data, and the shape is the part that matters for
+ * reviewing ink: Task 6.5.1 measured **82.4% of the retained pairs joining two
+ * equities in the same sector** (1,532 of 1,860), so the thing a reader has to
+ * judge is a dense dashed web **inside** each cluster with a minority of long
+ * segments crossing between them. A set drawn at random across the universe
+ * would be the opposite picture and would review the wrong risk.
+ *
+ * Built by joining each equity to the next two in its own sector (wrapping
+ * inside the sector, so every node has edges) plus one cross-sector pair per
+ * sector — deterministic, so two builds of this workshop draw the same graph,
+ * which is what {@link measuredDistributionBands} is deterministic for too.
+ *
+ * The coefficients run 0.30–0.95 across the set. **They are not drawn** — edge
+ * weight as a visible property is Story 6.6's — and they are varied anyway so
+ * that the day it is, this story has something to show.
+ */
+function correlationsOfTheRealShape(): readonly TopologyCorrelation[] {
+  const bySector = new Map<string, Ticker[]>();
+
+  for (const security of securitiesFixtureBody("full").securities) {
+    if (security.kind !== "equity") continue;
+    const members = bySector.get(security.sector) ?? [];
+    members.push(security.symbol);
+    bySector.set(security.sector, members);
+  }
+
+  const pairs: TopologyCorrelation[] = [];
+  const sectors = [...bySector.keys()].sort();
+
+  sectors.forEach((sector, sectorIndex) => {
+    const members = bySector.get(sector) ?? [];
+
+    members.forEach((symbol, index) => {
+      for (const step of [1, 2]) {
+        const other = members[(index + step) % members.length];
+        if (other === undefined || other === symbol) continue;
+
+        // The canonical ticker order is `withCorrelationEdges`' own rule and
+        // it resolves either orientation — these are written unsorted on
+        // purpose, so this story exercises that rather than pre-empting it.
+        pairs.push({
+          low: symbol,
+          high: other,
+          r: 0.3 + ((index + step) % 7) / 10,
+        });
+      }
+    });
+
+    // One cross-sector pair per sector — the 17.6% minority that carries
+    // information the membership edges do not.
+    const next = bySector.get(
+      sectors[(sectorIndex + 1) % sectors.length] ?? "",
+    );
+    const here = members[0];
+    const there = next?.[0];
+    if (here !== undefined && there !== undefined) {
+      pairs.push({ low: here, high: there, r: 0.95 });
+    }
+  });
+
+  return pairs;
+}
+
+/** The measured state, with edges to draw. */
+const MEASURED: RelationshipsView = {
+  state: "measured",
+  correlations: correlationsOfTheRealShape(),
+  pass: MEASURED_PASS,
+};
+
+/**
+ * **A pass that ran and kept nothing** — a pass row, zero rows.
+ *
+ * Reachable rather than hypothetical: every candidate pair can be refused for
+ * too little overlap or cut for being indistinguishable from zero, and on a
+ * store with one session of bars that is the likely outcome. The picture is
+ * {@link NO_MEASUREMENT}'s and the **sentence** is not, which is the
+ * distinction ADR 0029's first rule asks this surface to keep.
+ */
+const MEASURED_NOTHING: RelationshipsView = {
+  state: "measured",
+  correlations: [],
+  pass: { ...MEASURED_PASS, retainedPairs: 0, belowSignificance: 122_760 },
+};
+
+/** The measurement could not be read. See the `relationships` prop's own note. */
+const MEASUREMENT_FAILED: RelationshipsView = { state: "failed" };
+
+/**
  * **The box, because the workshop is not a layout** (Task 6.2.1).
  *
  * `.frame` is `block-size: 100%` since the `--topology-height` constant was
@@ -247,7 +389,17 @@ const meta = {
   // `onRetry` is required and in the workshop it is a no-op: what the `failed`
   // stories are for is the sentence, the control's two words and the reference,
   // and a real refetch here would ask a server that is not running.
-  args: { probe, onRetry: () => undefined },
+  args: {
+    probe,
+    onRetry: () => undefined,
+    /**
+     * **No nightly pass, which is the state every machine that gates a merge
+     * is permanently in** (Task 6.5.2) — so the default here is the default
+     * on CI, and the three stories below that override it are the only places
+     * a measured edge appears anywhere in this workshop.
+     */
+    relationships: NO_MEASUREMENT,
+  },
 } satisfies Meta<typeof MarketTopology>;
 
 export default meta;
@@ -366,4 +518,48 @@ export const FailedNotRetryable: Story = {
  */
 export const FailedUnreachable: Story = {
   args: { universe: securitiesFixtureView("nothingAnswered") },
+};
+
+/**
+ * **The measured edge layer, at the real shape** (Task 6.5.2) — the whole
+ * universe with a dashed correlation edge for every pair a `N = 5` pass
+ * retained, **82.4% of them inside one cluster**, which is the figure Task
+ * 6.5.1 measured and the thing this story exists to let a person judge:
+ * whether a dense dashed web inside a cluster reads as a measurement or as
+ * noise.
+ *
+ * **It is the only place in this repository where a correlation edge is drawn
+ * without a populated local store.** CI has no nightly pass and never will,
+ * so the workshop is the review surface for this ink exactly as it was for
+ * Story 6.1's whole graph.
+ */
+export const Correlations: Story = {
+  args: { universe: WHOLE_UNIVERSE, relationships: MEASURED },
+};
+
+/** The same measured set over one sector, where the dash rhythm is legible. */
+export const CorrelationsOneSector: Story = {
+  args: { universe: ONE_SECTOR, relationships: MEASURED },
+};
+
+/**
+ * **A pass that ran and kept nothing** — no new ink at all, and the whole
+ * difference from {@link Loading} and from this file's default is the
+ * accessible sentence. Worth a story of its own precisely because the picture
+ * is identical: the thing under review is the words.
+ */
+export const CorrelationsMeasuredNothing: Story = {
+  args: { universe: WHOLE_UNIVERSE, relationships: MEASURED_NOTHING },
+};
+
+/**
+ * **The universe loaded and the measurement did not** (Task 6.5.2) — the
+ * degraded state this story added, and the one this region did not have
+ * before: every node, every membership edge, the full readout plate and the
+ * keyboard walk, all intact, with one clause saying which layer is missing.
+ * No `Try again` and no correlation id, deliberately — see the
+ * `relationships` prop's own docblock in `MarketTopology.tsx`.
+ */
+export const CorrelationsUnreadable: Story = {
+  args: { universe: WHOLE_UNIVERSE, relationships: MEASUREMENT_FAILED },
 };

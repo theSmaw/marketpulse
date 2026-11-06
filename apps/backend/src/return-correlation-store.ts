@@ -1,6 +1,7 @@
 import { Kysely, PostgresDialect, sql } from "kysely";
 import type pg from "pg";
 
+import { toTicker } from "@marketpulse/shared";
 import type { MarketFeed, Ticker } from "@marketpulse/shared";
 
 import type { Database, ReturnCorrelationsTable } from "./schema.js";
@@ -26,12 +27,25 @@ import type { Database, ReturnCorrelationsTable } from "./schema.js";
  * Task 4.8.11's lesson, *an instrument that describes a second copy of the
  * subject is measuring the copy*.
  *
- * **There is deliberately no read method at all**, which is where this
- * diverges from every sibling store: `0018`'s rows are read by **nothing**
+ * ~~**There is deliberately no read method at all**~~ — **false since
+ * 2026-11-06 (Task 6.5.2), on the condition this paragraph itself named.** The
+ * struck text is kept because it is the reason the read below has the shape it
+ * has rather than a shape somebody guessed at a story earlier: `0018`'s rows
+ * are read by **nothing**
  * until Task 6.5.2 builds the route. A `readNewestGeneration` written now
  * would be a query shaped against a reader that does not exist yet, and
  * `0018` §7's index decision is explicitly written against the read Task 6.5.2
  * will actually issue. The condition for adding one is that task.
+ *
+ * {@link ReturnCorrelationStore.readNewestGeneration} is that read, and it is
+ * **the whole generation of one session and only that** — the second step of
+ * the two-step `0018` §7 argues the `(observed_at, …)`-leading key for, with
+ * no per-node query anywhere. That matters beyond tidiness: there is
+ * deliberately **no index on `security_high_id`**, so *every edge touching one
+ * security* is a scan, and the condition for adding one is still the condition
+ * that file states — the first reader that asks for one node's edges without
+ * reading the whole generation. This is not that reader, and a graph could not
+ * be one: an edge layer is meaningless an edge at a time.
  *
  * ## The pair is resolved by TICKER and written as two ids
  *
@@ -134,6 +148,56 @@ export interface CorrelationRefusalTally {
   zeroVariance: number;
 }
 
+/**
+ * One retained pair, as a reader gets it back — the write shape with the
+ * tickers resolved out of `securities` again (Task 6.5.2).
+ *
+ * **Structurally identical to {@link RetainedCorrelation} and deliberately a
+ * second type.** The writer's version is a claim this module asserts the
+ * canonical order of; this one is a row that has been through the database,
+ * where the orientation is held by `0018`'s unordered-pair index rather than
+ * by the ticker rule. They agree today, and a single type would make the
+ * reader look like it had inherited the writer's assertion, which it has not.
+ */
+export interface StoredCorrelation {
+  readonly low: Ticker;
+  readonly high: Ticker;
+  /** Pearson's `r`, signed. Parsed from `numeric`. */
+  readonly r: number;
+  readonly n: number;
+}
+
+/**
+ * One pass's own figures, read off the row the pass wrote.
+ *
+ * `StoredSessionPass`' shape, and every figure here is the **producer's**
+ * rather than anything this module counted: `retainedPairs` is what the pass
+ * says it kept, which a reader may compare against the rows it was handed.
+ */
+export interface StoredCorrelationPass extends Omit<
+  ReturnCorrelationPassWrite,
+  "parameters"
+> {
+  /** The session the pass is FOR — its window's end. The key. */
+  readonly observedAt: Date;
+  readonly parameters: ReturnCorrelationParameters;
+}
+
+/** One session's whole answer: the pass's figures and its retained pairs. */
+export interface StoredCorrelationGeneration {
+  readonly pass: StoredCorrelationPass;
+  /**
+   * The retained pairs, ordered by `low` then `high`.
+   *
+   * **Not ranked**, which is `StoredSessionRanking.scores`' own rule for its
+   * own reason: the ranking is `selectStrongestCorrelations`' and a store that
+   * sorted by `|r|` would be a second home for the comparator Task 6.5.1
+   * deliberately kept to one. The order here is an identity order, so two
+   * reads of one generation are byte-comparable.
+   */
+  readonly correlations: readonly StoredCorrelation[];
+}
+
 export interface ReturnCorrelationStore {
   /**
    * **Write one pass's retained pairs**, resolving each ticker to its
@@ -170,6 +234,48 @@ export interface ReturnCorrelationStore {
 
   /** Write the pass's own row, once, at the end. */
   writePass(observedAt: Date, pass: ReturnCorrelationPassWrite): Promise<void>;
+
+  /**
+   * **The newest pass at or before an instant, with every pair it retained** —
+   * or `undefined` where no pass has been written at or before it, which is
+   * CI's permanent state and every store's before the first `pnpm baselines`
+   * (Task 6.5.2).
+   *
+   * ## The pass row is read FIRST, and that is the partial-failure answer
+   *
+   * `session-percentile-store.ts`' arrangement and its reason, which applies
+   * **more** sharply here: this module writes its rows and then its pass row
+   * **outside a transaction** (see the header), so a crash between the two
+   * leaves retained pairs with no pass row. Bounding the rows on the **pass
+   * row's own `observed_at`** makes that state invisible rather than
+   * half-drawn — no pass row, no edges, and the surface draws its honest
+   * absence sentence instead of a graph with a third of a night's edges on it.
+   *
+   * ## Two statements rather than a correlated subquery
+   *
+   * `readNewestSession`' arrangement verbatim: the pass read is one row and
+   * the pair read is a bounded set (1,860 on the one store this has run
+   * against), and a `max()` inlined as a subquery would be re-planned against
+   * a growing table for no gain. A generation landing between the two
+   * statements is simply not seen until the next read.
+   *
+   * ## It does not filter on `securities.status`
+   *
+   * `UNIVERSE.md` §12.2's second side: this is a read of something we
+   * **stored**, and a security untracked this morning still had a correlation
+   * that was true when it was computed. The drawn graph drops the edge anyway
+   * — `withCorrelationEdges` refuses an endpoint that is not a node — and that
+   * is the right place for it, because *which securities we track now* is the
+   * renderer's question and not this row's.
+   *
+   * The bound is an **argument rather than a clock**, which is `closesAsOf`'s
+   * shape and ADR 0015's gap 4: under a replay Epic 13's plugin additionally
+   * narrows `observed_at` inside both queries, so this expression answers *the
+   * newest pass that had already run* with no second code path.
+   */
+  readNewestGeneration(
+    atOrBefore: Date,
+  ): Promise<StoredCorrelationGeneration | undefined>;
 }
 
 /**
@@ -346,6 +452,122 @@ export function createReturnCorrelationStore(
             .doUpdateSet({ ...values, recorded_at: sql<Date>`now()` }),
         )
         .execute();
+    },
+
+    async readNewestGeneration(atOrBefore) {
+      const pass = await db
+        .selectFrom("return_correlation_passes")
+        .select([
+          "observed_at",
+          "tracked_equities_count",
+          "eligible_equities_count",
+          "split_discontinuity_count",
+          "absent_count",
+          "candidate_pairs_count",
+          "computed_pairs_count",
+          "retained_pairs_count",
+          "too_few_overlapping_samples_count",
+          "zero_variance_count",
+          "below_significance_count",
+          "retained_n",
+          "lookback_sessions",
+          "span_minutes",
+          "feed",
+        ])
+        .where("observed_at", "<=", atOrBefore)
+        .orderBy("observed_at", "desc")
+        .limit(1)
+        .executeTakeFirst();
+
+      if (pass === undefined) return undefined;
+
+      // **Two aliased joins of one table**, which is the first query in this
+      // repository that needs them — a pair row names two securities, and
+      // resolving both ends in one statement is what keeps this a single
+      // bounded read rather than a per-row lookup or a second pass over the
+      // universe. The aliases are `low`/`high` to match `0018`'s own columns.
+      const rows = await db
+        .selectFrom("return_correlations")
+        .innerJoin(
+          "securities as low",
+          "low.id",
+          "return_correlations.security_low_id",
+        )
+        .innerJoin(
+          "securities as high",
+          "high.id",
+          "return_correlations.security_high_id",
+        )
+        .select([
+          "low.symbol as low_symbol",
+          "high.symbol as high_symbol",
+          "return_correlations.coefficient",
+          "return_correlations.sample_count",
+        ])
+        // **Bounded on the PASS row's session**, never on the argument — see
+        // the interface: that is what makes a crashed pass invisible instead
+        // of serving part of one night's edges under no figures at all.
+        .where("return_correlations.observed_at", "=", pass.observed_at)
+        // No filter on `securities.status`. See the interface.
+        .orderBy("low.symbol")
+        .orderBy("high.symbol")
+        .execute();
+
+      // **One function per domain type, beside the query** — and here that is
+      // where a `numeric` string and a `bigint` string become the numbers a
+      // drawn edge rests on. A generic mapper is where that decision gets
+      // skipped.
+      const correlations = rows.flatMap<StoredCorrelation>((row) => {
+        const r = Number(row.coefficient);
+        const n = Number(row.sample_count);
+
+        // **A row whose figures do not parse is DROPPED rather than refused**,
+        // which is `readNewestSession`'s own judgement and the same argument:
+        // every `check` in `0018` makes this unreachable from any writer in
+        // this repository — a coefficient outside `[-1, 1]`, a `NaN`, an
+        // overlap below the floor — and there is no honest refusal word for a
+        // row the schema says cannot exist. Dropping it leaves
+        // `pass.retainedPairs` **above** the rows, which is the only direction
+        // a reader's own nesting chain permits.
+        if (!Number.isFinite(r) || r < -1 || r > 1) return [];
+        if (!Number.isInteger(n) || n <= 0) return [];
+
+        return [
+          {
+            low: toTicker(row.low_symbol),
+            high: toTicker(row.high_symbol),
+            r,
+            n,
+          },
+        ];
+      });
+
+      return {
+        pass: {
+          observedAt: pass.observed_at,
+          trackedEquities: Number(pass.tracked_equities_count),
+          eligibleEquities: Number(pass.eligible_equities_count),
+          splitDiscontinuity: Number(pass.split_discontinuity_count),
+          absent: Number(pass.absent_count),
+          candidatePairs: Number(pass.candidate_pairs_count),
+          computedPairs: Number(pass.computed_pairs_count),
+          retainedPairs: Number(pass.retained_pairs_count),
+          refusals: {
+            tooFewOverlappingSamples: Number(
+              pass.too_few_overlapping_samples_count,
+            ),
+            zeroVariance: Number(pass.zero_variance_count),
+          },
+          belowSignificance: Number(pass.below_significance_count),
+          retainedN: pass.retained_n,
+          parameters: {
+            lookbackSessions: pass.lookback_sessions,
+            spanMinutes: pass.span_minutes,
+            feed: pass.feed,
+          },
+        },
+        correlations,
+      };
     },
   };
 }
