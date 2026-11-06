@@ -178,6 +178,26 @@
 }
 
 /*
+ * The announcement region (Task 6.4.4) — what a selection change is SPOKEN as,
+ * which is a different subject from the two paragraphs above: those are read
+ * when a reader arrives and asks, this one is read at a reader who did not.
+ *
+ * Hidden by the same mechanism and for a third reason on top of theirs: a
+ * `role="status"` region has to be in the tree before its text arrives (a
+ * browser that discovers the element and its content in one mutation often
+ * announces neither), so it cannot be conditionally rendered — which means it
+ * is on the page in every state and must take no room in any of them.
+ *
+ * **Its own rule rather than a second class on either of those elements**, and
+ * here that is structural rather than tidy: `aria-labelledby` and
+ * `aria-describedby` each read one id, and a live region is a third thing one
+ * element cannot also be.
+ */
+.announcement {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/*
  * **The hover readout plate** (Task 6.4.1) — what the node under the pointer
  * is, in words, bottom-left inside the frame.
  *

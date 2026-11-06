@@ -42,9 +42,12 @@ import {
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
 import { renderWithContext } from "../../test-render.js";
+import type { SecuritiesView } from "../../use-securities.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
+import { Region } from "../Region/Region.js";
 import {
   MarketTopology,
+  topologyAnnouncement,
   topologyOpenableSymbol,
   topologyReadoutLines,
 } from "./MarketTopology.js";
@@ -76,15 +79,28 @@ let lastDestroy = vi.fn();
 /** Same reason as {@link lastDestroy}, for `setBands` (Task 6.3.2). */
 let lastSetBands = vi.fn();
 
+/**
+ * Same reason as {@link lastDestroy}, for `focus` (Task 6.4.4).
+ *
+ * **A spy rather than a real `canvas.focus()`**, because there is no canvas
+ * here at all — jsdom has no 2d context, so the real renderer never mounts in
+ * this environment. What this file can prove is *which calls the component
+ * makes and when*, which is the half of the focus recovery that is a decision;
+ * where focus physically lands is `overview-market-topology-keyboard.spec.ts`'.
+ */
+let lastFocus = vi.fn();
+
 function createFakeRenderer(): TopologyRenderer {
   const frames = 1;
   lastDestroy = vi.fn();
   lastSetBands = vi.fn();
+  lastFocus = vi.fn();
   return {
     kind: "canvas",
     resize: vi.fn(),
     reset: vi.fn(),
     setBands: lastSetBands,
+    focus: lastFocus,
     framesDrawn: () => frames,
     destroy: lastDestroy,
   };
@@ -1233,6 +1249,601 @@ describe("MarketTopology", () => {
       // There is no anchor left here to focus, and this component must not
       // reach for anything else.
       expect(screen.queryAllByRole("link")).toHaveLength(0);
+    });
+  });
+
+  /**
+   * **What this region ANNOUNCES, and the three things it must not** (Task
+   * 6.4.4).
+   *
+   * The three negatives are the whole risk in this change and each one is a
+   * defect somebody would otherwise ship: announcing on a `"band"` re-report
+   * (a socket speaking at a listener 6.8–16.1 times a minute), announcing on
+   * hover (pointer-move cadence), and writing into the paragraph
+   * `applyAnomalyBands` already owns imperatively (two writers, one node).
+   * None of the three is visible on screen and none is reachable above jsdom —
+   * a browser can see that a `role="status"` element exists and what is in it,
+   * but not which of two writers put it there.
+   */
+  describe("the announcement region — Task 6.4.4", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    /** The announcement region itself — the one `role="status"` here. */
+    const region = (): HTMLElement => {
+      const found = document.querySelectorAll('[role="status"]');
+      // **Counted rather than taken first.** The claim is that there is
+      // exactly one live region in this component; a second one appearing is
+      // `FRONTEND-STATE.md` §7's two-regions hazard arriving here, and a
+      // `querySelector` would pick a winner and say nothing about it.
+      expect(found).toHaveLength(1);
+      const first = found[0];
+      if (first === undefined)
+        throw new Error("no announcement region was rendered");
+      return first as HTMLElement;
+    };
+
+    const spoken = (): string => region().textContent;
+
+    /** The structural sentence — `applyAnomalyBands`' own target. */
+    const sentence = (): HTMLElement =>
+      screen.getByText(/^A graph of every security we track/u);
+
+    const options = (): {
+      labelledBy?: string;
+      describedBy?: string;
+      onHover?: (hovered: TopologyHoverTarget | null) => void;
+      onSelect?: (
+        selected: TopologyHoverTarget | null,
+        source: TopologySelectionSource,
+      ) => void;
+    } => {
+      const found = mountCanvasTopology.mock.calls[0]?.[1] as
+        | {
+            labelledBy?: string;
+            describedBy?: string;
+            onHover?: (hovered: TopologyHoverTarget | null) => void;
+            onSelect?: (
+              selected: TopologyHoverTarget | null,
+              source: TopologySelectionSource,
+            ) => void;
+          }
+        | undefined;
+      if (found === undefined)
+        throw new Error("the renderer was never mounted");
+      return found;
+    };
+
+    const select = (
+      selected: TopologyHoverTarget | null,
+      source: TopologySelectionSource,
+    ): void => {
+      const channel = options().onSelect;
+      if (channel === undefined)
+        throw new Error("the renderer was mounted with no onSelect channel");
+      act(() => {
+        channel(selected, source);
+      });
+    };
+
+    const hover = (hovered: TopologyHoverTarget | null): void => {
+      const channel = options().onHover;
+      if (channel === undefined)
+        throw new Error("the renderer was mounted with no onHover channel");
+      act(() => {
+        channel(hovered);
+      });
+    };
+
+    const equity = (
+      symbol: string,
+      label: string,
+      treatment: TopologyAnomalyTreatment | null = "normal",
+    ): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker(symbol),
+        label,
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment,
+    });
+
+    const NVDA = equity("NVDA", "NVIDIA Corporation", "extreme");
+    const AAPL = equity("AAPL", "Apple Inc.", "normal");
+
+    const mount = (
+      ref?: ReturnType<typeof createRef<MarketTopologyHandle>>,
+    ): void => {
+      renderWithContext(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+          {...(ref === undefined ? {} : { ref })}
+        />,
+      );
+    };
+
+    it("renders one persistent, silent live region on mount, distinct from the structural sentence", () => {
+      mount();
+
+      const live = region();
+
+      // **`status`, never `alert`** — a selection is a fact the reader
+      // produced, not an interruption they need.
+      expect(live.getAttribute("role")).toBe("status");
+      // **Silent on arrival.** A region with a sentence already in it on
+      // mount announces that sentence on some readers, for a page the reader
+      // has only just opened.
+      expect(spoken()).toBe("");
+      // **A second element, which is this task's whole shape.**
+      expect(live).not.toBe(sentence());
+      // **And not either of the canvas's own referents.** A live region that
+      // is also a label is one element with three meanings.
+      const { labelledBy, describedBy } = options();
+      expect(live.id).toBe("");
+      expect(labelledBy).not.toBe("");
+      expect(labelledBy).toBe(sentence().id);
+      expect(describedBy).not.toBe(labelledBy);
+    });
+
+    it("speaks a pointer selection as the plate's own four facts, in one sentence", () => {
+      mount();
+
+      select(NVDA, "pointer");
+
+      // **The same strings as the plate**, read back through the same pure
+      // function rather than re-spelled here: a second expected phrasing in
+      // this test would be the second vocabulary the implementation refuses.
+      const { ticker, name, sector, band } = topologyReadoutLines(NVDA);
+      expect(spoken()).toBe(`Selected ${ticker}, ${name}, ${sector}, ${band}.`);
+      // Spelled once, flatly, so a reader of this test can see what a
+      // listener gets.
+      expect(spoken()).toBe(
+        "Selected NVDA, NVIDIA Corporation, Technology, extreme.",
+      );
+    });
+
+    it("speaks a keyboard selection, which is the one a listener actually reaches", () => {
+      mount();
+
+      select(AAPL, "keyboard");
+
+      expect(spoken()).toBe("Selected AAPL, Apple Inc., Technology, normal.");
+    });
+
+    it("speaks the clear, because a key press that produces silence reads as a key press that did not land", () => {
+      mount();
+
+      select(NVDA, "keyboard");
+      select(null, "keyboard");
+
+      expect(spoken()).toBe("Selection cleared.");
+      // And the plate went back to its idle instruction, which is the half of
+      // the same gesture a listener cannot see.
+      expect(
+        document
+          .querySelector("[data-topology-readout]")
+          ?.getAttribute("data-topology-readout"),
+      ).toBe("idle");
+    });
+
+    it("says NOTHING on hover, at either of hover's two cadences", () => {
+      mount();
+
+      hover(NVDA);
+      expect(spoken()).toBe("");
+
+      hover(AAPL);
+      hover(null);
+      expect(spoken()).toBe("");
+
+      // And hover over a node while something is selected leaves the
+      // SELECTION's sentence standing — the announcement is about what was
+      // committed to, not about what the pointer is passing over.
+      select(NVDA, "pointer");
+      const announced = spoken();
+      hover(AAPL);
+      hover(null);
+      expect(spoken()).toBe(announced);
+    });
+
+    it("says nothing on a band re-report — a feed batch is not a reader", () => {
+      mount();
+
+      select(NVDA, "keyboard");
+      const announced = spoken();
+
+      // **What `setBands` reaches** (`renderer-canvas.ts`: `if (selected !==
+      // null) onSelect?.(targetOf(selected), "band")`). The same node, with a
+      // different treatment, because the plate's band word must not go stale
+      // against the ring beside it.
+      select(equity("NVDA", "NVIDIA Corporation", "high"), "band");
+
+      // The plate followed it…
+      expect(document.querySelector('[data-readout="band"]')?.textContent).toBe(
+        "high",
+      );
+      // …and the listener was not interrupted. This is the assertion that
+      // stops a live feed speaking: without the `source !== "band"` guard it
+      // reads `Selected NVDA, NVIDIA Corporation, Technology, high.` here,
+      // 6.8–16.1 times a minute.
+      expect(spoken()).toBe(announced);
+      expect(spoken()).toBe(
+        "Selected NVDA, NVIDIA Corporation, Technology, extreme.",
+      );
+    });
+
+    it("drops the sector clause for a market proxy rather than padding it", () => {
+      mount();
+
+      select(
+        {
+          node: {
+            symbol: toTicker("SPY"),
+            label: "SPDR S&P 500 ETF Trust",
+            kind: "index_etf",
+            cluster: null,
+          },
+          treatment: null,
+        },
+        "keyboard",
+      );
+
+      // Four slots, three facts — the plate reserves the sector line's room
+      // silently and a sentence has no room to reserve.
+      expect(spoken()).toBe(
+        "Selected SPY, SPDR S&P 500 ETF Trust, Benchmarks are not scored.",
+      );
+    });
+
+    it("empties rather than announcing when a fresh universe takes the selection away", () => {
+      // **A retried `GET /securities` landing a new array**, which is the one
+      // thing that re-runs the mount effect — and it is not the reader
+      // clearing anything, so `Selection cleared.` here would be this region
+      // speaking at a listener about a request they never made.
+      const universe = securitiesFixtureView("full");
+      const { rerender } = renderWithContext(
+        <MarketTopology universe={universe} onRetry={() => undefined} />,
+      );
+
+      select(NVDA, "keyboard");
+      expect(spoken()).not.toBe("");
+
+      rerender(
+        <MarketTopology
+          // A NEW array by identity, which is what a retry produces.
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(spoken()).toBe("");
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(2);
+    });
+
+    /**
+     * **The two imperative writers, exercised in one sequence** (Task 6.4.4's
+     * own Work item 2).
+     *
+     * Both write `textContent` outside React's reconciliation, on two
+     * paragraphs rendered side by side with no declared children. The failure
+     * this is written against is not subtle in its effect and is completely
+     * invisible on screen: one writer reaching the other's node leaves a
+     * listener either told the graph's structure every time they press an
+     * arrow key, or told about a selection when they asked what the picture
+     * is.
+     */
+    it("leaves both sentences correct when a band update lands while a node is selected", () => {
+      const handle = createRef<MarketTopologyHandle>();
+      mount(handle);
+
+      const structureBefore = sentence().textContent;
+      expect(structureBefore).toContain("grouped into");
+      expect(structureBefore).not.toContain("extreme");
+
+      select(NVDA, "keyboard");
+      const announcedBefore = spoken();
+
+      // **The real route's own path** — `MarketOverview.tsx` reaches
+      // `setBands` through this handle on every applied batch, never through
+      // a prop.
+      act(() => {
+        handle.current?.setBands(
+          new Map([
+            [toTicker("MSFT"), "high"],
+            [toTicker("NVDA"), "extreme"],
+          ] as const),
+        );
+      });
+
+      // **The structural sentence moved**, which is what makes the line below
+      // a claim about independence rather than about a batch that did
+      // nothing.
+      const structureAfter = sentence().textContent;
+      expect(structureAfter).not.toBe(structureBefore);
+      expect(structureAfter).toContain("1 are high");
+      expect(structureAfter).toContain("1 are extreme");
+      // **And it is still only the structure.** No selection leaked into it.
+      expect(structureAfter).not.toContain("Selected");
+      expect(structureAfter).not.toContain("NVIDIA Corporation");
+
+      // **The announcement did not move**, and it is still only the
+      // selection. The band map above contains `NVDA` — the selected
+      // symbol — so a writer that confused the two nodes would be visible
+      // here and nowhere else.
+      expect(spoken()).toBe(announcedBefore);
+      expect(spoken()).toBe(
+        "Selected NVDA, NVIDIA Corporation, Technology, extreme.",
+      );
+      expect(spoken()).not.toContain("grouped into");
+
+      // One mount throughout: neither writer touched the renderer's lifetime.
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * **Where focus goes when the one anchor is removed from under a reader**
+   * (Task 6.4.4) — and this block is a **repair** rather than the
+   * confirmation it was written to be.
+   *
+   * It was written to confirm that `Region`'s dropped-focus backstop (Task
+   * 4.7.6 — when the element that last held focus inside the region is removed
+   * while `document.activeElement` is the body, the region focuses its own
+   * `<section>`) still fires now that this region has two focusable things, one
+   * of which comes and goes with the selection. **It does not fire, measured,
+   * and `renderer-canvas.ts`' `Escape` handler carried a comment saying it
+   * does.** `Region`'s recovery is a layout effect on `Region`; the anchor's
+   * removal is driven by `openable`, which is `MarketTopology`'s own state, so
+   * the re-render that replaces the `<a>` with a `<span>` re-renders this
+   * subtree alone and that effect never runs again. Focus lands on `<body>`.
+   *
+   * **The gesture that reaches it is the pointer crossing a different node
+   * while a keyboard reader holds the anchor**, which is this story's own
+   * interleaved case and is why the task that added an interleaved spec is the
+   * task that found this. `Escape` was already covered — the renderer focuses
+   * the canvas *before* clearing — and a click on empty canvas is covered by
+   * the browser focusing the `<canvas tabindex="0">` the pointer went down on.
+   * Neither covers a plain mouse movement over a 998 px canvas.
+   *
+   * The recovery is in `MarketTopology`'s `[openable]` effect and is asserted
+   * on the renderer's `focus()` call, because jsdom has no canvas to land on.
+   * It renders the REAL composition (`MarketOverview.tsx`'s own `<Region
+   * name="Market topology">`) rather than a stand-in, because the claim that
+   * `Region` does not reach this is a claim about two components' effects.
+   */
+  describe("the focus the one anchor drops — Task 6.4.4", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    const channels = (): {
+      onHover?: (value: TopologyHoverTarget | null) => void;
+      onSelect?: (
+        value: TopologyHoverTarget | null,
+        from: TopologySelectionSource,
+      ) => void;
+    } => {
+      const found = mountCanvasTopology.mock.calls.at(-1)?.[1] as
+        | {
+            onHover?: (value: TopologyHoverTarget | null) => void;
+            onSelect?: (
+              value: TopologyHoverTarget | null,
+              from: TopologySelectionSource,
+            ) => void;
+          }
+        | undefined;
+      if (found === undefined)
+        throw new Error("the renderer was never mounted");
+      return found;
+    };
+
+    const select = (
+      selected: TopologyHoverTarget | null,
+      source: TopologySelectionSource,
+    ): void => {
+      const onSelect = channels().onSelect;
+      if (onSelect === undefined)
+        throw new Error("the renderer was mounted with no onSelect channel");
+      act(() => {
+        onSelect(selected, source);
+      });
+    };
+
+    const hover = (hovered: TopologyHoverTarget | null): void => {
+      const onHover = channels().onHover;
+      if (onHover === undefined)
+        throw new Error("the renderer was mounted with no onHover channel");
+      act(() => {
+        onHover(hovered);
+      });
+    };
+
+    const node = (symbol: string, label: string): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker(symbol),
+        label,
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment: "normal",
+    });
+
+    const NVDA = node("NVDA", "NVIDIA Corporation");
+    const AAPL = node("AAPL", "Apple Inc.");
+
+    const composed = (universe: SecuritiesView) => (
+      <Region name="Market topology">
+        <MarketTopology universe={universe} onRetry={() => undefined} />
+      </Region>
+    );
+
+    it("puts a keyboard reader back on the canvas when a pointer crossing a different node removes their anchor", () => {
+      renderWithContext(composed(securitiesFixtureView("full")));
+
+      select(NVDA, "keyboard");
+      // Named by its own ticker — `writeTopologyReadout` wrote the text
+      // content as part of the same selection.
+      const anchor = screen.getByRole("link", { name: "NVDA" });
+      expect(document.activeElement).toBe(anchor);
+      expect(lastFocus).not.toHaveBeenCalled();
+
+      // **The reachable gesture.** `topologyOpenableSymbol` answers `null`
+      // because the plate is now naming a node that is not the selection, so
+      // the anchor must go — and nothing about a pointer move puts focus
+      // anywhere.
+      hover(AAPL);
+
+      expect(anchor.isConnected).toBe(false);
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
+      // **Back on the canvas**, which is where `Escape` already puts them.
+      expect(lastFocus).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reach Region's own backstop, which is why this repair exists", () => {
+      // **The negative that made this a repair.** Asserted rather than
+      // described, because the comment that described it was wrong for three
+      // days: `Region`'s layout effect does not run in the commit that
+      // removes the anchor, so focus is on `<body>` at the moment the
+      // recovery is asked for. If a future change ever does make `Region`
+      // catch this, THIS test goes red and the recovery can be reconsidered —
+      // which is the only way that reconsideration ever gets prompted.
+      renderWithContext(composed(securitiesFixtureView("full")));
+
+      select(NVDA, "keyboard");
+      hover(AAPL);
+
+      const section = screen.getByRole("region", { name: "Market topology" });
+      expect(document.activeElement).not.toBe(section);
+    });
+
+    it("takes no focus from a pointer-only reader, who never had any to drop", () => {
+      // Task 6.4.3's rule, from the side this repair could have broken: a
+      // pointer selection must not move focus, so a pointer gesture that
+      // removes the anchor must not produce a focus ring either.
+      renderWithContext(composed(securitiesFixtureView("full")));
+
+      select(NVDA, "pointer");
+      expect(document.activeElement).toBe(document.body);
+
+      hover(AAPL);
+
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
+      expect(lastFocus).not.toHaveBeenCalled();
+    });
+
+    it("leaves focus alone where the reader had already moved it elsewhere", () => {
+      // The second of the recovery's two conditions: *nobody holds focus*
+      // tells the removal having dropped it from the reader having tabbed
+      // away under their own steam.
+      renderWithContext(
+        <>
+          {composed(securitiesFixtureView("full"))}
+          <button type="button">Somewhere else</button>
+        </>,
+      );
+
+      select(NVDA, "keyboard");
+      const elsewhere = screen.getByRole("button", {
+        name: "Somewhere else",
+      });
+      act(() => {
+        elsewhere.focus();
+      });
+
+      hover(AAPL);
+
+      expect(document.activeElement).toBe(elsewhere);
+      expect(lastFocus).not.toHaveBeenCalled();
+    });
+
+    it("puts the reader on the fresh graph's canvas when a retry replaces the universe under them", () => {
+      // The second way the anchor goes: the mount effect's cleanup, which
+      // destroys the renderer and nulls `openable` together. **Unreachable in
+      // a browser today** — a retry is offered only from the failed state,
+      // where there is no canvas to have selected anything on — so this is
+      // the only level it can be produced at, and it is produced because the
+      // recovery is one rule rather than two.
+      const { rerender } = renderWithContext(
+        composed(securitiesFixtureView("full")),
+      );
+
+      select(NVDA, "keyboard");
+      const anchor = screen.getByRole("link", { name: "NVDA" });
+      expect(document.activeElement).toBe(anchor);
+
+      // A NEW array by identity, which is what a retry produces.
+      rerender(composed(securitiesFixtureView("full")));
+
+      expect(anchor.isConnected).toBe(false);
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(2);
+      // The SECOND renderer's spy — `createFakeRenderer` re-mints `lastFocus`
+      // per instance, so this is the new canvas rather than the dead one.
+      expect(lastFocus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * The announced sentence as a pure function (Task 6.4.4) — the vocabulary
+   * half, which is checkable without a renderer.
+   */
+  describe("topologyAnnouncement — Task 6.4.4", () => {
+    it("names the act, so a list of four nouns is not all a listener gets", () => {
+      expect(
+        topologyAnnouncement({
+          node: {
+            symbol: toTicker("NVDA"),
+            label: "NVIDIA Corporation",
+            kind: "equity",
+            cluster: "technology",
+          },
+          treatment: "high",
+        }),
+      ).toBe("Selected NVDA, NVIDIA Corporation, Technology, high.");
+    });
+
+    it("states an unscored equity's absence, in the plate's own words", () => {
+      expect(
+        topologyAnnouncement({
+          node: {
+            symbol: toTicker("AAPL"),
+            label: "Apple Inc.",
+            kind: "equity",
+            cluster: "technology",
+          },
+          treatment: "unscored",
+        }),
+      ).toBe("Selected AAPL, Apple Inc., Technology, Not scored yet.");
+    });
+
+    it("says the clear is a clear, rather than saying nothing at all", () => {
+      expect(topologyAnnouncement(null)).toBe("Selection cleared.");
+    });
+
+    it("spends no second vocabulary — every clause is topologyReadoutLines'", () => {
+      // The property rather than the strings: whatever the plate says about a
+      // node, the sentence is made of exactly those words.
+      const target: TopologyHoverTarget = {
+        node: {
+          symbol: toTicker("XLK"),
+          label: "Technology Select Sector SPDR Fund",
+          kind: "sector_etf",
+          cluster: "technology",
+        },
+        treatment: null,
+      };
+
+      const lines = topologyReadoutLines(target);
+      const announced = topologyAnnouncement(target);
+
+      for (const fact of Object.values(lines)) {
+        if (fact !== "") expect(announced).toContain(fact);
+      }
     });
   });
 

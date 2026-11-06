@@ -281,6 +281,21 @@ export interface TopologyRenderer {
    * drawing them unscored.
    */
   setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
+  /**
+   * **Put DOM focus on the canvas** (Task 6.4.4) — the one home for *where a
+   * keyboard reader of this region belongs*.
+   *
+   * The renderer owns the focusable element (it is the thing that sets
+   * `tabIndex` on it and the thing `Escape` already focuses), so a caller that
+   * needs focus back inside the graph asks for it rather than reaching for a
+   * `<canvas>` it did not create. `MarketTopology`'s focus recovery is the one
+   * caller: the plate's single anchor can be removed by a gesture that moves
+   * focus nowhere, and this is where the reader is put back.
+   *
+   * **A no-op risk this does NOT take**: it does not clear, draw or scroll
+   * anything. Focusing the canvas is all of it.
+   */
+  focus(): void;
   /** How many frames this renderer has drawn since mount. */
   framesDrawn(): number;
   /** Release the context, the listeners and the observers. */

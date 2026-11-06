@@ -802,10 +802,22 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       event.preventDefault();
       // **Focus first, then clear.** Clearing unmounts the anchor React
       // rendered for the selection, and an element removed while it holds
-      // focus drops focus to the body — which is the state `Region`'s own
-      // backstop catches by focusing its `<section>`, one level further out
-      // than a reader asked to go. Moving focus back to the canvas keeps
-      // `Escape` inside the region, which is this task's own Done-when 1.
+      // focus drops focus to the body. Moving focus back to the canvas keeps
+      // `Escape` inside the region, which is Task 6.4.3's own Done-when 1.
+      //
+      // ~~which is the state `Region`'s own backstop catches by focusing its
+      // `<section>`, one level further out than a reader asked to go~~ —
+      // **FALSE, measured 2026-11-06 by Task 6.4.4 and corrected here.**
+      // `Region`'s backstop is a layout effect on `Region`, and the anchor's
+      // removal happens in a commit driven by `MarketTopology`'s own state,
+      // which re-renders that subtree alone — so the effect never runs again
+      // and focus stays on `<body>`. The sentence was a claim about a
+      // mechanism, true-looking either way, and it was load-bearing: it is
+      // why nothing covered the OTHER gesture that removes this anchor (the
+      // pointer crossing a different node). `MarketTopology`'s `[openable]`
+      // effect now carries the recovery for both; this call is still the
+      // right one to make here, because focusing before clearing means the
+      // recovery has nothing to do.
       canvas.focus();
       setSelectedNode(null, "keyboard");
       return;
@@ -1394,6 +1406,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // with the ring on screen, and nothing would ever correct it.
       if (selected !== null) onSelect?.(targetOf(selected), "band");
       invalidate();
+    },
+    // **The same call `Escape` makes, exposed** (Task 6.4.4) — see
+    // `TopologyRenderer.focus`. Not a second mechanism: the keydown handler
+    // above focuses this same element, in this same closure.
+    focus: () => {
+      canvas.focus();
     },
     framesDrawn: () => frames,
     destroy: () => {
