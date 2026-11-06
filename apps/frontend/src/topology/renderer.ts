@@ -87,6 +87,26 @@ export interface TopologyHoverTarget {
 export type TopologyRendererKind = "canvas" | "sigma";
 
 /**
+ * **What moved the selection** (Task 6.4.3) — reported beside it, because the
+ * caller's answer differs.
+ *
+ * A keyboard walk must leave DOM focus on the one thing a reader can activate,
+ * so `MarketTopology` moves focus to the readout plate's anchor when — and
+ * only when — a key produced the selection. A pointer click must not: the
+ * reader's hand is already where they want it, and stealing focus into the
+ * plate would move the page's own focus ring for a gesture that never asked
+ * for it.
+ *
+ * `"band"` is neither: it is the renderer re-reporting the SAME node because a
+ * live `setBands` changed what it is drawn as, which is a redraw of a word
+ * rather than a move. It is named rather than folded into `"pointer"` so that
+ * nothing downstream has to read *a pointer did this* about a batch arriving
+ * on a socket. `ChartReading.tsx`'s own `source: "pointer" | "keyboard"` on
+ * its reading is the precedent for carrying this at all.
+ */
+export type TopologySelectionSource = "pointer" | "keyboard" | "band";
+
+/**
  * The ink diameter of each node kind, in **CSS pixels at zoom 1**.
  *
  * From the design canvas (`The graph at rest.dc.html`): circle 8 for the 501
@@ -146,6 +166,25 @@ export interface TopologyRendererOptions {
    */
   readonly labelledBy?: string | undefined;
   /**
+   * The id of a sibling element holding the key hints — *arrow keys walk the
+   * graph, Enter opens the selected security* (Task 6.4.3).
+   *
+   * **A second id rather than a widening of {@link labelledBy}**, because the
+   * two are different attributes answering different questions: the label is
+   * *what this picture is* and is read when the canvas is reached, and the
+   * description is *what you can do to it*. `ChartReading.tsx` is the
+   * precedent and it is exact — `role="img"` plus `tabIndex={0}` plus an
+   * `aria-describedby` pointing at a visually-hidden hint — and it exists
+   * there for the reason this repository has written down twice: a
+   * description attached to something a key press cannot reach is a sentence
+   * nobody is ever read.
+   *
+   * Undefined mounts the canvas with no `aria-describedby`, which is correct
+   * for a Storybook permutation with no hint beside it. The keyboard still
+   * works there; what is absent is the sentence saying so.
+   */
+  readonly describedBy?: string | undefined;
+  /**
    * Called when the node under the pointer **changes** — never on every
    * pointer move (Task 6.4.1).
    *
@@ -192,9 +231,21 @@ export interface TopologyRendererOptions {
    * changes what that node is drawn as, for `onHover`'s own reason: the plate
    * may be showing the selection, and a word that went stale under it would
    * disagree with the picture beside it.
+   *
+   * **The keyboard reaches this same channel and there is no second one**
+   * (Task 6.4.3). An arrow key computes the next node through
+   * `topology/walk.ts` and calls the renderer's own internal setter — the one
+   * a click already calls — so a caller cannot tell a keyboard selection from
+   * a pointer one except by the {@link TopologySelectionSource} it is handed
+   * beside it, and the `openable`/`<Link>` plumbing needed no change at all
+   * when the keyboard landed.
    */
   readonly onSelect?:
-    ((selected: TopologyHoverTarget | null) => void) | undefined;
+    | ((
+        selected: TopologyHoverTarget | null,
+        source: TopologySelectionSource,
+      ) => void)
+    | undefined;
 }
 
 /** A mounted renderer. */

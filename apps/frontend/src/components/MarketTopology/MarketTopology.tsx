@@ -291,6 +291,37 @@ export function MarketTopology({
   const chosen = useRef<TopologyHoverTarget | null>(null);
   const offered = useRef<Ticker | null>(null);
 
+  /**
+   * **The one anchor's own element, and why this component has to hold it**
+   * (Task 6.4.3).
+   *
+   * A keyboard reader walking the graph has to end up with DOM focus on the
+   * thing they can activate, because that is what makes `Enter` the browser's
+   * own native activation of an `<a href>` rather than something this product
+   * would have to implement — and
+   * `one-home-for-imperative-navigation` is a check over every shipped source
+   * file in three trees, so "something this product would have to implement"
+   * means a `navigate()` call that check refuses by name. The anchor is
+   * rendered here, so the focus call is here.
+   */
+  const anchor = useRef<HTMLAnchorElement>(null);
+
+  /**
+   * **Whether a KEY moved the selection last** — the one bit that decides
+   * whether focus follows it (Task 6.4.3).
+   *
+   * A pointer selection must not move focus: the reader's hand is already
+   * where they want it, and pulling the page's focus ring into the plate is a
+   * second thing happening for a gesture that asked for one. A keyboard
+   * selection must, or `Enter` has nothing to act on.
+   *
+   * `"band"` — the renderer re-reporting the same node because a live
+   * `setBands` changed its word — leaves this alone rather than clearing it,
+   * which is the state it describes: a batch arriving on a socket is not the
+   * reader changing input device.
+   */
+  const keyboardSelection = useRef(false);
+
   const securities = universe.state === "loaded" ? universe.securities : null;
 
   /**
@@ -377,6 +408,7 @@ export function MarketTopology({
         palette: topologyPalette(),
         probe,
         labelledBy: sentenceId,
+        describedBy: keyHintIdFor(sentenceId),
         /*
          * **The hover channel, and it deliberately adds no effect dependency**
          * (Task 6.4.1). This arrow is created *inside* the effect, so it is not
@@ -405,8 +437,15 @@ export function MarketTopology({
          * **The selection channel, and the one place a pointer event on this
          * canvas reaches React state at all** (Task 6.4.2).
          */
-        onSelect: (selectedTarget) => {
+        onSelect: (selectedTarget, source) => {
           chosen.current = selectedTarget;
+          // **The device, remembered rather than acted on here** (Task
+          // 6.4.3). Focus can only be moved once React has rendered the
+          // anchor this selection makes openable, which is the effect below;
+          // calling `focus()` from here would reach the element React is
+          // about to replace.
+          if (source !== "band")
+            keyboardSelection.current = source === "keyboard";
           show();
         },
       });
@@ -479,6 +518,24 @@ export function MarketTopology({
    */
   useEffect(() => {
     writeTopologyReadout(plate.current, hovered.current ?? chosen.current);
+
+    // **Focus follows a KEYBOARD selection onto the one anchor** (Task
+    // 6.4.3) — the roving-stop idea `RankedList` already uses, with one
+    // physical element rather than one per row, and the reason it is here is
+    // `Enter`: with focus on a real `<a href>` resolved at render from the
+    // selected symbol's own identity, activation is the browser's and this
+    // region's code contains no navigation call at all.
+    //
+    // **After the commit, not in the callback**, for the same reason the
+    // write above is here: `openable` going from `null` to a symbol makes
+    // React REPLACE the ticker element, so a `focus()` in the `onSelect`
+    // callback lands on the node being thrown away.
+    //
+    // It deliberately does not fire when `openable` is `null`: that is
+    // `Escape` (where the renderer has already put focus on the canvas) or a
+    // fresh universe (where focus is wherever the reader left it and moving
+    // it would be this component taking focus for a request nobody made).
+    if (openable !== null && keyboardSelection.current) anchor.current?.focus();
   }, [openable]);
 
   /**
@@ -619,6 +676,26 @@ export function MarketTopology({
         {topologyDrawnSentence(topology.graph)}
       </p>
       {/*
+       * **What the keyboard does, attached to the thing a key press can
+       * reach** (Task 6.4.3).
+       *
+       * `ChartReading.tsx`'s shape, and its lesson verbatim: a description on
+       * an unfocusable element is a sentence nobody is ever read. The canvas
+       * takes `aria-describedby` pointing here and `tabIndex={0}` from the
+       * renderer, so this is announced when a reader arrives rather than
+       * being a hint on screen nobody needs.
+       *
+       * **A second element rather than a clause on the sentence above.** That
+       * paragraph is the drawn graph's text equivalent and is overwritten
+       * imperatively by `applyAnomalyBands` on every live batch — appending
+       * the key hints to it would put them inside a string a socket rewrites,
+       * and they would survive exactly as long as the next batch took to
+       * arrive.
+       */}
+      <p id={keyHintIdFor(sentenceId)} className={styles.keyHint}>
+        {TOPOLOGY_KEY_HINT}
+      </p>
+      {/*
        * **The readout plate — a real DOM element, sibling to the canvas, never
        * painted into it** (Task 6.4.1, and this component's own standing rule:
        * painted text is unreachable by a screen reader, unassertable below a
@@ -694,6 +771,7 @@ export function MarketTopology({
              * depending on the write having landed.
              */
             data-ticker={openable}
+            ref={anchor}
           />
         )}
         <span className={styles.readoutName} data-readout="name" />
@@ -707,16 +785,74 @@ export function MarketTopology({
 /**
  * What the plate says when the pointer is over nothing (Task 6.4.1).
  *
- * **Deliberately silent about the keyboard**, though the design canvas
- * (`Hover, select, and the way out.dc.html`) and this task's own brief both
- * spell a sentence naming one. That route does not exist until Task 6.4.3
- * wires arrow-key traversal — "a claim about a mechanism reads identically
- * whether the mechanism is there or not" is this repository's own rule, and
- * a hint naming a key that does nothing is exactly that claim. Task 6.4.3
- * widens this string once `Tab` and the arrow keys actually walk the graph;
- * until then it names only what is true.
+ * ~~**Deliberately silent about the keyboard**~~ — **widened 2026-11-05 by
+ * Task 6.4.3, which is the condition the original wording named.** It read
+ * `Point at a security to see what it is.` while arrow keys did nothing,
+ * because "a claim about a mechanism reads identically whether the mechanism
+ * is there or not" and a hint naming a key that does nothing is exactly that
+ * claim. The keys now walk the graph, so the sentence says so.
+ *
+ * **The wording is the design canvas's own, verbatim**, which is the string
+ * Task 6.4.1 implemented, caught on review and reverted — `Hover, select, and
+ * the way out.dc.html` and that task's own brief both spell `Point at a
+ * security, or press Tab and the arrow keys`, and ADR 0026 makes the canvas
+ * the source of truth where it is not making a false claim. It was the second
+ * part that failed then and is true now.
+ *
+ * **It names the arrow keys and not `Enter`**, which is the division between
+ * this string and {@link TOPOLOGY_KEY_HINT}: this one is drawn on screen in a
+ * 288 px plate and is read by somebody who has not pressed anything, so it
+ * carries the one thing that gets them started; the full account — including
+ * `Home`/`End` and what `Enter` opens — is the hidden description attached to
+ * the canvas, which is read at the moment a reader arrives with a keyboard.
  */
-const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";
+const TOPOLOGY_READOUT_IDLE =
+  "Point at a security, or press Tab and the arrow keys.";
+
+/**
+ * What a keyboard reader is told when they reach the canvas (Task 6.4.3) —
+ * the visually-hidden description `aria-describedby` points at.
+ *
+ * **Three sentences for three mechanisms, and no fourth.** The arrow keys walk
+ * the tree, `Home`/`End` jump to the ends of whichever group the reader is in,
+ * and `Enter` opens. **It names what `Down`/`Up` physically DO — enter,
+ * leave — and deliberately not the tree's own vocabulary**: the first draft
+ * said *down enters a sector, up leaves it*, and the word `sector` was
+ * dropped because the graph's own text equivalent already says it is grouped
+ * into sectors around their benchmark ETFs, so naming the grouping a second
+ * time, read aloud on every arrival, would be a second account of a structure
+ * one sentence already gave. What a listener still needs — which key does
+ * what, not what the graph contains — is what the shipped sentence keeps.
+ *
+ * `Escape` is named because it is the way out of a state a reader can
+ * otherwise only leave by selecting something else.
+ */
+/**
+ * The key-hint paragraph's own id, **derived from the graph sentence's rather
+ * than minted by a second `useId()`** (Task 6.4.3).
+ *
+ * The reason is the mount effect's deps list rather than economy: those deps
+ * are exactly `[topology, probe, sentenceId]` and that list is load-bearing
+ * (this file's module docblock, and Story 6.2's declined `React.memo`
+ * boundary, which is argued from it). A second `useId` value is stable for
+ * the component's lifetime and would still have to be named in the deps to
+ * satisfy the hooks rule — a fourth entry in a list three documents reason
+ * about.
+ *
+ * **A function rather than a `const` in the component body for the same
+ * reason**: a local would be a value the effect closes over and the hooks
+ * rule cannot see through, so it is reported as a missing dependency. A
+ * module-level call of `sentenceId`, which IS in the deps, is one home for
+ * the string with nothing added to the list.
+ */
+function keyHintIdFor(sentenceId: string): string {
+  return `${sentenceId}-keys`;
+}
+
+const TOPOLOGY_KEY_HINT =
+  "Arrow keys walk the graph: down enters, up leaves, left and right move " +
+  "between neighbours. Home and End jump to the ends of the current group. " +
+  "Enter opens the selected security, and Escape clears it.";
 
 /**
  * **Which symbol, if any, the plate is currently offering to OPEN** (Task
