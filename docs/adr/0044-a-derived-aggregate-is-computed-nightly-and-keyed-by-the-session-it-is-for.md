@@ -384,3 +384,70 @@ more than the table. It is still prose. **Condition for making it mechanical:**
 the first DERIVED table keyed on `(…, observed_at[, …])` that ships **without** a
 sibling `*_passes` table — at which point the convention is a check in
 `apps/backend/migrations/README.md`'s own terms rather than a habit.
+
+## Amended 2026-11-06 by Task 6.5.1 — the TENTH and ELEVENTH tables, the first keyed by a PAIR, and the first member for which TWO of this ADR's stated properties do not hold
+
+**The decision is unchanged and the mechanism needed no extension.**
+`0018_return_correlations.sql` adds `return_correlations` and
+`return_correlation_passes` — the tenth and eleventh, counting as this ADR's
+own amendments do (`0013` one, `0014` two and three, `0015` four and five,
+`0016` six and seven, `0017` eight and nine) — folded into the **same**
+nightly pass, keyed by
+the session they are **for**, window-end column named `observed_at` with **no
+default**, both labelled derived and recomputable in three places, and the
+companion `*_passes` row in its **fifth** application. What is new is the
+**grain of the key** — a pair of securities rather than one — and
+[ADR 0049](0049-a-derived-relationship-is-keyed-by-a-canonical-pair-and-the-stored-top-n-is-a-selection.md)
+carries the three decisions that follow from it: the canonicalisation on
+ticker, the stored top-N as a selection, and how one refused security
+propagates to ~500 pairs at a stroke. None of that is argued here.
+
+**What belongs here is that two properties this ADR states do not carry over
+to this member, and both failures are confined to the pairwise phase.**
+
+**1. The bounded resident set.** This ADR's Decision states the pass must
+stream, and the 2026-10-14 amendment's whole argument for _one scan per
+security_ is that it is bounded and resumable. A correlation is a function of
+**two** securities' series, so there is no ordering of 125,250 pairs that lets
+a series be released before every pair it belongs to has been computed: the
+pass accumulates one `Map<Ticker, ReadonlyMap<number, number>>` across the
+whole per-security loop. **Measured on a populated local store (48.8 M bars, 60
+sessions ending 2026-09-11) against a control arm with the accumulation removed
+and nothing else changed: peak RSS 750.5 MB against 324.4 MB, so the phase's
+added resident set is 426.1 MB.** The alternative is a **second read** of each
+security's window per pair, which is the cost regime this ADR exists to stay
+out of. The pass runs on a GitHub runner — `backfill.yml`'s `baselines` job,
+`timeout-minutes: 90` — and not in the 0.25 vCPU / 0.5 GiB container, so the
+figure is measured against a runner rather than against the deployment's
+envelope. **The reversal trigger this ADR already carries covers it**: the
+first reader that must score a session the nightly runner has not yet written
+is also the first reader that would put this phase in the container.
+
+**2. Full resumability.** _A pass that dies has written every generation it
+finished_ is still true of the **four per-security tables** — each is its own
+upsert as the loop progresses — and is **false** of `return_correlations`,
+whose rows all arrive after the loop ends. A crash anywhere before that point
+writes **no correlation row at all**. The repair is a re-run of the pairwise
+phase, which reads no bars and is pure CPU over process memory, so what is lost
+is the phase's own wall clock rather than the pass's I/O.
+
+**Costs, measured rather than projected, with a control arm.** `pnpm migrate`
+applied `0018` in **0.397 / 0.37 / 0.35 s** end to end over three runs on the
+populated local store (48.8 M bars) — catalogue writes only, two
+`create table`s and one expression index over zero rows, nothing touching
+`market_bars`, `securities` or any earlier derived table, against
+`deploy.yml`'s `timeout 120`. The nightly pass's **added** cost
+is the first in this family that is **not** below the machine's noise floor:
+**38.87 s with the phase against 17.06 s for the control**, so **+21.81 s**, of
+which the pairwise walk over 122,760 candidate pairs is **15.25 s** and the
+remaining ~6.6 s is building 496 return-series maps inside the loop. Against
+the job's 90-minute budget that is **0.72%** of it. One laptop, one store, one
+run per arm.
+
+**And one of this ADR's own derived figures was the thing a plant corrected.**
+The shaping estimated the accumulated series at 10–20 MB, from the data's own
+size; the measurement is 426.1 MB, **21–43× more**, because a
+`Map<number, number>` of ~4,000 entries costs far more than its
+8-bytes-an-entry payload. An estimate taken from the payload is not an estimate
+of a `Map` of it — which is this repository's _measure rather than cite_ rule
+arriving on a resident set rather than on a wall clock.

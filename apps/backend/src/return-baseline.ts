@@ -349,6 +349,101 @@ export function baselineSamples(input: ReturnBaselineInput): BaselineSamples {
 }
 
 /**
+ * **The same walk, keyed by instant and SIGNED — the input a pairwise
+ * correlation needs** (Task 6.5.1).
+ *
+ * One entry per grid pair the walk found, keyed by the **later** anchor's
+ * `getTime()` and holding the **signed** percentage return. Every structural
+ * property {@link baselineSamples} carries is carried here unchanged: the
+ * anchors are generated per session by {@link sessionAnchors}, a sample is a
+ * pair of **consecutive anchors of one session's own array**, so no sample
+ * crosses a session boundary and the grid is non-overlapping.
+ *
+ * ## Why this is a SIBLING rather than a refactor of `baselineSamples`
+ *
+ * The two functions want different things out of one walk, and neither want is
+ * a superset of the other:
+ *
+ * - The **percentile** wants `Math.abs` magnitudes in **an array**, because
+ *   what it computes is 101 order statistics — a sort, where identity and
+ *   position are irrelevant and `Math.abs` is the quantity (Story 5.1's
+ *   decisions 2 and 3).
+ * - A **correlation** wants **signed** returns in a **map keyed by instant**,
+ *   because what it computes is an intersection of two securities' anchors
+ *   followed by a covariance. Magnitudes would make two securities that both
+ *   move violently on the same minutes **in opposite directions** read as
+ *   perfectly correlated, which is the opposite of the fact a reader wants.
+ *   An array would have to be aligned by position, which is only correct if
+ *   both securities printed every anchor — median stored coverage is 82.8%, so
+ *   they do not.
+ *
+ * A single function returning both would allocate an array nobody reads on
+ * every nightly call, or take a mode flag and branch inside its hot inner
+ * loop. `baselineSamples` is also the one function in this module with four
+ * stated, separately-tested structural properties and a defect history behind
+ * each — this repository's own rule is that a working, tested, carefully
+ * commented function is not destabilised to save a loop. **What the two share
+ * is `sessionAnchors`**, which is where the grid actually lives, so the thing
+ * that could drift between them cannot.
+ *
+ * ## It does NOT re-run the split guard, deliberately
+ *
+ * There is no `discontinuous` in the return type and the caller is expected to
+ * have the verdict already: the nightly pass computes `returnBaselineOf` for
+ * the same `(security, window)` a few lines earlier and gates this call on
+ * `outcome.kind === "measured"`. That is `computeVolumeBaseline`'s and
+ * `computeExcessBaseline`'s arrangement — `0014` §5's *the generation is
+ * identified rather than copied* — and the reason is that a second evaluation
+ * of the same guard over the same closes is a second **answer**, not a
+ * corroboration.
+ *
+ * The consequence is stated rather than left to be noticed: **a security the
+ * split guard refuses forms no correlation pair at all**, and is counted once
+ * in security space rather than once per each of the ~500 pairs it would have
+ * joined. `0018_return_correlations.sql` §5 holds that arithmetic.
+ */
+export function baselineReturnSeries(
+  input: ReturnBaselineInput,
+): ReadonlyMap<number, number> {
+  const { sessions, closes } = input;
+
+  const series = new Map<number, number>();
+
+  for (const session of sessions) {
+    const anchors = sessionAnchors(session);
+
+    for (let index = 1; index < anchors.length; index += 1) {
+      // **The pair is the PREVIOUS anchor of this session's own array**, which
+      // is what makes a cross-session pair unrepresentable: `index - 1` cannot
+      // reach outside `anchors`, and `anchors` is one session's.
+      const anchor = anchors[index];
+      const earlier = anchors[index - 1];
+      if (anchor === undefined || earlier === undefined) continue;
+
+      const close = closes.get(anchor.getTime());
+      const earlierClose = closes.get(earlier.getTime());
+      // A missing grid partner is a sample that does not exist — never a
+      // stretch to the nearest bar.
+      if (close === undefined || earlierClose === undefined) continue;
+      if (!Number.isFinite(earlierClose) || earlierClose === 0) continue;
+
+      // **Signed, and keyed on the LATER anchor.** Which of the two instants
+      // keys the entry is arbitrary in itself and must be the same on both
+      // legs of every pair, or two securities' series would intersect on
+      // nothing at all; the later one is chosen because it is the instant the
+      // return is *as of*, which is `fiveMinuteReturn`'s own convention for
+      // the figure it draws.
+      series.set(
+        anchor.getTime(),
+        ((close - earlierClose) / earlierClose) * 100,
+      );
+    }
+  }
+
+  return series;
+}
+
+/**
  * **One security's baseline, or the reason there is not one.**
  */
 export function returnBaselineOf(

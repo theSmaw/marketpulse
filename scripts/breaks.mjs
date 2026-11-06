@@ -6285,4 +6285,84 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "no-second-affordance-on-a-topology-node",
   },
+  {
+    name: "the-strongest-n-keeps-the-weakest",
+    proves:
+      "`selectStrongestCorrelations` keeps the union of each node's " +
+      "**strongest** N (Task 6.5.1, Story 6.5's acceptance criterion 8). " +
+      "This plant reverses one subtraction in `compareForNode` — " +
+      "`Math.abs(right.r) - Math.abs(left.r)` becomes " +
+      "`Math.abs(left.r) - Math.abs(right.r)` — so every node keeps its " +
+      "**weakest** five correlations and `PRODUCT_SPEC.md` §10's *retain " +
+      "only the strongest N relationships per node* is inverted.\n\n" +
+      "**The plant is a sign slip in a comparator, which is the defect this " +
+      "repository has three separate invariants about** " +
+      "(`one-comparator-for-the-order-of-a-move`, `…-of-a-percentile`, " +
+      "`…-of-a-composite-score`) — and a FOURTH quantity that none of their " +
+      "patterns can see, because they key on `percent|change|move`, " +
+      "`.rank|ordinal|percentile` and `.score` while this comparator reads " +
+      "`.r`. Which is also why the guard here is a test rather than a " +
+      "grep.\n\n" +
+      "**Nothing else can see it, and that was CONFIRMED rather than " +
+      "assumed.** With the plant applied: `pnpm typecheck` green, " +
+      "`pnpm lint` green, and `return-correlations.database.test.ts` " +
+      "**24 of 24 green** — the rows " +
+      "are well-formed, canonically ordered, individually correct and " +
+      "refused by no constraint in `0018`; only the SET is wrong. There is " +
+      "no pass-through wire check to confirm stays green because at this " +
+      "task's stage **nothing reads these rows at all** (Task 6.5.2 builds " +
+      "the first reader), which is the strongest form of `docs/GAPS.md`'s " +
+      "*the wire cannot see a defect in the producer*.\n\n" +
+      "`pnpm invariants` is the one check that DOES go red with the plant " +
+      "applied, and it is worth saying why it proves nothing: it fails on " +
+      "`every-break-can-still-land`, because this entry's own substitution " +
+      "replaces the line its `find` names, so while the plant is standing " +
+      "the registry cannot find it. That is the registry's self-check " +
+      "reporting the break, not a guard catching the defect — read which " +
+      "invariant failed, which is `CLAUDE.md`'s *red for the wrong reason " +
+      "reads exactly like proof* in its mildest form. `pnpm break` restores " +
+      "the tree, so the committed tree holds 81 of 81.\n\n" +
+      "**A first draft of this entry planted the missing CUT instead — " +
+      "`ordered.slice(0, n)` → `ordered` — and it was WITHDRAWN on its own " +
+      "transcript.** That plant makes the parameter `n` unused, so " +
+      "`pnpm lint` catches it at `return-correlation-selection.ts:108:3` " +
+      "with `'n' is defined but never used`: the break would have gone red " +
+      "for a reason that is not the defect, which is `CLAUDE.md`'s *red for " +
+      "the wrong reason reads exactly like proof*. The arithmetic it was " +
+      "written around is kept, because it is what the cut is worth: the " +
+      "union of every node's WHOLE list is every candidate, so 122,760 " +
+      "candidate pairs − 20,752 below significance = **102,008 retained** " +
+      "against the **1,860** the cut produces at N = 5 — a 55× edge layer " +
+      "on a canvas `PRODUCT_SPEC.md` §28 sizes for *several thousand " +
+      "edges*.\n\n" +
+      "**A second companion plant was proved by hand in the same sitting**, " +
+      "because it is the other half of the mechanism and a break edits one " +
+      "line: deleting the second `fileUnder(candidate.high, candidate)` — " +
+      "a pair filed under one endpoint only, which is 'top N per node' " +
+      "written by somebody who did not notice a pair has two ends. It went " +
+      "red on **five of twelve** assertions — verbatim, the two that name " +
+      "the mechanism were *recovers an ASYMMETRIC node's exact top 2 from " +
+      "the stored union* (`expected [ 'BBB-DDD', 'CCC-DDD' ] to deeply " +
+      "equal [ 'AAA-DDD', 'BBB-DDD' ]`, which is precisely the asymmetry " +
+      "the union exists for) and *returns the same object references it was " +
+      "given* (`expected { low: 'BBB', high: 'CCC', … } to be { low: " +
+      "'AAA', high: 'DDD', … }`). So the two plants are caught by " +
+      "different assertions rather than by one, and `recovers every node's " +
+      "top N, for every N` named the node and the N it failed at — `CCC " +
+      "at N = 1` — which is the clause-level reading " +
+      "`CLAUDE.md` asks for rather than *the run was red*.",
+    file: "apps/backend/src/return-correlation-selection.ts",
+    find: "  const byStrength = Math.abs(right.r) - Math.abs(left.r);",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const byStrength = Math.abs(left.r) - Math.abs(right.r);",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/return-correlation-selection.test.ts",
+    ],
+    expect: "is the union of each node's own top 2, in canonical order",
+  },
 ];

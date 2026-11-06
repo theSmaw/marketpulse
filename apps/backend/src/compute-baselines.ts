@@ -1,7 +1,10 @@
 import {
   BASELINE_LOOKBACK_SESSIONS,
   BASELINE_MINIMUM_SAMPLE,
+  CORRELATION_LOOKBACK_SESSIONS,
+  correlationIsSignificant,
   excessMoveReference,
+  pearsonCorrelation,
   scoreAnomaly,
 } from "@marketpulse/shared";
 
@@ -21,6 +24,7 @@ import { closeDatabasePool, createDatabasePool } from "./database.js";
 import type { DatabaseLogger } from "./database.js";
 import {
   SAMPLE_SPAN_MINUTES,
+  baselineReturnSeries,
   baselineWindowEndingAt,
   returnBaselineOf,
   seriesIsDiscontinuous,
@@ -77,6 +81,13 @@ import type {
   ExcessRefusalTally,
   StoredExcessBaseline,
 } from "./excess-move-baseline-store.js";
+import { createReturnCorrelationStore } from "./return-correlation-store.js";
+import type {
+  CorrelationRefusalTally,
+  ReturnCorrelationStore,
+} from "./return-correlation-store.js";
+import { selectStrongestCorrelations } from "./return-correlation-selection.js";
+import type { CorrelationCandidate } from "./return-correlation-selection.js";
 
 /**
  * **The nightly pass — the one thing in this product that no request path can
@@ -118,6 +129,64 @@ import type {
  * generation it finished. Running them concurrently would multiply the
  * resident set by the concurrency and put the fetches back in the uncorrelated
  * regime this shape exists to stay out of.
+ *
+ * ## Amended 2026-11-06 by Task 6.5.1 — the paragraph above is now FALSE for
+ * ## one phase of this pass, and both of its claims fail for that phase
+ *
+ * **The resident set is no longer one security's window.** The correlation
+ * phase needs every eligible equity's return series **at the same time** —
+ * a correlation is a function of two of them, so there is no ordering of the
+ * pairs that lets a series be released before every pair it belongs to has
+ * been computed. So {@link runPass} accumulates one `Map<Ticker,
+ * ReadonlyMap<number, number>>` across the whole per-security loop and holds
+ * it until the pairwise phase ends.
+ *
+ * **Measured on this developer's populated store** (48.8 M bars, 60 sessions
+ * ending 2026-09-11), against a control arm of the same pass with the
+ * accumulation removed and nothing else changed:
+ *
+ * | Figure                  | With the phase | Control  |
+ * | ----------------------- | -------------- | -------- |
+ * | RSS at pass start       | 79.2 MB        | 79.1 MB  |
+ * | RSS entering the pairs  | **750.5 MB**   | 324.4 MB |
+ * | peak RSS                | **750.5 MB**   | 324.5 MB |
+ * | whole pass              | **38.87 s**    | 17.06 s  |
+ * | pairwise phase alone    | **15.25 s**    | 0.01 s   |
+ * | series held             | 496            | 0        |
+ *
+ * So the phase's **added** resident set is **426.1 MB** and its **added** wall
+ * clock is **21.81 s**, of which 15.25 s is the pairwise walk and the
+ * remaining ~6.6 s is `baselineReturnSeries` building 496 maps inside the
+ * loop. The peak is reached **before** the pairwise phase and does not move
+ * during it, which is the design's own claim measured: the phase allocates
+ * nothing per pair.
+ *
+ * **The shaping's estimate of 10–20 MB for the accumulated series was 21–43×
+ * low**, and the reason is worth carrying: a `Map<number, number>` of ~4,000
+ * entries costs far more than its 8-bytes-an-entry payload, so an estimate
+ * taken from the data's own size is not an estimate of a `Map` of it. Every
+ * figure above is **local, one laptop, one store, one run per arm**.
+ *
+ * **The alternative was considered and is a second read.** Reading each
+ * security's window twice — once in this loop and once per pair — is 125,250
+ * reads of 538 correlated blocks, which is the cost regime ADR 0044's whole
+ * decision exists to stay out of. Holding the series is the cheap arm, and
+ * the pass runs on a GitHub runner (`backfill.yml`'s `baselines` job,
+ * `timeout-minutes: 90`) rather than in the 0.25 vCPU / 0.5 GiB container —
+ * this module's header above — so the figure is measured against a runner's
+ * 16 GB rather than against the deployment's envelope.
+ *
+ * **And the resumability claim is narrower than it was, which is the half
+ * worth knowing before relying on it.** *A pass that dies has written every
+ * generation it finished* is still true of the **four per-security tables**:
+ * each is its own upsert as the loop progresses. It is **false** of
+ * `return_correlations`, whose rows all arrive after the loop ends — so a
+ * crash anywhere before that point writes **no correlation row at all**, and a
+ * crash during the pairwise phase writes none either. The repair is a re-run
+ * of the pairwise phase, which is **in-memory and reads no bars**, so what is
+ * lost is the phase's own wall clock rather than the pass's I/O. ADR 0044's
+ * 2026-11-06 amendment records that this is the first member of its family
+ * for which two of its stated properties do not hold.
  */
 
 export interface ComputeBaselinesOutcome {
@@ -141,7 +210,119 @@ interface PassTally {
   excess: ExcessTally;
   /** The stored composite's own figures; see {@link CompositeTally}. */
   composite: CompositeTally;
+  /** The pairwise correlation's own figures; see {@link CorrelationTally}. */
+  correlation: CorrelationTally;
 }
+
+/**
+ * **The pairwise correlation's tally — TWO population chains at TWO grains,
+ * and that is the whole point of it** (Task 6.5.1).
+ *
+ * Every tally above this one counts securities. This one counts securities
+ * **and** pairs, because a security-grain refusal removes **~500 candidate
+ * pairs at a stroke** and a pass row reporting one undifferentiated `refused`
+ * count could not express that. `0018` §5 holds both arithmetics in the
+ * database — the security populations **partition**, the pair populations
+ * **nest** — so a pass that died mid-phase writes a row that is refused rather
+ * than a row whose counts quietly do not add up.
+ *
+ * `samples`, `smallestOverlap`, `largestOverlap`, `strongest`, `weakest` and
+ * `sameSector` are **measurement** rather than product, which is
+ * `ExcessTally`'s two sample bounds one quantity over. Nothing stores them —
+ * every row carries its own `n` and its own coefficient. They are here because
+ * two later tasks need them and cannot get them any other way: **Task 6.5.3**
+ * settles `N` from a measurement of readability and frame rate, which needs to
+ * know what a real retained set looks like, and **Story 6.5's own Open
+ * Decision 4** asks this pass to *measure and report what share of the
+ * retained set turns out to be same-sector* — because if that share is near
+ * 100%, the edge layer is mostly restating the clustering the membership edges
+ * already draw rather than adding the cross-cluster information this story's
+ * own "what the user can see" promises.
+ */
+interface CorrelationTally {
+  /** The active equities the pass was over. Counted, never spelled. */
+  trackedEquities: number;
+  /** Passed the split guard and produced at least one grid return. */
+  eligibleEquities: number;
+  /** The price pass's own verdict, inherited rather than re-evaluated. */
+  splitDiscontinuity: number;
+  /** No stored grid pair at all — **no series**, and CI's whole state. */
+  absent: number;
+
+  /** `C(eligible, 2)`. */
+  candidatePairs: number;
+  /** Cleared the overlap floor and produced a finite coefficient. */
+  computedPairs: number;
+  /** In some node's top-N **and** significant. The rows the pass wrote. */
+  retainedPairs: number;
+
+  /** The two pair-grain refusals, which sum to `candidate − computed`. */
+  refusals: CorrelationRefusalTally;
+  /**
+   * Computed, finite, and **not distinguishable from zero** at that pair's own
+   * `n`. The **cut** rather than a refusal — Open Decision 3's *no edge below a
+   * derived floor* — which is why it is outside the partition above.
+   */
+  belowSignificance: number;
+
+  /** The summed overlap over the retained pairs, for a mean. */
+  samples: number;
+  /** The least and greatest overlap a retained pair was measured over. */
+  smallestOverlap: number;
+  largestOverlap: number;
+  /** The greatest and least `|r|` in the retained set. */
+  strongest: number;
+  weakest: number;
+  /**
+   * How many retained pairs join two equities of the **same sector** — Open
+   * Decision 4's own question, answered by the pass rather than assumed away.
+   */
+  sameSector: number;
+}
+
+const noCorrelationTally = (): CorrelationTally => ({
+  trackedEquities: 0,
+  eligibleEquities: 0,
+  splitDiscontinuity: 0,
+  absent: 0,
+  candidatePairs: 0,
+  computedPairs: 0,
+  retainedPairs: 0,
+  refusals: { tooFewOverlappingSamples: 0, zeroVariance: 0 },
+  belowSignificance: 0,
+  samples: 0,
+  smallestOverlap: Number.POSITIVE_INFINITY,
+  largestOverlap: 0,
+  strongest: 0,
+  weakest: Number.POSITIVE_INFINITY,
+  sameSector: 0,
+});
+
+/**
+ * **How many correlation edges one node keeps: 5 — and it is a WORKING DEFAULT
+ * pending Task 6.5.3's own measurement, not a settled figure.**
+ *
+ * Story 6.5's Open Decision 1 is explicit about this. What Gate 1 settled is
+ * the **selection mechanism** — the union of each node's own top-N, stored
+ * once in canonical ticker order — and it deferred the figure to a measurement
+ * of readability and frame rate against the **real elliptical ring** Story 6.2
+ * shipped (`TOPOLOGY_RING_RADIUS_X = 800`, `TOPOLOGY_RING_RADIUS_Y = 340`,
+ * fitted extent 1880 × 923, a 2.04 aspect ratio rather than the near-square
+ * one the figure below was originally reasoned against).
+ *
+ * **5 is the story's own arithmetic and is here so the pass can run at all**:
+ * at ~501 nodes it is 2,500 edge slots, which sits inside
+ * `PRODUCT_SPEC.md` §28's *several thousand edges*, where N = 20 does not. It
+ * is named rather than inlined, and it is **stored on every pass row**
+ * (`retained_n`), so two generations computed under two values of it are
+ * tellable apart without re-reading the code that wrote them — which is the
+ * one thing a provisional parameter owes.
+ *
+ * **Changing it is a recompute, not a migration**: `0018` §1 labels both
+ * tables derived, and the first thing that will happen to them is that every
+ * row is thrown away and rebuilt under whatever Task 6.5.3 measures.
+ */
+const RETAINED_N = 5;
 
 /**
  * **The stored composite's tally — TWO security populations that partition**
@@ -419,6 +600,12 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
   // either — every input to a composite is a value one of the four stores
   // above already produced in this iteration.
   const composites = createSessionCompositeStore(pool);
+  // **The sixth store, on the same pool**, for the same recorded reason: its
+  // rows are keyed by a **pair** rather than by a security, which no store
+  // above it is, and this is one process doing one pass. It has no read of
+  // `market_bars` either — and no read at all, because nothing reads these
+  // rows until Task 6.5.2 builds the route.
+  const correlations = createReturnCorrelationStore(pool);
 
   const lines: string[] = [];
   const errors: string[] = [];
@@ -461,6 +648,7 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
       volumes,
       excess,
       composites,
+      correlations,
       subjects,
       window,
     );
@@ -538,6 +726,33 @@ export async function computeBaselines(): Promise<ComputeBaselinesOutcome> {
             : String(tally.excess.smallestSample)
         } min, ` +
         `${String(tally.excess.largestSample)} max, against a minimum of ${String(BASELINE_MINIMUM_SAMPLE)}`,
+      // **The pairwise correlation's two lines** (Task 6.5.1). The first is
+      // the security partition — three populations that sum to `tracked`,
+      // which the database refuses a row that violates — and the second is the
+      // pair chain, which is the line that matters: the rows are a
+      // **selection**, so `retained` says how many edges were drawn and
+      // nothing whatever about how many pairs were considered, refused or cut.
+      `return correlations on ${BASELINE_FEED} for ${window.asOfSession} — ` +
+        `tracked ${String(tally.correlation.trackedEquities)} equities, ` +
+        `eligible ${String(tally.correlation.eligibleEquities)}, ` +
+        `split-refused ${String(tally.correlation.splitDiscontinuity)}, ` +
+        `no series ${String(tally.correlation.absent)} (no pair formed)`,
+      `correlation pairs — ` +
+        `${String(tally.correlation.retainedPairs)} retained of ` +
+        `${String(tally.correlation.computedPairs)} computed of ` +
+        `${String(tally.correlation.candidatePairs)} candidate; ` +
+        `${String(tally.correlation.refusals.tooFewOverlappingSamples)} too few ` +
+        `overlapping samples, ` +
+        `${String(tally.correlation.refusals.zeroVariance)} zero variance, ` +
+        `${String(tally.correlation.belowSignificance)} below significance ` +
+        `(a cut, not a refusal), at N = ${String(RETAINED_N)}`,
+      // **The measurement rather than the product**, which is the excess
+      // samples line's own shape: Task 6.5.3 settles `N` from a measurement of
+      // what a real retained set looks like, and Story 6.5's Open Decision 4
+      // asks this pass to report the same-sector share — because near 100%
+      // would mean the edge layer is restating the clustering the membership
+      // edges already draw.
+      `retained correlations — ${describeRetainedCorrelations(tally.correlation)}`,
     );
 
     return { exitCode: 0, lines, errors };
@@ -557,6 +772,7 @@ async function runPass(
   volumes: VolumeBaselineStore,
   excess: ExcessBaselineStore,
   composites: SessionCompositeStore,
+  correlations: ReturnCorrelationStore,
   subjects: readonly BaselineSubject[],
   window: BaselineWindow,
 ): Promise<PassTally> {
@@ -569,6 +785,7 @@ async function runPass(
     volume: noVolumeTally(),
     excess: noExcessTally(),
     composite: noCompositeTally(),
+    correlation: noCorrelationTally(),
   };
 
   // **The equities, by the same positive-membership selection breadth and the
@@ -598,6 +815,36 @@ async function runPass(
       excessMoveReference(security),
     ]),
   );
+
+  // **Which sector each security is curated into, for ONE measurement** —
+  // Story 6.5's Open Decision 4 asks this pass to report what share of the
+  // retained correlation set joins two equities of the same sector, because a
+  // share near 100% means the edge layer is restating the clustering the
+  // membership edges already draw. Keyed off the **curated universe** rather
+  // than off a second database read, which is `isEquity`'s and `referenceOf`'s
+  // own precedent two lines above: `sector` is a curated fact and
+  // `pnpm universe` converges the store on this file.
+  const sectorOf = new Map(
+    UNIVERSE.map((security) => [security.symbol, security.sector]),
+  );
+
+  /**
+   * **Every eligible equity's signed 5-minute return series, held across the
+   * whole loop** — the one thing in this pass whose resident set is the
+   * universe's rather than one security's.
+   *
+   * It is accumulated as a **by-product** of the window read each iteration
+   * already issues, which is the entire reason Story 6.5's Open Decision 2
+   * could choose a 5-minute grid over daily closes: a daily-close correlation
+   * has a Fisher-z standard error of ≈0.13 at n = 60, so a top-5 selection
+   * over it re-orders close to randomly from one night to the next. The
+   * 5-minute grid gives n up to 4,620 and SE ≈ 0.015, and costs **no
+   * additional read of `market_bars`**.
+   *
+   * The cost it does have is resident memory, measured and recorded in this
+   * module's own 2026-11-06 amendment above.
+   */
+  const seriesOf = new Map<Ticker, ReadonlyMap<number, number>>();
 
   // **The eleven benchmarks' windows, read ONCE.**
   //
@@ -694,6 +941,49 @@ async function runPass(
             tally: tally.session,
           });
 
+    // **The correlation's input series, in this same iteration** (Task
+    // 6.5.1) — a second walk over `closes`, which is already in hand, so it
+    // costs **no I/O at all**. `computeExcessBaseline`'s own property, and the
+    // reason Story 6.5 could choose a 5-minute grid without a second pass.
+    //
+    // **Over the equities alone**, which is `scoreClosingMove`'s population
+    // rather than the two baselines': Open Decision 4 settled that no landmark
+    // node — the eleven sector SPDRs, the four proxies, the hub — ever forms a
+    // correlation edge, because `SPY` correlates with nearly every equity in
+    // the universe and admitting it would make every cluster independently
+    // discover a strong correlation to the centre. That is the starburst §10's
+    // own constraint exists to prevent. `0018` §6 records why this is asserted
+    // on the producer rather than as a database constraint.
+    if (isEquity.has(subject.symbol)) {
+      tally.correlation.trackedEquities += 1;
+
+      if (outcome.kind === "measured") {
+        // **The split verdict is READ, not re-derived** — `outcome` is the
+        // price generation this pass computed for the same `(security, window
+        // end)` a few lines above, so the guard travels by being in hand.
+        // `computeVolumeBaseline`'s arrangement and `0014` §5's *the
+        // generation is identified rather than copied*: it is the same guard
+        // over the same closes, so a second evaluation would be a second
+        // answer rather than a corroboration.
+        const series = baselineReturnSeries({
+          sessions: window.sessions,
+          closes,
+        });
+
+        // `measured` is returned only when the sampler found at least one grid
+        // pair, over the same anchors this walk uses — so an empty series here
+        // is unreachable, which is why `0018` §5 ships **no**
+        // `no_series_count` column. A column that can only ever hold `0` reads
+        // to the next author as a real population that happens to be empty.
+        seriesOf.set(subject.symbol, series);
+        tally.correlation.eligibleEquities += 1;
+      } else if (outcome.kind === "refused") {
+        // **Counted once, in security space** — never once per each of the
+        // ~500 pairs it would have joined. `0018` §5.
+        tally.correlation.splitDiscontinuity += 1;
+      } else tally.correlation.absent += 1;
+    }
+
     // **The volume baseline, in this same iteration** (Task 5.5.3). It is a
     // second statement over the **same** index range rather than a second
     // nightly pass over the same bars — `volume-baseline-store.ts`' header
@@ -765,6 +1055,17 @@ async function runPass(
       });
     }
   }
+
+  // **The pairwise phase, AFTER the loop and reading no bars at all** (Task
+  // 6.5.1). Every input is already resident: `seriesOf` was accumulated as a
+  // by-product of the reads above, so this phase is pure CPU over process
+  // memory. It is the one phase of this pass that is not per security, and
+  // this module's own 2026-11-06 amendment records what that costs.
+  await computeCorrelations(correlations, window, {
+    seriesOf,
+    sectorOf,
+    tally: tally.correlation,
+  });
 
   // **Written last and outside a transaction**, which is the session pass
   // row's own arrangement below. The difference worth knowing is that these
@@ -855,6 +1156,172 @@ async function runPass(
   }
 
   return tally;
+}
+
+/**
+ * **Every eligible pair's correlation, the top-N selection over them, and the
+ * two rows that record it** (Task 6.5.1).
+ *
+ * ## It reads nothing and is the only phase that is not per security
+ *
+ * Every input is already in process memory — `seriesOf` was accumulated as a
+ * by-product of the window read each loop iteration issued, and `sectorOf` is
+ * the curated universe. So this phase issues **no read of `market_bars` at
+ * all**, which is the whole reason Story 6.5's Open Decision 2 could choose a
+ * 5-minute grid over daily closes: the alternative is 125,250 reads of 538
+ * correlated blocks, which is the cost regime ADR 0044 exists to stay out of.
+ *
+ * ## The enumeration is over SORTED tickers, which is what makes the key
+ * ## canonical by construction
+ *
+ * The tickers are sorted once and walked as `i < j`, so `low` is always the
+ * lexicographically lower ticker and no pair is considered twice — which is
+ * `0018` §3's canonicalisation rule expressed as a loop rather than as a
+ * comparison per pair. The orientation is **also** asserted in the store, on
+ * the tickers, because that is the one place the rule is true: the database's
+ * own `check` compares **ids**, which are assigned in row-insertion order and
+ * whose order CI's store and the deployed store disagree about.
+ *
+ * ## Three populations and three ways out, counted apart
+ *
+ * A candidate pair ends in exactly one of: **refused** (the overlap is below
+ * `CORRELATION_MINIMUM_OVERLAP`, or a leg has no variance), **below
+ * significance** (a computed, finite coefficient that is not distinguishable
+ * from zero at that pair's own `n` — the **cut**, Open Decision 3), or
+ * **significant** — of which the selection keeps the union of each node's own
+ * top-N and the rest are simply not retained. `0018` §5 holds the arithmetic
+ * in the database, so a phase that died halfway writes a row the database
+ * refuses rather than a row whose counts quietly do not add up.
+ *
+ * ## The pass row is written LAST, and that is what makes a generation
+ * ## readable
+ *
+ * `return-correlation-store.ts`' header carries the argument, which is every
+ * sibling pass's: a reader reads the pass row first and the correlation rows
+ * for its `observed_at`, so a crash between the two leaves rows nothing reads
+ * rather than a session drawn under the wrong figures.
+ */
+async function computeCorrelations(
+  correlations: ReturnCorrelationStore,
+  window: BaselineWindow,
+  pass: {
+    seriesOf: ReadonlyMap<Ticker, ReadonlyMap<number, number>>;
+    sectorOf: ReadonlyMap<Ticker, string | null>;
+    tally: CorrelationTally;
+  },
+): Promise<void> {
+  const { seriesOf, sectorOf, tally } = pass;
+
+  // **Sorted once**, which is what makes `i < j` the canonical order rather
+  // than one comparison per pair. `localeCompare` and not `<`, so the order is
+  // the one the store asserts and the selection sorts by.
+  const tickers = [...seriesOf.keys()].sort((left, right) =>
+    left.localeCompare(right),
+  );
+
+  const candidates: CorrelationCandidate[] = [];
+
+  for (let i = 0; i < tickers.length; i += 1) {
+    const low = tickers[i];
+    if (low === undefined) continue;
+    const seriesLow = seriesOf.get(low);
+    if (seriesLow === undefined) continue;
+
+    for (let j = i + 1; j < tickers.length; j += 1) {
+      const high = tickers[j];
+      if (high === undefined) continue;
+      const seriesHigh = seriesOf.get(high);
+      if (seriesHigh === undefined) continue;
+
+      tally.candidatePairs += 1;
+
+      const outcome = pearsonCorrelation(seriesLow, seriesHigh);
+
+      if ("refusal" in outcome) {
+        if (outcome.refusal === "too-few-overlapping-samples") {
+          tally.refusals.tooFewOverlappingSamples += 1;
+        } else tally.refusals.zeroVariance += 1;
+        continue;
+      }
+
+      tally.computedPairs += 1;
+
+      // **The CUT, and it is not a refusal.** Open Decision 3: no edge below a
+      // derived floor, because until Story 6.6 ships the visual encoding that
+      // distinguishes a weak edge from a strong one, a weak edge is a claim
+      // the data does not support. The floor is a function of `n` rather than
+      // a number, which is AC 4.
+      if (!correlationIsSignificant(outcome.r, outcome.n)) {
+        tally.belowSignificance += 1;
+        continue;
+      }
+
+      candidates.push({ low, high, r: outcome.r, n: outcome.n });
+    }
+  }
+
+  // **The selection, over the significant candidates alone.** A pair the
+  // significance test refused is not a weaker edge competing for a slot — it
+  // is not an edge, so it must not displace one.
+  const retained = selectStrongestCorrelations(candidates, RETAINED_N);
+
+  for (const pair of retained) {
+    tally.samples += pair.n;
+    tally.smallestOverlap = Math.min(tally.smallestOverlap, pair.n);
+    tally.largestOverlap = Math.max(tally.largestOverlap, pair.n);
+
+    const strength = Math.abs(pair.r);
+    tally.strongest = Math.max(tally.strongest, strength);
+    tally.weakest = Math.min(tally.weakest, strength);
+
+    // Open Decision 4's own measurement. A sector is a curated fact, so a
+    // ticker the file does not describe has no sector and cannot be counted
+    // either way — stated as a branch rather than defaulted, because
+    // "both unknown" is not "the same sector".
+    const sectorLow = sectorOf.get(pair.low);
+    const sectorHigh = sectorOf.get(pair.high);
+    if (
+      sectorLow !== undefined &&
+      sectorLow !== null &&
+      sectorLow === sectorHigh
+    ) {
+      tally.sameSector += 1;
+    }
+  }
+
+  const parameters = {
+    // Read from the producers that own them rather than spelled — the depth is
+    // the correlation vocabulary's (which is the price baseline's own, by
+    // re-export), the stride is the sampler's, and the tape is the store's own
+    // `where`. What is stored is what this pass applied.
+    lookbackSessions: CORRELATION_LOOKBACK_SESSIONS,
+    spanMinutes: SAMPLE_SPAN_MINUTES,
+    feed: BASELINE_FEED,
+  };
+
+  // **The writer's own answer for how many rows it wrote**, rather than a
+  // second count of the same set here: `retained.length` and *rows written*
+  // are the same number today and only one of them is a fact about the
+  // database.
+  tally.retainedPairs = await correlations.writeCorrelations(
+    window.observedAt,
+    parameters,
+    retained,
+  );
+
+  await correlations.writePass(window.observedAt, {
+    trackedEquities: tally.trackedEquities,
+    eligibleEquities: tally.eligibleEquities,
+    splitDiscontinuity: tally.splitDiscontinuity,
+    absent: tally.absent,
+    candidatePairs: tally.candidatePairs,
+    computedPairs: tally.computedPairs,
+    retainedPairs: tally.retainedPairs,
+    refusals: tally.refusals,
+    belowSignificance: tally.belowSignificance,
+    retainedN: RETAINED_N,
+    parameters,
+  });
 }
 
 /**
@@ -1454,6 +1921,48 @@ export function describeDrawableBuckets(volume: VolumeTally): string {
   const elided = volume.buckets.measured - volume.drawable.length;
 
   return elided > 0 ? `${named}, … and ${String(elided)} more` : named;
+}
+
+/**
+ * **The retained correlation set's own shape, as one line** — or `none`, which
+ * is CI's permanent state and every bare store's (Task 6.5.1).
+ *
+ * `|r| 0.312–0.887, n 1,204–4,620 (mean 3,998), 1,612 of 2,431 same-sector
+ * (66.3%)`.
+ *
+ * It is a line in the summary and nothing else. Every figure in it is readable
+ * off the stored rows — each carries its own coefficient and its own `n` — so
+ * this is a **measurement of the pass** rather than anything the pass stores,
+ * which is `describeSets`' own property one quantity over. Two later readers
+ * need it and cannot get it any other way: Task 6.5.3 settles `N` against what
+ * a real retained set looks like, and Story 6.5's Open Decision 4 asks for the
+ * same-sector share by name.
+ *
+ * **The percentage is printed beside the two counts rather than instead of
+ * them**, which is `PRODUCT_SPEC.md` §9's own dated amendment: a percentage
+ * hides its denominator, and here the denominator — how many pairs were
+ * retained at all — is the figure Task 6.5.3 is actually after.
+ */
+export function describeRetainedCorrelations(tally: {
+  retainedPairs: number;
+  samples: number;
+  smallestOverlap: number;
+  largestOverlap: number;
+  strongest: number;
+  weakest: number;
+  sameSector: number;
+}): string {
+  if (tally.retainedPairs === 0) return "none";
+
+  const share = ((tally.sameSector / tally.retainedPairs) * 100).toFixed(1);
+
+  return (
+    `|r| ${tally.weakest.toFixed(3)}–${tally.strongest.toFixed(3)}, ` +
+    `n ${String(tally.smallestOverlap)}–${String(tally.largestOverlap)} ` +
+    `(mean ${String(Math.round(tally.samples / tally.retainedPairs))}), ` +
+    `${String(tally.sameSector)} of ${String(tally.retainedPairs)} ` +
+    `same-sector (${share}%)`
+  );
 }
 
 /**

@@ -1824,6 +1824,25 @@ Core tables/collections:
 
 Do not introduce multiple databases in V1 unless measurements demonstrate a need.
 
+**Amended 2026-11-06 by Task 6.5.1 — `relationships` as a generic table is
+deliberately not built.** Story 6.5 ships `return_correlations` and
+`return_correlation_passes` (`0018_return_correlations.sql`), one row per
+retained pair of equities per session, and no `relationships` table exists or
+is planned. The reason is one line: a `kind` column over the relationship kinds
+this product will hold — a sector membership, a return correlation, and
+whatever Epics 7+ add — would force **every kind's own columns nullable**,
+because a correlation has a coefficient and a counted overlap and a membership
+has neither, and the alternative of a `jsonb` bag is the shape
+`0014_session_return_percentiles.sql` §4 already argues against: a key in a bag
+silently stops being counted, where a new column is a migration somebody has to
+write. [ADR 0049](../docs/adr/0049-a-derived-relationship-is-keyed-by-a-canonical-pair-and-the-stored-top-n-is-a-selection.md)
+is the decision, and it carries the reversal trigger as a condition — _the
+third relationship kind whose columns are a subset of one already stored_.
+
+The membership edges §10 draws are not a table at all and are not expected to
+become one: they are derived from `securities.sector` and `securities.kind` in
+`packages/shared`, which is where the curated universe already lives.
+
 ---
 
 # 31. Streaming protocols

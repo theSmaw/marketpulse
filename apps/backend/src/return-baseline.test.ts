@@ -32,6 +32,7 @@ import {
 } from "@marketpulse/shared";
 
 import {
+  baselineReturnSeries,
   baselineSamples,
   breakpointsOf,
   returnBaselineOf,
@@ -172,6 +173,122 @@ describe("returnBaselineOf — no sample crosses a session boundary", () => {
     expect(returnBaselineOf({ sessions: [REGULAR, EARLY], closes }).kind).toBe(
       "none",
     );
+  });
+});
+
+describe("baselineReturnSeries — the same walk, signed and keyed by instant", () => {
+  // **The sibling `baselineSamples` gained at Task 6.5.1**, for a consumer
+  // that needs the sign and the instant. What these assertions hold is that it
+  // is the SAME walk: the two functions share `sessionAnchors` and nothing
+  // else, so the thing that could drift between them is the grid, and the
+  // first assertion is the one that would catch a drift.
+
+  it("finds exactly the pairs `baselineSamples` finds, and their magnitudes", () => {
+    // 2% up on every anchor of the first session, then 2% down on every anchor
+    // of the second, so every sample is non-zero and the two have opposite
+    // signs — which is the one thing a magnitude cannot express.
+    const closes = new Map<number, number>();
+    for (const [index, anchor] of sessionAnchors(REGULAR).entries()) {
+      closes.set(anchor.getTime(), 100 * 1.02 ** index);
+    }
+    for (const [index, anchor] of sessionAnchors(EARLY).entries()) {
+      closes.set(anchor.getTime(), 100 * 0.98 ** index);
+    }
+
+    const sessions = [REGULAR, EARLY];
+    const series = baselineReturnSeries({ sessions, closes });
+    const { magnitudes } = baselineSamples({ sessions, closes });
+
+    // 77 pairs in the regular session and 41 in the early close — the counted
+    // figure, never `78 × 2`.
+    expect(series.size).toBe(77 + 41);
+    expect(series.size).toBe(magnitudes.length);
+
+    const signed = [...series.values()];
+    expect(signed.filter((value) => value > 0)).toHaveLength(77);
+    expect(signed.filter((value) => value < 0)).toHaveLength(41);
+
+    // The same quantity, up to the sign the percentile throws away.
+    expect([...signed].map(Math.abs).sort((a, b) => a - b)).toEqual(
+      [...magnitudes].sort((a, b) => a - b),
+    );
+  });
+
+  it("keys each entry on the LATER anchor of its own pair", () => {
+    const anchors = sessionAnchors(REGULAR);
+    const first = anchors[0];
+    const second = anchors[1];
+    if (first === undefined || second === undefined) {
+      throw new Error("a regular session has at least two anchors.");
+    }
+
+    const closes = new Map<number, number>([
+      [first.getTime(), 100],
+      [second.getTime(), 101],
+    ]);
+
+    const series = baselineReturnSeries({ sessions: [REGULAR], closes });
+
+    // One entry, at the later instant, and nothing at the earlier one — which
+    // is what makes two securities' series intersect on a shared anchor rather
+    // than on an off-by-one.
+    expect([...series.keys()]).toEqual([second.getTime()]);
+    expect(series.get(second.getTime())).toBeCloseTo(1, 12);
+  });
+
+  it("does not pair the last minute of one session with the first of the next", () => {
+    // `baselineSamples`' own boundary assertion, re-asked of this function
+    // because the two walks are separate code. Every anchor flat at 100 except
+    // the first anchor of the second session at 50: a sampler that spanned the
+    // boundary would put a −50% entry in the series.
+    const closes = flat([REGULAR, EARLY], 100);
+    const earlyAnchors = sessionAnchors(EARLY);
+    closes.set(earlyAnchors[0]?.getTime() ?? 0, 50);
+
+    const series = baselineReturnSeries({ sessions: [REGULAR, EARLY], closes });
+
+    // The two samples INSIDE the second session that touch the 50 — a +100%
+    // and nothing else non-zero — and no −50% anywhere.
+    expect([...series.values()].filter((value) => value < 0)).toEqual([]);
+    expect(
+      [...series.values()].filter((value) => value > 0).map(Math.round),
+    ).toEqual([100]);
+  });
+
+  it("is empty for a window with no grid pair at all", () => {
+    // One anchor in each session: no partner inside either, and no pairing
+    // expression across. An empty map rather than a throw — the caller gates
+    // on the price outcome and never reaches here for such a security.
+    const closes = new Map<number, number>([
+      [REGULAR.open.getTime(), 100],
+      [EARLY.open.getTime(), 100],
+    ]);
+
+    expect(
+      baselineReturnSeries({ sessions: [REGULAR, EARLY], closes }).size,
+    ).toBe(0);
+  });
+
+  it("drops a pair whose earlier close is zero rather than dividing by it", () => {
+    const anchors = sessionAnchors(REGULAR);
+    const first = anchors[0];
+    const second = anchors[1];
+    const third = anchors[2];
+    if (first === undefined || second === undefined || third === undefined) {
+      throw new Error("a regular session has at least three anchors.");
+    }
+
+    const closes = new Map<number, number>([
+      [first.getTime(), 0],
+      [second.getTime(), 100],
+      [third.getTime(), 101],
+    ]);
+
+    const series = baselineReturnSeries({ sessions: [REGULAR], closes });
+
+    // The `(0 → 100)` pair is not a sample — it is an infinite return, which
+    // no `?? 0` and no clamp makes true. The `(100 → 101)` pair is.
+    expect([...series.keys()]).toEqual([third.getTime()]);
   });
 });
 
