@@ -6276,9 +6276,9 @@ export const BREAKS = [
       "SECOND affordance is worth nothing over a surface with none at all, " +
       "which is what this one was until this task.",
     file: "apps/frontend/src/components/MarketTopology/MarketTopology.tsx",
-    find: 'const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";',
+    find: 'const TOPOLOGY_READOUT_IDLE =\n  "Point at a security, or press Tab and the arrow keys.";',
     replace:
-      'const TOPOLOGY_READOUT_IDLE = "Point at a security to see what it is.";\n' +
+      'const TOPOLOGY_READOUT_IDLE =\n  "Point at a security, or press Tab and the arrow keys.";\n' +
       "\n" +
       "// pnpm break: reverted automatically\n" +
       'const TOPOLOGY_SELECTED_ACTION = "Investigate this security";',

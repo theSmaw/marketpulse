@@ -62,7 +62,9 @@ import type {
   TopologyRenderer,
   TopologyRendererFactory,
   TopologyRendererOptions,
+  TopologySelectionSource,
 } from "./renderer.js";
+import { isTopologyWalkKey, topologyWalk } from "./walk.js";
 
 /**
  * How far a wheel notch moves the zoom.
@@ -137,6 +139,61 @@ const HOVER_GROUND_RADIUS = 12;
  * here where both are visible.
  */
 const SELECTION_GROUND_RADIUS = HOVER_GROUND_RADIUS;
+
+/**
+ * The focus ring's own stroke width, in CSS pixels — `--focus-width`'s figure,
+ * **constant under zoom** like every other stroke this renderer draws (the
+ * edge/halo/label rule, extended once already by Story 6.3's anomaly ring).
+ *
+ * **Spelled here rather than read from the token** (Task 6.4.3), which is a
+ * decision rather than an oversight: `palette.ts` reads colours and type
+ * values, and every geometric figure in this module — `HOVER_GROUND_RADIUS`,
+ * `ANOMALY_RING_OFFSET`, `EDGE_END_CLEARANCE`, `LABEL_GAP` — is a constant
+ * here with its origin named in a docblock. A single token read for a length
+ * would be the only one of its kind and would put half this module's geometry
+ * in one file and half in another. The condition for moving all of it:
+ * **the first geometric figure here that a stylesheet and a frame must agree
+ * about at runtime** — these two do not, because nothing in CSS draws
+ * anywhere near this node.
+ */
+const FOCUS_RING_WIDTH = 2;
+
+/** `--focus-offset`'s figure, in CSS pixels. See {@link FOCUS_RING_WIDTH}. */
+const FOCUS_RING_OFFSET = 2;
+
+/**
+ * Where the focus ring's own centre line sits, in CSS pixels at zoom 1 —
+ * **outside the 16-unit footprint**, which is the constraint Story 6.3's close
+ * handed this story by name.
+ *
+ * `FOOTPRINT/2 + --focus-offset + --focus-width/2` = **11**, the design
+ * canvas's own formula, which is `:focus-visible`'s `outline-offset` geometry
+ * read against a circle rather than a border box: the footprint's edge is the
+ * element's edge, the offset is clear ground, and a stroke straddles its path
+ * so half the width is the rest. So the stroke spans **10 → 12** px of radius.
+ *
+ * ## Three clearances, and all three are arithmetic over shipped constants
+ *
+ * * **Story 6.3's `extreme` ring** — the widest band, centred at
+ *   `ink/2 + ANOMALY_RING_OFFSET` = 6 with a 3 px stroke, so its outer edge is
+ *   **7.5**. The gap to this ring's inner edge is **2.5 px at zoom 1**, and
+ *   both scale with `nodeScale`, so the worst case is the zoom floor (0.5) at
+ *   **1.25 px**. Checked on screen rather than left as arithmetic — Task
+ *   6.4.3's own probe, which photographs a focused node at 8×.
+ * * **The node's own halo**, 1 px outside the ink: nowhere near.
+ * * **The selection ground disc**, radius {@link SELECTION_GROUND_RADIUS} = 12
+ *   with a 1 px halo stroke straddling it (11.5 → 12.5). This ring's outer
+ *   edge is **12**, so the outermost half-pixel of it lands on that stroke.
+ *   It is accepted rather than repaired, and the reason is the draw order:
+ *   this ring is the **last** thing in the frame, so it paints over the disc's
+ *   own edge rather than being hidden by it, and what a reader sees is a light
+ *   ring with ~1.5 px of dark ground outside it. Measured at 8× before this
+ *   figure was trusted; the alternative — shrinking to 10 — buys 1.5 px of
+ *   clearance from the disc and spends 1 px of it on the `extreme` ring,
+ *   which is the tighter of the two.
+ */
+const FOCUS_RING_RADIUS =
+  TOPOLOGY_NODE_FOOTPRINT / 2 + FOCUS_RING_OFFSET + FOCUS_RING_WIDTH / 2;
 
 /**
  * Where the anomaly ring sits, beyond the equity ink's own radius — the
@@ -273,8 +330,16 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   container: HTMLElement,
   options: TopologyRendererOptions,
 ): TopologyRenderer => {
-  const { graph, layout, palette, probe, labelledBy, onHover, onSelect } =
-    options;
+  const {
+    graph,
+    layout,
+    palette,
+    probe,
+    labelledBy,
+    describedBy,
+    onHover,
+    onSelect,
+  } = options;
 
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
@@ -289,6 +354,28 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     canvas.setAttribute("role", "img");
     canvas.setAttribute("aria-labelledby", labelledBy);
   }
+  // **One additional tab stop, and the arrow keys are what it is for** (Task
+  // 6.4.3). ADR 0039 makes the region a tab stop unconditionally; this is the
+  // stop *inside* it, and `ChartReading.tsx`'s shape exactly — `role="img"`
+  // (already above), `tabIndex`, and a description a key press can reach.
+  //
+  // **516 stops is the alternative this refuses**, which is the chart's own
+  // arithmetic one surface over: one stop and arrow keys that drive it, rather
+  // than one stop per mark.
+  canvas.tabIndex = 0;
+  if (describedBy !== undefined) {
+    canvas.setAttribute("aria-describedby", describedBy);
+  }
+  // **The global `:focus-visible` outline is removed here because it is
+  // invisible, not because it is unwanted.** `MarketTopology.module.css`'s
+  // `.frame` is `inset: 0` with `overflow: hidden` and this canvas fills its
+  // padding box, so a 2 px outline drawn at `--focus-offset`'s own 2 px
+  // *outside* that box is clipped on all four edges — the browser draws it and
+  // the frame hides it, which is a focus indicator that is a claim rather than
+  // a mechanism. What replaces it is the ring this renderer draws around the
+  // focused node, which is where a reader is actually looking: the canvas is
+  // 998 px wide and the thing with focus inside it is 8 px across.
+  canvas.style.outline = "none";
   // **`pan-y`, not `none`** (Task 6.2.3). This renderer was built for an
   // isolated Storybook iframe with nothing to scroll past, where `none` cost
   // nothing; moved onto `/` unmodified it would make the page's primary
@@ -299,7 +386,14 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   // `touch-action` only constrains the browser's NATIVE gesture recognition
   // and has no opinion on synthetic pointer events a script already captures.
   canvas.style.touchAction = "pan-y";
-  container.append(canvas);
+  // **`prepend`, not `append`, and it is the TAB ORDER rather than the
+  // painting** (Task 6.4.3). The readout plate is `position: absolute`, so it
+  // paints over this canvas whichever side of it sits in the DOM — but the
+  // plate holds the one anchor a reader activates, and appended last the canvas
+  // came *after* that anchor in sequential focus order. A reader walking the
+  // graph and then pressing Tab landed back on the canvas they had just left.
+  // The graph before its own readout is the order the region reads in.
+  container.prepend(canvas);
 
   const context = canvas.getContext("2d");
 
@@ -345,6 +439,21 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * is a second view of the same objects and not a second copy of them.
    */
   const hitCandidates: DrawableNode[] = [...nodesByKind.values()].flat();
+
+  /**
+   * The same nodes, by symbol — what the keyboard walk's **answer** is
+   * resolved through (Task 6.4.3).
+   *
+   * `walk.ts` is pure and returns a `Ticker`, because a symbol is the only
+   * identity a walk can be keyed on that survives a fresh universe. The
+   * drawable it names is this lookup, built once beside the hit array for its
+   * reason: an arrow key is not a cadence, but a `Map` built here costs
+   * nothing and a scan per keystroke would be the second place this closure
+   * walks 516 nodes to answer a question it already has an index for.
+   */
+  const drawableBySymbol = new Map<Ticker, DrawableNode>(
+    hitCandidates.map((drawable) => [drawable.node.symbol, drawable]),
+  );
 
   // --- Anomaly treatments, regrouped on every `setBands` call ------------
   //
@@ -639,12 +748,112 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * unrepresentable rather than guarded against. `null` — a click that
    * hit-tested to nothing — clears it.
    */
-  const setSelectedNode = (next: DrawableNode | null): void => {
+  const setSelectedNode = (
+    next: DrawableNode | null,
+    source: TopologySelectionSource,
+  ): void => {
     if (next === selected) return;
 
     selected = next;
 
-    onSelect?.(next === null ? null : targetOf(next));
+    onSelect?.(next === null ? null : targetOf(next), source);
+    invalidate();
+  };
+
+  /**
+   * **What a keyboard press does, and it is the ONE selection mechanism**
+   * (Task 6.4.3) — the next node from `walk.ts`, handed to
+   * {@link setSelectedNode}, which is the same function a click calls.
+   *
+   * There is no keyboard selection state anywhere: `selected` above is the
+   * only home, so a reader who clicks a node and then presses `ArrowRight`
+   * moves from the node they clicked, with nothing to reconcile.
+   *
+   * **The listener is on the CONTAINER rather than on the canvas**, which is
+   * what lets one `switch` serve both focusable things in this region. Once
+   * something is selected, DOM focus is on the readout plate's anchor (so that
+   * `Enter` is the browser's own native activation of a real `<a href>` and
+   * this product's `one-home-for-imperative-navigation` invariant is satisfied
+   * by construction rather than by a rule) — and the plate is a child of the
+   * same container, so an arrow key pressed there bubbles to exactly one
+   * handler.
+   *
+   * **`Enter` is deliberately absent from the switch.** It is not ours: it
+   * belongs to whatever has focus, which after any keyboard walk is the
+   * anchor. Swallowing it to re-implement activation is the imperative
+   * navigation this whole shape exists to avoid.
+   *
+   * **`preventDefault()` only on a key actually handled**, which is
+   * `ChartReading.tsx`'s `default: return` arm and the reason it is written
+   * that way: `Tab`, `Home`/`End` with nothing selected, the browser's own
+   * find-in-page, and every printable character must reach the page untouched.
+   * `ArrowDown` on this canvas would otherwise scroll the landing page while a
+   * reader walked the graph.
+   */
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    if (event.key === "Escape") {
+      // **Nothing to clear is not ours to swallow.** An `Escape` over a graph
+      // with no selection belongs to whatever is above this region, and
+      // `ChartReading.tsx` records the same guard for the same reason.
+      if (selected === null) return;
+
+      event.preventDefault();
+      // **Focus first, then clear.** Clearing unmounts the anchor React
+      // rendered for the selection, and an element removed while it holds
+      // focus drops focus to the body — which is the state `Region`'s own
+      // backstop catches by focusing its `<section>`, one level further out
+      // than a reader asked to go. Moving focus back to the canvas keeps
+      // `Escape` inside the region, which is this task's own Done-when 1.
+      canvas.focus();
+      setSelectedNode(null, "keyboard");
+      return;
+    }
+
+    if (!isTopologyWalkKey(event.key)) return;
+
+    const next = topologyWalk(
+      graph,
+      layout,
+      selected?.node.symbol ?? null,
+      event.key,
+    );
+
+    // Handled either way: a clamped end answers `null` and the page must not
+    // scroll because the reader reached one.
+    event.preventDefault();
+
+    if (next === null) return;
+
+    const drawable = drawableBySymbol.get(next);
+    if (drawable !== undefined) setSelectedNode(drawable, "keyboard");
+  };
+
+  /**
+   * Whether DOM focus is anywhere inside this region — **what the focus ring
+   * is drawn on** (Task 6.4.3).
+   *
+   * `focusin`/`focusout` on the container rather than on the canvas, because
+   * focus legitimately sits on either the canvas or the plate's anchor while a
+   * reader is walking the graph, and a ring that vanished the moment the
+   * selection moved focus to the anchor would be a ring nobody ever sees.
+   * `focusout`'s `relatedTarget` is where focus went: inside this container
+   * is still ours.
+   */
+  let focusWithin = false;
+
+  const onFocusIn = (): void => {
+    if (focusWithin) return;
+    focusWithin = true;
+    invalidate();
+  };
+
+  const onFocusOut = (event: FocusEvent): void => {
+    const to = event.relatedTarget;
+    if (to instanceof Node && container.contains(to)) return;
+
+    focusWithin = false;
     invalidate();
   };
 
@@ -904,6 +1113,36 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         context.fillText(label.text, at.x, at.y - LABEL_GAP);
       }
     }
+
+    // --- The focus ring, over everything -----------------------------------
+    //
+    // **Last in the frame, which is the opposite of the two ground discs and
+    // for the same reason** (Task 6.4.3): a disc is announcing the node, so
+    // every later pass has to paint over it; this is announcing **where the
+    // keyboard is**, and a reader who cannot find it has no other way of
+    // knowing. Drawn last it cannot be overpainted by a neighbour's body, by a
+    // membership edge crossing the node, or by the selection disc's own halo
+    // stroke — in a cluster at low fit scale all three are possible, and
+    // Story 6.4.2's measurement of the ground disc being *largely overpainted
+    // by its own neighbours* is the evidence that it would happen.
+    //
+    // **One ring, because the focused node IS the selected node** — see
+    // `palette.focusRing`'s own docblock for why the design work's second ink
+    // is not written. `focusWithin` rather than a `:focus-visible` read:
+    // focus genuinely sits on either the canvas or the plate's anchor while a
+    // reader walks, and a heuristic that got that wrong would fail by drawing
+    // nothing, which is the one direction nobody can see.
+    if (focusWithin && selected !== null) {
+      const at = worldToScreen(view, selected.x, selected.y);
+      const radius = FOCUS_RING_RADIUS * nodeScale;
+
+      context.lineWidth = FOCUS_RING_WIDTH;
+      context.strokeStyle = palette.focusRing;
+      context.beginPath();
+      context.moveTo(at.x + radius, at.y);
+      context.arc(at.x, at.y, radius, 0, Math.PI * 2);
+      context.stroke();
+    }
   };
 
   const invalidate = (): void => {
@@ -1061,7 +1300,10 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // and `Escape` (Task 6.4.3) is the keyboard's. `nodeAt` answering `null`
     // is that gesture, so no separate branch is needed for it.
     const box = canvas.getBoundingClientRect();
-    setSelectedNode(nodeAt(event.clientX - box.left, event.clientY - box.top));
+    setSelectedNode(
+      nodeAt(event.clientX - box.left, event.clientY - box.top),
+      "pointer",
+    );
   };
 
   /**
@@ -1117,6 +1359,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   canvas.addEventListener("pointercancel", onPointerCancel);
   canvas.addEventListener("pointerleave", onPointerLeave);
   canvas.addEventListener("wheel", onWheel, { passive: false });
+  // **On the container, not on the canvas** — see `onKeyDown`'s own docblock:
+  // one handler serves both focusable things in this region, because the
+  // plate's anchor is a child of the same element.
+  container.addEventListener("keydown", onKeyDown);
+  container.addEventListener("focusin", onFocusIn);
+  container.addEventListener("focusout", onFocusOut);
 
   const observer = new ResizeObserver(measure);
   observer.observe(container);
@@ -1144,7 +1392,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // outlives the pointer — so a band that changed under a selected node
       // with the pointer elsewhere would leave the plate's word disagreeing
       // with the ring on screen, and nothing would ever correct it.
-      if (selected !== null) onSelect?.(targetOf(selected));
+      if (selected !== null) onSelect?.(targetOf(selected), "band");
       invalidate();
     },
     framesDrawn: () => frames,
@@ -1157,6 +1405,9 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
+      container.removeEventListener("keydown", onKeyDown);
+      container.removeEventListener("focusin", onFocusIn);
+      container.removeEventListener("focusout", onFocusOut);
       canvas.remove();
     },
   };

@@ -86,6 +86,12 @@ const TOKEN_NAMES = [
   // read a CSS class.
   "--surface-inverse",
   "--ink-primary",
+  // Added 2026-11-05 by Task 6.4.3, and its first JavaScript consumer is the
+  // same surface `--surface-inverse` above was added for: the topology's focus
+  // ring is drawn INSIDE the selected node's dark ground disc, so it is the
+  // one ring in this product whose ink has to be the inverse one, and a canvas
+  // cannot read a CSS class.
+  "--ink-inverse",
   "--ink-secondary",
   "--ink-disabled",
   "--rule-hairline",

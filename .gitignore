@@ -29,6 +29,12 @@ playwright-report/
 # .prettierignore and eslint.config.mjs.
 .probe/
 
+# `scripts/topology-interaction-probe.mjs`'s screenshots (Task 6.4.3) — the
+# same idiom as `.probe/`, output rather than evidence, for a script scoped to
+# this story's own interaction measurements rather than to every route.
+# Mirrored in .prettierignore and eslint.config.mjs.
+.probe-interaction/
+
 # What `scripts/capture-u-frame.mjs` writes: raw vendor frames, which are
 # evidence rather than fixtures until somebody transcribes one into
 # `apps/backend/src/fixtures/alpaca/` deliberately.

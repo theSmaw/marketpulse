@@ -163,6 +163,21 @@
 }
 
 /*
+ * The key hints (Task 6.4.3) — what the canvas's own `aria-describedby`
+ * points at. Hidden for `.drawnSentence`'s reason and by the same mechanism:
+ * `aria-describedby` reads its referent's text content whether it is on
+ * screen or not, and `visuallyHidden` keeps it out of the picture without
+ * taking it out of the accessibility tree.
+ *
+ * **Its own rule rather than a second class on the same element**, because
+ * the two strings are two attributes on the canvas — a label and a
+ * description — and one element cannot carry two ids.
+ */
+.keyHint {
+  composes: visuallyHidden from "../../styles/a11y.module.css";
+}
+
+/*
  * **The hover readout plate** (Task 6.4.1) — what the node under the pointer
  * is, in words, bottom-left inside the frame.
  *

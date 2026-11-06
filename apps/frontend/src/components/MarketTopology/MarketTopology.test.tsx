@@ -33,6 +33,7 @@ import type {
   TopologyAnomalyTreatment,
   TopologyHoverTarget,
   TopologyRenderer,
+  TopologySelectionSource,
 } from "../../topology/index.js";
 import {
   FIXTURE_REQUEST_ID,
@@ -614,7 +615,9 @@ describe("MarketTopology", () => {
 
       expect(plate().dataset.topologyReadout).toBe("idle");
       expect(
-        screen.getByText("Point at a security to see what it is."),
+        screen.getByText(
+          "Point at a security, or press Tab and the arrow keys.",
+        ),
       ).toBeTruthy();
       // The four fact slots exist and are empty — reserved room rather than a
       // plate that grows when a reader points at something.
@@ -714,19 +717,35 @@ describe("MarketTopology", () => {
      */
     const channels = (): {
       readonly hover: (hovered: TopologyHoverTarget | null) => void;
-      readonly select: (selected: TopologyHoverTarget | null) => void;
+      readonly select: (
+        selected: TopologyHoverTarget | null,
+        source?: TopologySelectionSource,
+      ) => void;
     } => {
       const options = mountCanvasTopology.mock.calls[0]?.[1] as
         | {
             onHover?: (hovered: TopologyHoverTarget | null) => void;
-            onSelect?: (selected: TopologyHoverTarget | null) => void;
+            onSelect?: (
+              selected: TopologyHoverTarget | null,
+              source: TopologySelectionSource,
+            ) => void;
           }
         | undefined;
       const hover = options?.onHover;
       const select = options?.onSelect;
       if (hover === undefined || select === undefined)
         throw new Error("the renderer was mounted without both channels");
-      return { hover, select };
+      // **The source defaults to `"pointer"` here and nowhere in the
+      // application** (Task 6.4.3): the renderer always states it, and a
+      // default in the harness is what keeps Task 6.4.2's own call sites
+      // reading as the pointer selections they were written as. The tests
+      // that care pass it explicitly.
+      return {
+        hover,
+        select: (selected, source = "pointer") => {
+          select(selected, source);
+        },
+      };
     };
 
     const target = (
@@ -891,7 +910,9 @@ describe("MarketTopology", () => {
       expect(plate().dataset.topologyReadout).toBe("idle");
       expect(line("ticker")).toBe("");
       expect(
-        screen.getByText("Point at a security to see what it is."),
+        screen.getByText(
+          "Point at a security, or press Tab and the arrow keys.",
+        ),
       ).toBeTruthy();
     });
 
@@ -1032,6 +1053,186 @@ describe("MarketTopology", () => {
           "button · Try again — the market topology",
         ]);
       });
+    });
+  });
+
+  /**
+   * **The keyboard's React-side half** (Task 6.4.3) — the two things that are
+   * not in the renderer and therefore not below `pnpm e2e`.
+   *
+   * The walk itself is `topology/walk.test.ts`, pure and over the real
+   * universe; the keys reaching it, the drawn focus ring and where focus lands
+   * in a real browser are `overview-market-topology-keyboard.spec.ts`'s. What
+   * is left here is the half this component owns: the hidden description the
+   * canvas is pointed at, and **focus following a keyboard selection onto the
+   * one anchor**, which is what makes `Enter` the browser's own activation
+   * rather than a navigation call.
+   */
+  describe("the keyboard model — Task 6.4.3", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    /** The mount options the renderer was handed. */
+    const options = (): {
+      labelledBy?: string;
+      describedBy?: string;
+      onSelect?: (
+        selected: TopologyHoverTarget | null,
+        source: TopologySelectionSource,
+      ) => void;
+    } => {
+      const found = mountCanvasTopology.mock.calls[0]?.[1] as
+        | {
+            labelledBy?: string;
+            describedBy?: string;
+            onSelect?: (
+              selected: TopologyHoverTarget | null,
+              source: TopologySelectionSource,
+            ) => void;
+          }
+        | undefined;
+      if (found === undefined)
+        throw new Error("the renderer was never mounted");
+      return found;
+    };
+
+    const select = (
+      selected: TopologyHoverTarget | null,
+      source: TopologySelectionSource,
+    ): void => {
+      const channel = options().onSelect;
+      if (channel === undefined)
+        throw new Error("the renderer was mounted with no onSelect channel");
+      act(() => {
+        channel(selected, source);
+      });
+    };
+
+    const NVDA: TopologyHoverTarget = {
+      node: {
+        symbol: toTicker("NVDA"),
+        label: "NVIDIA Corporation",
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment: "normal",
+    };
+
+    const AAPL: TopologyHoverTarget = {
+      node: {
+        symbol: toTicker("AAPL"),
+        label: "Apple Inc.",
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment: "normal",
+    };
+
+    const mount = (): void => {
+      renderWithContext(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          onRetry={() => undefined}
+        />,
+      );
+    };
+
+    it("points the canvas at a hidden description of the keys, by a SECOND id", () => {
+      mount();
+
+      const { labelledBy, describedBy } = options();
+      expect(labelledBy).toBeDefined();
+      expect(describedBy).toBeDefined();
+      // **Two ids, not one**: the label is what the picture is and the
+      // description is what a reader can do to it. One element cannot carry
+      // both.
+      expect(describedBy).not.toBe(labelledBy);
+
+      const hint = document.getElementById(describedBy ?? "");
+      expect(hint).not.toBeNull();
+      // The three mechanisms, and `Escape` beside them. Asserted on the
+      // rendered element rather than on the constant, because the id and the
+      // text being on the SAME element is the whole claim.
+      expect(hint?.textContent).toContain("Arrow keys walk the graph");
+      expect(hint?.textContent).toContain("Home and End");
+      expect(hint?.textContent).toContain("Enter opens the selected security");
+      expect(hint?.textContent).toContain("Escape");
+    });
+
+    it("says the keyboard route exists in the drawn idle instruction too", () => {
+      mount();
+
+      // Task 6.4.1 shipped this string naming only the pointer, with a
+      // docblock saying this task widens it once the keys do something. The
+      // wording is the design canvas's own, which 6.4.1 reverted because it
+      // was a claim about a mechanism that did not exist.
+      expect(
+        screen.getByText(
+          "Point at a security, or press Tab and the arrow keys.",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("moves focus onto the one anchor when a KEY produced the selection", () => {
+      mount();
+
+      select(NVDA, "keyboard");
+
+      const link = screen.getByRole("link");
+      // **This is what makes `Enter` the browser's own activation of an
+      // `<a href>`** — and therefore what keeps every topology source file
+      // free of the `navigate()`/`location.*` calls
+      // `one-home-for-imperative-navigation` refuses. A keyboard walk that
+      // left focus on the canvas would need this component to implement
+      // activation itself.
+      expect(document.activeElement).toBe(link);
+    });
+
+    it("leaves focus exactly where it was when a POINTER produced it", () => {
+      mount();
+
+      select(NVDA, "pointer");
+
+      const link = screen.getByRole("link");
+      expect(document.activeElement).not.toBe(link);
+      // The reader's hand is already where they want it; pulling the page's
+      // focus ring into the plate is a second thing happening for a gesture
+      // that asked for one.
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it("stops following once the reader goes back to the pointer", () => {
+      mount();
+
+      select(NVDA, "keyboard");
+      expect(document.activeElement).toBe(screen.getByRole("link"));
+
+      // A click on a different node. The anchor is the SAME element with a new
+      // `href`, so a naive implementation that only asked *is something
+      // openable* would hold focus there for ever once a keyboard selection
+      // had happened.
+      (document.activeElement as HTMLElement).blur();
+      select(AAPL, "pointer");
+
+      expect(screen.getByRole("link").getAttribute("href")).toBe(
+        "/securities/AAPL",
+      );
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it("does not move focus when the selection is cleared", () => {
+      mount();
+
+      select(NVDA, "keyboard");
+      select(null, "keyboard");
+
+      // `Escape` is the renderer's: it focuses the canvas BEFORE clearing,
+      // precisely because removing a focused element drops focus to the body.
+      // There is no anchor left here to focus, and this component must not
+      // reach for anything else.
+      expect(screen.queryAllByRole("link")).toHaveLength(0);
     });
   });
 

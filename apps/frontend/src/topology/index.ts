@@ -18,10 +18,14 @@
  * 6.4.1): interaction is pan, zoom and HOVER** — `hit-test.ts` is what a
  * reader is pointing at, in screen pixels. ~~Selection is still Task 6.4.2's.~~
  * **False since 2026-11-04 (Task 6.4.2): interaction is pan, zoom, hover and
- * SELECTION** — `click-gesture.ts` is what tells a click from a pan, and the
- * selected node is the renderer's own state (`renderer-canvas.ts`), reported
- * out through `TopologyRendererOptions.onSelect` so that React can render the
- * **one** anchor this surface has.
+ * SELECTION**, and **since 2026-11-05 (Task 6.4.3) the KEYBOARD besides** —
+ * `walk.ts` is what an arrow key does in a graph, a pure function over the
+ * graph and its layout, and it reaches the **same** selection setter a click
+ * does rather than a second one. `click-gesture.ts` is what tells a click
+ * from a pan; the selected node is the renderer's own state
+ * (`renderer-canvas.ts`), reported out through
+ * `TopologyRendererOptions.onSelect` so that React can render the **one**
+ * anchor this surface has.
  */
 
 export {
@@ -69,6 +73,9 @@ export {
 } from "./hit-test.js";
 export type { TopologyHitCandidate } from "./hit-test.js";
 
+export { TOPOLOGY_WALK_KEYS, isTopologyWalkKey, topologyWalk } from "./walk.js";
+export type { TopologyWalkKey } from "./walk.js";
+
 export type {
   TopologyAnomalyTreatment,
   TopologyHoverTarget,
@@ -76,6 +83,7 @@ export type {
   TopologyRendererFactory,
   TopologyRendererKind,
   TopologyRendererOptions,
+  TopologySelectionSource,
 } from "./renderer.js";
 
 export { mountCanvasTopology } from "./renderer-canvas.js";

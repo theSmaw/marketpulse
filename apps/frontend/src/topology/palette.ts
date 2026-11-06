@@ -135,6 +135,29 @@ export interface TopologyPalette {
    * 1.92 → 8.89:1, `extreme` 3.05 → 5.60:1).
    */
   readonly selectionGround: string;
+  /**
+   * The focus ring drawn around the node a keyboard reader is on (Task
+   * 6.4.3) — `--ink-inverse`, and **one ink rather than the two the design
+   * work specified**.
+   *
+   * The canvas's treatment names two, *light ink on the pale ground and
+   * `--ink-inverse` on the dark selected ground*, because it was drawn
+   * against a model in which a node can be focused without being selected.
+   * The shipped keyboard model has no such state: the first arrow key seeds
+   * the selection at the centre (Gate 1 — *focus is never a state with
+   * nothing in it*) and every subsequent key moves it, so the focused node
+   * **is** the selected node, always, and the ring is always drawn inside
+   * `selectionGround`'s own dark disc. The second ink would be a value no
+   * frame can reach, which is this repository's own rule about a claim with
+   * no mechanism behind it; the day a focus position can outlive a
+   * selection, it is one field and the measurement is recorded here.
+   *
+   * Measured against `--surface-inverse`: **14.6:1**, so ADR 0026's standing
+   * exception does not fire. It is not the sole encoding either way — the
+   * dark ground disc and the readout plate's words both carry the state, and
+   * the ring survives `grayscale(1)` on value alone.
+   */
+  readonly focusRing: string;
 }
 
 /**
@@ -218,5 +241,6 @@ export function topologyPalette(): TopologyPalette {
     anomalyExtreme: tokens["--anomaly-extreme"],
     hoverGround: tokens["--surface-sunken"],
     selectionGround: tokens["--surface-inverse"],
+    focusRing: tokens["--ink-inverse"],
   };
 }

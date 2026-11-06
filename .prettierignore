@@ -31,6 +31,10 @@ playwright-report/
 .probe/
 .heavy-job.lock
 
+# `scripts/topology-interaction-probe.mjs`'s screenshots (Task 6.4.3). Same
+# reason as `.probe/` above. Mirrored in .gitignore and eslint.config.mjs.
+.probe-interaction/
+
 # Incremental build state. A single-line JSON blob that TypeScript rewrites on
 # every build and Prettier would otherwise expand into a formatted document,
 # producing a diff per build.

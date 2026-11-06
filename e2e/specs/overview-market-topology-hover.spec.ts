@@ -278,7 +278,7 @@ test("the plate reads a hovered equity's four facts, against GET /securities and
   await expect(plate(page)).toBeVisible();
   expect(await plateState(page)).toBe("idle");
   await expect(plate(page)).toContainText(
-    "Point at a security to see what it is.",
+    "Point at a security, or press Tab and the arrow keys.",
   );
   expect(await plateLine(page, "ticker")).toBe("");
 
@@ -824,7 +824,7 @@ test("clicking a different node moves the selection, and clicking empty canvas c
   await expect.poll(() => plateState(page)).toBe("idle");
   expect(await plateLine(page, "ticker")).toBe("");
   await expect(plate(page)).toContainText(
-    "Point at a security to see what it is.",
+    "Point at a security, or press Tab and the arrow keys.",
   );
   await expect.poll(() => darkPixelsAround(page, second.at)).toBe(0);
   expect(pathNow(page)).toBe("/");

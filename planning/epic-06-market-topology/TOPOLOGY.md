@@ -248,3 +248,75 @@ not a default.
   store" rule, arriving at a sixth surface). `docs/GAPS.md`'s own new entry
   (Task 6.3.5) carries the real distribution figure this one instant
   produced and the condition for re-taking it against the deployed store.
+- **Added 2026-11-05 (Task 6.4.3): the route-level interaction harness
+  EXISTS, and it closes half of the bullet two above rather than all of
+  it.** `scripts/topology-interaction-probe.mjs` drives
+  `topology-instrument.mjs`'s own scripted pan/zoom path and a scripted
+  focus/arrow-key path against `/`'s real, resizable box at the four widths
+  this product tests, and measures the drawn geometry **by difference** —
+  snapshot the canvas, change one thing, read the pixels that moved. What it
+  closed: the focus ring's real radii (`9.7 → 12.1` CSS px at every width,
+  `4.2 → 6.7` at the zoom floor, `15.2 → 17.9` at the ceiling), its measured
+  clearance from Story 6.3's own ring on a real `high` node (**confirmed at
+  three of the four widths**, 9.96–9.98 px of ring against a 14.97–15.20 px
+  focus-ring inner edge — ≈4.99–5.23 px of clearance), and a re-confirmation
+  of Task 6.4.1's hit-target table from the other end (the hub reaches
+  11.0 px against a computed 10 at every width; an equity in `TECHNOLOGY`
+  reaches as little as 0.0 px at the narrowest width, cut short by a
+  **neighbour** rather than by the threshold — crowding Story 6.2/6.3 already
+  measured and accepted, arriving at a second instrument). What it did
+  **not** close, deliberately and by the task's own scope: **the frame-rate
+  figures are still Story 6.2's Storybook ones.** This harness takes no
+  timing at all — a geometry reading needs no production build, no
+  calibrator and no load ceiling, and borrowing `overview-instrument.mjs`'s
+  apparatus for one would have bought a refusal to run and nothing else.
+  ADR 0048's figures still predate both Story 6.3's ring and this story's,
+  and **Epic 14 owns the re-take at scale**; the condition for building the
+  timing half is unchanged — the first story that needs a frame-rate figure
+  for `/`'s own box rather than for Storybook's.
+- **Corrected 2026-11-06, on review: the figure above was wrong and the
+  record that carried it was incomplete.** The instrument's anomaly-ring
+  reader matched the ring's own colour over a box around the measured
+  centre, reasoning that zooming in first would put every neighbour's ring
+  outside it — true at 1440, **false at 1024 and 768**, where it read
+  33–34 px against a ring whose own edge is a single digit, because this
+  renderer's fit scale is itself width-dependent and the same relative zoom
+  leaves less absolute separation on a narrower viewport. Fixed with a
+  ray-based reader (sixteen rays outward from the centre, each stopping at
+  its own first gap after amber, so a spatially separate neighbour is
+  excluded by construction); the clearance above is the corrected, re-run
+  figure, consistent to two decimal places across the three widths it is
+  reachable at. Task 6.4.3's own record carries the full account and the
+  unabridged four-width output.
+- **Added 2026-11-05 (Task 6.4.3): in the densest clusters the focus ring is
+  hard to find, and it is a question about the treatment rather than a
+  defect in it.** Photographed at 1440 and 768 via
+  `scripts/topology-interaction-probe.mjs` (its crops are gitignored output,
+  the same convention `pnpm probe`'s own screenshots follow — regenerate
+  rather than open a committed file): at the fitted scale a `TECHNOLOGY`
+  member sits under twenty overlapping neighbours, each with its own 1 px
+  `--surface-raised` halo, and a light ring among them is not the landmark a
+  keyboard reader wants. The crowding is **pre-existing** — Story 6.3
+  measured the identical overlap with no ring drawn at all and recorded it
+  as node density rather than as a ring problem — and zooming resolves it
+  completely (the same script's banded-node crop at the zoom ceiling, where
+  the focus ring, the amber band ring and the ground disc are three
+  unambiguous layers). Named here because a focus indicator carries more
+  weight than a band does: a reader who cannot see where they are has no
+  second way of finding out.
+  **Owner: the design decision is the product owner's**; the measurement and
+  the photographs are in Task 6.4.3's record.
+- **Added 2026-11-05 (Task 6.4.3): a re-mount loses the anomaly bands, found
+  by a canvas digest and owned by nobody yet.** Anything that lands a fresh
+  `securities` array — a retried `GET /securities` is the reachable case —
+  re-runs `MarketTopology`'s mount effect, and the new renderer has not had a
+  `setBands` call, so all 501 equities draw `normal` (filled) rather than
+  `unscored` or their real band until the next batch arrives. It is invisible
+  on any machine whose universe request succeeds first time, invisible to
+  every DOM assertion, and was found only because a whole-canvas digest
+  compared across a whole browser test caught it at about 1 run in 25. The
+  spec was restructured to compare the two pixels it owns instead; **the
+  product behaviour is unrepaired and is Story 6.3's channel rather than
+  6.4's** — the repair is for the route to re-apply its held treatment map
+  when the handle changes, which is `MarketOverview.tsx`'s `useRef` policy
+  and not this story's code.

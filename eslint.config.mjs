@@ -61,6 +61,9 @@ export default tseslint.config(
       // Neither is source. Mirrored in .gitignore and .prettierignore.
       ".probe/",
       ".heavy-job.lock",
+      // `scripts/topology-interaction-probe.mjs`'s screenshots (Task 6.4.3).
+      // Mirrored in .gitignore and .prettierignore.
+      ".probe-interaction/",
       "**/*.tsbuildinfo",
       ".claude/worktrees/",
     ],
