@@ -1,6 +1,18 @@
 # Story 6.4 — Hover, Select, & the Way Out
 
-**Status:** **Gate 1 approved 2026-11-04 — decomposed into five tasks.**
+**Status:** **Complete — accepted at Gate 2, 2026-11-06.** All seven acceptance
+criteria satisfied with evidence; `pnpm verify` and the full topology `pnpm e2e`
+battery green; two real UX defects (readout-plate occlusion, focus-ring
+contrast) found by the close's own integrated pass and fixed before shipping.
+One open product decision — the canvas's native context menu — surfaced to the
+Product Owner in `docs/GAPS.md` rather than decided unilaterally; accepted
+with that item standing open. PRs:
+[#652](https://github.com/theSmaw/marketpulse/pull/652) (Gate 1),
+[#653](https://github.com/theSmaw/marketpulse/pull/653) (6.4.1),
+[#654](https://github.com/theSmaw/marketpulse/pull/654) (6.4.2),
+[#655](https://github.com/theSmaw/marketpulse/pull/655) (6.4.3),
+[#656](https://github.com/theSmaw/marketpulse/pull/656) (6.4.4),
+[#657](https://github.com/theSmaw/marketpulse/pull/657) (6.4.5, this close).
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.3
 **Epic scope covered:** Hover/select interactions
