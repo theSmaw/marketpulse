@@ -678,3 +678,141 @@ describe("no landmark node ever forms a correlation pair — `0018` §6", () => 
     }
   });
 });
+
+describe("readNewestGeneration — the whole generation of one session (Task 6.5.2)", () => {
+  // The read's own session, kept clear of `OBSERVED_AT` above so these tests
+  // do not have to care what order the rest of this file wrote rows in.
+  const EARLIER = new Date("2026-11-02T21:00:00.000Z");
+  const LATER = new Date("2026-11-03T21:00:00.000Z");
+
+  it("answers `undefined` where no pass has run at or before the instant", async () => {
+    // CI's permanent state, and every store's before the first
+    // `pnpm baselines`. Asked about an instant before anything this file
+    // wrote, there is nothing to serve.
+    expect(
+      await correlations().readNewestGeneration(
+        new Date("2020-01-02T20:00:00.000Z"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("resolves both ends back to TICKERS and parses the figures", async () => {
+    await correlations().writeCorrelations(EARLIER, PARAMETERS, [
+      pair("AAAA", "BBBB", -0.812345, 1_234),
+    ]);
+    await correlations().writePass(EARLIER, { ...PASS, retainedPairs: 1 });
+
+    const generation = await correlations().readNewestGeneration(EARLIER);
+
+    // **Tickers, never ids** — `securities.id` is a row-insertion ordinal and
+    // this suite's fixture deliberately assigns them in the reverse of ticker
+    // order, so a read that handed back ids would be handing back a different
+    // security's identity on another store.
+    expect(generation?.correlations).toEqual([
+      { low: "AAAA", high: "BBBB", r: -0.812345, n: 1_234 },
+    ]);
+    // The signed coefficient survives `numeric(18, 6)` and the `Number()`
+    // parse, and the overlap survives `bigint`-as-string.
+    expect(typeof generation?.correlations[0]?.r).toBe("number");
+    expect(typeof generation?.correlations[0]?.n).toBe("number");
+    expect(generation?.pass.observedAt).toEqual(EARLIER);
+    expect(generation?.pass.parameters.feed).toBe(BASELINE_FEED);
+    expect(generation?.pass.belowSignificance).toBe(PASS.belowSignificance);
+  });
+
+  it("serves the NEWEST pass at or before the instant, and only its rows", async () => {
+    await correlations().writeCorrelations(LATER, PARAMETERS, [
+      pair("AAAA", "CCCC", 0.5),
+      pair("BBBB", "CCCC", 0.6),
+    ]);
+    await correlations().writePass(LATER, { ...PASS, retainedPairs: 2 });
+
+    const newest = await correlations().readNewestGeneration(
+      new Date("2026-11-04T21:00:00.000Z"),
+    );
+
+    expect(newest?.pass.observedAt).toEqual(LATER);
+    expect(newest?.correlations.map((row) => `${row.low}-${row.high}`)).toEqual(
+      ["AAAA-CCCC", "BBBB-CCCC"],
+    );
+
+    // And the bound is honoured rather than recorded: asked about the earlier
+    // session, the earlier generation is what comes back — one row, not three.
+    const earlier = await correlations().readNewestGeneration(EARLIER);
+
+    expect(earlier?.pass.observedAt).toEqual(EARLIER);
+    expect(earlier?.correlations).toHaveLength(1);
+  });
+
+  // **The partial-failure answer, driven rather than argued.** The store
+  // writes its rows and then its pass row, outside a transaction, so a crash
+  // between the two is reachable — and bounding the rows on the PASS row's own
+  // session is what makes that state invisible instead of half-drawn.
+  it("serves nothing for a session whose rows exist but whose pass row does not", async () => {
+    const ORPHANED = new Date("2026-11-04T21:00:00.000Z");
+
+    await correlations().writeCorrelations(ORPHANED, PARAMETERS, [
+      pair("AAAA", "BBBB", 0.99),
+    ]);
+
+    const generation = await correlations().readNewestGeneration(ORPHANED);
+
+    // The newest PASS row at or before that instant is `LATER`'s, so the
+    // orphaned session's own row is not served at all — not under `LATER`'s
+    // figures, and not on its own.
+    expect(generation?.pass.observedAt).toEqual(LATER);
+    expect(
+      generation?.correlations.some(
+        (row) => row.low === "AAAA" && row.high === "BBBB" && row.r === 0.99,
+      ),
+    ).toBe(false);
+  });
+
+  it("orders by `low` then `high`, so two reads of one generation agree", async () => {
+    const ORDERED = new Date("2026-11-05T21:00:00.000Z");
+
+    // Written in the wrong order on purpose.
+    await correlations().writeCorrelations(ORDERED, PARAMETERS, [
+      pair("BBBB", "CCCC", 0.6),
+      pair("AAAA", "CCCC", 0.5),
+      pair("AAAA", "BBBB", 0.4),
+    ]);
+    await correlations().writePass(ORDERED, { ...PASS, retainedPairs: 3 });
+
+    const first = await correlations().readNewestGeneration(ORDERED);
+    const second = await correlations().readNewestGeneration(ORDERED);
+
+    expect(first?.correlations.map((row) => `${row.low}-${row.high}`)).toEqual([
+      "AAAA-BBBB",
+      "AAAA-CCCC",
+      "BBBB-CCCC",
+    ]);
+    // Byte-comparable, which is what lets a cache hold one of these and a
+    // renderer trust that two page loads draw the same picture.
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first));
+  });
+
+  it("does not filter on `securities.status`, because this is a read of what we stored", async () => {
+    // `UNIVERSE.md` §12.2's second side: a security untracked this morning
+    // still had a correlation that was true when it was computed. The drawn
+    // graph drops the edge anyway — `withCorrelationEdges` refuses an endpoint
+    // that is not a node — and that is the right place for it.
+    await db().query(
+      "update securities set status = 'untracked' where symbol = $1",
+      ["CCCC"],
+    );
+
+    try {
+      const generation = await correlations().readNewestGeneration(LATER);
+
+      expect(
+        generation?.correlations.filter((row) => row.high === "CCCC"),
+      ).toHaveLength(2);
+    } finally {
+      await db().query(
+        "update securities set status = 'active' where symbol = $1",
+        ["CCCC"],
+      );
+    }
+  });
+});

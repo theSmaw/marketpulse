@@ -11,10 +11,21 @@
  *
  * ## Eight draw calls a frame, whatever the universe does
  *
+ * **Nine since 2026-11-06 (Task 6.5.2), and only on a store that has run the
+ * nightly correlation pass** — the ninth is one more `stroke()`, for however
+ * many measured edges that pass retained (1,860 on the one store it has been
+ * measured against). The count is unchanged on CI and on every laptop before
+ * the first `pnpm baselines`, where the array is empty and the branch is not
+ * entered. The heading is left as it was written because the claim it is
+ * making — *whatever the universe does* — is the one that still holds: a batch
+ * is a batch whether it accumulates 11 subpaths or 1,860.
+ *
  * The whole frame is:
  *
  *   1. one `stroke()` for the 501 membership edges,
  *   2. one `stroke()` for the eleven hub edges,
+ *   2b. one dashed `stroke()` for the measured correlation edges, where a
+ *       store has any,
  *   3–8. one `stroke()` (the halo) and one `fill()` (the ink) for each of the
  *        three node kinds,
  *   then fifteen `fillText()` calls for the eleven sector labels, the three
@@ -105,6 +116,101 @@ const EDGE_END_CLEARANCE = 1.5;
  * covers the halo covering an edge's end; this ring inherits it for free,
  * which is why no new ring-specific clearance was added.
  */
+
+/**
+ * **The most of a correlation segment's own length the two end clearances may
+ * take between them — 0.8, and it is the fix for a measured defect rather
+ * than a tuning knob** (Task 6.5.2).
+ *
+ * ## The defect
+ *
+ * `EDGE_END_CLEARANCE`'s own loop refuses to draw any segment shorter than
+ * `head + tail` at all — **11.0 px for an equity pair** — which is correct for
+ * a membership edge (at low fit scale every cluster is nearly coincident with
+ * its own benchmark, and a naive shortening draws the line backwards) and is
+ * **not** correct for a correlation edge, because 82.4% of the retained pairs
+ * join two equities in the **same sector** and those are the shortest segments
+ * in the whole layout.
+ *
+ * Measured against the real 1,860-pair generation on this developer's store,
+ * at the four content boxes `pnpm probe` reports for `/`
+ * (996/568/684/306 × 411, fit scales 0.4452 / 0.3022 / 0.3639 / 0.1628):
+ *
+ * | width | dropped          | of which the two node BODIES cover anyway | **lost ink** |
+ * | ----- | ---------------- | ----------------------------------------- | ------------ |
+ * | 1440  | 106 (5.70%)      | 0                                         | **106**      |
+ * | 1024  | 205 (11.02%)     | 127                                       | **78**       |
+ * | 768   | 164 (8.82%)      | 82                                        | **82**       |
+ * | 390   | **657 (35.32%)** | 395                                       | **262**      |
+ *
+ * A third of the measured relationships absent at the narrowest width, and at
+ * 1440 **every one** of the 106 is pure loss — nothing covers them.
+ *
+ * ## The fix, and why this figure
+ *
+ * Scale both clearances by `min(1, length × SHARE / (head + tail))`, so a
+ * segment that cannot afford the full clearance draws at a **reduced** one
+ * rather than not at all. Long edges are untouched (`factor === 1`), which is
+ * what keeps a correlation edge's ends looking the same as a membership edge's
+ * wherever there is room.
+ *
+ * `0.8` is derived from the one thing that actually bounds visibility, which
+ * is **not** this constant: edges are stroked **before** node bodies, so the
+ * two 8 px equity bodies paint over the first and last 4 px of every segment
+ * whatever the clearance is. The open window therefore exists only for
+ * `length > 8`, and the stroke reaches into it for every such segment at
+ * `SHARE ≤ 0.8` — at `length = 9` the stroke spans 3.6 → 5.4 px against an
+ * open window of 4 → 5. So **the clamp is not the binding constraint at any
+ * length; node overlap is**, and that is a fact about this layout's own
+ * density rather than a rule hidden in a renderer.
+ *
+ * Simulated over the same 1,860 pairs before it was written: **0 dropped at
+ * every width**, and the count showing ink outside both bodies is exactly
+ * `1860 − covered` — 1,860 / 1,733 / 1,778 / 1,465.
+ *
+ * **Scoped to the correlation batch and nothing else.** The membership and hub
+ * loop keeps the hard refusal, which is right there for the reason its own
+ * comment gives, and is why this is a second block rather than a conditional
+ * inside the first.
+ */
+const CORRELATION_EDGE_CLEARANCE_SHARE = 0.8;
+
+/**
+ * The correlation edge's dash rhythm, in CSS pixels — **3 on, 2 off** (Task
+ * 6.5.2).
+ *
+ * **Dash is the channel Story 6.1's close handed this story by name**: *both
+ * kinds here are solid, and a correlation is a measurement where membership is
+ * a curated fact, which is a difference worth a visual channel when that story
+ * needs one.* It is the one channel no other mark in this picture spends, it
+ * survives `grayscale(1)` completely — which is this product's standing rule
+ * that colour is never the sole encoding of anything — and it is the only
+ * difference between the two kinds that does not depend on a reader having
+ * both in view to compare values.
+ *
+ * ## The figure, against the measured lengths rather than a preference
+ *
+ * A 5 px period, so the shortest segment with any open ink on it shows a mark
+ * rather than a gap: the median correlation segment is **38.9 px at 1440 and
+ * 14.2 px at 390** (the table on
+ * {@link CORRELATION_EDGE_CLEARANCE_SHARE}), of which ~8 px is under the two
+ * node bodies — so a 390 median leaves ~6 px of open ink, which at this rhythm
+ * is one dash and part of a second. Canvas2D restarts the dash pattern at each
+ * **subpath**, so every edge begins **on** a dash rather than wherever the
+ * previous edge's phase left off, which is what makes that true per edge
+ * rather than on average.
+ *
+ * **Asymmetric (3/2) rather than even**, so it reads as dashed rather than
+ * dotted at a 1 px stroke width, and **derived here rather than borrowed**:
+ * `VISUAL-LANGUAGE.md`'s constraint on this epic is *no idiom from the chart
+ * layer*, so this is deliberately not one of the three `stroke-dasharray`
+ * rhythms `three-dash-rhythms-and-they-differ` holds for the plots.
+ *
+ * It is **constant under zoom**, like every other stroke this renderer draws —
+ * the edge/halo/label rule (`renderer.ts` §09's table). A scaling dash at zoom
+ * 3 is a 9 px dash, which reads as a different mark rather than a closer one.
+ */
+const CORRELATION_EDGE_DASH = [3, 2] as const;
 
 /** Where a sector label sits above its cluster's bounding circle, in CSS pixels. */
 const LABEL_GAP = 8;
@@ -560,6 +666,14 @@ export const mountCanvasTopology: TopologyRendererFactory = (
 
   const membership: DrawableEdge[] = [];
   const hub: DrawableEdge[] = [];
+  /**
+   * **The measured edges, filed apart from the two curated kinds** (Task
+   * 6.5.2) — a third array rather than a flag on {@link DrawableEdge},
+   * because what differs is the whole stroke: a dash rhythm, a token, and a
+   * clearance rule the other two must not inherit. Empty on every machine
+   * whose store has never run the nightly pass, which is CI for ever.
+   */
+  const correlation: DrawableEdge[] = [];
 
   for (const edge of graph.edges) {
     const from = placements.get(edge.from);
@@ -575,8 +689,30 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       toInk: inkOf.get(edge.to) ?? TOPOLOGY_NODE_INK.equity,
     };
 
-    if (edge.kind === "sector_membership") membership.push(drawable);
-    else hub.push(drawable);
+    // An exhaustive switch rather than an `if`/`else`, so a fourth edge kind
+    // is a compile error here naming this file rather than a set of lines
+    // silently filed as hub edges and drawn in the wrong ink.
+    switch (edge.kind) {
+      case "sector_membership":
+        membership.push(drawable);
+        break;
+      case "index_membership":
+        hub.push(drawable);
+        break;
+      case "return_correlation":
+        correlation.push(drawable);
+        break;
+      default: {
+        // A throw here is caught by `MarketTopology`'s own mount `try` and
+        // becomes DOM text beside the frame, which is this component's
+        // established answer to a renderer that cannot start — never a blank
+        // page, and never a kind drawn in the wrong ink.
+        const unhandled: never = edge;
+        throw new Error(
+          `The market topology cannot draw this edge kind: ${JSON.stringify(unhandled)}`,
+        );
+      }
+    }
   }
 
   // The fifteen labels, and the one group heading. Sector names sit above each
@@ -1029,6 +1165,83 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       }
 
       context.stroke();
+    }
+
+    // --- The measured edges, one batched dashed path (Task 6.5.2) ----------
+    //
+    // **A block of its own rather than a third entry in the loop above**, for
+    // two reasons that are both behavioural: it strokes a dash rhythm, and its
+    // short segments are **clamped rather than dropped**
+    // ({@link CORRELATION_EDGE_CLEARANCE_SHARE} carries the measurement). The
+    // two curated kinds keep the hard refusal, which is correct for them and
+    // is why that loop is untouched.
+    //
+    // **Drawn AFTER the two curated kinds and before the node bodies.** After,
+    // because `--chart-seam` is a value step above `--chart-grid` and a
+    // measurement should not sit under a membership hairline at a crossing;
+    // before the bodies, because every edge in this renderer ends under the
+    // mark it names — which is also what makes the clamp above safe, since the
+    // first and last 4 px of every segment are painted over regardless.
+    //
+    // `correlation.length === 0` on every machine whose store has never run
+    // the nightly pass, which is CI for ever and every laptop until the first
+    // `pnpm baselines` — so this is the one branch here a gated run never
+    // enters.
+    if (correlation.length > 0) {
+      context.beginPath();
+      context.strokeStyle = palette.correlationEdge;
+      // Spread rather than passed by reference: `setLineDash` takes a mutable
+      // `number[]`, and handing it the module constant would publish it to
+      // anything that decided to sort or splice its argument.
+      context.setLineDash([...CORRELATION_EDGE_DASH]);
+
+      for (const edge of correlation) {
+        const from = worldToScreen(view, edge.fromX, edge.fromY);
+        const to = worldToScreen(view, edge.toX, edge.toY);
+
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.hypot(dx, dy);
+
+        // A zero-length segment has no direction to shorten along. It is
+        // unreachable — `withCorrelationEdges` drops a self-pair and the
+        // layout gives no two nodes one point — and the guard is here because
+        // the division below is the one place that would produce `NaN`
+        // coordinates rather than a visible defect.
+        if (length === 0) continue;
+
+        const wanted =
+          (edge.fromInk * nodeScale) / 2 +
+          (edge.toInk * nodeScale) / 2 +
+          EDGE_END_CLEARANCE * 2;
+
+        // **Clamped, never dropped.** `factor` is 1 for every segment with
+        // room for the full clearance, so a long correlation edge ends exactly
+        // where a membership edge would.
+        const factor = Math.min(
+          1,
+          (length * CORRELATION_EDGE_CLEARANCE_SHARE) / wanted,
+        );
+
+        const head =
+          ((edge.fromInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
+        const tail =
+          ((edge.toInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
+
+        const ux = dx / length;
+        const uy = dy / length;
+
+        context.moveTo(from.x + ux * head, from.y + uy * head);
+        context.lineTo(to.x - ux * tail, to.y - uy * tail);
+      }
+
+      context.stroke();
+      // **Reset before anything else strokes.** Every later pass in this frame
+      // — four node bodies, the `unscored` outline, two anomaly rings, two
+      // focus rings — shares this context, and a dash left set would put a
+      // rhythm on every one of them. The defect that would produce is a
+      // dashed node outline nothing in this file asks for.
+      context.setLineDash([]);
     }
 
     // --- The four body groups, one halo stroke and one fill each ----------

@@ -103,6 +103,8 @@ import type {
   PercentileAnswer,
   ReturnPercentile,
 } from "./return-percentile.js";
+import { createRelationshipsCache } from "./relationships-cache.js";
+import { createReturnCorrelationStore } from "./return-correlation-store.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
@@ -282,6 +284,22 @@ app.register(
     marketData: resolveMarketData(config),
     bars: createMarketBarsRepository(database),
     securities: createSecuritiesRepository(database),
+    // **Which securities move together, for `/market-data/relationships`**
+    // (Task 6.5.2). The fifth member of ADR 0044's cache family and the first
+    // that serves a ROUTE rather than the socket's own callback — so it is
+    // awaited and its failures reach a reader as a 503 rather than being
+    // swallowed. There is exactly one of it, built over the same pool as every
+    // other reader, and it exports no handle.
+    //
+    // **Not loaded at startup**, which is where it diverges from its four
+    // siblings: they are read by a path that cannot await, so the first batch
+    // after a deploy would otherwise draw no figure at all. This one is read by
+    // a request that can wait for it, and a cold replica's first page load
+    // paying one query is a better trade than every replica querying a table
+    // nothing may ask about on four of the five routes.
+    relationships: createRelationshipsCache({
+      store: createReturnCorrelationStore(database),
+    }),
   }),
 );
 

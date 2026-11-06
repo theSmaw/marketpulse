@@ -28,6 +28,7 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { toTicker } from "@marketpulse/shared";
+import type { Ticker } from "@marketpulse/shared";
 
 import type {
   TopologyAnomalyTreatment,
@@ -42,6 +43,7 @@ import {
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
 import { renderWithContext } from "../../test-render.js";
+import type { RelationshipsView } from "../../use-relationships.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import { SAY_NOTHING_ARRIVED_AFTER_MS } from "../MarketProxyStrip/use-waited.js";
 import { Region } from "../Region/Region.js";
@@ -74,6 +76,18 @@ import type { MarketTopologyHandle } from "./MarketTopology.js";
  * off an interface's method-shorthand member (`destroy(): void`), not on a
  * plain variable, and `renderer?.destroy` is exactly the former.
  */
+/**
+ * **The relationship state every test here is written against** — no nightly
+ * pass has run (Task 6.5.2).
+ *
+ * CI's permanent state and the one this component must draw identically to
+ * the graph it drew before Story 6.5 existed: the measured edges are merged
+ * into the graph, so `never-measured` and the pre-6.5 picture are the same
+ * nodes and the same membership edges. The three tests that care about the
+ * other states say so by passing their own.
+ */
+const NO_MEASUREMENT: RelationshipsView = { state: "never-measured" };
+
 let lastDestroy = vi.fn();
 
 /** Same reason as {@link lastDestroy}, for `setBands` (Task 6.3.2). */
@@ -163,6 +177,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={LOADING_UNIVERSE}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -183,6 +198,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={LOADING_UNIVERSE}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -200,6 +216,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureView("empty")}
+        relationships={NO_MEASUREMENT}
         onRetry={() => undefined}
       />,
     );
@@ -223,6 +240,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureView("unavailable")}
+        relationships={NO_MEASUREMENT}
         onRetry={onRetry}
       />,
     );
@@ -255,6 +273,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureRetryingView("unavailable")}
+        relationships={NO_MEASUREMENT}
         onRetry={onRetry}
       />,
     );
@@ -276,6 +295,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureView("notThisService")}
+        relationships={NO_MEASUREMENT}
         onRetry={() => undefined}
       />,
     );
@@ -306,6 +326,7 @@ describe("MarketTopology", () => {
       <MarketTopology
         ref={ref}
         universe={LOADING_UNIVERSE}
+        relationships={NO_MEASUREMENT}
         onRetry={() => undefined}
       />,
     );
@@ -318,6 +339,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureView("nothingAnswered")}
+        relationships={NO_MEASUREMENT}
         onRetry={() => undefined}
       />,
     );
@@ -339,6 +361,7 @@ describe("MarketTopology", () => {
     render(
       <MarketTopology
         universe={securitiesFixtureView("full")}
+        relationships={NO_MEASUREMENT}
         onRetry={() => undefined}
       />,
     );
@@ -370,7 +393,11 @@ describe("MarketTopology", () => {
       const universe = securitiesFixtureView("full");
 
       const { rerender } = render(
-        <MarketTopology universe={universe} onRetry={() => undefined} />,
+        <MarketTopology
+          universe={universe}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
       );
 
       expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
@@ -387,7 +414,11 @@ describe("MarketTopology", () => {
       // is the same reference.
       for (let batch = 0; batch < 5; batch += 1) {
         rerender(
-          <MarketTopology universe={universe} onRetry={() => undefined} />,
+          <MarketTopology
+            universe={universe}
+            relationships={NO_MEASUREMENT}
+            onRetry={() => undefined}
+          />,
         );
       }
 
@@ -411,6 +442,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -431,6 +463,7 @@ describe("MarketTopology", () => {
       const { rerender } = render(
         <MarketTopology
           universe={universe}
+          relationships={NO_MEASUREMENT}
           bands={first}
           onRetry={() => undefined}
         />,
@@ -444,6 +477,7 @@ describe("MarketTopology", () => {
       rerender(
         <MarketTopology
           universe={universe}
+          relationships={NO_MEASUREMENT}
           bands={second}
           onRetry={() => undefined}
         />,
@@ -465,6 +499,7 @@ describe("MarketTopology", () => {
       const { rerender } = render(
         <MarketTopology
           universe={universe}
+          relationships={NO_MEASUREMENT}
           bands={bands}
           onRetry={() => undefined}
         />,
@@ -475,6 +510,7 @@ describe("MarketTopology", () => {
       rerender(
         <MarketTopology
           universe={universe}
+          relationships={NO_MEASUREMENT}
           bands={bands}
           onRetry={() => undefined}
         />,
@@ -505,6 +541,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           bands={bands}
           onRetry={() => undefined}
         />,
@@ -551,6 +588,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           bands={bands}
           onRetry={() => undefined}
         />,
@@ -572,6 +610,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -621,6 +660,7 @@ describe("MarketTopology", () => {
       render(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -785,6 +825,7 @@ describe("MarketTopology", () => {
       renderWithContext(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -992,6 +1033,7 @@ describe("MarketTopology", () => {
         <MarketTopology
           ref={handle}
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -1061,6 +1103,7 @@ describe("MarketTopology", () => {
         renderWithContext(
           <MarketTopology
             universe={securitiesFixtureView("unavailable")}
+            relationships={NO_MEASUREMENT}
             onRetry={() => undefined}
           />,
         );
@@ -1150,6 +1193,7 @@ describe("MarketTopology", () => {
       renderWithContext(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -1360,6 +1404,7 @@ describe("MarketTopology", () => {
       renderWithContext(
         <MarketTopology
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
           {...(ref === undefined ? {} : { ref })}
         />,
@@ -1506,7 +1551,11 @@ describe("MarketTopology", () => {
       // speaking at a listener about a request they never made.
       const universe = securitiesFixtureView("full");
       const { rerender } = renderWithContext(
-        <MarketTopology universe={universe} onRetry={() => undefined} />,
+        <MarketTopology
+          universe={universe}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
       );
 
       select(NVDA, "keyboard");
@@ -1516,6 +1565,7 @@ describe("MarketTopology", () => {
         <MarketTopology
           // A NEW array by identity, which is what a retry produces.
           universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
           onRetry={() => undefined}
         />,
       );
@@ -1679,7 +1729,11 @@ describe("MarketTopology", () => {
 
     const composed = (universe: SecuritiesView) => (
       <Region name="Market topology">
-        <MarketTopology universe={universe} onRetry={() => undefined} />
+        <MarketTopology
+          universe={universe}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />
       </Region>
     );
 
@@ -1976,5 +2030,206 @@ describe("MarketTopology", () => {
       expect(proxy.band).toBe("Benchmarks are not scored");
       expect(proxy.ticker).toBe("QQQ");
     });
+  });
+});
+
+describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+  });
+
+  const sentence = () =>
+    screen.getByText(/^A graph of every security we track/u);
+
+  /** The pass row's own figures, from Task 6.5.1's recorded run. */
+  const PASS = {
+    observedAt: "2026-09-11T20:00:00.000Z",
+    trackedEquities: 501,
+    eligibleEquities: 496,
+    splitDiscontinuity: 5,
+    absent: 0,
+    candidatePairs: 122_760,
+    computedPairs: 122_760,
+    retainedPairs: 2,
+    tooFewOverlappingSamples: 0,
+    zeroVariance: 0,
+    belowSignificance: 20_752,
+    retainedN: 5,
+    lookbackSessions: 60,
+    spanMinutes: 5,
+    feed: "sip",
+  } as const;
+
+  const measured = (
+    correlations: readonly { low: Ticker; high: Ticker; r: number }[],
+  ): RelationshipsView => ({ state: "measured", correlations, pass: PASS });
+
+  const universe = () => securitiesFixtureView("full");
+
+  it("says nothing at all while the measurement is in flight", () => {
+    // An absence of a clause rather than a clause about an absence: nothing
+    // has happened yet, and a sentence saying so is one that will be wrong in
+    // 200 ms.
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={{ state: "loading" }}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toBe(
+      "A graph of every security we track, grouped into 11 sectors around " +
+        "their benchmark ETFs, with the broad market at the centre.",
+    );
+  });
+
+  it("says the measurement has not been made where no pass has run", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={{ state: "never-measured" }}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toContain(
+      "Which securities move together has not been measured here",
+    );
+  });
+
+  // Two states, identical ink, different sentences — the distinction ADR
+  // 0029's first rule asks this surface to keep, and the whole reason the wire
+  // omits `pass` rather than zeroing it.
+  it("tells a pass that kept nothing apart from a pass that never ran", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+
+    expect(text).toContain("No pair of securities moved together closely");
+    // The PRODUCER's population, not a count of what survived to the screen.
+    expect(text).toContain("122,760 pairs were measured over 60 trading");
+    expect(text).not.toContain("has not been measured here");
+  });
+
+  it("states the drawn pairs, the reach and the population it was cut from", () => {
+    const pairs = [
+      { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.8 },
+      { low: toTicker("AAPL"), high: toTicker("NVDA"), r: 0.7 },
+    ];
+
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured(pairs)}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+
+    // Two pairs reaching three securities — read off the drawn graph rather
+    // than off `pass.retainedPairs`, which is why this is 2 and 3 and not the
+    // pass row's own figures.
+    expect(text).toContain("2 pairs, reaching 3 of the");
+    expect(text).toContain("122,760 pairs measured over 60 trading sessions");
+    expect(text).toContain("the strongest 5 kept for each security");
+  });
+
+  // **Never a per-edge fact and never a ticker.** 1,860 named pairs in a
+  // hidden paragraph is a wall rather than a fallback, and it is the one claim
+  // on this surface a listener could not check against anything.
+  it("names no security in the clause", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.9 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+    const clause = text.slice(text.indexOf("Securities that moved together"));
+
+    expect(clause).not.toContain("AAPL");
+    expect(clause).not.toContain("MSFT");
+  });
+
+  it("does not count a pair whose endpoint this universe no longer draws", () => {
+    // `withCorrelationEdges` drops it, so the sentence must report what is on
+    // screen rather than what the pass retained — a reachable state, because a
+    // pass that ran last night names every security tracked then.
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.8 },
+          { low: toTicker("AAPL"), high: toTicker("ZZZZ"), r: 0.9 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toContain("1 pair, reaching 2 of the");
+  });
+
+  it("names the gap when the measurement could not be read, and keeps the graph", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={{ state: "failed" }}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toContain(
+      "Which securities move together could not be read",
+    );
+
+    // **The graph is still mounted and the region offers no repair for this**
+    // — no second `Try again`, because the universe is fine and nothing on
+    // this screen is broken.
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Try again/u })).toBeNull();
+  });
+
+  // **The two-writers defect this task had to avoid.** `applyAnomalyBands`
+  // replaces `textContent` wholesale on every live batch, so a clause only the
+  // JSX knew about would survive exactly as long as the next batch took to
+  // arrive — 6.8–16.1 times a minute on `/`.
+  it("survives a live band update rewriting the whole sentence", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    render(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={measured([
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.8 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toContain("1 pair, reaching 2 of the");
+
+    act(() => {
+      ref.current?.setBands(new Map([[toTicker("NVDA"), "high"]]));
+    });
+
+    const text = sentence().textContent;
+
+    // Both facts, in one sentence, after the imperative write.
+    expect(text).toContain("1 are high");
+    expect(text).toContain("1 pair, reaching 2 of the");
   });
 });

@@ -70,6 +70,12 @@ async function feedOn(selection: MarketDataProviderSelection) {
       securities: {
         findSecurity: () => Promise.resolve(undefined),
       },
+      // `never`-returning on purpose: this grid asks `/market-data` only, and
+      // a stub that could answer the relationships read would invite a test
+      // that drives one from the wrong file.
+      relationships: {
+        generationAsOf: () => Promise.reject(new Error("not used")),
+      },
     }),
   );
 

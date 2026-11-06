@@ -526,6 +526,13 @@ describe("the response-schema declaration", () => {
             readCoveredEnd: () => Promise.resolve(undefined),
           },
           securities: { findSecurity: () => Promise.resolve(undefined) },
+          // `never`-returning for the bar store's own stated reason: this walk
+          // registers routes and reads their schemas, and a stub that could
+          // answer the relationships read would invite a test that drives one
+          // from the wrong file.
+          relationships: {
+            generationAsOf: () => Promise.reject(new Error("not used")),
+          },
         }),
       );
     });
@@ -546,6 +553,9 @@ describe("the response-schema declaration", () => {
         // walk's list is named rather than counted: a registration that stops
         // happening is a red test here.
         "/market-data/bars",
+        // Task 6.5.2. The third route in that namespace, and the one whose
+        // subject is a PAIR of securities.
+        "/market-data/relationships",
       ]),
     );
 

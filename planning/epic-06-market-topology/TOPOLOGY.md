@@ -46,10 +46,19 @@ pointer (hover reads it, click selects it, the readout's one anchor opens
 it) and by keyboard (Tab into the region, arrow keys walk the graph as a
 tree, Enter opens, Escape clears) — and a screen-reader user gets the same
 capability through a dedicated announcement region, not a degraded
-substitute. What bounds the sections below now is narrower still: **node
+substitute. ~~What bounds the sections below now is narrower still: **node
 sizing, correlation edges and live updates** — Stories 6.5–6.8 — remain
 Storybook-only or unbuilt, and §2's renderer figures are still local,
-one-laptop ones (§4).
+one-laptop ones (§4).~~ — **narrower again since 2026-11-06: the
+correlation edges are drawn.** Task 6.5.2 put Task 6.5.1's nightly pass on
+screen — a new route, a third edge kind on the model, a dashed batched
+stroke — so the graph stops being only a sector diagram. **But the sentence
+that bounds it is sharper than the ones above**: no gated machine will ever
+draw one of these edges, because CI has no nightly pass and never will, and
+the only machine that has drawn one is one developer's. What bounds the
+sections below now is **node sizing, edge strength and live updates** —
+Stories 6.6–6.8 — and §2's renderer figures are still local, one-laptop
+ones (§4). See §5.
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 
@@ -408,3 +417,127 @@ at zoom 1 — is exact.
   sentence's own legibility are all unanswerable from a DOM, which
   `docs/GAPS.md`'s eleventh screen-reader-listening entry (also Task 6.4.5)
   states plainly rather than leaves implicit.
+- **Added 2026-11-06 (Task 6.5.2): no gated machine will ever draw a
+  correlation edge, and this is the first thing in this epic that is
+  permanently unreachable on CI rather than merely unmeasured there.** The
+  anomaly band at least has an authored frame a browser spec can furnish
+  (`overview-market-topology-anomaly-bands.spec.ts` does exactly that); the
+  edge layer has **no such channel** — it comes from a nightly pass over
+  stored bars, CI has none, and furnishing one would mean the spec drawing
+  the picture it then checks, which is the shape four overview specs were
+  once green under. So `overview-market-topology.spec.ts`' ink check
+  (canvas `toDataURL()` with the route blocked, against the same page with
+  it allowed) **runs on a developer's populated store and is skipped on
+  CI**, saying so on its face. What that leaves unverified by anything
+  mechanical, anywhere: the dash rhythm's legibility, the clamp's behaviour
+  on a short segment, and the `setLineDash([])` reset whose absence would
+  dash every other mark in the frame. `docs/GAPS.md` carries the last of
+  those with the probe that catches it. **Owner: the first sitting that
+  opens `/` against a store with a nightly correlation pass** — this
+  developer's machine today, and the deployment from the first night
+  `backfill.yml` runs after this ships.
+
+## 5. The measured edges — what is drawn, what is clamped, and the one thing nothing can check
+
+**Added 2026-11-06 by Task 6.5.2**, the first task in this epic whose subject
+is an edge rather than a node. ADR 0049 is the pass's own decision and
+`0018_return_correlations.sql` is the table; this section is what reaches a
+reader.
+
+### What is on screen
+
+A **dashed** line between any two equities a nightly pass retained as moving
+together — the 60-session grid of 5-minute returns, the strongest `N = 5` per
+node by union, with a derived Fisher-z significance floor rather than a chosen
+threshold. On this developer's populated store that is **1,860 pairs of
+122,760 candidates**, 82.4% of them joining two equities in the same sector.
+
+**Two channels, and dash is the one that carries the kind.** Story 6.1's close
+reserved it by name — _both kinds here are solid, and a correlation is a
+measurement where membership is a curated fact_ — so a correlation edge is
+`--chart-seam` (1.70:1, one value step above the membership hairline's
+`--chart-grid` at 1.27:1) stroked with a **3/2** rhythm, constant under zoom
+like every other stroke here. The dash survives `grayscale(1)` completely,
+which is why it rather than the value step is the kind's encoding. The rhythm
+is deliberately not one of the chart layer's three, which is
+`VISUAL-LANGUAGE.md`'s standing constraint on this epic.
+
+### The clearance clamp, which is a measured repair rather than a new rule
+
+`renderer-canvas.ts`' end-clearance check refuses any segment shorter than
+`head + tail` (11.0 px for an equity pair). That is **correct** for a
+membership edge — at low fit scale a cluster is nearly coincident with its own
+benchmark and a naive shortening draws the line backwards — and **wrong** for
+a correlation edge, which is most often the shortest segment in the layout.
+
+Measured against the real generation at the four content boxes `pnpm probe`
+reports for `/` (996 / 568 / 684 / 306 × 411):
+
+| width | dropped          | covered by the two node bodies anyway | lost ink |
+| ----- | ---------------- | ------------------------------------- | -------- |
+| 1440  | 106 (5.70%)      | 0                                     | **106**  |
+| 1024  | 205 (11.02%)     | 127                                   | **78**   |
+| 768   | 164 (8.82%)      | 82                                    | **82**   |
+| 390   | **657 (35.32%)** | 395                                   | **262**  |
+
+The middle column is the part worth carrying forward: edges are stroked
+**before** node bodies, so the two 8 px equity bodies cover the first and last
+4 px of every segment whatever the clearance is — a segment shorter than 8 px
+cannot show a pixel at any clearance, and the honest size of the defect is the
+last column.
+
+`CORRELATION_EDGE_CLEARANCE_SHARE = 0.8` scales both clearances by
+`min(1, length × 0.8 / (head + tail))`, so a long edge is untouched and a short
+one draws at reduced clearance. At that share the stroke always reaches into
+the open window wherever one exists, so **the clamp is not the binding
+constraint at any length; node overlap is**. After it: **0 dropped at every
+width**, with 1,860 / 1,733 / 1,778 / 1,465 showing ink.
+
+### The three absence states, and the degraded one this story added
+
+`topologySource` is handed `null` rather than `[]` in all three absence
+states and skips `withCorrelationEdges` entirely rather than calling it with
+an empty array — the merge would be content-equivalent either way (same
+nodes, same edges, same clusters) but never reference-identical, since it
+always returns a new object. Either way, _the measurement is in flight_, _no
+pass has ever run_ and _the measurement could not be read_ draw **the same
+picture** — the one this region drew before Story 6.5 — and differ only in
+one clause of the accessible sentence. That is `PRODUCT_SPEC.md` §36's
+degrade-locally rule arriving inside one region for the first time: until this
+task, the topology's only failure state was _the universe request failed_,
+which correctly blanks it, because the universe is its subject. A missing
+measurement is not.
+
+The fourth state states a **population and a reach** — how many pairs are
+drawn, how many equities they touch, out of how many measured over how many
+sessions — and names no ticker, because 1,860 named pairs in a hidden
+paragraph is a wall rather than a fallback. The figures that describe what is
+**drawn** come off the merged graph and the figures that describe the
+**population** come off the pass row; neither is derived from the other.
+
+### What the model gained, and what `buildTopologyGraph` did not
+
+`TopologyEdge` is a union now: `TopologyMembershipEdge` (no weight,
+structurally absent) and `TopologyCorrelationEdge` (a **required**, signed
+`weight`), which is the reversal trigger `topology.ts`' own docblock
+pre-committed to, fired as worded. **`buildTopologyGraph` is unchanged, down
+to its signature** — the merge is a separate pure function,
+`withCorrelationEdges(graph, correlations)`, so the builder stays a function
+of the curated universe alone and Epic 13's replay hand-off is intact. A
+correlation edge's `from` is the lexicographically **lower** ticker, which is
+`0018` §3's canonicalisation rather than a second convention, and the merge
+resolves either orientation rather than trusting its caller.
+
+### What nobody has seen
+
+**CI never draws one, permanently** — zero bars, no provider, no pass — so
+every gated run draws the pre-6.5 graph and the only assertion a gated browser
+run makes is about the _never measured_ sentence. The ink check in
+`overview-market-topology.spec.ts` compares the canvas's own `toDataURL()`
+between two arms (the route blocked, and not) and is skipped where the store
+has no pass, which it says on its face.
+
+And `docs/GAPS.md` carries the sharpest residue: the `setLineDash([])` reset
+after the correlation batch is invisible to every level — delete it and every
+later mark in the frame is dashed, on a store that has correlations, with
+nothing mechanical able to see it.

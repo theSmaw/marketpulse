@@ -63,6 +63,34 @@ export interface TopologyPalette {
   readonly membershipEdge: string;
   /** The eleven SPY → sector-ETF edges. `--chart-reference`. */
   readonly hubEdge: string;
+  /**
+   * The measured correlation edges — `--chart-seam` (Task 6.5.2).
+   *
+   * **One value step darker than `membershipEdge`, and the step is the second
+   * channel rather than the first.** Story 6.1's close handed this story
+   * **dash** as the unspent channel — *both kinds here are solid, and a
+   * correlation is a measurement where membership is a curated fact, which is
+   * a difference worth a visual channel* — so the kind is carried by the dash
+   * rhythm (`renderer-canvas.ts`' own `CORRELATION_EDGE_DASH`), which survives
+   * `grayscale(1)` completely and is the one channel no other edge spends.
+   * This token is what makes the measurement read as **more** than the
+   * structure it is drawn over rather than as a fainter version of it.
+   *
+   * **`--chart-seam` rather than a new token**, and the argument is the
+   * token's own: `tokens.css` declares it as *deliberately louder than a value
+   * gridline, because it carries more* — which is exactly this edge's
+   * relationship to the membership hairline beside it. 1.70:1 on the panel
+   * ground against `--chart-grid`'s 1.27:1. ADR 0026's standing exception does
+   * **not** fire: WCAG 1.4.11's 3:1 floor is about identifying a **control**,
+   * and an edge behind data is not one — the token's own note draws that line
+   * for the identical case one layer over, and the meaning here is carried by
+   * the dash as well as by the value.
+   *
+   * **No hue, for `hoverGround`'s and `anomalyElevated`'s standing reason**:
+   * this picture's entire colour budget is the anomaly ramp, and 1,860 edges
+   * in any hue would be the loudest thing on the screen.
+   */
+  readonly correlationEdge: string;
   /** The 1 px halo every node carries. `--surface-raised`. */
   readonly halo: string;
   /** Sector names and proxy tickers. `--ink-secondary`. */
@@ -292,6 +320,7 @@ export function topologyPalette(): TopologyPalette {
     marketProxy: tokens["--ink-primary"],
     membershipEdge: tokens["--chart-grid"],
     hubEdge: tokens["--chart-reference"],
+    correlationEdge: tokens["--chart-seam"],
     halo: tokens["--surface-raised"],
     label: tokens["--ink-secondary"],
     labelFamily: family(tokens["--font-sans"]),

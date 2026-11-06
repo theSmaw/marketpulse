@@ -595,6 +595,24 @@ export type {
 export { isMarketDataResponse } from "./market-data-response.js";
 export type { MarketDataResponse } from "./market-data-response.js";
 
+// **Which securities move together, as one nightly pass measured it** (Task
+// 6.5.2) — `GET /market-data/relationships`. In `/market-data`'s namespace
+// because its subject is the market rather than a security, and in this package
+// because both ends read it: the route builds the body and the topology's own
+// merge takes its rows field-for-field.
+//
+// The shape's one judgement is that `pass` is an **absent field** rather than a
+// present `null`, which is what makes *no pass has ever run* (CI, for ever) a
+// different answer from *the pass ran and retained nothing* — ADR 0029's first
+// rule, and the reason a graph that joined only the row table would under-report
+// and look correct.
+export { isRelationshipsResponse } from "./relationships-response.js";
+export type {
+  CorrelationPayload,
+  RelationshipsPassPayload,
+  RelationshipsResponse,
+} from "./relationships-response.js";
+
 // A run of bars that cannot exist without saying where it came from (Task
 // 2.6.3), which is Story 2.6's acceptance criterion 3 made structural rather
 // than conventional. `BarSeries` is branded and `toBarSeries` is the only way to
@@ -675,12 +693,16 @@ export {
   TOPOLOGY_EDGE_KINDS,
   TOPOLOGY_HUB,
   buildTopologyGraph,
+  withCorrelationEdges,
 } from "./topology.js";
 export type {
   TopologyCluster,
+  TopologyCorrelation,
+  TopologyCorrelationEdge,
   TopologyEdge,
   TopologyEdgeKind,
   TopologyGraph,
+  TopologyMembershipEdge,
   TopologyNode,
 } from "./topology.js";
 export {

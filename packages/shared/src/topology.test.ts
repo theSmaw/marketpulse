@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { SECTOR_ETFS, SECTOR_LABELS, SECTORS } from "./security.js";
+import { toTicker } from "./ticker.js";
 import {
   TOPOLOGY_HUB,
   buildTopologyGraph,
+  withCorrelationEdges,
+  type TopologyCorrelation,
   type TopologyEdge,
 } from "./topology.js";
 import {
@@ -194,5 +197,138 @@ describe("buildTopologyGraph over a universe of the real shape", () => {
           members: [],
         })),
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `withCorrelationEdges` — the measured edges (Task 6.5.2).
+//
+// The merge is the one part of this model a caller supplies data for, so the
+// properties worth asserting are the ones the drawn graph rests on: the sort
+// stays one order over three kinds, the same input twice is the same bytes,
+// and each of the three refusals actually refuses.
+
+const pair = (low: string, high: string, r: number): TopologyCorrelation => ({
+  low: toTicker(low),
+  high: toTicker(high),
+  r,
+});
+
+/** Three real symbols out of the fixture universe, all of them nodes. */
+const [FIRST = "A", SECOND = "B", THIRD = "C"] = graph.nodes
+  .filter((node) => node.kind === "equity")
+  .map((node) => node.symbol);
+
+/** One edge's own sort key — `from`, `to`, `kind`, joined visibly. */
+const keyOf = (edge: TopologyEdge) => `${edge.from}|${edge.to}|${edge.kind}`;
+
+const measuredIn = (merged: { readonly edges: readonly TopologyEdge[] }) =>
+  merged.edges.filter((edge) => edge.kind === "return_correlation");
+
+describe("withCorrelationEdges", () => {
+  it("adds one weighted edge per retained pair, keeping the signed coefficient", () => {
+    const merged = withCorrelationEdges(graph, [
+      pair(FIRST, SECOND, 0.84),
+      pair(FIRST, THIRD, -0.71),
+    ]);
+
+    const measured = measuredIn(merged);
+
+    expect(measured).toHaveLength(2);
+    // **Signed, not a magnitude** — −0.71 and +0.71 are opposite facts about
+    // the market, and this model is where the sign survives.
+    expect(measured.map((edge) => edge.weight).sort()).toEqual([-0.71, 0.84]);
+    expect(kindsOf(merged.edges)).toEqual({
+      sector_membership: 501,
+      index_membership: 11,
+      return_correlation: 2,
+    });
+  });
+
+  it("leaves the graph it was handed untouched, and the membership edges alone", () => {
+    const before = JSON.stringify(graph);
+
+    const merged = withCorrelationEdges(graph, [pair(FIRST, SECOND, 0.5)]);
+
+    expect(JSON.stringify(graph)).toBe(before);
+    expect(merged.nodes).toBe(graph.nodes);
+    expect(merged.clusters).toBe(graph.clusters);
+    expect(
+      merged.edges.filter((edge) => edge.kind !== "return_correlation"),
+    ).toEqual([...graph.edges]);
+  });
+
+  it("sorts the new kind into the existing order rather than appending it", () => {
+    // `TopologyGraph`'s own claim about its arrays — sorted by `from`, then
+    // `to`, then `kind` — has to hold over THREE kinds now, and the input
+    // below is deliberately in the wrong order so an append would be visible.
+    const merged = withCorrelationEdges(graph, [
+      pair(THIRD, FIRST, 0.4),
+      pair(FIRST, SECOND, 0.9),
+    ]);
+
+    const keys = merged.edges.map(keyOf);
+
+    expect([...keys].sort()).toEqual(keys);
+  });
+
+  it("is pure — the same two inputs twice give the same bytes", () => {
+    const correlations = [pair(FIRST, SECOND, 0.9), pair(FIRST, THIRD, 0.3)];
+
+    expect(JSON.stringify(withCorrelationEdges(graph, correlations))).toBe(
+      JSON.stringify(withCorrelationEdges(graph, correlations)),
+    );
+  });
+
+  it("canonicalises on the TICKER order, whichever way the row arrives", () => {
+    // `0018` §3's rule, and the reason it is re-applied here rather than
+    // trusted: a second producer of this input (a cache, a merge of two
+    // generations) has no obligation to the store's own orientation, and an
+    // edge whose `from` is the higher ticker would sort into a different place
+    // and break the byte-comparable guarantee above.
+    const forward = withCorrelationEdges(graph, [pair(FIRST, SECOND, 0.6)]);
+    const reversed = withCorrelationEdges(graph, [pair(SECOND, FIRST, 0.6)]);
+
+    expect(JSON.stringify(reversed)).toBe(JSON.stringify(forward));
+  });
+
+  it("drops a pair naming a security this graph has no node for", () => {
+    // ADR 0029 applied to a line, and a REACHABLE state rather than a
+    // defensive one: a pass that ran last night names every security tracked
+    // then, and `buildTopologyGraph` filters on `status === "active"` as the
+    // universe stands now.
+    const merged = withCorrelationEdges(graph, [
+      pair(FIRST, "ZZZZ", 0.95),
+      pair("YYYY", "ZZZZ", 0.95),
+    ]);
+
+    expect(measuredIn(merged)).toEqual([]);
+  });
+
+  it("drops a self-pair rather than drawing a zero-length segment", () => {
+    const merged = withCorrelationEdges(graph, [pair(FIRST, FIRST, 1)]);
+
+    expect(measuredIn(merged)).toEqual([]);
+  });
+
+  it("draws a repeated pair once, in either orientation, keeping the first", () => {
+    // Two strokes on one line is double ink a reader reads as a stronger
+    // relationship, and a reach count that over-reports.
+    const merged = withCorrelationEdges(graph, [
+      pair(FIRST, SECOND, 0.8),
+      pair(SECOND, FIRST, 0.2),
+      pair(FIRST, SECOND, 0.1),
+    ]);
+
+    const measured = measuredIn(merged);
+
+    expect(measured).toHaveLength(1);
+    expect(measured[0]?.weight).toBe(0.8);
+  });
+
+  it("is total on an empty measurement — the same graph, and CI's state for ever", () => {
+    expect(JSON.stringify(withCorrelationEdges(graph, []))).toBe(
+      JSON.stringify(graph),
+    );
   });
 });
