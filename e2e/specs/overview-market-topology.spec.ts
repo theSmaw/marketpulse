@@ -164,6 +164,26 @@ async function relationships(page: Page): Promise<RelationshipsResponse> {
   return (await response.json()) as RelationshipsResponse;
 }
 
+/**
+ * **Whether this deployment has a market-data provider at all**, asked of
+ * the backend over HTTP (Task 6.5.3) — `security-abnormal-move.spec.ts`'s
+ * own grounding, read rather than re-derived.
+ *
+ * The two tests above already fetch `GET /market-data/relationships`
+ * independently of the page, which is the half that catches a producer
+ * fabricating a figure instead of refusing. What it cannot show is *why*
+ * CI's pass is permanently absent — a fact a gated run could in principle
+ * observe for an incidental reason (a nightly job that happened not to have
+ * run yet) rather than a structural one. This closes that: no provider
+ * means no bars means no return series means no candidate pair was ever
+ * computable, which is the chain `0018`'s own header states.
+ */
+async function providerFeed(page: Page): Promise<string | null> {
+  const response = await page.request.get(`${backendOrigin}/market-data`);
+  const body = (await response.json()) as { feed: string | null };
+  return body.feed;
+}
+
 /** The canvas's own pixels, as a data URL. */
 function ink(page: Page): Promise<string> {
   return page
@@ -190,9 +210,29 @@ test("the measured edges: the sentence states what is drawn, recomputed independ
   });
 
   if (body.pass === undefined) {
-    // **CI's permanent state**, and the one a gated run actually drives: no
-    // pass has ever run, so the region says so rather than drawing an
-    // edge-less graph with nothing explaining why.
+    // **CI's permanent state, grounded structurally rather than merely
+    // observed** (Task 6.5.3). A gated run could in principle see an absent
+    // pass for an incidental reason — a nightly job that has not run yet on
+    // an otherwise capable store. Checking the provider directly is what
+    // turns *the pass happens to be absent* into *the pass cannot exist*: no
+    // provider means no bars means no return series means no candidate pair
+    // was ever computable. This is the one claim in this file that does not
+    // come from the relationships route itself — a producer that fabricated
+    // a pass row instead of refusing would still satisfy every other
+    // assertion here and would only be caught by asking something the frame
+    // has no opinion about. On a store with a provider configured this is
+    // simply skipped, because a provider existing says nothing about
+    // whether last night's pass happened to run — `providerFeed`'s own
+    // precedent in `security-abnormal-move.spec.ts`. On CI this arm is
+    // always taken.
+    if ((await providerFeed(page)) === null) {
+      expect(
+        body.correlations,
+        "a gateway with no market-data provider has stored no bars, so a " +
+          "retained correlation pair is fabricated",
+      ).toEqual([]);
+    }
+
     await expect(sentence).toHaveText(/has not been measured here/u);
     expect(body.correlations).toEqual([]);
     return;

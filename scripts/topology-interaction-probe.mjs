@@ -53,6 +53,14 @@
 //  5. **Page errors**, after a scripted pan/zoom path and a scripted key
 //     path. A canvas that throws on the fortieth pointer event looks exactly
 //     like one that does not.
+//  6. **Whether a drawn correlation edge points at the node it NAMES** (Task
+//     6.5.3) — the same difference method with one retained pair removed from
+//     the served body, so the pixels that moved *are* that edge. Everything
+//     above asks whether a reader can reach a node; this asks whether the ink
+//     making a claim about two securities is attached to those two. It runs at
+//     the NARROWEST active width, where the crowding is worst, and reports
+//     both the fitted scale and the zoom ceiling because the two answers
+//     differ.
 //
 // The pointer/wheel path is `scripts/topology-instrument.mjs`'s `drivePath`,
 // adapted to `/`'s own resizable box rather than Storybook's fixed one: the
@@ -64,6 +72,18 @@ import process from "node:process";
 
 import { chromium } from "@playwright/test";
 
+// **The built shared package by path, which is `capture-u-frame.mjs`' own
+// idiom** — the root is not a workspace package, so `@marketpulse/shared` does
+// not resolve from `scripts/`. The graph and the layout are read here rather
+// than re-derived: Task 6.5.3's arm needs to know WHICH node an edge names
+// before it can ask whether the drawn ink points at it, and
+// `buildTopologyLayout` is the one answer to that question this product has.
+import {
+  buildTopologyGraph,
+  buildTopologyLayout,
+  withCorrelationEdges,
+} from "../packages/shared/dist/index.js";
+
 import { resolvePairAddresses } from "./pair-addresses.mjs";
 
 // **Declared once for the whole file rather than per function**, unlike
@@ -71,10 +91,20 @@ import { resolvePairAddresses } from "./pair-addresses.mjs";
 // (two readers and one `activeElement` read), and `no-undef` is an error in
 // `scripts/*.mjs` on purpose — this comment is how a reader knows which side
 // of the wire a line is on.
-/* global document, PointerEvent */
+/* global Image, document, PointerEvent */
 
 const REPO_ROOT = resolve(import.meta.dirname, "..");
 const OUTPUT_DIR = resolve(REPO_ROOT, ".probe-interaction");
+
+/**
+ * How many `ctrl` + wheel notches the attribution arm takes (Task 6.5.3).
+ *
+ * **24, and the run prints what it REACHED rather than trusting this.** The
+ * renderer's ceiling is `TOPOLOGY_MAX_ZOOM = 8`, which is a multiple of a
+ * width-dependent fit scale, so "the zoom ceiling" is not a number this file
+ * can state — only one it can measure, as `zoomed scale / fitted scale`.
+ */
+const ZOOM_NOTCHES = 24;
 
 // `pnpm probe`'s own four, and the second copy of that list this repository
 // now holds. Its own note says the condition for extracting a shared one is
@@ -111,7 +141,7 @@ if (!resolved.ok) {
   process.exit(1);
 }
 
-const { frontendOrigin } = resolved.addresses;
+const { backendOrigin, frontendOrigin } = resolved.addresses;
 
 rmSync(OUTPUT_DIR, { recursive: true, force: true });
 mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -454,10 +484,780 @@ for (const viewport of VIEWPORTS.filter(
   await context.close();
 }
 
+// --- 6. Edge-endpoint ATTRIBUTION, by the same difference method ---------
+//
+// **Task 6.5.3's own arm, and the one measurement in this file that is about
+// a CLAIM rather than about a target.** Everything above asks *can a reader
+// reach this node*; this asks *does the ink that says two securities move
+// together actually point at those two securities*. Story 6.4's hand-off says
+// why the stakes differ: a hit test that hands back the wrong neighbour is a
+// missed click, and an edge drawn to the wrong neighbour is a silent, wrong
+// claim about correlation.
+//
+// It runs at the NARROWEST active width, which is where the crowding this
+// arm is about is worst — `--widths 1440` moves it, deliberately, so the two
+// readings can be taken separately and compared.
+const attributionWidth = Math.min(
+  ...(widthsArgument ?? VIEWPORTS.map((candidate) => candidate.width)),
+);
+
+if (await measureEdgeAttribution(browser, attributionWidth)) sawAnError = true;
+
 await browser.close();
 
 console.log(`Crops in ${OUTPUT_DIR.replace(`${REPO_ROOT}/`, "")}/\n`);
 process.exit(sawAnError ? 1 : 0);
+
+// --- the edge-attribution arm (Task 6.5.3) --------------------------------
+
+/**
+ * **Does a drawn correlation edge point at the node it names?**
+ *
+ * The method is this file's own and nothing new: snapshot the canvas, change
+ * **one** thing, read the pixels that moved. The one thing changed here is a
+ * single retained pair, removed from the body `GET /market-data/relationships`
+ * answers with — so the pixels that moved **are** that edge, by construction,
+ * with no colour match anywhere and no assumption about which ink is whose.
+ *
+ * ## Why one pair is removed at the ROUTE rather than through the renderer
+ *
+ * The alternative was a renderer method that hides one edge, and it was
+ * rejected: a probe-only branch inside the draw loop is a second code path
+ * measuring itself. The route is the real seam — `useRelationships()` fetches
+ * it, `withCorrelationEdges` merges what arrives — so a body with one pair
+ * missing produces exactly the drawing the product would produce if the pass
+ * had not retained that pair. **Both arms are served the PINNED body**,
+ * including the full one, so neither arm can differ by a nightly pass landing
+ * mid-run.
+ *
+ * ## The two node centres are MEASURED, not computed
+ *
+ * `fit.ts` is frontend-only and unreachable from a `.mjs` script, so the
+ * layout-unit → CSS-pixel transform is not recomputed here; it is **solved
+ * from two measured ring centres** (`cleanRing`, the instrument the rest of
+ * this file already trusts) and then **checked against a third measured
+ * node**. A residual is printed beside every reading: an affine fitted to two
+ * points and validated on a third is a measurement, and one fitted to two
+ * points and trusted is arithmetic.
+ *
+ * @param {import("@playwright/test").Browser} browser
+ * @param {number} width
+ * @returns {Promise<boolean>} whether anything misattributed
+ */
+async function measureEdgeAttribution(browser, width) {
+  console.log(
+    `=== edge attribution at ${String(width)} (Task 6.5.3)\n` +
+      "  one retained pair removed from the served body; the pixels that " +
+      "moved ARE that edge",
+  );
+
+  const [universe, relationships] = await Promise.all([
+    readJson(`${backendOrigin}/securities`),
+    readJson(`${backendOrigin}/market-data/relationships`),
+  ]);
+
+  if (universe === null || relationships === null) {
+    console.log("  — the backend did not answer; nothing to attribute\n");
+    return false;
+  }
+
+  // **The permanent state of CI and of every store before `pnpm baselines`**,
+  // said rather than failed: there is no retained pair to remove, so there is
+  // no ink whose attribution could be measured.
+  if (
+    relationships.pass === undefined ||
+    relationships.correlations.length === 0
+  ) {
+    console.log(
+      "  — no nightly correlation pass on this store (" +
+        `${String(relationships.correlations.length)} retained pairs), so no ` +
+        "edge exists to attribute\n",
+    );
+    return false;
+  }
+
+  const active = universe.securities.filter(
+    (security) => security.status === "active",
+  );
+  const graph = withCorrelationEdges(
+    buildTopologyGraph(active),
+    relationships.correlations.map((row) => ({
+      low: row.low,
+      high: row.high,
+      r: row.r,
+    })),
+  );
+  const layout = buildTopologyLayout(graph);
+  const placed = new Map(
+    layout.placements.map((placement) => [placement.symbol, placement]),
+  );
+  const nodeOf = new Map(graph.nodes.map((node) => [node.symbol, node]));
+
+  const correlationEdges = graph.edges
+    .filter((edge) => edge.kind === "return_correlation")
+    .map((edge) => {
+      const from = placed.get(edge.from);
+      const to = placed.get(edge.to);
+      return {
+        from: edge.from,
+        to: edge.to,
+        r: edge.weight,
+        units:
+          from === undefined || to === undefined
+            ? Number.POSITIVE_INFINITY
+            : Math.hypot(from.x - to.x, from.y - to.y),
+        cluster:
+          nodeOf.get(edge.from)?.cluster === nodeOf.get(edge.to)?.cluster
+            ? (nodeOf.get(edge.from)?.cluster ?? null)
+            : null,
+      };
+    })
+    .sort((one, two) => one.units - two.units);
+
+  // **The most contested edge is the SHORTEST one**, which is a statement
+  // about this layout rather than a guess: a cluster's members sit on a
+  // golden-angle spiral at a near-constant spacing, so the shortest retained
+  // edge is the one whose two ends are hardest to tell apart — and the second
+  // target is the shortest inside the cluster with the most members, which is
+  // the cluster Story 6.4's hand-off named.
+  const biggestCluster = [...graph.clusters]
+    .map((cluster) => ({ sector: cluster.id, members: cluster.members.length }))
+    .sort((one, two) => two.members - one.members)[0];
+
+  const targets = [correlationEdges[0]];
+  const inBiggest = correlationEdges.find(
+    (edge) => edge.cluster === biggestCluster?.sector,
+  );
+  if (inBiggest !== undefined && inBiggest !== correlationEdges[0]) {
+    targets.push(inBiggest);
+  }
+
+  console.log(
+    `  ${String(correlationEdges.length)} correlation edges drawn; ` +
+      `shortest ${correlationEdges[0]?.units.toFixed(2) ?? "—"} layout units, ` +
+      `largest cluster ${String(biggestCluster?.sector)} ` +
+      `(${String(biggestCluster?.members)} members)`,
+  );
+
+  let misattributed = false;
+
+  for (const target of targets) {
+    if (target === undefined) continue;
+    misattributed =
+      (await attributeOneEdge(browser, width, {
+        target,
+        relationships,
+        graph,
+        placed,
+        nodeOf,
+      })) || misattributed;
+  }
+
+  console.log("");
+  return misattributed;
+}
+
+/**
+ * One target edge, at the fitted scale and again at the zoom ceiling.
+ *
+ * **Both views are reported and neither is the answer on its own.** The fitted
+ * scale is what a reader meets; the zoom ceiling is where the ink exists at
+ * all in a crowded cluster, and it is the state a reader reaches by doing the
+ * one thing this region offers for crowding (Story 6.2's `ctrl` + wheel).
+ *
+ * @returns {Promise<boolean>} whether this edge misattributed anywhere
+ */
+async function attributeOneEdge(
+  browser,
+  width,
+  { target, relationships, graph, placed, nodeOf },
+) {
+  const context = await browser.newContext({
+    viewport: { width, height: width === 390 ? 780 : 900 },
+    // **2 rather than 3**, because every reading here crosses the wire as a
+    // PNG once per arm and the geometry is divided back to CSS pixels either
+    // way. The crops this file takes for LOOKING are the reason the rest of
+    // it runs at 3.
+    deviceScaleFactor: 2,
+  });
+
+  const sector = nodeOf.get(target.from)?.cluster ?? null;
+  const benchmark =
+    graph.nodes.find(
+      (node) => node.kind === "sector_etf" && node.cluster === sector,
+    )?.symbol ?? null;
+
+  console.log(
+    `  ${target.from}–${target.to}  |r| ${Math.abs(target.r).toFixed(3)}  ` +
+      `${target.units.toFixed(2)} layout units  ` +
+      `${target.cluster === null ? "CROSS-SECTOR" : String(target.cluster)}`,
+  );
+
+  const outcome = { misattributed: false };
+
+  try {
+    const full = await openWithBody(context, relationships, null);
+    const atFit = await full.ink();
+
+    // **Both views are measured, and the fitted one twice over.** The two ends'
+    // centres at the fitted scale give the fitted transform (so a fitted-scale
+    // diff can be attributed where there is any ink to attribute) and the
+    // anchor the zoom is taken about — the frame's own centre would carry the
+    // target off the canvas at these fit scales.
+    const fitCentres = await measureCentres(
+      full.page,
+      [target.from, target.to, ...(benchmark === null ? [] : [benchmark])],
+      { benchmark, label: "at the fitted scale" },
+    );
+    const anchor = fitCentres[target.from] ?? null;
+
+    if (anchor === null) {
+      console.log("      — the keyboard walk never reached it; arm abandoned");
+      return false;
+    }
+
+    await clearAndBlur(full.page);
+    await zoomAbout(full.page, anchor, ZOOM_NOTCHES);
+    await full.page.mouse.move(4, 4);
+
+    const zoomCentres = await measureCentres(
+      full.page,
+      [target.from, target.to, ...(benchmark === null ? [] : [benchmark])],
+      { benchmark, label: "at the zoom ceiling" },
+    );
+
+    await clearAndBlur(full.page);
+    await full.page.mouse.move(4, 4);
+    const atZoom = await full.ink();
+
+    const minus = await openWithBody(context, relationships, target);
+    const diffAtFit = await diffAgainst(minus.page, atFit);
+    await zoomAbout(minus.page, anchor, ZOOM_NOTCHES);
+    await minus.page.mouse.move(4, 4);
+    await settle(minus.page);
+    const diffAtZoom = await diffAgainst(minus.page, atZoom);
+
+    // Each transform solved from that view's own two measured ring centres and
+    // **checked against a third measured node** — the residual is printed, and
+    // a reading whose residual is larger than the distances it is comparing is
+    // a reading nobody should quote.
+    const fitTransform = solveTransform(placed, fitCentres, target, benchmark);
+    const zoomTransform = solveTransform(
+      placed,
+      zoomCentres,
+      target,
+      benchmark,
+    );
+
+    say("fitted scale", fitTransform, benchmark);
+    report("fitted scale", diffAtFit, target, placed, fitTransform, outcome);
+    say("zoom ceiling", zoomTransform, benchmark);
+    report("zoom ceiling", diffAtZoom, target, placed, zoomTransform, outcome);
+
+    if (fitTransform !== null && zoomTransform !== null) {
+      console.log(
+        `      zoom reached ${(zoomTransform.scale / fitTransform.scale).toFixed(2)}x ` +
+          `the fitted scale, against this renderer's own ceiling of 8`,
+      );
+    }
+  } finally {
+    await context.close();
+  }
+
+  return outcome.misattributed;
+}
+
+/**
+ * One page, serving a PINNED relationships body with `omit` removed.
+ *
+ * `omit === null` serves the whole body, which is what makes the two arms
+ * differ by exactly one pair and by nothing else — including by a nightly
+ * pass landing between them.
+ */
+async function openWithBody(context, relationships, omit) {
+  const page = await context.newPage();
+  const body = {
+    ...relationships,
+    correlations: relationships.correlations.filter(
+      (row) =>
+        omit === null ||
+        !(
+          (row.low === omit.from && row.high === omit.to) ||
+          (row.low === omit.to && row.high === omit.from)
+        ),
+    ),
+  };
+
+  await page.route("**/market-data/relationships*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      // The browser compares this, not the server — `CLAUDE.md`'s own CORS
+      // note, one line of which is the whole reason a fulfilled cross-origin
+      // body is otherwise invisible.
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify(body),
+    });
+  });
+
+  await page.goto(`${frontendOrigin}/`, { waitUntil: "domcontentloaded" });
+
+  const region = page.getByRole("region", { name: "Market topology" });
+  const canvas = region.getByRole("img", {
+    name: /A graph of every security we track/u,
+  });
+  await canvas.waitFor({ state: "visible", timeout: 15_000 });
+  await canvas.scrollIntoViewIfNeeded();
+  await settle(page);
+
+  return { page, ink: () => readInk(page) };
+}
+
+/** The canvas's own pixels, as a PNG data URL. */
+async function readInk(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    return canvas === null ? null : canvas.toDataURL();
+  });
+}
+
+/**
+ * Wait until the canvas draws the same pixels twice.
+ *
+ * **Needed rather than tidy**: `/` applies anomaly bands imperatively as
+ * overview frames arrive (6.8–16.1 a minute), so two arms photographed without
+ * this differ by whichever band update each one caught — and that difference
+ * lands in the diff looking exactly like an edge.
+ */
+async function settle(page) {
+  let previous = await readInk(page);
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await page.waitForTimeout(400);
+    const again = await readInk(page);
+    if (again !== null && again === previous) return true;
+    previous = again;
+  }
+
+  return false;
+}
+
+/**
+ * `ctrl` + wheel, about one point of the CANVAS, `notches` times.
+ *
+ * **The point is canvas-local and the box is re-read here**, which is this
+ * file's own recorded defect arriving a second time one function over: every
+ * focus move in this script scrolls the page, so a page coordinate taken
+ * before one is stale by the time the wheel is dispatched — and a wheel that
+ * lands somewhere else zooms about a different world point, which produces two
+ * arms whose whole picture differs and a diff of 182,203 pixels that reads
+ * exactly like an enormous edge. Measured, on the first run of this arm.
+ */
+async function zoomAbout(page, local, notches) {
+  const canvas = page
+    .getByRole("region", { name: "Market topology" })
+    .getByRole("img", { name: /A graph of every security we track/u });
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (box === null) return;
+
+  await page.mouse.move(box.x + local.x, box.y + local.y);
+
+  // **Paced, and the pointer re-aimed every notch.** An unpaced burst reached
+  // a DIFFERENT zoom on each of two arms of the first run — 3.2x the fitted
+  // scale on one and 5.9x on the other, from the same 20 notches — which is
+  // two pictures rather than two readings.
+  for (let index = 0; index < notches; index += 1) {
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -120);
+    await page.keyboard.up("Control");
+    await page.mouse.move(box.x + local.x, box.y + local.y);
+    await page.waitForTimeout(40);
+  }
+
+  await page.waitForTimeout(400);
+}
+
+/** Drop the selection and take focus out of the canvas, so no ring is drawn. */
+async function clearAndBlur(page) {
+  await page.keyboard.press("Escape");
+  for (let press = 0; press < 3; press += 1) {
+    await page.keyboard.press("Shift+Tab");
+  }
+  await page.waitForTimeout(250);
+}
+
+/**
+ * Each named node's own screen centre, measured by the difference method.
+ *
+ * The walk is the shipped keyboard model (Task 6.4.2): `ArrowDown` seeds the
+ * hub, again enters the ring, `ArrowRight` moves along it to the cluster's
+ * benchmark, `ArrowDown` enters the cluster, `ArrowRight` walks its members —
+ * clamped, never wrapped, which is why both directions are tried.
+ *
+ * **Returned in CANVAS-LOCAL CSS pixels, never page ones.** Two readings taken
+ * either side of a focus move are at two scroll offsets, so a page coordinate
+ * is not comparable with another page coordinate here; the canvas's own box is
+ * the only frame of reference that holds still.
+ */
+async function measureCentres(page, symbols, { benchmark, label }) {
+  const region = page.getByRole("region", { name: "Market topology" });
+  const centres = {};
+
+  for (const symbol of symbols) {
+    const reached = await walkTo(page, region, symbol, benchmark);
+
+    if (!reached) continue;
+
+    const ring = await cleanRing(page, region);
+    if (ring === null) continue;
+
+    centres[symbol] = ring.local;
+    console.log(
+      `      ${symbol.padEnd(6)} centre ${centres[symbol].x.toFixed(1)}, ` +
+        `${centres[symbol].y.toFixed(1)} px in the canvas ${label} ` +
+        `(ring ${String(ring.pixels)} px)`,
+    );
+  }
+
+  return centres;
+}
+
+/** Walk the tree to one ticker. See {@link measureCentres}. */
+async function walkTo(page, region, symbol, benchmark) {
+  const named = async () =>
+    (
+      (await page.locator('[data-readout="ticker"]').textContent()) ?? ""
+    ).trim();
+
+  await region.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(120);
+
+  if (benchmark !== null) {
+    for (let press = 0; press < 12; press += 1) {
+      if ((await named()) === benchmark) break;
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(30);
+    }
+
+    if ((await named()) === symbol) return true;
+    if ((await named()) !== benchmark) return false;
+
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(120);
+  }
+
+  for (const key of ["ArrowRight", "ArrowLeft"]) {
+    for (let press = 0; press < 220; press += 1) {
+      if ((await named()) === symbol) return true;
+      await page.keyboard.press(key);
+      await page.waitForTimeout(18);
+    }
+  }
+
+  return (await named()) === symbol;
+}
+
+/**
+ * The pixels that differ between this page's canvas and a PNG taken from
+ * another one.
+ *
+ * **Compared inside the page rather than in Node**, because a page cannot read
+ * another page's globals and a 2.4 MB `ImageData` across the wire twice a
+ * reading is the one thing that would stop this being a probe. A PNG is
+ * lossless, so decoding it back into a canvas and comparing is exact.
+ *
+ * The two **ends** are found by the two-pass farthest-point walk rather than by
+ * every pair: the farthest changed pixel from the centroid, then the farthest
+ * from that — `O(n)`, and on a segment it is the segment's own ends.
+ */
+async function diffAgainst(page, dataUrl) {
+  if (dataUrl === null) return null;
+
+  return page.evaluate(async (url) => {
+    const canvas = document.querySelector("canvas");
+    const context = canvas?.getContext("2d") ?? null;
+    if (canvas === null || context === null) return null;
+
+    const image = new Image();
+    await new Promise((done, fail) => {
+      image.onload = () => done(undefined);
+      image.onerror = () => fail(new Error("the snapshot would not decode"));
+      image.src = url;
+    });
+
+    if (image.width !== canvas.width || image.height !== canvas.height) {
+      return { pixels: -1, mismatch: true };
+    }
+
+    const shadow = document.createElement("canvas");
+    shadow.width = canvas.width;
+    shadow.height = canvas.height;
+    const shadowContext = shadow.getContext("2d");
+    if (shadowContext === null) return null;
+    shadowContext.drawImage(image, 0, 0);
+
+    const before = shadowContext.getImageData(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+    const after = context.getImageData(0, 0, canvas.width, canvas.height);
+    const box = canvas.getBoundingClientRect();
+    const ratio = canvas.width / box.width;
+    const changed = [];
+
+    for (let index = 0; index < after.data.length; index += 4) {
+      const moved =
+        Math.abs((after.data[index] ?? 0) - (before.data[index] ?? 0)) > 8 ||
+        Math.abs((after.data[index + 1] ?? 0) - (before.data[index + 1] ?? 0)) >
+          8 ||
+        Math.abs((after.data[index + 2] ?? 0) - (before.data[index + 2] ?? 0)) >
+          8 ||
+        Math.abs((after.data[index + 3] ?? 0) - (before.data[index + 3] ?? 0)) >
+          8;
+
+      if (!moved) continue;
+      const pixel = index / 4;
+      changed.push([pixel % after.width, Math.floor(pixel / after.width)]);
+    }
+
+    if (changed.length === 0) return { pixels: 0 };
+
+    let sumX = 0;
+    let sumY = 0;
+    for (const [x, y] of changed) {
+      sumX += x;
+      sumY += y;
+    }
+    const centreX = sumX / changed.length;
+    const centreY = sumY / changed.length;
+
+    const farthestFrom = (fromX, fromY) => {
+      let best = null;
+      let bestDistance = -1;
+      for (const [x, y] of changed) {
+        const distance = Math.hypot(x - fromX, y - fromY);
+        if (distance > bestDistance) {
+          bestDistance = distance;
+          best = [x, y];
+        }
+      }
+      return best ?? [fromX, fromY];
+    };
+
+    const [oneX, oneY] = farthestFrom(centreX, centreY);
+    const [twoX, twoY] = farthestFrom(oneX, oneY);
+    // **Canvas-local**, for {@link measureCentres}' own reason: the only frame
+    // of reference in this arm that two readings can share.
+    const toLocal = (x, y) => ({ x: x / ratio, y: y / ratio });
+
+    return {
+      pixels: changed.length,
+      centroid: toLocal(centreX, centreY),
+      ends: [toLocal(oneX, oneY), toLocal(twoX, twoY)],
+      lengthPx: Math.hypot(oneX - twoX, oneY - twoY) / ratio,
+    };
+  }, dataUrl);
+}
+
+/**
+ * The layout-unit → CSS-pixel transform, SOLVED from two measured centres.
+ *
+ * `fit.ts` spells it as `screen = (world − centre) · scale · zoom +
+ * viewportCentre + pan` — one uniform scale, no rotation — so two measured
+ * points over-determine it by one degree of freedom, and the spare degree is
+ * spent on the **check**: whichever `y` sign gives the smaller residual on a
+ * third measured node is the one reported, with the residual printed. A
+ * residual of a few tenths of a pixel is the transform; a residual of twenty
+ * is a measurement nobody should read.
+ */
+function solveTransform(placed, centres, target, benchmark) {
+  const worldOne = placed.get(target.from);
+  const worldTwo = placed.get(target.to);
+  const screenOne = centres[target.from];
+  const screenTwo = centres[target.to];
+  const control = benchmark === null ? null : (centres[benchmark] ?? null);
+  if (worldOne === undefined || worldTwo === undefined) return null;
+  if (screenOne === undefined || screenTwo === undefined) return null;
+
+  const worldSpan = Math.hypot(
+    worldOne.x - worldTwo.x,
+    worldOne.y - worldTwo.y,
+  );
+  const screenSpan = Math.hypot(
+    screenOne.x - screenTwo.x,
+    screenOne.y - screenTwo.y,
+  );
+  if (worldSpan === 0) return null;
+
+  const scale = screenSpan / worldSpan;
+
+  const candidates = [false, true].map((flipY) => {
+    const project = (world) => ({
+      x: screenOne.x + (world.x - worldOne.x) * scale,
+      y: screenOne.y + (world.y - worldOne.y) * scale * (flipY ? -1 : 1),
+    });
+
+    const onSecond = project(worldTwo);
+    const selfResidual = Math.hypot(
+      onSecond.x - screenTwo.x,
+      onSecond.y - screenTwo.y,
+    );
+
+    const worldControl = benchmark === null ? undefined : placed.get(benchmark);
+    const residual =
+      control === null || worldControl === undefined
+        ? null
+        : (() => {
+            const projected = project(worldControl);
+            return Math.hypot(projected.x - control.x, projected.y - control.y);
+          })();
+
+    return { flipY, scale, project, residual, selfResidual };
+  });
+
+  return (
+    candidates.sort(
+      (one, two) =>
+        (one.residual ?? one.selfResidual) - (two.residual ?? two.selfResidual),
+    )[0] ?? null
+  );
+}
+
+/** A transform's own figures, printed before the reading it licenses. */
+function say(label, transform, benchmark) {
+  if (transform === null) {
+    console.log(
+      `      ${label.padEnd(13)} no transform — fewer than two centres were measured`,
+    );
+    return;
+  }
+
+  console.log(
+    `      ${label.padEnd(13)} transform ${transform.scale.toFixed(4)} px/unit, ` +
+      `y ${transform.flipY ? "flipped" : "as-is"}, residual on ` +
+      `${String(benchmark)} ` +
+      `${transform.residual === null ? "— (no third node)" : `${transform.residual.toFixed(2)} px`}`,
+  );
+}
+
+/** One reading, printed — and the verdict, which is the point of the arm. */
+function report(label, diff, target, placed, transform, outcome) {
+  if (diff === null) {
+    console.log(`      ${label.padEnd(13)} — nothing to compare`);
+    return;
+  }
+
+  if (diff.mismatch === true) {
+    console.log(
+      `      ${label.padEnd(13)} — the two arms' canvases differ in SIZE; no reading`,
+    );
+    return;
+  }
+
+  if (diff.pixels === 0) {
+    console.log(
+      `      ${label.padEnd(13)} 0 px moved — this edge draws NO ink here ` +
+        "(its own endpoints' bodies cover it)",
+    );
+    return;
+  }
+
+  if (transform === null) {
+    console.log(
+      `      ${label.padEnd(13)} ${String(diff.pixels)} px moved, ` +
+        "no transform — cannot attribute",
+    );
+    return;
+  }
+
+  const screenOf = (symbol) => {
+    const world = placed.get(symbol);
+    return world === undefined ? null : transform.project(world);
+  };
+
+  const nearest = (point) =>
+    [...placed.keys()]
+      .map((symbol) => {
+        const screen = screenOf(symbol);
+        return {
+          symbol,
+          distance:
+            screen === null
+              ? Number.POSITIVE_INFINITY
+              : Math.hypot(screen.x - point.x, screen.y - point.y),
+        };
+      })
+      .sort((one, two) => one.distance - two.distance);
+
+  console.log(
+    `      ${label.padEnd(13)} ${String(diff.pixels)} px moved, ` +
+      `drawn length ${diff.lengthPx.toFixed(2)} px`,
+  );
+
+  // **A transform that fails its own check licenses nothing**, and this is the
+  // whole reason the residual is measured on a third node rather than assumed.
+  // The margins this arm compares are of the order of half a node separation —
+  // 12 px at the zoom ceiling — so a projection carrying 3 px of error cannot
+  // tell two neighbours apart, and a verdict read off one would be a guess
+  // wearing a number. Produced: the `energy` cluster sits 12 px from the left
+  // edge at 390, so the pan clamp bites at the zoom ceiling and that arm's
+  // residual came back at 10.62 px.
+  if (transform.residual !== null && transform.residual > 3) {
+    console.log(
+      `        ⚠ the transform's residual (${transform.residual.toFixed(2)} px) is ` +
+        "too large to attribute an endpoint with; no verdict from this view",
+    );
+    return;
+  }
+
+  for (const [index, end] of diff.ends.entries()) {
+    const ranked = nearest(end);
+    const [closest] = ranked;
+    const named = ranked.find(
+      (row) => row.symbol === target.from || row.symbol === target.to,
+    );
+    // **The real contest is the nearest node that is NOT either end.** The
+    // runner-up is usually the edge's own other endpoint, which is not a
+    // competing claim at all — an edge is allowed to be nearer one of its own
+    // ends than the other.
+    const intruder = ranked.find(
+      (row) => row.symbol !== target.from && row.symbol !== target.to,
+    );
+    const correct =
+      closest?.symbol === target.from || closest?.symbol === target.to;
+
+    if (!correct) outcome.misattributed = true;
+
+    console.log(
+      `        end ${String(index + 1)}  nearest ${String(closest?.symbol).padEnd(6)} ` +
+        `${(closest?.distance ?? 0).toFixed(2)} px   ` +
+        `nearest NAMED end ${String(named?.symbol).padEnd(6)} ` +
+        `${(named?.distance ?? 0).toFixed(2)} px   ` +
+        `nearest OTHER node ${String(intruder?.symbol).padEnd(6)} ` +
+        `${(intruder?.distance ?? 0).toFixed(2)} px   ` +
+        `${correct ? "attributes to a named endpoint" : "⚠ MISATTRIBUTED"}`,
+    );
+  }
+}
+
+/** One GET, parsed, or `null` — a probe reports an absence rather than throwing. */
+async function readJson(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
 
 // --- the scripted pointer path -------------------------------------------
 
@@ -623,6 +1423,14 @@ async function diffCanvas(page, slot) {
         pageX: box.left + centreX / ratio,
         pageY: box.top + centreY / ratio,
       },
+      // **The same centroid in CANVAS-LOCAL CSS pixels, read off the box this
+      // evaluate already holds** (Task 6.5.3). Added rather than substituted
+      // because every caller above wants a page coordinate to point a mouse or
+      // a screenshot clip at — and because subtracting a box read in a LATER
+      // round trip is wrong: `cleanRing` moves focus, focus scrolls the page,
+      // and the measured residual of that mistake was **9.21 px** on a
+      // transform whose honest residual is 0.66.
+      local: { x: centreX / ratio, y: centreY / ratio },
     };
   }, slot);
 }

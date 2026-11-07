@@ -102,7 +102,64 @@ a sector diagram. Edges carry a strength a reader can see.
    per-node rank ordinal nothing today asks for. **Reversal trigger, a
    condition:** _the first surface that must state a node's own rank among
    its neighbours_ (e.g. "your 2nd-strongest partner") — only then does the
-   directed form earn its cost.
+   directed form earn its cost. **The figure itself SETTLED at N = 5 by Task
+   6.5.3, 2026-11-07, from four real measurements rather than from the
+   target this decision's own original text named:**
+   1. **The real edge count, 1,860, sits comfortably inside §28's "several
+      thousand edges"** — confirmed, not merely computed from `C(501, 2)`:
+      Task 6.5.1's own nightly pass retained exactly that many on the one
+      developer store it has run against.
+   2. **The frame rate does not move.** `scripts/topology-instrument.mjs`
+      gained a second arm — the same scripted pan/zoom path, the same
+      renderer, differing only in the Storybook story's edge count (516
+      nodes/512 membership edges against the same plus the real 1,860
+      correlation edges) — run on headless Chromium
+      (`ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device …))`, the instrument's
+      own required caveat). Two interleaved passes each: rAF-gap p50 **16.7 ms
+      on both arms**, p95 **17.8–18.0 ms (membership) against 18.2–18.3 ms
+      (correlations)**, **0 frames over 50 ms and 0 `long-animation-frame`/
+      `longtask` entries on either arm**. ADR 0048's own reversal trigger —
+      the first graph whose edge count exceeds the measured candidate (518
+      nodes, 514 edges) — fired exactly as worded and the real figure holds
+      comfortably inside §28's 60 FPS target, so this is not the Product
+      Owner escalation the task file's own text anticipated as a live
+      possibility.
+   3. **A sharper crowding check than Story 6.4's own hand-off asked for.**
+      `scripts/topology-interaction-probe.mjs` gained a sixth arm:
+      remove one retained pair from the served body (never from the
+      renderer — the route is the real seam), diff the two canvases, and ask
+      whether the moved pixels' two ends are nearer the two nodes the edge
+      names than any other node. Run at 390 px against the real 1,860-edge
+      generation: the shortest retained edge (`APA`–`EOG`, `energy`, 18.26
+      layout units) drew no ink at either end at the fitted scale (both
+      endpoints' own bodies cover it completely) and was honestly abstained
+      from at the zoom ceiling, because the solved screen transform's own
+      measured residual there (10.62 px, against a 3 px ceiling this arm
+      enforces before trusting a reading) was too large to attribute
+      anything with — the `energy` cluster sits against the pan clamp at
+      this width, which distorts the transform rather than the drawing. The
+      second target, inside `industrials` (the largest cluster, 83
+      members), attributed cleanly at the zoom ceiling: both ends measured
+      nearer their own named node (7.64 px and 12.28 px) than the nearest
+      other node (25.89 px and 26.92 px). **Zero misattributions found,
+      one honest abstention, over the one real crowded generation this
+      product has ever drawn** — Story 6.4's own 0.0 px hit-test figure in
+      `TECHNOLOGY` at 390 was re-confirmed unchanged in the same run, as
+      expected (edges do not move node placements).
+   4. **The 82.4% same-sector share is unchanged by this task and remains
+      explicitly Gate 2's question, not this task's.** Nothing above found a
+      readability or performance reason to act on it, and Open Decision 4
+      already named it as a finding to report rather than a decision this
+      story takes unilaterally.
+
+   `RETAINED_N` in `compute-baselines.ts` stays `5`; its own docblock is
+   corrected from "a working default pending Task 6.5.3's own measurement"
+   to record that the measurement happened and confirmed the figure, with
+   the four results above cited rather than repeated. **Reversal trigger,
+   a condition:** _the universe grows past the size this measurement was
+   taken at, or Story 6.6's node-size encoding changes the layout's own
+   density_ — either changes the inputs this measurement rests on.
+
 2. ~~**What window, and does it update intraday?** A 60-session correlation is
    a slow-moving quantity; recomputing it live is expensive and probably
    meaningless. Nightly is the recommendation.~~ — **SETTLED at Gate 1,

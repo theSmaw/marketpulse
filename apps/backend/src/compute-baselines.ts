@@ -299,28 +299,35 @@ const noCorrelationTally = (): CorrelationTally => ({
 });
 
 /**
- * **How many correlation edges one node keeps: 5 — and it is a WORKING DEFAULT
- * pending Task 6.5.3's own measurement, not a settled figure.**
+ * **How many correlation edges one node keeps: 5 — measured and kept, not a
+ * working default any more.**
  *
- * Story 6.5's Open Decision 1 is explicit about this. What Gate 1 settled is
- * the **selection mechanism** — the union of each node's own top-N, stored
- * once in canonical ticker order — and it deferred the figure to a measurement
- * of readability and frame rate against the **real elliptical ring** Story 6.2
- * shipped (`TOPOLOGY_RING_RADIUS_X = 800`, `TOPOLOGY_RING_RADIUS_Y = 340`,
- * fitted extent 1880 × 923, a 2.04 aspect ratio rather than the near-square
- * one the figure below was originally reasoned against).
+ * ~~Story 6.5's Open Decision 1 is explicit about this... it deferred the
+ * figure to a measurement of readability and frame rate~~ — **SETTLED by
+ * Task 6.5.3, 2026-11-07, at this figure, from the measurement Gate 1
+ * deferred to it.** Against the real 1,860-edge generation this pass
+ * produces: the frame rate does not move (`scripts/topology-instrument.mjs`'
+ * second arm — rAF-gap p50 16.7 ms on both the membership-only and the
+ * correlations arm, 0 frames over 50 ms on either), the real edge count
+ * sits comfortably inside `PRODUCT_SPEC.md` §28's *several thousand edges*,
+ * and a new attribution arm in `scripts/topology-interaction-probe.mjs`
+ * found zero misattributed edge endpoints over the one real crowded
+ * generation this product has drawn. `STORY.md`'s Open Decision 1 carries
+ * the full four-part measurement and the reversal trigger for revisiting
+ * it (the universe growing past this size, or Story 6.6's node-size
+ * encoding changing the layout's own density).
  *
- * **5 is the story's own arithmetic and is here so the pass can run at all**:
- * at ~501 nodes it is 2,500 edge slots, which sits inside
- * `PRODUCT_SPEC.md` §28's *several thousand edges*, where N = 20 does not. It
- * is named rather than inlined, and it is **stored on every pass row**
+ * **5 is also the story's own arithmetic**: at ~501 nodes it is 2,500 edge
+ * slots, which sits inside that same ceiling, where N = 20 does not. It is
+ * named rather than inlined, and it is **stored on every pass row**
  * (`retained_n`), so two generations computed under two values of it are
  * tellable apart without re-reading the code that wrote them — which is the
- * one thing a provisional parameter owes.
+ * one thing a provisional parameter owes, and is now also simply correct
+ * documentation of a settled one.
  *
  * **Changing it is a recompute, not a migration**: `0018` §1 labels both
  * tables derived, and the first thing that will happen to them is that every
- * row is thrown away and rebuilt under whatever Task 6.5.3 measures.
+ * row is thrown away and rebuilt under whatever a later measurement finds.
  */
 const RETAINED_N = 5;
 
