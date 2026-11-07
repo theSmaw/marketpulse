@@ -187,3 +187,31 @@ cover them entirely — **0 / 127 / 82 / 395 of 1,860** at 1440 / 1024 / 768 / 3
 a strong edge does not change that: the cover is the node's own radius. A
 weight encoding spent on width alone is therefore invisible for 21.2% of the
 drawn set at 390.
+
+## Handed here by Task 6.5.4 — 2026-11-07: ADR 0048's own Decision-3 reversal trigger fired, and only half of what it calls for was taken
+
+**This is a decision this story owns, not a measurement to re-confirm.** ADR
+0048's Decision 3 (the layout is closed-form, no simulation, no random seed)
+carries its own named reversal trigger: _"the first edge kind whose strength
+is a measurement rather than a membership… the day one does, a layout that
+ignores edge strength is drawing a picture its own data contradicts, and the
+closed-form-against-simulation question is open again with a new argument on
+the other side."_ Story 6.5's correlation edges are exactly that edge kind,
+and the trigger has fired — confirmed and recorded in that ADR's own dated
+amendment (2026-11-07). Only the **type** half of what it calls for was
+done (`TopologyEdge.weight`, required on the measured kind). Nobody has
+asked the **layout** half of the question: should the closed-form layout
+respond to a correlation's weight at all, or does edge strength have to
+live entirely in the stroke?
+
+**The architectural read, offered as a recommendation rather than a
+decision already taken:** closed-form should almost certainly stay —
+a correlation-driven layout would dissolve the sector clustering this
+screen's whole picture organises around, and determinism is what
+`no-random-in-the-shared-model` and Epic 13's replay refusal both rest
+on. If this story agrees and keeps the layout closed-form, say so
+explicitly in this story's own record (a one-line confirmation closes
+the trigger properly, rather than leaving it to fire a third time
+unanswered) — and then the 21.2%-at-390 coverage figure two paragraphs
+above is not a footnote, it is the bound on what the one remaining
+channel (the stroke) can actually show.

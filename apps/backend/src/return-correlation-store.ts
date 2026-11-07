@@ -137,7 +137,7 @@ export interface ReturnCorrelationPassWrite {
   /** Computed, finite, and not distinguishable from zero. The **cut**. */
   readonly belowSignificance: number;
 
-  /** The `N` applied — Story 6.5's own provisional figure. */
+  /** The `N` applied — settled at 5 by Task 6.5.3's own measurement. */
   readonly retainedN: number;
   readonly parameters: ReturnCorrelationParameters;
 }
@@ -206,7 +206,9 @@ export interface ReturnCorrelationStore {
    * **An upsert on the full key**, so re-running `pnpm baselines` for a window
    * that is already stored converges on the store rather than appending —
    * `pnpm universe`'s property, for this table's reason: it is derived and
-   * recomputable, and `N` is already known to be provisional.
+   * recomputable, and a changed `N` is exactly the kind of recompute that
+   * property exists for (settled at 5 by Task 6.5.3; changing it again is
+   * a decision, not a correction).
    *
    * It does **not** delete the rows a previous run wrote and this one did not.
    * That is stated rather than hidden: a re-run under a *smaller* `N`, or

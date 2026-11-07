@@ -2143,6 +2143,41 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
     expect(text).toContain("the strongest 5 kept for each security");
   });
 
+  // **The population beside the word *measured* is the pairs that WERE
+  // measured** (Task 6.5.4, found by this story's own Gate 2). Every store
+  // that exists today refuses nothing at pair grain, so `candidatePairs` and
+  // `computedPairs` coincide and the two fixtures above cannot tell the two
+  // figures apart — which is exactly why this one makes them differ. A
+  // candidate refused for too little overlap or for zero variance never
+  // produced a coefficient, so counting it as measured over-reports the
+  // population the cut was made from.
+  it("counts the pairs that produced a coefficient, not every candidate", () => {
+    const refusing: RelationshipsView = {
+      state: "measured",
+      correlations: [{ low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.8 }],
+      pass: {
+        ...PASS,
+        candidatePairs: 122_760,
+        computedPairs: 120_000,
+        tooFewOverlappingSamples: 2_000,
+        zeroVariance: 760,
+      },
+    };
+
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={refusing}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+
+    expect(text).toContain("120,000 pairs measured over 60 trading sessions");
+    expect(text).not.toContain("122,760");
+  });
+
   // **Never a per-edge fact and never a ticker.** 1,860 named pairs in a
   // hidden paragraph is a wall rather than a fallback, and it is the one claim
   // on this surface a listener could not check against anything.

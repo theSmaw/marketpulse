@@ -1521,12 +1521,23 @@ function topologyCorrelationClause(
       // `volume-ratio.ts`' `80 IEX minutes`). A bare `122760` in a spoken
       // sentence is a figure a reader has to count the digits of.
       const sessions = `${pass.lookbackSessions.toLocaleString("en-US")} trading sessions`;
-      const candidates = pass.candidatePairs.toLocaleString("en-US");
+      // **`computedPairs` and not `candidatePairs`, because the word beside it
+      // is *measured*** (Task 6.5.4, found by this story's own Gate 2).
+      // `candidatePairs` is every pair the pass CONSIDERED — `C(eligible, 2)`
+      // — and `computedPairs` is the ones that cleared the overlap floor and
+      // produced a finite coefficient, which is what being measured means.
+      // The two are equal on every store that exists today (zero pair-grain
+      // refusals on the deployed pass), so the sentence was accidentally true
+      // rather than right, and the first refused pair would have made it
+      // over-report its own population — `relationships-response.ts`' own
+      // `retainedPairs ≤ computedPairs ≤ candidatePairs` nesting read from the
+      // wrong rung.
+      const measuredPopulation = pass.computedPairs.toLocaleString("en-US");
 
       if (measured.length === 0) {
         return (
           ` No pair of securities moved together closely enough to draw:` +
-          ` ${candidates} pairs were measured over` +
+          ` ${measuredPopulation} pairs were measured over` +
           ` ${sessions} and none was kept.`
         );
       }
@@ -1551,7 +1562,7 @@ function topologyCorrelationClause(
         ` Securities that moved together are joined by a dashed edge:` +
         ` ${measured.length.toLocaleString("en-US")} ${drawnNoun}, reaching` +
         ` ${reach.size.toLocaleString("en-US")} of the` +
-        ` ${equities.toLocaleString("en-US")} equities, from ${candidates}` +
+        ` ${equities.toLocaleString("en-US")} equities, from ${measuredPopulation}` +
         ` pairs measured over ${sessions} with the strongest` +
         ` ${pass.retainedN.toLocaleString("en-US")} kept for each security.`
       );

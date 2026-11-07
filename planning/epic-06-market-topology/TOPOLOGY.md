@@ -54,8 +54,15 @@ correlation edges are drawn.** Task 6.5.2 put Task 6.5.1's nightly pass on
 screen — a new route, a third edge kind on the model, a dashed batched
 stroke — so the graph stops being only a sector diagram. **But the sentence
 that bounds it is sharper than the ones above**: no gated machine will ever
-draw one of these edges, because CI has no nightly pass and never will, and
-the only machine that has drawn one is one developer's. What bounds the
+draw one of these edges, because CI has no nightly pass and never will.
+~~The only machine that has drawn one is one developer's.~~ — **false since
+2026-11-07, found by Task 6.5.4 going to check rather than by reading:** the
+deployed `baselines` job ran the correlation phase for the first time at
+2026-11-07T00:26Z (1,853 retained, 83.6% same-sector, the pass completing in
+1,351 s against its own 5,400 s budget) and the deployed route has been
+serving those rows to every real visitor since. Three task files, this
+document and a `docs/GAPS.md` entry all carried the same now-false claim;
+all are corrected in this same sweep. What bounds the
 sections below now is **node sizing, edge strength and live updates** —
 Stories 6.6–6.8 — and §2's renderer figures are still local, one-laptop
 ones (§4). See §5.
@@ -434,8 +441,16 @@ at zoom 1 — is exact.
   dash every other mark in the frame. `docs/GAPS.md` carries the last of
   those with the probe that catches it. **Owner: the first sitting that
   opens `/` against a store with a nightly correlation pass** — this
-  developer's machine today, and the deployment from the first night
-  `backfill.yml` runs after this ships.
+  developer's machine today, and ~~the deployment from the first night
+  `backfill.yml` runs after this ships~~. **That night already happened,
+  2026-11-07T00:26Z, found by Task 6.5.4 going to check the deployed route
+  rather than by reading: the deployment has been serving 1,853 real
+  correlation edges to every visitor since, and no person has sat down and
+  looked.** The machine has drawn them; the sitting this bullet is actually
+  owed is still unfilled. Epic 6 has no `LIVE-REHEARSAL.md` of its own —
+  unlike Epic 3, which has one — so this sitting's real home is Story 6.9's
+  own rehearsal-and-sweep pass; `docs/GAPS.md` carries the item with that
+  owner until then.
 
 ## 5. The measured edges — what is drawn, what is clamped, and the one thing nothing can check
 

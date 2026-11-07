@@ -267,3 +267,60 @@ security-to-non-security relationship (a filing, an investigation). At that
 point decision 1's canonicalisation is a rule about one shape rather than about
 relationships generally, and the generic-table alternative is re-opened with
 real evidence instead of a guess.
+
+## Amended 2026-11-07 by Task 6.5.3 (the measurement) and Task 6.5.4 (the sweep) — `N` is settled, not provisional
+
+The Consequences section above says _"`N` is provisional and the table says
+so… deferred the figure to Task 6.5.3's own measurement"_ in the present
+tense. That measurement has happened: Task 6.5.3 re-took the renderer's
+frame rate at the real 1,860-edge generation (rAF-gap p50 unchanged at
+16.7 ms against the membership-only arm, 0 frames over 50 ms on either arm)
+and added a new edge-attribution probe arm finding zero misattributed
+endpoints in the one genuinely crowded cluster this product has drawn
+(with one honest abstention where a transform's own residual was too large
+to trust). **`N` stays 5** — the working default was confirmed rather than
+changed. `STORY.md`'s Open Decision 1 carries the full measurement; this
+amendment exists because the Consequences text above, `schema.ts`,
+`return-correlation-store.ts` and `return-correlation-selection.ts` all
+described the figure as still pending, which stopped being true the day
+the measurement ran. All four sites are corrected in this same sweep
+(Task 6.5.4).
+
+## Amended 2026-11-07 by Task 6.5.4 — the partition is FOUR-way, not three, and the fourth bucket is the largest one
+
+Decision 3 names three ways a candidate pair ends: refused, cut on
+significance, or retained. **A real fourth way exists and is correctly
+implemented but nowhere named as a figure**: computed, significant, and
+simply not in either endpoint's own top-N. On the real generation this is
+the largest bucket by far — `122,760 candidate − 20,752 below-significance
+− 1,860 retained = 100,148` pairs, **81.6% of every candidate considered**,
+cleared the significance floor and were never drawn because neither
+endpoint's own strongest five reached them.
+
+**This is not a defect.** `computeCorrelations`'s own docblock already
+states the four-way account correctly (_"significant — of which the
+selection keeps the union of each node's own top-N and the rest are
+simply not retained"_), and `return_correlation_passes_pairs_nest`'s own
+`check` is deliberately an **inequality** (`retained + below_significance
+≤ computed`) rather than an equality, precisely because this fourth
+bucket's size is not something the schema asserts a value for. The
+arithmetic above is also a useful corroboration rather than only a gap:
+496 eligible nodes × 5 nominations = 2,480 nominated slots, and the union
+retained exactly 1,860 — which forces exactly 620 mutual pairs and 1,240
+one-sided ones (620 × 2 + 1,240 = 2,480), and means **every eligible
+node's own top-5 was full of significant candidates** — the significance
+test is not the thing binding the drawn set, the top-N is, by a wide
+margin.
+
+**What is missing is a name for the fourth bucket, not a repair.** No
+column holds it; the only way to see it is the subtraction above, and
+nothing in the pass's printed summary, the accessible sentence, or this
+story's own record states it as a figure. A reader of `STORY.md`'s
+resolved Open Decisions could reasonably come away believing the
+partition is three-way, which understates by a wide margin how selective
+`N = 5` actually is. Recorded here rather than fixed with a schema change
+— a derived figure printed in the pass's own summary line (`computed −
+below_significance − retained`) would close this without a migration, and
+is left as a condition rather than taken now: **the first task that
+prints or stores the pass's own summary again** (Story 6.7's live-update
+work is the likely next toucher of this path) should add it.

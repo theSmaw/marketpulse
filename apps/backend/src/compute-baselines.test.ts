@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import { toTicker } from "@marketpulse/shared";
+import type { Ticker } from "@marketpulse/shared";
+
 import {
+  accumulateCorrelationInput,
   describeDrawableBuckets,
+  noCorrelationTally,
   noVolumeTally,
   tallyVolumeBuckets,
 } from "./compute-baselines.js";
-import type { MeasuredVolumeOutcome } from "./compute-baselines.js";
+import type {
+  CorrelationTally,
+  MeasuredVolumeOutcome,
+} from "./compute-baselines.js";
 import type { BaselineSubject } from "./return-baseline-store.js";
 import type { VolumeBucketBaseline } from "./volume-baseline.js";
 import { TARGET_RELATIVE_STANDARD_ERROR } from "./volume-baseline.js";
@@ -163,5 +171,113 @@ describe("describeDrawableBuckets", () => {
 
     expect(tally.drawable).toEqual([]);
     expect(describeDrawableBuckets(tally)).toBe("none");
+  });
+});
+
+/**
+ * **The correlation pass's own input gate** (Task 6.5.4).
+ *
+ * Story 6.5's resolved Open Decision 4 — *no landmark node ever forms a
+ * correlation pair* — is asserted on the **producer**, which `0018` §6 records
+ * the reason for, and until this task the only thing asserting it was a
+ * property of the population the gate is built from: a database test showing
+ * no sector ETF or proxy is in `equityTickers()`. That claim stays true with
+ * the gate deleted. This exercises the gate itself, over real landmark tickers
+ * among otherwise equity-shaped input, and it is reached directly for
+ * `tallyVolumeBuckets`' own reason: `runPass` needs a pool, six stores and a
+ * window, and none of the seven decides which securities are admitted.
+ */
+describe("accumulateCorrelationInput", () => {
+  /** A grid with one sample in it — enough to be a series. */
+  const series = (): ReadonlyMap<number, number> => new Map([[0, 0.01]]);
+
+  const admit = (
+    symbol: string,
+    outcomeKind: "measured" | "refused" | "none",
+    seriesOf: Map<Ticker, ReadonlyMap<number, number>>,
+    tally: CorrelationTally,
+    onSeries: () => void = () => undefined,
+  ): void => {
+    accumulateCorrelationInput(
+      {
+        symbol: toTicker(symbol),
+        outcomeKind,
+        series: () => {
+          onSeries();
+          return series();
+        },
+      },
+      seriesOf,
+      tally,
+    );
+  };
+
+  it("admits an equity's series and counts it tracked and eligible", () => {
+    const seriesOf = new Map<Ticker, ReadonlyMap<number, number>>();
+    const tally = noCorrelationTally();
+
+    admit("AAPL", "measured", seriesOf, tally);
+
+    expect([...seriesOf.keys()]).toEqual([toTicker("AAPL")]);
+    expect(tally.trackedEquities).toBe(1);
+    expect(tally.eligibleEquities).toBe(1);
+  });
+
+  // **The gate, over the real fifteen rather than a stand-in.** `SPY`
+  // correlates with nearly every equity in the universe, so one admitted
+  // landmark is ~500 edges converging on one node — the starburst §10 exists
+  // to prevent, and a picture no check but this one would have refused.
+  it("admits no landmark, whatever its own outcome says", () => {
+    const seriesOf = new Map<Ticker, ReadonlyMap<number, number>>();
+    const tally = noCorrelationTally();
+
+    for (const landmark of ["SPY", "QQQ", "DIA", "IWM", "XLK", "XLF"]) {
+      admit(landmark, "measured", seriesOf, tally);
+    }
+
+    expect([...seriesOf.keys()]).toEqual([]);
+    // Not merely absent from the series map: absent from every population the
+    // pass row states, so `trackedEquities` cannot silently count a security
+    // that formed no pair.
+    expect(tally.trackedEquities).toBe(0);
+    expect(tally.eligibleEquities).toBe(0);
+    expect(tally.splitDiscontinuity).toBe(0);
+    expect(tally.absent).toBe(0);
+  });
+
+  it("does not even build a landmark's series", () => {
+    // The thunk is the extraction's own evidence that the gate runs FIRST: a
+    // refused subject costs the walk over its closes nothing.
+    const seriesOf = new Map<Ticker, ReadonlyMap<number, number>>();
+    const tally = noCorrelationTally();
+    let built = 0;
+
+    admit("SPY", "measured", seriesOf, tally, () => {
+      built += 1;
+    });
+    expect(built).toBe(0);
+
+    admit("AAPL", "measured", seriesOf, tally, () => {
+      built += 1;
+    });
+    expect(built).toBe(1);
+  });
+
+  it("partitions the equities it admits by the price pass's own verdict", () => {
+    const seriesOf = new Map<Ticker, ReadonlyMap<number, number>>();
+    const tally = noCorrelationTally();
+
+    admit("AAPL", "measured", seriesOf, tally);
+    admit("CRWD", "refused", seriesOf, tally);
+    admit("MSFT", "none", seriesOf, tally);
+    // And one landmark in the same run, so the partition is proved to sum over
+    // the admitted population rather than over the input.
+    admit("SPY", "measured", seriesOf, tally);
+
+    expect(tally.trackedEquities).toBe(3);
+    expect(
+      tally.eligibleEquities + tally.splitDiscontinuity + tally.absent,
+    ).toBe(tally.trackedEquities);
+    expect([...seriesOf.keys()]).toEqual([toTicker("AAPL")]);
   });
 });

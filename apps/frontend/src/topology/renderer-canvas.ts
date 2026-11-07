@@ -426,6 +426,21 @@ const ANOMALY_UNSCORED_STROKE_WIDTH = 1;
  * `0.38` rather than the bare crossover: a small margin against font-metric
  * variance across engines, chosen so it still excludes 768's 0.3650 (which
  * sits 0.0077 below the bare crossover and would otherwise be a coin flip).
+ *
+ * **A SECOND reader since Task 6.5.4: the correlation-edge batch.** Story
+ * 6.5's own Gate 2 UX review, through `pnpm probe` at the four widths this
+ * product tests, found the measured edge layer made the screen worse than it
+ * was before that story at 1024, 768 and 390 — worse at 390 to the point of
+ * reading as broken rather than designed — and the cause is this threshold:
+ * below it the clusters are unlabelled blobs, and a dense mesh over anonymous
+ * blobs is net-negative. So the batch is suppressed under the same condition
+ * rather than under a new number, because it is the same question (*can a
+ * reader tell which cluster this joins?*) asked of a second mark. It is a
+ * qualitative visual judgement, recorded as one; the reversal trigger is the
+ * same as this threshold's own, plus **the first correlation treatment whose
+ * legibility does not depend on the clusters being identifiable** — a
+ * cross-sector-only filter, or edges drawn only behind a selection, both of
+ * which that review raised and left as Product Owner questions.
  */
 const TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38;
 
@@ -1061,6 +1076,13 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     if (width <= 0 || height <= 0) return;
 
     const nodeScale = clampNodeScale(view.zoom);
+    /**
+     * The scale a reader actually sees — the container's fit multiplied by the
+     * reader's own zoom. **Hoisted out of the label block by Task 6.5.4**,
+     * because the correlation batch is now gated on the same threshold the
+     * sector labels are and one expression is what keeps the two in step.
+     */
+    const effectiveScale = view.scale * view.zoom;
 
     // --- The hovered node's ground disc, under everything ------------------
     //
@@ -1187,7 +1209,38 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // the nightly pass, which is CI for ever and every laptop until the first
     // `pnpm baselines` — so this is the one branch here a gated run never
     // enters.
-    if (correlation.length > 0) {
+    //
+    // **And it does not draw below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE` at all,
+    // which is a real regression found and repaired before this story shipped
+    // (Task 6.5.4).** A UX review of the built story through `pnpm probe` at
+    // the four widths this product tests reported the edge layer making the
+    // screen WORSE than it was before Story 6.5 at three of them — and at 390
+    // worse to the point of reading as broken rather than designed. The
+    // mechanism is this renderer's own: below that threshold no sector label
+    // draws, so the clusters are already unlabelled blobs, and 82%+ of the
+    // retained pairs are same-sector short intra-cluster segments — a mesh
+    // laid over anonymous blobs, which at 390 (fit scale 0.1639) has neither
+    // legible structure nor a visible dash rhythm. The finding is a
+    // qualitative visual judgement rather than a pixel count, and it is
+    // recorded as one.
+    //
+    // **The threshold is REUSED rather than a second one derived**, because
+    // the condition is the same condition: this layer is only worth its ink
+    // where a reader can tell which clusters it is joining, and
+    // {@link TOPOLOGY_SECTOR_LABEL_MIN_SCALE} is already the measured answer
+    // to *can a reader tell which cluster is which*. Below it the batch draws
+    // **nothing** — zero new ink, byte-identical to the *never measured* and
+    // *nothing retained* states — while the membership and hub edges, the
+    // node bodies and the anomaly rings are untouched at every width. Above
+    // it (1440 and anything wider) nothing changes from what Task 6.5.2
+    // shipped. The accessible sentence is deliberately NOT width-aware: it is
+    // an account of the MEASUREMENT, which happened regardless of which
+    // viewport is reading it — the same reason it already states 1,860 pairs
+    // while some of them show no ink under a node body.
+    if (
+      correlation.length > 0 &&
+      effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE
+    ) {
       context.beginPath();
       context.strokeStyle = palette.correlationEdge;
       // Spread rather than passed by reference: `setLineDash` takes a mutable
@@ -1350,7 +1403,6 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // alone, so a reader who zooms in on a cramped box earns the label back
     // rather than it staying suppressed at the fit this component started at.
     context.fillStyle = palette.label;
-    const effectiveScale = view.scale * view.zoom;
 
     for (const label of labels) {
       if (label.sector && effectiveScale < TOPOLOGY_SECTOR_LABEL_MIN_SCALE)

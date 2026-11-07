@@ -222,6 +222,33 @@ describe("createRelationshipsCache", () => {
     expect(cache.size()).toBe(0);
   });
 
+  // **The floor must not turn a failure into an absence**, which is this
+  // story's own Gate 2 defect (Task 6.5.4): armed by the first read of a
+  // replica whose database is unreachable, it made every ask for the next
+  // fifteen minutes skip the store and resolve `undefined` — a 200 with no
+  // `pass`, drawn as *has not been measured here* while the truth was that we
+  // could not read it.
+  it("goes on failing inside the floor window while it holds nothing", async () => {
+    const read = vi.fn(() => Promise.reject(new Error("down")));
+    const clock = clockFrom(1_000);
+
+    const cache = createRelationshipsCache({
+      store: { readNewestGeneration: read },
+      now: clock.now,
+    });
+
+    await expect(cache.generationAsOf(OBSERVED_AT)).rejects.toThrow("down");
+
+    // Well inside the floor, which is where the defect lived.
+    clock.advance(RELATIONSHIPS_REFRESH_FLOOR_MS / 2);
+
+    await expect(cache.generationAsOf(OBSERVED_AT)).rejects.toThrow("down");
+    expect(read).toHaveBeenCalledTimes(2);
+    // And it still says what it holds, which is nothing — never that nothing
+    // was measured.
+    expect(cache.heldThrough()).toBeUndefined();
+  });
+
   it("keeps the generation it holds when a later read fails", async () => {
     // A stale-but-true edge layer beats no edge layer, which is every sibling
     // cache's rule and is unaffected by the throw above: the *next* ask is

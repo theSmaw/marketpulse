@@ -6091,6 +6091,15 @@ FROM return_correlations
 WHERE observed_at = (SELECT max(observed_at) FROM return_correlations);
 ```
 
+**Taken on the deployed store by Task 6.5.4, 2026-11-07, against the session
+2026-11-06**: `n` **445–4,543**, mean **3,936**, **1,853** retained, **83.6%**
+same-sector. Against the local figures above (466–4,620, mean 4,004, 1,860
+retained, 82.4%), the low end moved down by 21 and the retained count held —
+the re-measure's own stated direction for "the bias is growing" is a FALL in
+the low end with the retained count held, which is what this is, though by a
+margin (21 of 445, ~4.5%) too small to call a trend from one further point.
+Recorded as the second reading rather than argued from the first.
+
 **Not mechanised, and not mechanisable as a `pnpm invariants` entry** — this is
 a claim about the shape of real market coverage, which varies by security and by
 session, not a claim a static check could hold true or false. The nearest
@@ -6162,3 +6171,106 @@ mechanism `docs/GAPS.md` already records this repository as not having.
 correlation pass** — which is this developer's own machine today and the
 deployment from the first night `backfill.yml` runs after this ships. Story
 6.5's own close is the nearest scheduled one.
+
+**The deployment half fired on 2026-11-07T00:26Z; the sitting half has
+not.** Found by Task 6.5.4, at this story's own close, going to check the
+deployed route rather than reading the claim above: the deployed
+`baselines` job ran the correlation phase for the first time that night
+(1,853 retained, 83.6% same-sector, completing in 1,351 s), and the
+deployed route has been serving those rows to every real visitor since.
+**The machine has drawn them. Nobody has looked.** This entry's own
+"first sitting" is therefore still open — the deployment exists to be sat
+in front of, and no person has done it. Epic 6 has no `LIVE-REHEARSAL.md`
+of its own (unlike Epic 3); the real home for that sitting is Story 6.9's
+own rehearsal-and-sweep pass. **Owner, corrected: Story 6.9**, with the
+deployed store now ready for exactly the check this entry was written for.
+
+## `/`'s cold load was not re-taken after Story 6.5 added a second request and a full renderer re-mount
+
+**Added 2026-11-07 by Task 6.5.4, found during Gate 2 verification rather
+than by either of the tasks that changed the cost.** Story 6.5 added two
+things to `/`'s cold load that Story 6.2's own cold-load figure (0 of 10
+loads over 50 ms, worst rAF gap 18.6–18.7 ms) was taken before: a second
+HTTP request (`GET /market-data/relationships`, measured at 91,914 bytes
+on a populated store against `GET /securities`' 190,498 — a +48% payload
+on this one region), and a full renderer re-mount the first time the
+relationships request resolves after the universe already has (re-create,
+re-fit, redraw 516 nodes plus 512 membership edges plus up to 1,860
+correlation edges, once per page life — `MarketTopology.tsx`'s own
+documented reason, not an accident).
+
+**Neither figure has been re-taken.** The server side is not the
+suspect — the route's own response time is 1.7–2.0 ms server-side on a
+cached read — but the main-thread cost of the extra payload's parse and
+the renderer's own re-mount are both unmeasured, on a path with a real
+prior figure and a standing `PRODUCT_SPEC.md` §28 budget.
+
+**Not mechanisable** — this needs the same three-channel browser
+instrument (`long-animation-frame`, an rAF-gap recorder, `longtask`) every
+other cold-load figure in this product has been taken with, proved by a
+plant per channel, against a real build.
+
+**Re-measure**: `scripts/overview-instrument.mjs`'s own method, against
+`/` with a populated store holding a nightly correlation pass.
+
+**Owner: the first story that changes this region's own cost profile
+again** — Story 6.6 (node-size encoding touches the same renderer) or
+Story 6.7 (live updates, which would make the re-mount recur rather than
+fire once) are the likely next candidates, and either should take this
+figure rather than add to an unmeasured baseline.
+
+## A specific e2e test has now failed five times across two machines, and no rate is claimable from five points
+
+**Added 2026-11-07 by Task 6.5.4, amended the same day with a fifth
+occurrence.** `overview-degraded-grid.spec.ts`'s "nine surfaces, every
+state, and the declared collisions" test, at 768 and/or 390 px, has
+failed four times on `page.goto` / `net::ERR_ABORTED` timeouts during
+Story 6.5's own three tasks: once on PR #662's first CI run (768 px,
+re-ran green), and twice more locally during Task 6.5.4's own
+full-suite verification (768 and 390 px, both cleared at `--workers=1`
+with load read before rather than during the run — `25.8 s` against a
+`90 s` timeout). Task 6.5.3's own record called the first occurrence "a
+single occurrence, not a measured rate" — accurate when written, now
+stale.
+
+**The fifth occurrence, on the same checkout minutes later, is a
+different symptom of the same spec rather than a repeat of the first
+four** — worth recording as its own data point rather than folded in
+silently. A full `pnpm e2e` run at default parallelism (load average
+11.17/21.06/16.30, read before the run) failed the 390 px case on a
+content assertion rather than a `goto` timeout: `reading["Market
+proxies"]` contained `"No prices yet."` where the test asserts it must
+not, at line 1728 — a live-feed race rather than a dead navigation. The
+immediate re-run, same spec, `--workers=1`, load read again before
+starting, passed clean in 25.9 s. Two different concrete failure shapes
+from the same one spec, both cleared by the same one control, is
+stronger evidence for "the longest spec in the suite loses races under
+contention" than a fourth `goto` timeout would have been — a single
+cause (resource contention under default parallelism) can plausibly
+surface as either a dead navigation or a socket/render race depending on
+which stall wins, and both are symptoms this spec's own length and
+breadth make it the likeliest one to hit.
+
+**Still not a measured rate, and still not attributed to this story's own
+diff.** Nothing in Story 6.5 touches this spec, the overview aggregate,
+breadth, movers, or the socket, and the one-worker control clears it
+every time, on every symptom seen so far. Five points is still far short
+of a measured rate (this repository's own standing rule: the floor for
+separating a flake from a regression is n = 24 on one checkout), but five
+is enough to say the rate is not negligible on a loaded machine, and that
+this is the longest spec in the suite (the likeliest one to lose a race
+against Vite's on-demand transform, or against the live feed's own
+socket, under contention).
+
+**Not mechanisable as a check** — it is a property of machine contention
+under a specific test runner configuration, not of the product.
+
+**Re-measure**: `pnpm e2e overview-degraded-grid.spec.ts --repeat-each=24
+--workers=1` against `--workers=4`, with load read before each run, to
+take the real rate this repository's own floor asks for rather than
+continuing to treat each occurrence as news.
+
+**Owner: the first task that needs to cite a flake rate for this spec
+rather than re-run past one** — until then, the correct response to a red
+run of this specific test is the one already taken four times: a
+one-worker control, not a re-run at the same concurrency.

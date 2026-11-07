@@ -146,6 +146,19 @@ a sector diagram. Edges carry a strength a reader can see.
       product has ever drawn** — Story 6.4's own 0.0 px hit-test figure in
       `TECHNOLOGY` at 390 was re-confirmed unchanged in the same run, as
       expected (edges do not move node placements).
+
+      **Corroborated 2026-11-07 by Task 6.5.4, in the cluster this arm's
+      own prose should have named.** `industrials` is the largest cluster
+      by member count, but Story 6.4's own hand-off named `technology`
+      specifically (the one the 0.0 px hit-test figure above was actually
+      measured in) — a mismatch this task's own record carries in full.
+      Re-run with `technology` targeted explicitly: the shortest retained
+      edge there, `FLEX`–`KEYS` (`|r| 0.603`, 19.23 layout units),
+      attributed cleanly at the zoom ceiling too — 7.27 px and 7.62 px
+      from their own named nodes against 28.72 px and 26.40 px from the
+      nearest other node. The conclusion above is unchanged; the evidence
+      for it is now measured in the cluster it was always meant to be.
+
    4. **The 82.4% same-sector share is unchanged by this task and remains
       explicitly Gate 2's question, not this task's.** Nothing above found a
       readability or performance reason to act on it, and Open Decision 4
@@ -156,9 +169,18 @@ a sector diagram. Edges carry a strength a reader can see.
    corrected from "a working default pending Task 6.5.3's own measurement"
    to record that the measurement happened and confirmed the figure, with
    the four results above cited rather than repeated. **Reversal trigger,
-   a condition:** _the universe grows past the size this measurement was
-   taken at, or Story 6.6's node-size encoding changes the layout's own
-   density_ — either changes the inputs this measurement rests on.
+   a condition — corrected 2026-11-07 by Task 6.5.4, which found the
+   original wording naming a story rather than a mechanism (this
+   repository's own standing rule: a trigger is a condition, never a
+   story number — a later story shipping under a different name, or a
+   change arriving by a different story than the one named, would have
+   left this trigger unable to fire):** _the tracked universe growing
+   past the 516 securities / 501 equities this measurement was taken at,
+   or the first change to this renderer's drawn node radius or to the
+   layout's own node spacing_ — either changes the real inputs this
+   measurement rests on (the real edge count and the real crowding), and
+   either is evaluable without reconstructing which run the original
+   wording meant.
 
 2. ~~**What window, and does it update intraday?** A 60-session correlation is
    a slow-moving quantity; recomputing it live is expensive and probably
@@ -213,6 +235,26 @@ a sector diagram. Edges carry a strength a reader can see.
    rather than adding the cross-cluster information this story's own "what
    the user can see" promises, and that finding is reported at this story's
    close rather than assumed away now.
+
+   **Reported at close, 2026-11-07, by Task 6.5.4 — the DEPLOYED figure,
+   which is the one Gate 2 should see rather than the laptop figure Task
+   6.5.1 first measured.** Local: 1,532 of 1,860 (82.4%) same-sector.
+   Deployed, against the first session the deployed `baselines` job
+   actually scored (2026-11-06): **1,549 of 1,853 (83.6%) same-sector,
+   304 cross-sector.** Neither is near 100% — the layer does add real
+   cross-cluster information — but four in five of the drawn pairs still
+   restate a grouping the membership edges already draw. Not acted on by
+   any task, per this decision's own text; this is the finding, handed to
+   Gate 2 as a question rather than a conclusion. The UX-architect's own
+   integrated review (Task 6.5.4) sharpens the question beyond "is 82%
+   too much reinforcement": because same-sector pairs are overwhelmingly
+   the shortest segments in the layout, most of that 83.6% draws little
+   or no visible ink at any width, while the ~300 cross-sector segments —
+   the actually-informative minority — are the ones a reader meets, and
+   at 1024/768/390 they fuse into a dense, hard-to-read band. See the
+   UX findings recorded in this task's own record for the full picture
+   and the options considered.
+
 5. **New at Gate 1, 2026-11-06 — `SecurityExplorer.tsx`'s `Connected
 securities` region.** Reserved since Epic 5's own shaping for "which
    securities move with this one and the evidence for saying so" — exactly

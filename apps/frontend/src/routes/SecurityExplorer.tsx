@@ -670,7 +670,28 @@ export function SecurityExplorer({
             name="Connected securities"
             filledBy="Which securities move with this one, and the evidence for saying so."
           >
-            <RegionPlaceholder filledBy="Epic 6 — Market Topology" />
+            {/*
+             * **This region names a CONDITION rather than an epic** (Story
+             * 6.5's Open Decision 5, at that story's close) — `Anomaly
+             * history`'s own precedent, one region over.
+             *
+             * It read `Epic 6 — Market Topology` until today, and Story 6.5
+             * is the fifth of Epic 6's nine and does not fill it: Open
+             * Decision 5 settled this explicitly — the data this region
+             * needs (`return_correlations`, computed nightly) exists since
+             * Task 6.5.1, but **nothing reads one security's own
+             * relationships** without reading the whole night's retained
+             * set. `0018` §7 states the real condition already, in the
+             * database's own words: there is deliberately no index on
+             * `security_high_id`, because nothing issues that read, and the
+             * stated trigger for adding one is *the first reader that asks
+             * for one node's edges without reading the whole generation* —
+             * naming this region as the likely first caller. So the
+             * placeholder below states that trigger rather than a story
+             * number, which would go stale the moment any later Epic 6
+             * story ships without happening to be the one that reads it.
+             */}
+            <RegionPlaceholder filledBy="the first story that reads one security’s own strongest relationships, rather than the whole night’s retained set" />
           </Region>
 
           <Region
