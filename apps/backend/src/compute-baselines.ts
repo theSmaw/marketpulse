@@ -239,7 +239,7 @@ interface PassTally {
  * already draw rather than adding the cross-cluster information this story's
  * own "what the user can see" promises.
  */
-interface CorrelationTally {
+export interface CorrelationTally {
   /** The active equities the pass was over. Counted, never spelled. */
   trackedEquities: number;
   /** Passed the split guard and produced at least one grid return. */
@@ -280,7 +280,7 @@ interface CorrelationTally {
   sameSector: number;
 }
 
-const noCorrelationTally = (): CorrelationTally => ({
+export const noCorrelationTally = (): CorrelationTally => ({
   trackedEquities: 0,
   eligibleEquities: 0,
   splitDiscontinuity: 0,
@@ -314,8 +314,11 @@ const noCorrelationTally = (): CorrelationTally => ({
  * found zero misattributed edge endpoints over the one real crowded
  * generation this product has drawn. `STORY.md`'s Open Decision 1 carries
  * the full four-part measurement and the reversal trigger for revisiting
- * it (the universe growing past this size, or Story 6.6's node-size
- * encoding changing the layout's own density).
+ * it, corrected 2026-11-07 to name a mechanism rather than a story: the
+ * tracked universe growing past 516 securities/501 equities, or the
+ * first change to the renderer's drawn node radius or to the layout's
+ * own node spacing — either of which changes the real inputs this
+ * measurement rests on.
  *
  * **5 is also the story's own arithmetic**: at ~501 nodes it is 2,500 edge
  * slots, which sits inside that same ceiling, where N = 20 does not. It is
@@ -330,6 +333,88 @@ const noCorrelationTally = (): CorrelationTally => ({
  * row is thrown away and rebuilt under whatever a later measurement finds.
  */
 const RETAINED_N = 5;
+
+/**
+ * **Which securities this pass treats as equities**, by the same
+ * positive-membership selection breadth and the movers use — `equityTickers()`,
+ * and nothing in this file spells 501.
+ *
+ * Two readers, both of which want exactly this population and for the same
+ * reason. The **session ranking**: scoring `SPY` and the eleven sector SPDRs
+ * beside their own constituents would make `Unusual activity` and
+ * `Market proxies` / `Sector performance` non-independent, which is AC 13 and
+ * is the argument `index.ts` makes for the live path. The **correlation
+ * input** ({@link accumulateCorrelationInput}): Story 6.5's resolved Open
+ * Decision 4 is that no landmark node ever forms a correlation pair.
+ *
+ * **Module-level and shared rather than built once per pass**, since Task
+ * 6.5.4. It was a local in `runPass` and the extraction above would otherwise
+ * have needed a second `new Set(equityTickers())` — two homes for one
+ * population, in the one file where they are read two lines apart, which is
+ * the shape that goes out of step first.
+ */
+const EQUITY_SUBJECTS = new Set<string>(equityTickers());
+
+/**
+ * **The correlation pass's own input gate: one subject, admitted or not**
+ * (extracted by Task 6.5.4 from the loop it ran in since Task 6.5.1).
+ *
+ * The behaviour is unchanged and the point of the extraction is that the
+ * **gate** is now provable rather than its population helper. Before this,
+ * *no landmark node ever forms a correlation pair* — Story 6.5's resolved Open
+ * Decision 4, and `0018` §6's record of why it is asserted on the producer
+ * rather than as a database constraint — was asserted only indirectly, by a
+ * database test over `equityTickers()` showing no sector ETF or proxy is in
+ * the equity set. That is a property of the **population**, and it stays true
+ * with this `if` deleted: a pass that fed `SPY`'s series in would have written
+ * well-formed rows no constraint in `0018` refuses, `withCorrelationEdges`
+ * would have drawn them (it deliberately does not filter on node kind — a
+ * second home for one judgement), and the first thing to notice would have
+ * been a person looking at `SPY` drawn as a starburst hub through ~500 edges.
+ *
+ * **Over the equities alone**, which is `scoreClosingMove`'s population rather
+ * than the two baselines': `SPY` correlates with nearly every equity in the
+ * universe, so admitting it would make every cluster independently discover a
+ * strong correlation to the centre — the starburst §10's own constraint exists
+ * to prevent.
+ *
+ * `series` is a **thunk** rather than a value, which keeps the extraction
+ * free: the series was built inside the admitted branch and still is, so a
+ * landmark subject costs the walk over its closes it never cost before.
+ */
+export function accumulateCorrelationInput(
+  candidate: {
+    /** The security this iteration read. */
+    readonly symbol: Ticker;
+    /** The price pass's own verdict, inherited rather than re-evaluated. */
+    readonly outcomeKind: ReturnBaselineOutcome["kind"];
+    /** Its signed 5-minute return grid, built only where it is wanted. */
+    readonly series: () => ReadonlyMap<number, number>;
+  },
+  seriesOf: Map<Ticker, ReadonlyMap<number, number>>,
+  tally: CorrelationTally,
+): void {
+  // **The gate.** Everything below — the three populations that partition
+  // `trackedEquities`, and the series the pair pass reads — is over the
+  // equities and nothing else.
+  if (!EQUITY_SUBJECTS.has(candidate.symbol)) return;
+
+  tally.trackedEquities += 1;
+
+  if (candidate.outcomeKind === "measured") {
+    // `measured` is returned only when the sampler found at least one grid
+    // pair, over the same anchors this walk uses — so an empty series here is
+    // unreachable, which is why `0018` §5 ships **no** `no_series_count`
+    // column. A column that can only ever hold `0` reads to the next author as
+    // a real population that happens to be empty.
+    seriesOf.set(candidate.symbol, candidate.series());
+    tally.eligibleEquities += 1;
+  } else if (candidate.outcomeKind === "refused") {
+    // **Counted once, in security space** — never once per each of the ~500
+    // pairs it would have joined. `0018` §5.
+    tally.splitDiscontinuity += 1;
+  } else tally.absent += 1;
+}
 
 /**
  * **The stored composite's tally — TWO security populations that partition**
@@ -795,14 +880,6 @@ async function runPass(
     correlation: noCorrelationTally(),
   };
 
-  // **The equities, by the same positive-membership selection breadth and the
-  // movers use** — `equityTickers()`, and nothing here spells 501. A session
-  // ranking that scored `SPY` and the eleven sector SPDRs beside their own
-  // constituents would make `Unusual activity` and `Market proxies` /
-  // `Sector performance` non-independent, which is AC 13 and is the same
-  // argument `index.ts` makes for the live path.
-  const isEquity = new Set<string>(equityTickers());
-
   // **Which fund each security is compared against, asked once per security
   // through the one shared resolver** — `excessMoveReference`, which the drawn
   // region's `figuresOf` reads as well, so the two processes cannot disagree
@@ -941,7 +1018,7 @@ async function runPass(
     // 5.4.5) — a by-product of the read above rather than a second pass over
     // the same bars, which is what makes this cost I/O nothing.
     const price =
-      scored === undefined || !isEquity.has(subject.symbol)
+      scored === undefined || !EQUITY_SUBJECTS.has(subject.symbol)
         ? undefined
         : await scoreClosingMove(sessions, subject, window, scored, outcome, {
             closes,
@@ -953,43 +1030,25 @@ async function runPass(
     // costs **no I/O at all**. `computeExcessBaseline`'s own property, and the
     // reason Story 6.5 could choose a 5-minute grid without a second pass.
     //
-    // **Over the equities alone**, which is `scoreClosingMove`'s population
-    // rather than the two baselines': Open Decision 4 settled that no landmark
-    // node — the eleven sector SPDRs, the four proxies, the hub — ever forms a
-    // correlation edge, because `SPY` correlates with nearly every equity in
-    // the universe and admitting it would make every cluster independently
-    // discover a strong correlation to the centre. That is the starburst §10's
-    // own constraint exists to prevent. `0018` §6 records why this is asserted
-    // on the producer rather than as a database constraint.
-    if (isEquity.has(subject.symbol)) {
-      tally.correlation.trackedEquities += 1;
-
-      if (outcome.kind === "measured") {
-        // **The split verdict is READ, not re-derived** — `outcome` is the
-        // price generation this pass computed for the same `(security, window
-        // end)` a few lines above, so the guard travels by being in hand.
-        // `computeVolumeBaseline`'s arrangement and `0014` §5's *the
-        // generation is identified rather than copied*: it is the same guard
-        // over the same closes, so a second evaluation would be a second
-        // answer rather than a corroboration.
-        const series = baselineReturnSeries({
-          sessions: window.sessions,
-          closes,
-        });
-
-        // `measured` is returned only when the sampler found at least one grid
-        // pair, over the same anchors this walk uses — so an empty series here
-        // is unreachable, which is why `0018` §5 ships **no**
-        // `no_series_count` column. A column that can only ever hold `0` reads
-        // to the next author as a real population that happens to be empty.
-        seriesOf.set(subject.symbol, series);
-        tally.correlation.eligibleEquities += 1;
-      } else if (outcome.kind === "refused") {
-        // **Counted once, in security space** — never once per each of the
-        // ~500 pairs it would have joined. `0018` §5.
-        tally.correlation.splitDiscontinuity += 1;
-      } else tally.correlation.absent += 1;
-    }
+    // **The gate and the three counts it partitions live in
+    // {@link accumulateCorrelationInput}**, extracted by Task 6.5.4 so that
+    // *no landmark node ever forms a correlation pair* is provable on the
+    // producer rather than only on the population it is built from. The split
+    // verdict travels in `outcome.kind` — the price generation this pass
+    // computed for the same `(security, window end)` a few lines above — so it
+    // is READ rather than re-derived, which is `computeVolumeBaseline`'s
+    // arrangement and `0014` §5's *the generation is identified rather than
+    // copied*.
+    accumulateCorrelationInput(
+      {
+        symbol: subject.symbol,
+        outcomeKind: outcome.kind,
+        series: () =>
+          baselineReturnSeries({ sessions: window.sessions, closes }),
+      },
+      seriesOf,
+      tally.correlation,
+    );
 
     // **The volume baseline, in this same iteration** (Task 5.5.3). It is a
     // second statement over the **same** index range rather than a second

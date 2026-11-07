@@ -161,8 +161,9 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): four of nine stories complete, 2026-11-06, and
-the graph is now a place a reader leaves from.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): five of nine stories complete, 2026-11-07, and
+the graph now shows which securities move together, not only how the market
+is organised.** Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -210,8 +211,9 @@ independent answer. The route's cold load was re-measured for real and is
 not in breach: **0 of 10 loads over 50ms**, worst rAF gap **18.6–18.7ms**
 against a 24.7/34.7ms baseline taken before this story landed.
 `MARKET-OVERVIEW.md` §1.1, §1.4 and §9 and `TOPOLOGY.md` carry the fuller
-account; what remains Storybook-only or unbuilt is everything the next five
-stories still own — node size, correlation edges and live updates.
+account; what remains Storybook-only or unbuilt is everything the next four
+stories still own — node size and live updates. ~~correlation edges~~ shipped
+2026-11-07, Story 6.5.
 
 **And since 2026-11-03 the graph's nodes carry what the market is doing,
 not only how it is organised — Story 6.3, the half of this epic's exit
@@ -314,6 +316,67 @@ read `BODY` with the fix removed, `CANVAS` with it restored. A narrower,
 pre-existing asymmetry in that same recovery guard was found on the same
 review and left as a named, owned `docs/GAPS.md` entry rather than risk an
 unreviewed late change to a focus-management effect.
+
+**And since 2026-11-07 the graph's edges are no longer only curated
+memberships — some of them are measurements.** `/`'s topology draws a
+dashed line between any two of the 501 active equities whose 5-minute
+returns moved together strongly enough over the last 60 trading sessions,
+computed nightly (ADR 0049) and significance-tested per pair via a
+Fisher-z interval rather than a chosen threshold — Story 6.5, which makes
+`return_correlation` the first edge kind in this product whose strength
+**is** a measurement, the reversal trigger `packages/shared/src/topology.ts`'s
+own docblock had pre-committed to since Story 6.1, firing exactly as
+worded. `buildTopologyGraph` itself is unchanged; the measured set merges
+in through a separate pure function, `withCorrelationEdges`, so the
+builder stays a function of the curated universe alone.
+
+**Measured before it shipped, not estimated**: the pairwise phase rides
+the existing nightly pass's own per-security read (no second pass over
+`market_bars`), costing +21.81 s and +426.1 MB on a laptop — 21–43× over
+the shaping's own estimate — and, on the real deployed `baselines` job
+that ran it for the first time on 2026-11-07, the added cost sat **below
+that job's own run-to-run spread** (1,351 s against a 1,195–1,536 s prior
+range, 25% of its 5,400 s budget). `N` — how many correlations each node
+keeps — settled at **5** after a real frame-rate re-take at the shipped
+edge count (rAF-gap p50 unchanged) and a new edge-attribution probe arm
+that found zero misattributed endpoints in the one genuinely crowded
+cluster this product has drawn.
+
+**A real rendering defect was found and fixed before anyone saw it**: the
+renderer's existing short-edge clearance rule — correct for long membership
+spokes — was silently dropping up to 35% of retained correlation edges at
+390px, because the shortest segments in the whole layout are exactly the
+same-sector pairs this layer draws most of. A clamp scoped to the
+correlation batch alone brought that to zero at every width. **A second
+visual-quality issue was found and fixed at this story's own close**: below
+the same fit-scale threshold that already suppresses sector labels (1024/
+768/390px), the correlation mesh was making the screen look worse than it
+did before this story shipped — unlabelled clusters, now also obscured by
+unreadable density. The correlation layer is suppressed below that same
+threshold; at 1440px it is unchanged.
+
+**What is measured and reported rather than acted on: four in five of the
+drawn edges join two securities already in the same visible cluster**
+(82.4% on the one developer store measured first, 83.6% on the deployed
+store's own first scored session) — real, not near-100%, so the layer does
+add cross-cluster information a reader could not previously see, but the
+majority of it restates a grouping the membership edges already draw.
+Deliberately left for the Product Owner rather than decided by any task —
+Story 6.6, which owns edge strength as a **visible** property, is where
+this is next on the table, alongside ADR 0048's own Decision-3 reversal
+trigger (a measured-strength edge kind existing) firing with its layout
+half still unanswered.
+
+**What no gated machine will ever see, and what no person has yet
+checked**: CI has zero bars and no provider, so the correlation route
+answers an honest, permanent absence there, for ever — the only machine
+that can draw one of these edges is a real deployment or a developer's
+own populated store. The deployed store has been serving 1,853 real edges
+to every visitor since 2026-11-07T00:26Z, and nobody has sat down and
+looked at them, nor checked a single coefficient against an outside
+source — both named in `docs/GAPS.md` with an owner (Story 6.9, which is
+where Epic 6's own rehearsal sitting lives, the way `LIVE-REHEARSAL.md`
+is Epic 3's).
 
 ### What a user can see today
 

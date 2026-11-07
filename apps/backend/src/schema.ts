@@ -1660,9 +1660,11 @@ export interface SessionCompositeScorePassesTable {
  * amendments do. Changing `N`, the significance
  * level, the overlap floor, the window, the grid stride, the tape, the
  * candidate population or the canonicalisation rule is a delete and a re-run,
- * never a backfill. **`N` is already known to be provisional**: Story 6.5's
- * Open Decision 1 defers the figure to Task 6.5.3's own measurement, so the
- * first thing that happens to this table is that every row is recomputed.
+ * never a backfill. **`N` is settled at 5**, by Task 6.5.3's own real
+ * measurement (frame rate unchanged at the real 1,860-edge count; zero
+ * misattributed endpoints in the one crowded cluster tested) — changing it
+ * again is a future decision, and would still be the same delete-and-re-run
+ * this table's own derived-and-recomputable nature already promises.
  *
  * ## The two ways it differs from every derived table before it
  *
@@ -1833,10 +1835,10 @@ export interface ReturnCorrelationPassesTable {
   >;
 
   /**
-   * **The `N` this pass applied.** The one parameter already known to be
-   * provisional — Story 6.5's Open Decision 1 defers the figure to Task
-   * 6.5.3's measurement — so this column is what makes two generations
-   * computed under two values of it tellable apart.
+   * **The `N` this pass applied.** Settled at 5 by Task 6.5.3's own
+   * measurement — this column is what makes two generations computed
+   * under two values of it tellable apart, which matters the day a later
+   * story measures a reason to change it again.
    */
   retained_n: ColumnType<number, number, number>;
 

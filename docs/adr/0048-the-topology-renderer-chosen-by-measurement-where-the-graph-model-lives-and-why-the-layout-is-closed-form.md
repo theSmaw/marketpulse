@@ -379,3 +379,61 @@ throw**, which is why every token the renderer reads has to be named there.
 draws.** jsdom applies no stylesheet and computes no layout, so `getTokens()`
 throws there by design. The verification level for that half is `pnpm probe` and
 a person, and it is structural rather than a shortfall.
+
+## Amended 2026-11-07 by Task 6.5.3 and Task 6.5.4 — both reversal triggers fired, one discharged and one only half-evaluated
+
+**Decision 1's trigger fired, was evaluated, and did not change the
+decision.** Story 6.5 shipped the first graph exceeding the measured
+candidate's 518 nodes/514 edges — 516 nodes and up to 2,372 edges (512
+membership + 1,860 correlation). Task 6.5.3 re-ran the comparison this
+trigger's own text calls for, over the same scripted path, on
+`scripts/topology-instrument.mjs`'s surviving Candidate B: rAF-gap p50
+unchanged at 16.7 ms against a membership-only control, zero frames or
+`long-animation-frame`/`longtask` entries over 50 ms on either arm. Canvas2D
+held at the real count; the comparison was not re-run against a WebGL
+candidate (deleted at this ADR's own close) because nothing in the result
+gave cause to resurrect it. The decision stands, now on two measurements
+rather than one.
+
+**And the bullet predicting this discharges §28's edge target was wrong
+about the number, though not about the direction.** It said _"§28's 5,000
+arrives with Story 6.5's correlation edges."_ The real figure is **2,372 —
+47% of 5,000.** Frame rate holds comfortably at that count (above), so
+there is no breach and no third exception to §28 is owed — but §28's own
+60-FPS-at-5,000-edges clause remains genuinely unmeasured, and nothing in
+this epic's current delivery plan reaches it except Epic 14's synthetic
+5,000-node/25,000-edge mode. Corrected here rather than where it was
+written, per this repository's own rule that a falsified prediction is
+swept where it was made.
+
+**Decision 3's trigger also fired — Story 6.5's correlation edges are
+exactly the measured-strength edge kind this clause names — and only HALF
+of what it calls for was actually evaluated.** The **type** half was
+honoured to the letter: `TopologyEdge` is now a union with `weight`
+required on `return_correlation` and structurally absent on the two
+membership kinds, exactly as this trigger's own text anticipated, and
+`packages/shared/src/topology.ts`'s docblock records the firing with its
+date. The **layout** half — _"a layout that ignores edge strength is
+drawing a picture its own data contradicts, and the closed-form-against-
+simulation question is open again with a new argument on the other
+side"_ — was never taken up by any task in Story 6.5. No task evaluated
+whether the closed-form layout should respond to a correlation's weight,
+and nothing argues the question closed.
+
+**This amendment does not close it either — that is a decision for the
+Product Owner, not a sweep.** What it records is that the trigger fired
+and was not fully evaluated, which is worth stating plainly rather than
+leaving silent: a fired trigger nobody evaluates reads identically to one
+that never fired, and this repository has been burned by exactly that
+shape before. The architectural judgement available at this writing,
+offered as a recommendation rather than a decision: closed-form almost
+certainly should stay, because a correlation-driven layout would dissolve
+the sector clustering this screen's whole picture organises around, and
+because determinism is what `no-random-in-the-shared-model` and Epic 13's
+replay refusal both depend on. If that holds, edge strength has exactly
+one remaining channel — the stroke — and Story 6.6's own hand-off already
+carries the figure that matters for it: 21.2% of the drawn correlation set
+at 390 px is covered by its own endpoints' node bodies, where no stroke
+treatment whatsoever can show. Story 6.6, which owns edge strength as a
+visible property, is the right place for the Product Owner to take this
+one, not a later sweep finding it abandoned a second time.

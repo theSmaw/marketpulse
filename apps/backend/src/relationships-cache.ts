@@ -40,6 +40,24 @@ import type {
  * So the first read is awaited, and concurrent callers share one in-flight
  * promise rather than issuing one query each.
  *
+ * **1b. Which is why the refresh floor is NOT armed by a failure that has
+ * nothing held behind it** (Task 6.5.4, found by this story's own Gate 2).
+ * The floor is `return-baseline-cache.ts`' mechanism and it was copied with
+ * the same two lines; the two shapes do not compose, because that cache
+ * **swallows** a failure and this one **throws** one. Armed on the first read
+ * of a fresh or restarted replica whose database is unreachable, the floor
+ * made the next fifteen minutes of asks skip the store entirely and resolve —
+ * with `undefined`, because nothing is held — which the route turns into a
+ * **200 carrying no `pass`** and the frontend draws as *which securities move
+ * together has not been measured here*. That is a claim about data made
+ * without data, which is the one thing ADR 0029's first rule forbids, and it
+ * is the opposite of the sentence the whole of point 2 below exists to
+ * produce. So the floor is armed on a failure only once a generation has been
+ * held: there is then something true and stale to serve from behind it, and
+ * the rate limit costs a reader nothing. Before that, every ask re-reads and
+ * every ask fails — the honest price of having nothing to say, and bounded by
+ * the database being down anyway.
+ *
  * **2. A failed read THROWS rather than being swallowed.** The sibling caches
  * log a warning and keep what they hold, because the alternative on a socket
  * path is an unhandled rejection and a crashed process. Here the caller is
@@ -122,8 +140,9 @@ export function createRelationshipsCache(
   let inFlight: Promise<void> | null = null;
   /**
    * When a read last **failed to advance** the held generation, including a
-   * read that succeeded and found nothing newer. See
-   * {@link RELATIONSHIPS_REFRESH_FLOOR_MS}.
+   * read that succeeded and found nothing newer — and, where it threw,
+   * **only once a generation has been held**. See
+   * {@link RELATIONSHIPS_REFRESH_FLOOR_MS} and the header's point 1b.
    */
   let quietSince: number | undefined;
 
@@ -165,7 +184,18 @@ export function createRelationshipsCache(
       quietSince =
         heldThrough !== undefined && heldThrough >= session ? undefined : now();
     } catch (error) {
-      quietSince = now();
+      // **The floor is armed only where there is something to serve from
+      // behind it** — see the header's point 1b. `held !== undefined` rather
+      // than *a read has succeeded*: what the floor costs is not the query, it
+      // is the answer the next ask gets while the floor is closed, and that
+      // answer is honest exactly when there is a generation to serve. A store
+      // that has never run the pass is in this branch too (its successful
+      // reads find nothing, so nothing is held) and it is the case that
+      // matters: on CI, and on a laptop before the first `pnpm baselines`,
+      // *never measured* and *could not be read* are told apart by whether
+      // this read threw, and a floor that converted the second into the first
+      // would delete the distinction for a quarter of an hour at a time.
+      if (held !== undefined) quietSince = now();
       throw error;
     }
   };

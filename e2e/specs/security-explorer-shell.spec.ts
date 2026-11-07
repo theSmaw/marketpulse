@@ -153,6 +153,14 @@ test("every empty region names the epic that fills it", async ({ page }) => {
   // nothing in it, which reads as broken and goes red nowhere else; a
   // placeholder that survives the thing it was waiting for is a screen saying it
   // holds a plan while holding the plan's output.
+  //
+  // **And since Task 6.5.4, TWO of the three name a condition rather than an
+  // epic** — `Connected securities` was `Filled by Epic 6 — Market Topology`
+  // until Story 6.5 shipped and left the sentence false (Epic 6 had already
+  // started filling other regions on `/` without ever reaching this one), the
+  // same staleness Task 5.7.4 found and fixed for `Anomaly history`. Only
+  // `Relevant filings` still names an epic, because Epic 9 has not yet
+  // started.
   await expect(page.getByText(/^Filled by /)).toHaveCount(3);
   await expect(
     page.getByText(
@@ -160,7 +168,9 @@ test("every empty region names the epic that fills it", async ({ page }) => {
     ),
   ).toHaveCount(1);
   await expect(
-    page.getByText("Filled by Epic 6 — Market Topology"),
+    page.getByText(
+      "Filled by the first story that reads one security’s own strongest relationships, rather than the whole night’s retained set",
+    ),
   ).toHaveCount(1);
   await expect(
     page.getByText("Filled by Epic 9 — Corporate Filing Evidence"),

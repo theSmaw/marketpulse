@@ -672,3 +672,34 @@ graph's clustering, not only about its membership.
 Nothing reads `buildTopologyGraph` from a replay context today — this is a
 hand-off ahead of the need, which is the point of writing it now rather than
 at this epic's own decomposition finding it cold.
+
+## Handed here by Task 6.5.4 — 2026-11-07: a SECOND membership site, in the correlation merge rather than the builder, with the same bound and a sharper consequence
+
+**Story 6.5 added a second place this epic's own bound applies, and it is
+not inside `buildTopologyGraph`.** `withCorrelationEdges`
+(`packages/shared/src/topology.ts`) — the pure function that merges a
+nightly-measured correlation set into the graph — drops a correlation edge
+whose endpoint is not a node in the **current** graph, deliberately: its own
+docblock states this is "real and reachable" and is the renderer's question
+to answer, not this function's to pre-empt. `return-correlation-store.ts`'s
+read of `return_correlations` deliberately does **not** filter on
+`securities.status` either, for the same stated reason — "which securities
+we track now is the renderer's question."
+
+**The consequence a replay context would meet, stated rather than left to be
+found**: a stored correlation that genuinely existed for a past session
+would silently vanish under a replay if either of its two securities has
+since been untracked — present information (today's roster) reaching a
+replayed past by omission, in the one place invariant 4 promises that is
+structurally impossible, and with **no refusal at all**: the edge is simply
+absent, which looks identical to "the pass never retained this pair" rather
+than to "this pair existed and the roster since changed." That is a sharper
+failure than `buildTopologyGraph`'s own bound, which at least refuses
+outright — this one degrades silently.
+
+**Nothing shipped today is wrong**: no replay context exists yet, and the
+nightly pass's own candidate population is `equityTickers()`, so an
+already-untracked security never gets a `return_correlations` row to drop
+in the first place. This is purely a hand-off ahead of the need, in the
+same spirit as the one above it — found going to verify system coherence
+at Story 6.5's own close, not by this epic's own decomposition.

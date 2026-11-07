@@ -15,12 +15,13 @@ import type { Ticker } from "@marketpulse/shared";
  *
  * `selectMovers`' own division, one story family over: the **order** of two
  * figures is a property of the quantity and belongs beside it, while the
- * **cut** is a property of a drawn surface. The cut here is `N`, which Story
- * 6.5's Open Decision 1 explicitly defers to Task 6.5.3's own measurement of
- * readability and frame rate against the real elliptical ring — so the figure
- * is a property of a canvas and the function that applies it belongs with the
- * pass that writes rows, not in the vocabulary both halves of the product
- * share.
+ * **cut** is a property of a drawn surface. The cut here is `N`, settled at
+ * **5** by Task 6.5.3's own measurement of readability and frame rate
+ * against the real elliptical ring (rAF-gap p50 unchanged at the real
+ * 1,860-edge count, zero misattributed endpoints in the one crowded cluster
+ * tested) — so the figure is a property of a canvas and the function that
+ * applies it belongs with the pass that writes rows, not in the vocabulary
+ * both halves of the product share.
  *
  * ## A top-N is a SELECTION, not a reduction — Story 4.5's rule, at a new grain
  *
@@ -100,8 +101,9 @@ export interface CorrelationCandidate {
  *
  * @param candidates every computed, significant pair. Not mutated, and not
  *   assumed to be in any particular order.
- * @param n how many a single node keeps. The pass's working default is
- *   `RETAINED_N` in `compute-baselines.ts`, pending Task 6.5.3's measurement.
+ * @param n how many a single node keeps. The pass's settled figure is
+ *   `RETAINED_N` in `compute-baselines.ts` — 5, confirmed by Task 6.5.3's
+ *   own measurement.
  */
 export function selectStrongestCorrelations(
   candidates: readonly CorrelationCandidate[],

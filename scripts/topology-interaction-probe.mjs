@@ -617,9 +617,18 @@ async function measureEdgeAttribution(browser, width) {
   // **The most contested edge is the SHORTEST one**, which is a statement
   // about this layout rather than a guess: a cluster's members sit on a
   // golden-angle spiral at a near-constant spacing, so the shortest retained
-  // edge is the one whose two ends are hardest to tell apart — and the second
-  // target is the shortest inside the cluster with the most members, which is
-  // the cluster Story 6.4's hand-off named.
+  // edge is the one whose two ends are hardest to tell apart.
+  //
+  // **Two further targets, and they are different clusters for different
+  // reasons — found wrong once, so named explicitly rather than derived from
+  // "biggest" again** (Task 6.5.4). The cluster with the most members
+  // (by `graph.clusters[].members.length`) is `industrials` (83) — a real,
+  // dense cluster and worth testing, but NOT the one Story 6.4's own hand-off
+  // named: that hand-off measured a 0.0 px closest-node-pair hit-test
+  // specifically in `technology` (73 members) at 390 px, which Task 6.5.3's
+  // own first run of this arm conflated with "the largest cluster" and
+  // therefore never actually tested. Both are targeted here, explicitly, so
+  // a future run cannot repeat that substitution by accident.
   const biggestCluster = [...graph.clusters]
     .map((cluster) => ({ sector: cluster.id, members: cluster.members.length }))
     .sort((one, two) => two.members - one.members)[0];
@@ -630,6 +639,12 @@ async function measureEdgeAttribution(browser, width) {
   );
   if (inBiggest !== undefined && inBiggest !== correlationEdges[0]) {
     targets.push(inBiggest);
+  }
+  const inTechnology = correlationEdges.find(
+    (edge) => edge.cluster === "technology",
+  );
+  if (inTechnology !== undefined && !targets.includes(inTechnology)) {
+    targets.push(inTechnology);
   }
 
   console.log(

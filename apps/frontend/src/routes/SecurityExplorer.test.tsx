@@ -659,23 +659,29 @@ describe("the Security Explorer shell", () => {
     // amended, which is §71.3's judgement for the fourth time on this screen.
     expect(screen.getAllByText(/^Filled by /)).toHaveLength(3);
 
-    for (const plan of [
-      "Filled by Epic 6 — Market Topology",
-      "Filled by Epic 9 — Corporate Filing Evidence",
-    ]) {
-      expect(screen.getByText(plan)).toBeTruthy();
-    }
+    expect(
+      screen.getByText("Filled by Epic 9 — Corporate Filing Evidence"),
+    ).toBeTruthy();
 
-    // **`Anomaly history` names a CONDITION rather than an epic, and it is
-    // the only region on this screen that does** (Task 5.7.4). It named Epic 5
-    // until that epic closed **without filling it** — a placeholder promising a
-    // region to an epic goes stale the day the epic ships, and this one did.
-    // The condition is asserted rather than the epic for the same reason the
-    // product states it: there is no later date at which this sentence becomes
-    // false by itself.
+    // **`Anomaly history` and `Connected securities` name a CONDITION rather
+    // than an epic — two of the three placeholders now, where until Story
+    // 6.5's own close only `Anomaly history` did** (Task 5.7.4, then Story
+    // 6.5's Open Decision 5). Each named an epic until that epic's own close
+    // found it stale: `Anomaly history` named Epic 5, which closed without
+    // filling it; `Connected securities` named Epic 6, which Story 6.5 — the
+    // fifth of Epic 6's nine — does not fill either. A placeholder promising
+    // a region to an epic goes stale the day the epic ships, and both of
+    // these did. The condition is asserted rather than the epic for the same
+    // reason the product states it: there is no later date at which either
+    // sentence becomes false by itself.
     expect(
       screen.getByText(
         "Filled by the first story that needs a score for this security from more than one past session",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Filled by the first story that reads one security’s own strongest relationships, rather than the whole night’s retained set",
       ),
     ).toBeTruthy();
   });

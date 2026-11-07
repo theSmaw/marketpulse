@@ -6365,4 +6365,65 @@ export const BREAKS = [
     ],
     expect: "is the union of each node's own top 2, in canonical order",
   },
+  {
+    name: "a-landmark-forms-a-correlation-pair",
+    proves:
+      "`accumulateCorrelationInput` admits the **equities and nothing " +
+      "else** (Task 6.5.4, Story 6.5's resolved Open Decision 4: *no " +
+      "landmark node ever forms a correlation pair*). The plant widens the " +
+      "population the gate reads — `for (const security of UNIVERSE) " +
+      "EQUITY_SUBJECTS.add(security.symbol);` beside its own declaration — " +
+      "so the eleven sector SPDRs, the four proxies and the hub feed their " +
+      "return grids into the pair pass and `SPY` draws as a starburst " +
+      "through ~500 edges, which is the picture §10's own constraint exists " +
+      "to prevent.\n\n" +
+      "**The plant is the temptation rather than an absurdity**, and it is " +
+      "the shape a widening actually arrives in: the fifteen landmarks ARE " +
+      "tracked securities, they have security pages, and the volume " +
+      "baseline a few lines down is deliberately computed over all 516 — so " +
+      "*the correlation pass should see the whole universe too* is a " +
+      "one-line change somebody makes while fixing something else. It is a " +
+      "WIDENING rather than a deletion for this registry's own reason: the " +
+      "substitution keeps the line its `find` names, so the `find` survives " +
+      "its own break and `every-break-can-still-land` stays green while " +
+      "the plant is standing.\n\n" +
+      "**Nothing else can see it, and that was CONFIRMED rather than " +
+      "assumed.** With the plant applied: `pnpm typecheck` green, " +
+      "`pnpm lint` green, and the backend's whole fast suite green except " +
+      "this one file — **1 failed file of 71, 3 failed tests of 1,388**, " +
+      "all three in `accumulateCorrelationInput`. " +
+      "`return-correlations.database.test.ts` stays green too — **31 of 31**, " +
+      "run against a real server with the plant standing — which is the " +
+      "point of the extraction: its landmark assertion is a property of " +
+      "`equityTickers()` and of `UNIVERSE`, and both are still true with " +
+      "the gate widened — the rows a widened pass writes are well-formed, " +
+      "canonically ordered and refused by no constraint in `0018`, and " +
+      "`withCorrelationEdges` would draw every one of them, because it " +
+      "deliberately does not filter on node kind (a second home for one " +
+      "judgement). Before this task the first thing to notice would have " +
+      "been a person looking at a drawn graph.\n\n" +
+      "**Which assertion, rather than that the run was red** — verbatim: " +
+      "*admits no landmark, whatever its own outcome says* " +
+      "(`expected [ 'SPY', 'QQQ', 'DIA', 'IWM', …(2) ] to deeply equal []`, " +
+      "the series map holding what it must never hold), *does not even " +
+      "build a landmark's series* (`expected 1 to be +0`, the thunk that " +
+      "proves the gate runs before the walk) and *partitions the equities " +
+      "it admits by the price pass's own verdict* (`expected 4 to be 3`, " +
+      "the pass row's own `trackedEquities` counting a security that formed " +
+      "no pair).",
+    file: "apps/backend/src/compute-baselines.ts",
+    find: "const EQUITY_SUBJECTS = new Set<string>(equityTickers());",
+    replace:
+      "const EQUITY_SUBJECTS = new Set<string>(equityTickers());\n" +
+      "// pnpm break: reverted automatically\n" +
+      "for (const security of UNIVERSE) EQUITY_SUBJECTS.add(security.symbol);",
+    command: [
+      "pnpm",
+      "--filter",
+      "@marketpulse/backend",
+      "test",
+      "src/compute-baselines.test.ts",
+    ],
+    expect: "admits no landmark, whatever its own outcome says",
+  },
 ];

@@ -279,3 +279,14 @@ quantity is intensive, so no multiplier is being applied and no cross-tape level
 is being compared. It is an **attenuation from sample size**, which the
 significance floor bounds (a thin pair must clear a wider interval) and does not
 remove. `docs/GAPS.md` carries it with an owner and a re-measure condition.
+
+**Reversal trigger for this divergence, a condition — added 2026-11-07 by
+Task 6.5.4, found missing at Story 6.5's own close.** Every other decision
+in this story's own record states the condition under which it should be
+revisited; this one did not, and decision 3's own force is entirely in
+whether a tape choice "carries a reversal trigger" — a decision with none
+stated reads as though none could ever apply. **The first correlation pair
+whose two legs are read on different tapes, or the first story that gives
+`return_correlations` a second candidate tape to flip to.** At that point
+this divergence from `volume_baselines`' precedent needs retaking, because
+the argument above rests entirely on there being one tape and one read.

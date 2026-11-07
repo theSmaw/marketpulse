@@ -196,10 +196,36 @@ export interface TopologyMembershipEdge {
  * needs an order to be stored *in*. The order is the **ticker** order, which
  * is `0018` §3's own canonicalisation and ADR 0049's, chosen there because
  * `securities.id` is assigned in row-insertion order and CI's store and the
- * deployed store disagree about that order. So the stored row and the drawn
- * edge agree about which end is which **by sharing one rule**, rather than by
- * two layers happening to sort the same way — and {@link TopologyGraph}'s
- * byte-comparable sort therefore survives a store whose ids run backwards.
+ * deployed store disagree about that order — so {@link TopologyGraph}'s
+ * byte-comparable sort survives a store whose ids run backwards.
+ *
+ * **Corrected 2026-11-07 (Task 6.5.4): the stored row's order and the drawn
+ * edge's order are TWO independently-implemented orderings that agree on
+ * every real ticker, not one shared rule.** This docblock said *by sharing
+ * one rule*, and that overstates what the tree does. The producer side —
+ * `compute-baselines.ts`, `return-correlation-store.ts`,
+ * `return-correlation-selection.ts` — canonicalises with
+ * `String.prototype.localeCompare`, while {@link bySymbol} here, which
+ * {@link withCorrelationEdges} re-canonicalises under, is a plain codepoint
+ * `<`/`>` comparison. Those are different comparison functions: a locale
+ * collation reads punctuation and case as weaker than letters, and codepoint
+ * order does not. They were checked rather than assumed, across the whole
+ * ~505-ticker roster including the two punctuated members (`BRK.B`, `BF.B`):
+ * **zero disagreements**. The claim is therefore *they agree on every ticker
+ * this product tracks today*, which a ticker vocabulary admitting a new
+ * character class could falsify.
+ *
+ * **What that would and would not break, because the answer is reassuring and
+ * the reason is structural.** {@link withCorrelationEdges} re-canonicalises
+ * **every** row under its own rule regardless of the orientation it arrives
+ * in — the pair is symmetric, and that function's `seen` key depends on it —
+ * so a divergence on some future ticker would make the stored `from`/`to`
+ * orientation differ from the drawn edge's and nothing else. The merge stays
+ * internally self-consistent, the dedup still recognises one pair as one
+ * edge, the coefficient is unchanged, and the drawn segment is the same two
+ * endpoints. What a divergence would cost is a reader comparing a database
+ * row against a drawn edge by eye, which is why it is written down here
+ * rather than guarded.
  *
  * ## The weight is REQUIRED, signed, and not re-judged here
  *
