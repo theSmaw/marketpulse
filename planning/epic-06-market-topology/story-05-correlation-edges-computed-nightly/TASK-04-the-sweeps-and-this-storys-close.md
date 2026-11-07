@@ -78,12 +78,12 @@ genuine open product questions (routed to Gate 2, unchanged).
    `Filled by Epic 6 — Market Topology` — confirmed independently by both the
    BA and the tester. Fixed: the placeholder now names the condition rather
    than the epic (`the first story that reads one security's own strongest
-   relationships, rather than the whole night's retained set`), the same
+relationships, rather than the whole night's retained set`), the same
    correction Task 5.7.4 made for `Anomaly history`. Both of this product's
    remaining epic-named placeholders are now two; `Relevant filings` is the
    only one left (Epic 9 has not started). `SecurityExplorer.test.tsx` and
    `e2e/specs/security-explorer-shell.spec.ts`'s `every empty region names the
-   epic that fills it` were both updated to match and both pass.
+epic that fills it` were both updated to match and both pass.
 2. **Multiple documents falsely claimed "only this developer's own store has
    ever drawn a correlation edge"**, found by the tester going to check the
    deployed route directly: the deployed backend had already run the nightly
@@ -101,8 +101,8 @@ genuine open product questions (routed to Gate 2, unchanged).
    failure with nothing ever held is reported honestly as "could not be read"
    rather than conflated with "never measured." Proved red-then-green: with
    the fix removed, the new test `goes on failing inside the floor window
-   while it holds nothing` fails with `promise resolved "undefined" instead
-   of rejecting`; with it restored, `relationships-cache.test.ts` is
+while it holds nothing` fails with `promise resolved "undefined" instead
+of rejecting`; with it restored, `relationships-cache.test.ts` is
    `12 passed (12)`.
 4. **The accessible sentence used `pass.candidatePairs` where it meant
    `pass.computedPairs`** — coincidentally equal on every fixture used until
@@ -110,7 +110,7 @@ genuine open product questions (routed to Gate 2, unchanged).
    sentence and the main one); a new fixture where the two figures differ
    (120,000 computed of 122,760 candidate) proves it — the old code reads
    `"… from 122,760 pairs measured …"` where it should read `"120,000 pairs
-   measured …"`. `MarketTopology.test.tsx` is `77 passed (77)` with the fix.
+measured …"`. `MarketTopology.test.tsx` is `77 passed (77)` with the fix.
 5. **The landmark-exclusion gate (Story 6.5's resolved Open Decision 4: no
    landmark ever forms a correlation pair) had only a population-helper test,
    never a producer-level one** — found by the tester. `accumulateCorrelationInput`
@@ -118,7 +118,7 @@ genuine open product questions (routed to Gate 2, unchanged).
    `a-landmark-forms-a-correlation-pair`, proves it: the plant widens the
    admitted population to the whole universe (landmarks included), and three
    assertions go red for the reason each names (`expected […] to deeply equal
-   []`, `expected 1 to be +0`, `expected 4 to be 3`) while
+[]`, `expected 1 to be +0`, `expected 4 to be 3`) while
    `return-correlations.database.test.ts` stays green at 31/31 against a real
    server — proof that nothing else in the system would have caught a
    widening this specific. I read the registry entry's full diff and its
@@ -147,7 +147,7 @@ genuine open product questions (routed to Gate 2, unchanged).
    0.3033, 768: 0.3650, 390: 0.1639** — so 1440 draws and the other three do
    not, matching the screenshots exactly (1440 unchanged; 768/1024/390 clean —
    clusters, hub spokes, anomaly rings, nothing else). `pnpm e2e
-   overview-market-topology.spec.ts` (3 passed) proves the ink-difference
+overview-market-topology.spec.ts` (3 passed) proves the ink-difference
    assertion still holds at Desktop Chrome's 1280×720 (fit scale 0.4474,
    above the threshold, so the edge layer still draws there).
 8. **Six stale "`N` is provisional"/"pending Task 6.5.3's own measurement"
@@ -237,13 +237,13 @@ descriptive cross-references (e.g. "Edge weight as a visible property
     the recurring flake `docs/GAPS.md` already carries an entry for, this
     time with a different concrete symptom (a live-feed content race —
     `"Market proxies"` read `"No prices yet."`` where the assertion forbids
-    it — rather than a `page.goto` timeout). Load read before the re-run
-    (11.17/21.06/16.30), re-run at `--workers=1`, passed clean in 25.9 s.
-    `docs/GAPS.md`'s entry updated to record the fifth occurrence and the new
-    symptom shape, which is stronger evidence for "machine contention under
-    default parallelism" than a fourth identical symptom would have been.
-  Full suite, both fixes applied: every spec green except the two addressed
-  above (and `16 skipped` by design, unchanged).
+it — rather than a `page.goto`timeout). Load read before the re-run
+(11.17/21.06/16.30), re-run at`--workers=1`, passed clean in 25.9 s.
+`docs/GAPS.md`'s entry updated to record the fifth occurrence and the new
+symptom shape, which is stronger evidence for "machine contention under
+default parallelism" than a fourth identical symptom would have been.
+Full suite, both fixes applied: every spec green except the two addressed
+above (and `16 skipped` by design, unchanged).
 
 ### `docs/GAPS.md`, `TOPOLOGY.md`, `CLAUDE.md`
 

@@ -146,6 +146,19 @@ a sector diagram. Edges carry a strength a reader can see.
       product has ever drawn** — Story 6.4's own 0.0 px hit-test figure in
       `TECHNOLOGY` at 390 was re-confirmed unchanged in the same run, as
       expected (edges do not move node placements).
+
+      **Corroborated 2026-11-07 by Task 6.5.4, in the cluster this arm's
+      own prose should have named.** `industrials` is the largest cluster
+      by member count, but Story 6.4's own hand-off named `technology`
+      specifically (the one the 0.0 px hit-test figure above was actually
+      measured in) — a mismatch this task's own record carries in full.
+      Re-run with `technology` targeted explicitly: the shortest retained
+      edge there, `FLEX`–`KEYS` (`|r| 0.603`, 19.23 layout units),
+      attributed cleanly at the zoom ceiling too — 7.27 px and 7.62 px
+      from their own named nodes against 28.72 px and 26.40 px from the
+      nearest other node. The conclusion above is unchanged; the evidence
+      for it is now measured in the cluster it was always meant to be.
+
    4. **The 82.4% same-sector share is unchanged by this task and remains
       explicitly Gate 2's question, not this task's.** Nothing above found a
       readability or performance reason to act on it, and Open Decision 4
