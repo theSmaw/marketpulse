@@ -275,6 +275,24 @@ Storybook build for the frame-rate instrument.
 specs this task touched were run directly, and the whole topology battery
 was already confirmed green at the end of Task 6.5.2.
 
+### A CI flake, on the PR, in a spec this task never touched
+
+The PR's own first CI run failed one test —
+`overview-degraded-grid.spec.ts`'s 768 px row, asserting that two unrelated
+degraded states (the closes-present-nothing-observed state and the
+backend-unreachable state) still read identically. Nothing in this task's
+diff reaches that file, that comparison, or anything it depends on (the
+overview aggregate, the socket, breadth/movers). It had already passed
+cleanly on `main` as of Task 6.5.2's own full-suite run (302 passed) and
+passed again locally, in isolation, immediately after the CI failure
+(`1 passed (27.0s)`). Per this repository's own standing rule — before
+attributing a flake to a branch, check rather than assume — the failed job
+was re-run rather than dismissed or silently retried: it came back green,
+`e2e: pass`, with no other change to the PR. This is recorded here as what
+happened rather than argued away; it is a single occurrence and not a
+measured rate, so no flake-rate claim is made for this content-class pair,
+and none should be inferred from one data point.
+
 ## For a stakeholder
 
 **N stays at 5.** The figure Task 6.5.2 shipped with as a placeholder is now
