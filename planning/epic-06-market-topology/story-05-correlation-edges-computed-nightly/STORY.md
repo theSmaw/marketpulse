@@ -1,6 +1,17 @@
 # Story 6.5 — Correlation Edges, Computed Nightly, & the Strongest N
 
-**Status:** **Gate 1 approved 2026-11-06 — decomposed into four tasks.**
+**Status:** **Complete — accepted at Gate 2, 2026-11-07.** All 8 acceptance
+criteria hold and all 5 Open Decisions are settled (N = 5; nightly on the
+existing 5-minute grid; a derived significance floor, not a chosen threshold;
+82.4%/83.6% same-sector share measured and reported rather than acted on,
+left for Story 6.6; `Connected securities`' placeholder reworded, left
+unfilled). Ten real defects were found and fixed at Task 6.5.4's own close —
+nine fixable without a product decision, one that corrected the task record
+rather than the product. PRs: [#660](https://github.com/theSmaw/marketpulse/pull/660)
+(6.5.1, the nightly pass), [#661](https://github.com/theSmaw/marketpulse/pull/661)
+(6.5.2, edges drawn), [#662](https://github.com/theSmaw/marketpulse/pull/662)
+(6.5.3, settling N), [#663](https://github.com/theSmaw/marketpulse/pull/663)
+(6.5.4, the sweeps and this close).
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.2
 **Epic scope covered:** Correlation relationships · Edge strength (the data half)
