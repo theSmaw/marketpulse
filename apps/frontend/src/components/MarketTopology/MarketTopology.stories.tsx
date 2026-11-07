@@ -272,7 +272,7 @@ const MEASURED_PASS: RelationshipsPassPayload = {
 
 /**
  * **A measured set of the real shape — same-sector-heavy, N = 5 per node**
- * (Task 6.5.2).
+ * (Task 6.5.2, corrected 2026-11-07 by Task 6.5.3).
  *
  * The shape rather than the data, and the shape is the part that matters for
  * reviewing ink: Task 6.5.1 measured **82.4% of the retained pairs joining two
@@ -281,15 +281,36 @@ const MEASURED_PASS: RelationshipsPassPayload = {
  * segments crossing between them. A set drawn at random across the universe
  * would be the opposite picture and would review the wrong risk.
  *
- * Built by joining each equity to the next two in its own sector (wrapping
- * inside the sector, so every node has edges) plus one cross-sector pair per
- * sector — deterministic, so two builds of this workshop draw the same graph,
- * which is what {@link measuredDistributionBands} is deterministic for too.
+ * **This function's first version did not produce that shape, and shipped
+ * with a docblock describing the shape it was supposed to have rather than
+ * the one it did.** "Each equity to the next two in its own sector" over 501
+ * equities is at most ~1,000 directed same-sector pairs before dedup, plus
+ * eleven cross-sector pairs — roughly **1,013 total at ~98.9% same-sector**,
+ * against the claimed 1,860 at 82.4%. Found while building Task 6.5.3's own
+ * frame-rate re-take, which needs this story's edge count to be close to the
+ * real one or the figure it takes is a measurement of the wrong pass. Fixed
+ * by computing each sector's own **quota** from its real membership share of
+ * {@link SAME_SECTOR_TARGET} rather than a fixed step count, and by spending
+ * {@link CROSS_SECTOR_TARGET} across the ring rather than one pair a sector.
+ *
+ * Both quotas are deterministic and exact (adjusted by one on whichever
+ * sector/link absorbs the rounding remainder), so two builds of this
+ * workshop draw the same graph — which is what
+ * {@link measuredDistributionBands} is deterministic for too — and the
+ * dedup against a store-independent pair key is the same rule
+ * `withCorrelationEdges` itself applies, run here first so this generator's
+ * own count matches what the merge will actually keep.
  *
  * The coefficients run 0.30–0.95 across the set. **They are not drawn** — edge
  * weight as a visible property is Story 6.6's — and they are varied anyway so
  * that the day it is, this story has something to show.
  */
+
+/** Task 6.5.1's own measured figure: 1,532 of 1,860 retained pairs. */
+const SAME_SECTOR_TARGET = 1532;
+/** The remainder: 1,860 − 1,532. */
+const CROSS_SECTOR_TARGET = 328;
+
 function correlationsOfTheRealShape(): readonly TopologyCorrelation[] {
   const bySector = new Map<string, Ticker[]>();
 
@@ -300,37 +321,100 @@ function correlationsOfTheRealShape(): readonly TopologyCorrelation[] {
     bySector.set(security.sector, members);
   }
 
-  const pairs: TopologyCorrelation[] = [];
   const sectors = [...bySector.keys()].sort();
+  for (const members of bySector.values()) members.sort();
+
+  const totalEquities = sectors.reduce(
+    (sum, sector) => sum + (bySector.get(sector)?.length ?? 0),
+    0,
+  );
+
+  const pairs: TopologyCorrelation[] = [];
+  // **Deduplicated against the same unordered-pair key `withCorrelationEdges`
+  // itself computes**, so this generator's own count is the count the merge
+  // will keep — a pair added twice here would be one retained edge, not two,
+  // and the quota arithmetic below would otherwise overshoot silently.
+  const seen = new Set<string>();
+
+  const addPair = (low: Ticker, high: Ticker, r: number): boolean => {
+    if (low === high) return false;
+    const key = low < high ? `${low}|${high}` : `${high}|${low}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    pairs.push({ low, high, r });
+    return true;
+  };
+
+  // **Each sector's own share of the same-sector target, proportional to its
+  // real membership** — a flat step count made small sectors as dense as
+  // large ones and large ones far too sparse, which is the arithmetic error
+  // above. The remainder from rounding is given to the largest sector so the
+  // total is exact rather than approximate.
+  const sameSectorQuota = sectors.map((sector) =>
+    Math.round(
+      (SAME_SECTOR_TARGET * (bySector.get(sector)?.length ?? 0)) /
+        totalEquities,
+    ),
+  );
+  const sameSectorShortfall =
+    SAME_SECTOR_TARGET - sameSectorQuota.reduce((sum, n) => sum + n, 0);
+  const largestSectorIndex = sectors
+    .map((_, index) => index)
+    .sort(
+      (one, two) =>
+        (bySector.get(sectors[two] ?? "")?.length ?? 0) -
+        (bySector.get(sectors[one] ?? "")?.length ?? 0),
+    )[0];
+  if (largestSectorIndex !== undefined) {
+    sameSectorQuota[largestSectorIndex] =
+      (sameSectorQuota[largestSectorIndex] ?? 0) + sameSectorShortfall;
+  }
 
   sectors.forEach((sector, sectorIndex) => {
     const members = bySector.get(sector) ?? [];
+    const quota = sameSectorQuota[sectorIndex] ?? 0;
+    let added = 0;
 
-    members.forEach((symbol, index) => {
-      for (const step of [1, 2]) {
-        const other = members[(index + step) % members.length];
-        if (other === undefined || other === symbol) continue;
-
+    // Increasing step, wrapping inside the sector — the shortest segments
+    // first, which is also this layout's own real crowding (adjacent members
+    // of one cluster sit closest together on its golden-angle spiral).
+    for (let step = 1; step < members.length && added < quota; step += 1) {
+      for (let index = 0; index < members.length && added < quota; index += 1) {
+        const a = members[index];
+        const b = members[(index + step) % members.length];
+        if (a === undefined || b === undefined) continue;
         // The canonical ticker order is `withCorrelationEdges`' own rule and
         // it resolves either orientation — these are written unsorted on
         // purpose, so this story exercises that rather than pre-empting it.
-        pairs.push({
-          low: symbol,
-          high: other,
-          r: 0.3 + ((index + step) % 7) / 10,
-        });
+        if (addPair(a, b, 0.3 + ((index + step) % 7) / 10)) added += 1;
       }
-    });
+    }
+  });
 
-    // One cross-sector pair per sector — the 17.6% minority that carries
-    // information the membership edges do not.
-    const next = bySector.get(
-      sectors[(sectorIndex + 1) % sectors.length] ?? "",
-    );
-    const here = members[0];
-    const there = next?.[0];
-    if (here !== undefined && there !== undefined) {
-      pairs.push({ low: here, high: there, r: 0.95 });
+  // **The cross-sector minority, spent across the ring rather than one pair
+  // a sector** — eleven pairs was the other half of the original shortfall
+  // (11 against a target of 328). Each sector's own quota is spent against
+  // the NEXT sector in the ring, round-robining both sectors' own members so
+  // the same pair of tickers is never repeated.
+  const crossBase = Math.floor(CROSS_SECTOR_TARGET / sectors.length);
+  const crossRemainder = CROSS_SECTOR_TARGET - crossBase * sectors.length;
+
+  sectors.forEach((sector, sectorIndex) => {
+    const here = bySector.get(sector) ?? [];
+    const there =
+      bySector.get(sectors[(sectorIndex + 1) % sectors.length] ?? "") ?? [];
+    const quota = crossBase + (sectorIndex < crossRemainder ? 1 : 0);
+
+    let added = 0;
+    for (
+      let index = 0;
+      added < quota && index < here.length * there.length;
+      index += 1
+    ) {
+      const a = here[index % here.length];
+      const b = there[index % there.length];
+      if (a === undefined || b === undefined) continue;
+      if (addPair(a, b, 0.95 - (index % 5) / 20)) added += 1;
     }
   });
 

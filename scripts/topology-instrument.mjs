@@ -103,7 +103,7 @@ const say = (line) => process.stdout.write(`${line}\n`);
 /**
  * The arms.
  *
- * **There were two on 2026-10-30 and there is one now.** Task 6.1.2 drove
+ * **There were two on 2026-10-30, comparing renderers.** Task 6.1.2 drove
  * Candidate A (`components-markettopology--sigma-whole-universe`, Sigma.js 4 +
  * graphology over WebGL2) and Candidate B through this list, differing by a
  * `renderer` prop and nothing else; ADR 0048 took the decision and the loser
@@ -111,15 +111,31 @@ const say = (line) => process.stdout.write(`${line}\n`);
  * transcript is in Task 6.1.2's own record, verbatim, because the thing it
  * measured is gone and a conclusion is not evidence.
  *
+ * **A third arm since 2026-11-07 (Task 6.5.3), comparing EDGE COUNT rather
+ * than renderer.** `membership` is the picture every one of Stories 6.1–6.4
+ * measured against — 516 nodes, 512 edges. `correlations` is
+ * `components-markettopology--correlations`, the Storybook story Task 6.5.2
+ * built and Task 6.5.3 corrected to the real measured shape (1,860 retained
+ * pairs, 82.4% same-sector, from Task 6.5.1's own run) — the first time this
+ * renderer has been frame-timed with anywhere near its real edge count. ADR
+ * 0048's own reversal trigger is *the first graph whose node or edge count
+ * exceeds the candidate it was measured at*, and this is that trigger fired
+ * on purpose rather than by accident.
+ *
  * The shape is kept — a list, interleaved passes — because Story 6.2 re-takes
  * these figures against `/`'s real box and `TOPOLOGY_RING_RADIUS`' elliptical
  * deformation, which is a second arm against the same path.
  */
 const CANDIDATES = [
   {
-    id: "B",
-    name: "hand-rolled Canvas2D (zero dependencies)",
+    id: "membership",
+    name: "hand-rolled Canvas2D — 516 nodes, 512 membership edges",
     story: "components-markettopology--whole-universe",
+  },
+  {
+    id: "correlations",
+    name: "hand-rolled Canvas2D — 516 nodes, 512 membership + 1,860 correlation edges",
+    story: "components-markettopology--correlations",
   },
 ];
 
