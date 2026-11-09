@@ -1,6 +1,6 @@
 # Story 6.6 — Node Size, Edge Strength, & the Encodings That Remain
 
-**Status:** Not started
+**Status:** **Gate 1 approved 2026-11-09 — decomposed into three tasks.**
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.3, 6.5
 **Epic scope covered:** Node sizing · Edge strength
@@ -38,52 +38,145 @@ market rather than a uniform mesh.
 
 ## Acceptance criteria
 
-1. **Whatever sizes a node is INTENSIVE, or reads one tape by name, or is
-   refused** — ADR 0045's three permitted answers, in its order of preference.
-   A measured share applied as a multiplier is **not** one of them: that is
-   computing an adjustment whose error is invisible, which is the one place
-   `PROVIDER.md` §3.5's objection actually reaches.
-2. **If the answer is market capitalisation, its provenance is displayed and its
-   staleness is dated** — invariant 6, and `UNIVERSE.md`'s rule that curated
-   data carries the date it was checked. Sector and industry already do.
-3. **Every added encoding is measured against the ones already drawn**, in
-   greyscale, at the real distribution — not at an even split. 8 nodes in 500
-   carry `extreme`; a size encoding that swamps it has broken 6.3.
-4. **No invented curve.** A log cap, a sigmoid or a chosen knee is calibrated in
-   one tape's units and breaks ADR 0045's invariance. If a non-linear map is
-   needed, it is **derived** from the measured distribution and recorded with
-   its derivation, which is the discipline behind `ANOMALY_BAND_FLOORS` and
-   `BASELINE_MINIMUM_SAMPLE = 2500`.
-5. **Edge strength is drawn from the stored weight**, not recomputed in the
-   renderer, and the top-N cut 6.5 established is still visible as a cut rather
-   than as a fade to nothing.
-6. **`shape/icon — security type` is taken or refused in writing.** The universe
-   has three `SECURITY_KINDS` — `equity`, the sector SPDRs and the market
-   proxies — and fifteen of 516 nodes are not equities. Drawing them identically
-   is a decision; so is not.
-7. **A photograph of the full graph at all four widths**, with the encodings
-   named in the record.
+**Rewritten at Gate 1, 2026-11-09, after six parallel shaping reports found
+AC1/AC2 in tension, AC3/AC5's second half unfalsifiable as drafted, and AC6
+already half-shipped.** The original seven are kept struck below each
+rewrite, because they recorded what was asked for before the shaping found
+what the data and the renderer actually permit.
+
+1. ~~Whatever sizes a node is INTENSIVE, or reads one tape by name, or is
+   refused — ADR 0045's three permitted answers, in its order of preference.
+   A measured share applied as a multiplier is not one of them.~~ —
+   **Satisfied by Open Decision 1's answer below: node size is refused.**
+   Nothing sizes a node by any quantity, so there is no venue-share factor to
+   test. **Falsifiable by:** no field reaching node geometry varies by
+   anything but `SecurityKind`; held by a `pnpm invariants` clause with its
+   `pnpm break`.
+2. ~~If the answer is market capitalisation, its provenance is displayed and
+   its staleness is dated.~~ — **Vacuous: no quantity is taken, so nothing is
+   displayed or dated.** Left struck rather than deleted, because a later
+   story curating market capitalisation (Open Decision 1's third option)
+   inherits this criterion verbatim.
+3. **Every encoding this story adds or changes is checked against every
+   encoding already drawn, in greyscale, at the real measured distribution,
+   with a stated pass condition per pair — not at an even split.** The real
+   distribution is **8 `extreme` in ~500** at a median instant and **1,853
+   retained edges**. Measured by difference (snapshot, change one thing, read
+   the pixels that moved), not by eye. Concretely: the heaviest-weight
+   correlation stroke stays distinguishable from a membership edge's solid
+   kind-stroke, and from the lightest-weight retained stroke, in greyscale, at
+   1440 (the one width the correlation layer draws at default zoom).
+4. **If edge strength needs a non-linear map, it is derived from the measured
+   `return_correlations` distribution and recorded as a named constant with
+   its derivation and its selecting inequality in the docblock** — the
+   `ANOMALY_BAND_FLOORS` / `BASELINE_MINIMUM_SAMPLE = 2500` shape, with a test
+   that the number is right. A chosen round number (`|r| ≥ 0.8`, say) fails
+   this criterion.
+5. **Edge strength is drawn from the stored `weight` and nothing else is
+   recomputed in the renderer** (held by a `pnpm invariants` clause: no file
+   under `apps/frontend/src/topology/**` computes a correlation), **and no
+   retained edge draws fainter than this story's own measured floor — the
+   weakest edge Story 6.5 ever draws is drawn with the same confidence as the
+   strongest.** ~~The top-N cut 6.5 established is still visible as a cut
+   rather than as a fade to nothing~~ — **struck because its premise is
+   false**: the retained set is a **per-node rank** cut (union of each
+   node's own top 5) plus a per-pair Fisher-z significance floor, not a
+   global weight threshold — the real generation's retained `|r|` spans
+   **0.090 to 0.990**, so a kept edge at 0.09 is not "the 5th-strongest" of
+   anything global, and a discarded pair elsewhere in the graph can carry a
+   far higher `|r|` than the weakest kept one. No monotone strength encoding
+   can make a rank cut legible as a weight boundary, because the data does
+   not contain one. What the criterion can honestly ask for, and does above:
+   a visible floor that never fades, so the product never implies an absent
+   edge was measured and found weak. The region's accessible sentence must
+   state that the drawn set is a **per-security selection**, not everything
+   above a threshold.
+6. **§10's `shape/icon — security type` encoding is recorded as taken, by
+   Story 6.2** — circle 8 / square 10 / diamond 12, shipped 2026-11-01 — with
+   one line closing it in the epic record, so §10's encodings are each
+   closed by a named story rather than looking open when they are not.
+   ~~Taken or refused in writing~~ — the "or refused" branch is moot; it was
+   already taken fifteen tasks ago and nobody had written that down.
+7. **The full graph is photographed at all four widths, in every state the
+   changed encoding can be in, with a table saying which widths actually draw
+   it.** Correlation edges draw only above `TOPOLOGY_SECTOR_LABEL_MIN_SCALE`,
+   which only 1440 clears at default zoom — so "all four widths" photographs
+   the edge-strength encoding at **one** of them, and the record must say so
+   rather than implying four independent checks.
 
 ## Open decisions — for the Product Owner
 
-1. **Size by what?** Market cap needs new curated data and a staleness story.
-   A one-tape volume figure (`iex`, by name) is permitted by ADR 0045 but means
-   _size by how much IEX saw_, which is a fact about our reach rather than about
-   the company. **Refusing to size nodes at all** is the third option and leaves
-   a uniform graph that is honest — recommendation is to take this one explicitly
-   rather than reach for the liquidity proxy §10 suggests.
-2. **Are the fifteen non-equities drawn differently?** They are the anchors of
-   every ETF edge and arguably the most important nodes on the screen.
+**Both answered at Gate 1, 2026-11-09**, after the business-analyst, UX
+architect, designer, technical analyst and tester each converged on the same
+recommendation independently, for different reasons — see Task 6.6.2 for
+where each is recorded in full.
+
+1. ~~**Size by what?** Market cap needs new curated data and a staleness
+   story. A one-tape volume figure (`iex`, by name) is permitted by ADR 0045
+   but means _size by how much IEX saw_. Refusing to size nodes at all is
+   the third option.~~ — **SETTLED: refuse.** A node has exactly one radius
+   and cannot express "we don't know" the way the anomaly ring's hollow
+   `unscored` state can — so every quantity that can be missing or thin for
+   some securities (market cap for a handful, `iex` volume for most) makes a
+   claim this product cannot support for them. And `iex` volume specifically
+   would **invert** the hierarchy it claims to show: IEX's venue share runs
+   3.54%–15.19% **inversely with liquidity**, so a volume-sized graph would
+   draw thinly-traded names systematically **larger**, not merely biased.
+   Market capitalisation is the quantity a reader actually wants, but it is
+   a story's worth of work on its own (new curated data, a provenance/
+   staleness column, a wire change, and an unreconstructable-history problem
+   the same shape as the membership-replay gap) — named as a possible future
+   story rather than folded in here. **Reversal trigger, a condition:** _the
+   first story that curates share-count or market-cap data with its own
+   staleness story_ — not a story number, because this one may never be
+   written.
+2. ~~**Are the fifteen non-equities drawn differently?**~~ — **SETTLED: no,
+   beyond the shape they already have.** They already carry five separating
+   channels (shape, size, fill token, being the only labelled nodes on the
+   resting canvas, and edge topology); a sixth is over-decorating the
+   clearest things on screen and spends an annulus already claimed twice
+   (Story 6.3's band, Story 6.4's focus ring). A real, separate finding from
+   the same review — the eleven sector benchmark ETFs are **unlabelled
+   squares at three of the four tested widths**, below the sector-label
+   fit-scale threshold, exactly where this Open Decision called them "the
+   most important nodes on the screen" — is a labelling defect rather than
+   an encoding question, and is routed to `docs/GAPS.md` at Task 6.6.2 rather
+   than fixed with a new node treatment here.
+
+**Two more questions were escalated during shaping, outside the story's own
+two Open Decisions, and are also settled at this Gate 1.**
+
+3. **§10 names a third node encoding — `Intensity`, current price movement —
+   that none of this story's seven acceptance criteria covered.** It was
+   never decided whether this story owed it. **SETTLED: handed to Story 6.7**,
+   whose own subject is live movement, in words that story's `STORY.md` can
+   act on (Task 6.6.2). It would have collided directly with Story 6.3's
+   anomaly-band ring if taken here, and `Movers`/`Unusual activity` already
+   answer "which securities moved" elsewhere on this screen.
+4. **Task 6.5.2's close asked whether a correlation edge should be hoverable,
+   readable on a plate, or keyboard-reachable.** **SETTLED: deferred to
+   Story 6.8**, with the measurements already taken (the 0.0 px crowding
+   figure, the plate's five already-reserved line slots, the counted overlap
+   `n` deliberately absent from the model) handed to that story's own
+   `STORY.md` (Task 6.6.3) rather than taken here. This story draws strength
+   in the stroke only; an edge remains a fact a reader sees but cannot point
+   at, in this story.
 
 ## Design work
 
-Size, edge weight and security type on the canvas, against the band treatment
-6.3 established — because the question is not whether each works but whether all
-of them work **at once**.
+Edge weight only, on the canvas, against the band treatment 6.3 established
+and the membership-edge kind-stroke 6.1 established — because the question
+is not whether the new treatment works but whether it stays distinguishable
+from both of the treatments already there. Node size and a landmark
+treatment are both refused per the Open Decisions above, so neither needs a
+canvas page.
 
 ## Out of scope
 
-Live updates (6.7), filtering (6.8).
+Node size (refused, Open Decision 1). A landmark treatment beyond shape
+(refused, Open Decision 2). The `Intensity` encoding (Story 6.7). Edge
+hover, selection, readout and keyboard reach (Story 6.8). Live updates
+(6.7). Filtering (6.8).
 
 ## Handed here by Story 6.2's close — 2026-11-01: the memo trigger this story may fire, and the annulus it has to share
 
