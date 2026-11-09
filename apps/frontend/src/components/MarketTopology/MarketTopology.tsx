@@ -1535,8 +1535,14 @@ function topologyCorrelationClause(
       const measuredPopulation = pass.computedPairs.toLocaleString("en-US");
 
       if (measured.length === 0) {
+        // **`related closely enough` rather than `moved together closely
+        // enough`** (Task 6.6.1), for the same reason the drawn branch below
+        // changed: the pass retains on `|r|` through a Fisher-z interval, so
+        // the thing it measures is the strength of a relationship and not its
+        // direction. `together` would be the wrong word for a pair that moved
+        // oppositely and was kept for it.
         return (
-          ` No pair of securities moved together closely enough to draw:` +
+          ` No pair of securities was related closely enough to draw:` +
           ` ${measuredPopulation} pairs were measured over` +
           ` ${sessions} and none was kept.`
         );
@@ -1558,8 +1564,34 @@ function topologyCorrelationClause(
       // retained correlation does not read "1 pairs" to a listener.
       const drawnNoun = measured.length === 1 ? "pair" : "pairs";
 
+      // **`Securities whose movements are measurably related` rather than
+      // `Securities that moved together`** (Task 6.6.1, a real wording defect
+      // found by counting the sign). The old clause made a universal
+      // directional claim and the real retained set falsifies it: the one
+      // negative pair on the one store this has been measured against —
+      // `AES`/`ERIE` at `r = −0.105952`, 1 of 1,860 — moved **oppositely**,
+      // and is joined by exactly the same edge. The pass retains on `|r|`, so
+      // *related* is what the measurement supports and *together* is a
+      // direction nothing on this canvas encodes. Sign is deliberately not a
+      // channel (`edge-strength.ts` carries that decision and its count), so
+      // the sentence must not supply one in words either.
+      //
+      // **And the strength encoding gets its non-visual half here**, in words
+      // and never as a number: *drawn heavier where the relationship is
+      // stronger* is the whole of what `CORRELATION_EDGE_WIDTH`'s three widths
+      // say to a reader who can see them. No coefficient, no band name and no
+      // per-edge figure — a listener cannot point at an edge to ask which one
+      // this is, and a count per class would be three figures about a picture
+      // rather than a fact about the market.
+      //
+      // The closing clause — *with the strongest N kept for each security* —
+      // is Story 6.6's acceptance criterion 5's own requirement and was
+      // already here from Task 6.5.2: the drawn set is a **per-security
+      // selection**, not everything above a threshold, so a listener cannot
+      // infer that an unjoined pair was measured and found weak.
       return (
-        ` Securities that moved together are joined by a dashed edge:` +
+        ` Securities whose movements are measurably related are joined by a` +
+        ` dashed edge, drawn heavier where the relationship is stronger:` +
         ` ${measured.length.toLocaleString("en-US")} ${drawnNoun}, reaching` +
         ` ${reach.size.toLocaleString("en-US")} of the` +
         ` ${equities.toLocaleString("en-US")} equities, from ${measuredPopulation}` +

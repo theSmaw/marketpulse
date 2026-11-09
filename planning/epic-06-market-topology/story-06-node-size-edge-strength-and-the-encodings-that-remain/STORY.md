@@ -308,3 +308,19 @@ the trigger properly, rather than leaving it to fire a third time
 unanswered) — and then the 21.2%-at-390 coverage figure two paragraphs
 above is not a footnote, it is the bound on what the one remaining
 channel (the stroke) can actually show.
+
+**Corrected 2026-11-09 by Task 6.6.1: the 21.2%-at-390 figure is not the
+bound any more, and was already stale the day this hand-off was written.**
+This same task (6.5.4) suppressed the whole correlation batch below
+`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in the same change — so at 390
+(fit scale 0.1639) the layer draws **zero** ink at default zoom, not
+78.8% of it. The real bound on the stroke channel today is **at 1440**,
+the only width that clears 0.38 at default zoom: `CORRELATION_EDGE_
+CLEARANCE_SHARE`'s own table (above) already states it — **0 of 1,860
+covered there**, so the stroke channel is unbounded by node-coverage at
+the width a reader actually meets it by default. A reader who zooms past
+`effectiveScale ≈ 0.38` at a narrow width re-enters the layer with
+`nodeScale` already clamped to its 1.5 ceiling, where the node bodies
+are at their largest and the real coverage share has never been
+measured — named rather than taken here, since this story's own subject
+is the stroke encoding and not a second crowding instrument.

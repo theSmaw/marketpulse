@@ -2113,7 +2113,7 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
 
     const text = sentence().textContent;
 
-    expect(text).toContain("No pair of securities moved together closely");
+    expect(text).toContain("No pair of securities was related closely");
     // The PRODUCER's population, not a count of what survived to the screen.
     expect(text).toContain("122,760 pairs were measured over 60 trading");
     expect(text).not.toContain("has not been measured here");
@@ -2193,7 +2193,9 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
     );
 
     const text = sentence().textContent;
-    const clause = text.slice(text.indexOf("Securities that moved together"));
+    const clause = text.slice(
+      text.indexOf("Securities whose movements are measurably related"),
+    );
 
     expect(clause).not.toContain("AAPL");
     expect(clause).not.toContain("MSFT");
@@ -2215,6 +2217,99 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
     );
 
     expect(sentence().textContent).toContain("1 pair, reaching 2 of the");
+  });
+
+  /**
+   * **Task 6.6.1, and it is a real wording defect rather than a style
+   * preference.** The clause said *Securities that moved together*, which is a
+   * universal directional claim the data falsifies: the real retained set
+   * holds one negatively-correlated pair (`AES`/`ERIE`, `r = −0.105952`, 1 of
+   * 1,860) that moved **oppositely** and is joined by exactly the same edge.
+   * The pass retains on `|r|`, so the sentence may claim a relationship and
+   * must not claim a direction — and `together`, `in the same direction` and
+   * `in step` all do.
+   */
+  it("claims a relationship rather than a direction, for every drawn pair", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([
+          // Both signs present, which is the whole point: one sentence covers
+          // the pair that rose together and the pair that did not.
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.9 },
+          { low: toTicker("AAPL"), high: toTicker("NVDA"), r: -0.6 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+
+    expect(text).toContain(
+      "Securities whose movements are measurably related are joined by a dashed edge",
+    );
+    expect(text).toContain("2 pairs, reaching 3 of the");
+
+    for (const direction of [
+      "moved together",
+      "move together are",
+      "same direction",
+      "in step",
+      "opposite",
+    ]) {
+      expect(text).not.toContain(direction);
+    }
+  });
+
+  /**
+   * **AC 3's non-visual half for the strength encoding** (Task 6.6.1): a
+   * weight drawn as a stroke width is invisible to a listener unless the
+   * sentence says it exists. In **words** and never as a number — no
+   * coefficient, no class name, no count per class: a listener cannot point at
+   * one edge to ask which it is, so a per-class figure would be three facts
+   * about the picture rather than one about the market.
+   */
+  it("states the strength encoding in words, and no coefficient anywhere", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.9 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+
+    expect(text).toContain("drawn heavier where the relationship is stronger");
+    // The floors, the coefficient and the class vocabulary all stay off the
+    // sentence. `0.9` would be this pair's own `r` reaching a listener.
+    for (const figure of ["0.9", "0.4139", "0.5496", "correlation", "r ="]) {
+      expect(text).not.toContain(figure);
+    }
+  });
+
+  /**
+   * AC 5's second half, which was already satisfied by Task 6.5.2's own
+   * closing clause and is asserted here rather than assumed: the drawn set is
+   * a **per-security selection**, so a listener cannot infer that an unjoined
+   * pair was measured and found weak.
+   */
+  it("says the drawn set is a per-security selection, not a threshold", () => {
+    render(
+      <MarketTopology
+        universe={universe()}
+        relationships={measured([
+          { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.9 },
+        ])}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(sentence().textContent).toContain(
+      "with the strongest 5 kept for each security",
+    );
   });
 
   it("names the gap when the measurement could not be read, and keeps the graph", () => {

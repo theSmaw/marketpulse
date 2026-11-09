@@ -6219,7 +6219,7 @@ Story 6.7 (live updates, which would make the re-mount recur rather than
 fire once) are the likely next candidates, and either should take this
 figure rather than add to an unmeasured baseline.
 
-## A specific e2e test has now failed five times across two machines, and no rate is claimable from five points
+## A specific e2e test has now failed six times across two machines, and no rate is claimable from six points
 
 **Added 2026-11-07 by Task 6.5.4, amended the same day with a fifth
 occurrence.** `overview-degraded-grid.spec.ts`'s "nine surfaces, every
@@ -6251,16 +6251,31 @@ surface as either a dead navigation or a socket/render race depending on
 which stall wins, and both are symptoms this spec's own length and
 breadth make it the likeliest one to hit.
 
-**Still not a measured rate, and still not attributed to this story's own
-diff.** Nothing in Story 6.5 touches this spec, the overview aggregate,
-breadth, movers, or the socket, and the one-worker control clears it
-every time, on every symptom seen so far. Five points is still far short
-of a measured rate (this repository's own standing rule: the floor for
-separating a flake from a regression is n = 24 on one checkout), but five
-is enough to say the rate is not negligible on a loaded machine, and that
-this is the longest spec in the suite (the likeliest one to lose a race
-against Vite's on-demand transform, or against the live feed's own
-socket, under contention).
+**The sixth occurrence, 2026-11-09 on PR #666's CI run, is a THIRD distinct
+symptom shape.** At 1440 px this time (not 768/390), on a row-pairing
+assertion rather than a `goto` timeout or a content race: the
+`06-session-rejoined-after-the-bell` row's `Market topology` sentence was
+missing its `"Nothing has been scored yet, so no security is drawn as
+calm — every one is unscored."` clause against the expected reading, which
+the test takes from a sibling row in the same run. Re-run locally,
+`--workers=1`, load read before (4.28/3.45/4.44), passed clean in 37.4 s —
+the same control, the same result, a third time over a third kind of
+symptom. Task 6.6.1's own diff touches the correlation batch and the
+accessible sentence's correlation clause only; the missing clause is the
+anomaly-band one, in a file this task did not change.
+
+**Still not a measured rate, and still not attributed to any one story's
+diff.** Nothing in Story 6.6 touches the overview aggregate, breadth,
+movers, the socket, or the anomaly-band scoring pass, and the one-worker
+control has now cleared it six times out of six, across three different
+concrete symptoms (a dead navigation, a live-feed content race, and a
+cross-row sentence mismatch). Six points is still short of a measured
+rate (this repository's own standing rule: the floor for separating a
+flake from a regression is n = 24 on one checkout), but the growing
+variety of symptoms strengthens rather than weakens the contention
+reading — one cause (resource exhaustion under default parallelism on
+the longest spec in the suite) can plausibly surface as any of several
+different stalls depending on which race loses.
 
 **Not mechanisable as a check** — it is a property of machine contention
 under a specific test runner configuration, not of the product.
@@ -6272,5 +6287,44 @@ continuing to treat each occurrence as news.
 
 **Owner: the first task that needs to cite a flake rate for this spec
 rather than re-run past one** — until then, the correct response to a red
-run of this specific test is the one already taken four times: a
+run of this specific test is the one already taken five times: a
 one-worker control, not a re-run at the same concurrency.
+
+## A real performance cost of the correlation-strength encoding exists only on software-rendered Canvas2D, and no gate can see it
+
+**Added 2026-11-09 by Task 6.6.1.** Drawing correlation edges at three
+quantised stroke widths (weak/moderate/strong, one `stroke()` call per
+class rather than one for the whole batch) was measured twice, on the
+same test harness, with opposite results. Headless Chromium — this
+harness's default, software rendering via `ANGLE (Google, Vulkan 1.3.0
+(SwiftShader Device …))`, the same GPU Story 6.5.3's own frame-rate
+baseline was taken on — showed a real, reproducible regression: rAF-gap
+p95 **50.1–50.9 ms** (against the pre-task baseline's 18.2–18.3 ms), 14–23
+of ~210 frames over 50 ms, and **48 `longtask` entries across 48 frames
+drawn** — one on every single frame. The interleaved `membership` arm,
+untouched by this task, stayed clean in the same runs (p95 17.3–17.5 ms,
+0 over 50 ms, 0 `longtask`), which is what makes the regression
+attributable rather than machine noise. Re-taken with `--headed` on a
+real GPU (`ANGLE (Apple, ANGLE Metal Renderer: Apple M3, …)` — the same
+hardware ADR 0048's own original renderer bake-off used): **no
+regression** — p95 17.5–17.6 ms, 0–1 of ~170 frames over 50 ms, 0
+`longtask` entries, matching the pre-task baseline almost exactly.
+
+**Not mechanisable, structurally.** Neither `pnpm verify` nor `pnpm e2e`
+launches Chromium with real GPU acceleration — this harness's own instrument
+needs the explicit `--headed` flag and a machine with one, which CI does
+not have. So the one channel that shows this mechanism's real cost is
+permanently invisible to every gated run, and the one channel every gated
+run CAN see (headless/software) shows a cost that does not reflect what an
+actual reader's browser does. A future change to this same drawing loop
+that regresses ONLY under software rendering — symmetrically possible —
+would be equally invisible.
+
+**Re-measure**: `node scripts/topology-instrument.mjs --headed`, two
+interleaved runs, load read before each, compared against this entry's own
+figures.
+
+**Owner: the same future rehearsal/sitting that owns watching the deployed
+correlation edges for the first time (Story 6.9)** — a person on a real
+machine with a real GPU is the only verification this mechanism's actual
+cost has ever had or can mechanically have.

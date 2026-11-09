@@ -6286,6 +6286,60 @@ export const BREAKS = [
     expect: "no-second-affordance-on-a-topology-node",
   },
   {
+    name: "a-statistic-recomputed-over-the-correlation-weights",
+    proves:
+      "`nothing-under-the-topology-recomputes-a-correlation` goes red on a " +
+      "second reader of `TopologyCorrelationEdge.weight` appearing under " +
+      "`apps/frontend/src/topology/` — Story 6.6's acceptance criterion 5, " +
+      "*edge strength is drawn from the stored weight and nothing else is " +
+      "recomputed in the renderer*.\n\n" +
+      "**The plant is this story's own temptation rather than an " +
+      "absurdity.** Story 6.6's first Open Decision is *size a node by " +
+      "what?*, settled as **refuse** — and the nearest thing to a quantity " +
+      "this renderer already holds is the weights of a node's own edges. " +
+      "The planted line is the first half of exactly that: collect the " +
+      "measured magnitudes in the renderer, which is where a mean, a max or " +
+      "a renormalisation against the batch's own extremes would then be " +
+      "taken. Nothing else would catch it: `tsc` is happy with an " +
+      "arithmetic mean of 1,860 coefficients, `pnpm lint` has no opinion " +
+      "about one, and a test over today's fixtures is green either way, " +
+      "because a recomputed statistic produces a number and a number drawn " +
+      "in a stroke width looks exactly as deliberate as the right one.\n\n" +
+      "**It plants in the renderer rather than in the reader, on purpose**, " +
+      "because the corpus conjunct is the load-bearing half: the check is a " +
+      "COUNT of files that can see the field, and a check written only " +
+      "about `edge-strength.ts` would be green on the file a later story " +
+      "writes. The other two conjuncts were proved by hand at Task 6.6.1 " +
+      "and both went red on the clause they were written for: a " +
+      "`batch.reduce((total, each) => total + Math.abs(each), 0)` inside " +
+      "`correlationStrength` reported `edge-strength.ts:185 (\\`.reduce(\\`)` " +
+      "from the arithmetic clause, and replacing `Math.abs(weight)` with a " +
+      "constant reported the POSITIVE anchor instead — *nothing under this " +
+      "tree reads the model's weight at all*, which is what this tree was " +
+      "between 2026-11-06, when the field shipped, and 2026-11-09, when " +
+      "this task first read it. A ban on recomputing a correlation is worth " +
+      "nothing over a tree that draws none.\n\n" +
+      "**The substitution KEEPS the found line and appends beside it**, " +
+      "which is `CLAUDE.md`'s own rule after a hand-performed break deleted " +
+      "its own `find` text and went red twice from neither the check nor " +
+      "the plant. And the plant deliberately spells the absent branch `: 0` " +
+      "rather than `?? 0`: a `?? 0` here trips " +
+      "`no-imputed-zero-in-a-figure` as well, and two reds from two checks " +
+      "read exactly like a thorough proof while establishing nothing about " +
+      "either.",
+    file: "apps/frontend/src/topology/renderer-canvas.ts",
+    find: "  const correlation: DrawableEdge[] = [];",
+    replace:
+      "  const correlation: DrawableEdge[] = [];\n" +
+      "\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const measuredWeights = graph.edges.map((edge) =>\n" +
+      '    edge.kind === "return_correlation" ? Math.abs(edge.weight) : 0,\n' +
+      "  );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "nothing-under-the-topology-recomputes-a-correlation",
+  },
+  {
     name: "the-strongest-n-keeps-the-weakest",
     proves:
       "`selectStrongestCorrelations` keeps the union of each node's " +

@@ -11,21 +11,25 @@
  *
  * ## Eight draw calls a frame, whatever the universe does
  *
- * **Nine since 2026-11-06 (Task 6.5.2), and only on a store that has run the
- * nightly correlation pass** — the ninth is one more `stroke()`, for however
- * many measured edges that pass retained (1,860 on the one store it has been
- * measured against). The count is unchanged on CI and on every laptop before
- * the first `pnpm baselines`, where the array is empty and the branch is not
- * entered. The heading is left as it was written because the claim it is
- * making — *whatever the universe does* — is the one that still holds: a batch
- * is a batch whether it accumulates 11 subpaths or 1,860.
+ * **Nine since 2026-11-06 (Task 6.5.2), and ELEVEN since 2026-11-09 (Task
+ * 6.6.1), on a store that has run the nightly correlation pass** — the
+ * measured edges are now **three** dashed `stroke()` calls rather than one,
+ * one per strength class, because `lineWidth` is a property of the context and
+ * a weight encoding spent on width cannot share a path with a different
+ * weight. Three is a constant: `k` classes, not `n` edges, however many pairs
+ * that pass retains (1,860 on the one store it has been measured against). The
+ * count is unchanged on CI and on every laptop before the first
+ * `pnpm baselines`, where the arrays are empty and the branch is not entered.
+ * The heading is left as it was written because the claim it is making —
+ * *whatever the universe does* — is the one that still holds: a batch is a
+ * batch whether it accumulates 11 subpaths or 620.
  *
  * The whole frame is:
  *
  *   1. one `stroke()` for the 501 membership edges,
  *   2. one `stroke()` for the eleven hub edges,
- *   2b. one dashed `stroke()` for the measured correlation edges, where a
- *       store has any,
+ *   2b. three dashed `stroke()` calls for the measured correlation edges —
+ *       one per {@link CORRELATION_EDGE_WIDTH} class — where a store has any,
  *   3–8. one `stroke()` (the halo) and one `fill()` (the ink) for each of the
  *        three node kinds,
  *   then fifteen `fillText()` calls for the eleven sector labels, the three
@@ -56,6 +60,8 @@ import type {
 } from "@marketpulse/shared";
 
 import { isTopologyClick } from "./click-gesture.js";
+import { CORRELATION_EDGE_WIDTH, edgeStrength } from "./edge-strength.js";
+import type { TopologyCorrelationStrength } from "./edge-strength.js";
 import {
   clampNodeScale,
   fitView,
@@ -460,6 +466,19 @@ interface DrawableEdge {
   readonly toY: number;
   readonly fromInk: number;
   readonly toInk: number;
+  /**
+   * Which of {@link CORRELATION_EDGE_WIDTH}'s three widths this edge strokes
+   * at, or `null` for the two curated kinds, which carry no weight at all
+   * (Task 6.6.1).
+   *
+   * **The CLASS and not the coefficient**, deliberately: a `DrawableEdge`
+   * holding an `r` would be a second home for the model's own weight, and the
+   * one thing the draw loop needs is which of three batches this segment joins.
+   * Classified once at mount, where `fromInk`/`toInk` are already resolved, so
+   * no frame pays for a comparison whose answer cannot change — the weight
+   * arrives once with the graph and nothing updates it at feed cadence.
+   */
+  readonly strength: TopologyCorrelationStrength | null;
 }
 
 /** A label drawn at a world point. */
@@ -690,6 +709,23 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    */
   const correlation: DrawableEdge[] = [];
 
+  /**
+   * **The measured edges again, split by the width they stroke at** (Task
+   * 6.6.1) — the same array as {@link correlation}, partitioned once at mount
+   * so the draw loop is `k` batches rather than a per-frame `filter` over
+   * 1,860 edges. The partition is here rather than in the frame for the same
+   * reason the class itself is: nothing about an edge's weight changes after
+   * the graph arrives.
+   *
+   * An insertion-ordered record rather than three named arrays, so the draw
+   * loop walks it with `Object.entries` and a fourth class is one entry in
+   * `CORRELATION_EDGE_WIDTH` plus one here rather than a fourth block.
+   */
+  const correlationByStrength: Record<
+    TopologyCorrelationStrength,
+    DrawableEdge[]
+  > = { weak: [], moderate: [], strong: [] };
+
   for (const edge of graph.edges) {
     const from = placements.get(edge.from);
     const to = placements.get(edge.to);
@@ -702,6 +738,13 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       toY: to.y,
       fromInk: inkOf.get(edge.from) ?? TOPOLOGY_NODE_INK.equity,
       toInk: inkOf.get(edge.to) ?? TOPOLOGY_NODE_INK.equity,
+      // **The one read of the model's weight in this whole tree**, and it is a
+      // classification rather than a calculation: `edgeStrength` compares a
+      // stored coefficient's magnitude against two stored floors and answers
+      // `null` for the two curated kinds, which structurally have no weight to
+      // read. Story 6.6's acceptance criterion 5, held by
+      // `pnpm invariants`' `nothing-under-the-topology-recomputes-a-correlation`.
+      strength: edgeStrength(edge),
     };
 
     // An exhaustive switch rather than an `if`/`else`, so a fourth edge kind
@@ -716,6 +759,12 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         break;
       case "return_correlation":
         correlation.push(drawable);
+        // `?? "weak"` is unreachable — `edgeStrength` answers a class for
+        // exactly this kind — and is here rather than a non-null assertion
+        // because the floor is the right default if it ever were reached: an
+        // edge drawn at today's shipped stroke, never one dropped from the
+        // frame.
+        correlationByStrength[drawable.strength ?? "weak"].push(drawable);
         break;
       default: {
         // A throw here is caught by `MarketTopology`'s own mount `try` and
@@ -1241,59 +1290,89 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       correlation.length > 0 &&
       effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE
     ) {
-      context.beginPath();
       context.strokeStyle = palette.correlationEdge;
       // Spread rather than passed by reference: `setLineDash` takes a mutable
       // `number[]`, and handing it the module constant would publish it to
       // anything that decided to sort or splice its argument.
       context.setLineDash([...CORRELATION_EDGE_DASH]);
 
-      for (const edge of correlation) {
-        const from = worldToScreen(view, edge.fromX, edge.fromY);
-        const to = worldToScreen(view, edge.toX, edge.toY);
+      // **One batch per strength class since 2026-11-09 (Task 6.6.1), where
+      // this was one batch for the whole set.** `lineWidth` is a property of
+      // the CONTEXT rather than of a subpath, so a width per edge would mean
+      // 1,860 `stroke()` calls a frame — which is why the encoding is
+      // quantised to three classes and the cost is `k` calls whatever the
+      // retained count does. The batches are built at mount, so a frame pays
+      // for no classification and no partition: the loop below is the same
+      // loop Task 6.5.2 shipped, run three times over disjoint thirds of the
+      // same array.
+      //
+      // **The colour does not change between them.** `palette.correlationEdge`
+      // (`--chart-seam`) strokes every class; width is the whole channel, and
+      // a second value step would put this layer's own weakest edge below the
+      // membership hairline it already sits above. Which is also what makes
+      // the encoding survive `grayscale(1)` — there is no hue in it to lose.
+      //
+      // Drawn **weakest first**, so where two segments cross the heavier
+      // relationship is the one on top. Nothing depends on it, and it is the
+      // right default for a picture whose subject is which relationship is
+      // stronger.
+      for (const [strength, edges] of Object.entries(correlationByStrength)) {
+        if (edges.length === 0) continue;
 
-        const dx = to.x - from.x;
-        const dy = to.y - from.y;
-        const length = Math.hypot(dx, dy);
+        context.lineWidth =
+          CORRELATION_EDGE_WIDTH[strength as TopologyCorrelationStrength];
+        context.beginPath();
 
-        // A zero-length segment has no direction to shorten along. It is
-        // unreachable — `withCorrelationEdges` drops a self-pair and the
-        // layout gives no two nodes one point — and the guard is here because
-        // the division below is the one place that would produce `NaN`
-        // coordinates rather than a visible defect.
-        if (length === 0) continue;
+        for (const edge of edges) {
+          const from = worldToScreen(view, edge.fromX, edge.fromY);
+          const to = worldToScreen(view, edge.toX, edge.toY);
 
-        const wanted =
-          (edge.fromInk * nodeScale) / 2 +
-          (edge.toInk * nodeScale) / 2 +
-          EDGE_END_CLEARANCE * 2;
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const length = Math.hypot(dx, dy);
 
-        // **Clamped, never dropped.** `factor` is 1 for every segment with
-        // room for the full clearance, so a long correlation edge ends exactly
-        // where a membership edge would.
-        const factor = Math.min(
-          1,
-          (length * CORRELATION_EDGE_CLEARANCE_SHARE) / wanted,
-        );
+          // A zero-length segment has no direction to shorten along. It is
+          // unreachable — `withCorrelationEdges` drops a self-pair and the
+          // layout gives no two nodes one point — and the guard is here
+          // because the division below is the one place that would produce
+          // `NaN` coordinates rather than a visible defect.
+          if (length === 0) continue;
 
-        const head =
-          ((edge.fromInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
-        const tail =
-          ((edge.toInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
+          const wanted =
+            (edge.fromInk * nodeScale) / 2 +
+            (edge.toInk * nodeScale) / 2 +
+            EDGE_END_CLEARANCE * 2;
 
-        const ux = dx / length;
-        const uy = dy / length;
+          // **Clamped, never dropped.** `factor` is 1 for every segment with
+          // room for the full clearance, so a long correlation edge ends
+          // exactly where a membership edge would.
+          const factor = Math.min(
+            1,
+            (length * CORRELATION_EDGE_CLEARANCE_SHARE) / wanted,
+          );
 
-        context.moveTo(from.x + ux * head, from.y + uy * head);
-        context.lineTo(to.x - ux * tail, to.y - uy * tail);
+          const head =
+            ((edge.fromInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
+          const tail =
+            ((edge.toInk * nodeScale) / 2 + EDGE_END_CLEARANCE) * factor;
+
+          const ux = dx / length;
+          const uy = dy / length;
+
+          context.moveTo(from.x + ux * head, from.y + uy * head);
+          context.lineTo(to.x - ux * tail, to.y - uy * tail);
+        }
+
+        context.stroke();
       }
 
-      context.stroke();
       // **Reset before anything else strokes.** Every later pass in this frame
       // — four node bodies, the `unscored` outline, two anomaly rings, two
       // focus rings — shares this context, and a dash left set would put a
       // rhythm on every one of them. The defect that would produce is a
-      // dashed node outline nothing in this file asks for.
+      // dashed node outline nothing in this file asks for. `lineWidth` needs
+      // no reset for the same reason it never did: the body pass below sets
+      // its own, as every pass after it does.
       context.setLineDash([]);
     }
 
