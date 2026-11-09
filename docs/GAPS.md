@@ -6328,3 +6328,58 @@ figures.
 correlation edges for the first time (Story 6.9)** — a person on a real
 machine with a real GPU is the only verification this mechanism's actual
 cost has ever had or can mechanically have.
+
+## The eleven sector benchmark ETFs draw as unlabelled squares at three of the four widths this product tests, exactly where Story 6.6's own Open Decision 2 called them the most important nodes on the screen
+
+**Added 2026-11-09 by Task 6.6.2, found while answering Story 6.6's Open
+Decision 2 (whether the fifteen non-equity landmark nodes get a treatment
+beyond the shape they already have).** The decision's own framing named
+the eleven sector ETFs and four market proxies "the anchors of every ETF
+edge and arguably the most important nodes on the screen" — and a
+measurement taken while answering it found that the thing that would let
+a reader identify WHICH anchor each square is, its sector label, does not
+draw at three of the four widths this product tests.
+
+**The mechanism is `TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38`
+(`renderer-canvas.ts`), Task 6.2.2's own decision 8: below that fit scale
+a sector name does not draw at all, because no ring shape clears the
+longest one (`CONSUMER DISCRETIONARY`, 163 px) at every box this layout
+is fitted into.** It is a deliberate, already-accepted trade-off, not a
+new defect — but nobody had previously stated it specifically in terms of
+the eleven named landmark squares it leaves nameless. The real fit scales
+at `/`'s four tested widths put only one of them above the threshold:
+**1440 clears it (~0.45–0.46); 1024 (~0.30), 768 (~0.36) and 390 (~0.16)
+do not** — so at three of four widths, every sector ETF on screen is an
+unlabelled square among a cluster of unlabelled circles, distinguishable
+from its own equities only by size (10px against 8px) and fill token.
+
+**Why this is a labelling problem rather than an encoding one, and why
+Story 6.6 did not fix it.** Open Decision 2 asked whether the landmarks
+need a NEW visual treatment (a ring, a second shape, a value step) to
+read as more important than an ordinary node — and the answer there was
+no, because they already carry five separating channels (shape, size,
+fill token, being the only labelled nodes on the resting canvas, and
+edge topology) and a sixth would over-decorate the clearest things on
+screen. The finding here is different: the channel they already have —
+the label — is the one that is silently absent at most widths, which no
+new node-level treatment would fix. A reader who already knows the
+colour wheel of sectors could still infer `XLK` from its position and
+member cluster; a reader who does not has no way to ask which square is
+Technology without a label.
+
+**Not mechanisable as a `pnpm invariants` check** — this is a question
+about whether a fit scale clears a threshold on a real layout at a real
+viewport, which is exactly what `pnpm probe` answers and a grep cannot.
+
+**Re-measure**: `pnpm probe / --within "Market topology" --widths
+1440,1024,768,390` and read the resolved content box against
+`TOPOLOGY_FIT_MARGIN` to re-derive the four fit scales, comparing each
+against `TOPOLOGY_SECTOR_LABEL_MIN_SCALE`.
+
+**Owner: a future labelling-specific task** — candidates are a label
+treatment reserved for the fifteen landmarks specifically (a much smaller
+geometry problem than the 501-equity case Task 6.2.2's own trigger
+describes, since fifteen nodes at known ring positions rather than 501 at
+arbitrary ones might clear the same longest-name constraint differently),
+or accepting the trade-off as stated and relying on a reader's own
+positional memory. Neither is decided here.

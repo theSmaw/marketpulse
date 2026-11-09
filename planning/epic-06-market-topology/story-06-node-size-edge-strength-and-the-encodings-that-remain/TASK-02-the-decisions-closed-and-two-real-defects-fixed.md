@@ -1,6 +1,6 @@
 # Task 6.6.2 — The decisions closed, and two real defects fixed
 
-**Status:** Not started
+**Status:** Complete — 2026-11-09, both Open Decisions and two escalated questions propagated into Story 6.7's and Story 6.8's own STORY.md files; AC6 closed in the epic record; a pre-existing wrong clearance-arithmetic docblock corrected (1.25px claimed, 0.00px real); a new docs/GAPS.md entry for the eleven unlabelled sector ETFs at three of four tested widths
 **Story:** [6.6 Node Size, Edge Strength, & the Encodings That Remain](STORY.md)
 **Depends on:** nothing in this story (can run alongside 6.6.1)
 
@@ -75,3 +75,83 @@ documentation/arithmetic corrections.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
+
+---
+
+## What was done — 2026-11-09
+
+All six work items completed directly (this is a documentation and
+decision-closing task; the one code touch is a comment-only docblock
+correction, so no developer agent was needed).
+
+**Open Decisions 1 and 2, and the two escalated questions (Intensity,
+edge affordance)** were already recorded in `STORY.md` at Gate 1 with
+their reasoning and reversal triggers; this task's job was propagating
+them sideways rather than re-deciding anything.
+
+**Story 6.7's own `STORY.md`** gained a new "Handed here by Task 6.6.2"
+section: §10's `Intensity` (current price movement) encoding, why it
+collided with Story 6.3's band ramp and was not taken in 6.6, why 6.7's
+own subject (live movement) makes it the natural owner, and what already
+exists (`Movers`/`Unusual activity`) that 6.7's own shaping should weigh
+before deciding whether a node-level treatment is additive or a third
+home for one fact. Left genuinely open — not a decision already taken.
+
+**Story 6.8's own `STORY.md`** gained a new "Handed here by Task 6.6.2"
+section carrying Task 6.5.2's three original edge-affordance questions
+verbatim (hoverable? what does the plate say? keyboard-reachable?), the
+measurements already taken (the 0.0 px crowding figure in `TECHNOLOGY` at
+390, the plate's five reserved line slots, `n`'s deliberate absence from
+the model, the CI-absent nightly-changing correlation set problem for a
+keyboard walk), and why this story is the right next owner (its own Open
+Decision 1 already names correlation strength as a candidate filter).
+
+**AC6 closed** — `TOPOLOGY.md` §3 gained a paragraph stating the shape
+ladder (circle/square/diamond) IS §10's `shape/icon` encoding, taken by
+Story 6.2 on 2026-11-01, closing it in writing for the first time; the
+same paragraph states where all five of §10's node encodings now stand
+(cluster: 6.2, shape/icon: 6.2, border: 6.3, size: refused by 6.6, intensity:
+handed to 6.7).
+
+**The clearance-arithmetic defect, found and corrected.** Verified
+independently against the actual draw code rather than trusting the
+original docblock's claim: every stroke width in `renderer-canvas.ts` is
+set as a bare constant (`context.lineWidth = FOCUS_RING_WIDTH`,
+`context.lineWidth = width` for the anomaly ring) — **never multiplied by
+`nodeScale`** — while the RADII do scale. The original docblock treated
+both as scaling together, halving 2.5 px to claim a 1.25 px worst-case
+clearance at the zoom floor. The real arithmetic: at `nodeScale = 0.5`,
+the `extreme` ring's outer edge is `6 × 0.5 + 1.5 = 4.5` and the focus
+ring's inner edge is `11 × 0.5 − 1 = 4.5` — **clearance 0.00 px, the two
+rings already abut exactly**, independent of anything this story does.
+Corrected in the docblock itself with the derivation shown.
+
+**`docs/GAPS.md`** gained the unlabelled-sector-ETF entry: at three of
+four tested widths (1024/768/390, all below `TOPOLOGY_SECTOR_LABEL_MIN_
+SCALE = 0.38`), the eleven sector benchmark ETFs draw as unlabelled
+squares — a sharper framing of Task 6.2.2's own already-accepted
+trade-off, found while answering Open Decision 2, owned by a future
+labelling-specific task rather than fixed here with a new node encoding.
+
+### Gates
+
+- `pnpm typecheck`: green (one file touched, comment-only).
+- `pnpm lint`: green.
+- `pnpm build`: green, `82 invariants hold` (unchanged — this task adds
+  no new invariant).
+- `pnpm links`: `641 documents, 2019 cross-file links, 0 broken`.
+
+## For a stakeholder — a status report, 2026-11-09
+
+This task closed the paperwork half of Story 6.6: both Open Decisions
+and two further questions found during Gate 1 shaping are now written
+into the exact documents that need to act on them (Story 6.7's and
+Story 6.8's own files), not just recorded in Story 6.6's own. One
+long-standing documentation defect was found and fixed — a docblock had
+been claiming a focus-ring clearance figure that the renderer's own code
+does not actually produce (1.25px claimed, 0.00px real, meaning two
+rings already touch exactly at the narrowest zoom, independent of
+anything this story shipped). One new, real, measured finding was added
+to the gaps ledger: the eleven sector ETFs are nameless squares at most
+widths this product tests, found while confirming they don't need a
+new visual treatment. No code behaviour changed.

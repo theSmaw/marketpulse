@@ -288,10 +288,26 @@ const FOCUS_RING_OFFSET = 2;
  *
  * * **Story 6.3's `extreme` ring** — the widest band, centred at
  *   `ink/2 + ANOMALY_RING_OFFSET` = 6 with a 3 px stroke, so its outer edge is
- *   **7.5**. The gap to this ring's inner edge is **2.5 px at zoom 1**, and
- *   both scale with `nodeScale`, so the worst case is the zoom floor (0.5) at
- *   **1.25 px**. Checked on screen rather than left as arithmetic — Task
- *   6.4.3's own probe, which photographs a focused node at 8×.
+ *   **7.5**. The gap to this ring's inner edge is **2.5 px at zoom 1**.
+ *   **Corrected 2026-11-09 by Task 6.6.2: only the RADII scale with
+ *   `nodeScale`, not the strokes** — every stroke width in this renderer is
+ *   set as a bare constant (`context.lineWidth = FOCUS_RING_WIDTH`,
+ *   `context.lineWidth = width` for the anomaly ring), per the edge/halo/
+ *   label rule `renderer.ts` §09 states and this file's own stroke-setting
+ *   call sites confirm. So the worst case is NOT the two clearances shrinking
+ *   together in proportion — it is the radii closing while the strokes stay
+ *   the same width they always are. At the zoom floor (`nodeScale = 0.5`):
+ *   the `extreme` ring's outer edge is `6 × 0.5 + 1.5` = **4.5**, the focus
+ *   ring's inner edge is `11 × 0.5 − 1` = **4.5**, and the real clearance is
+ *   **0.00 px — the two rings already abut exactly**, independent of
+ *   anything Story 6.6 does. The original claim of 1.25 px treated the
+ *   stroke as though it scaled too (halving 2.5 px), which this renderer's
+ *   own code does not do. Not re-checked on screen at 8× before this
+ *   correction, because the arithmetic above is derived from the same
+ *   constants the renderer actually reads rather than argued independently
+ *   of them — Task 6.4.3's own probe crop was taken at zoom 1, where 2.5 px
+ *   is and remains the right figure, so it never exercised the zoom floor
+ *   this docblock's own prose was wrong about.
  * * **The node's own halo**, 1 px outside the ink: nowhere near.
  * * **The selection ground disc**, radius {@link SELECTION_GROUND_RADIUS} = 12
  *   with a 1 px halo stroke straddling it (11.5 → 12.5). This ring's outer
