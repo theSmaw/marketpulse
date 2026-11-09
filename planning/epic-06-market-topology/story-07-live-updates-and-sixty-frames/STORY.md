@@ -121,3 +121,48 @@ live-update treatment does NOT need to know the selection, say so
 explicitly and leave the condition unfired for the next story — the
 trigger is a condition, not a deadline, and firing it without a real need
 is the thing Story 6.4's own Gate 1 declined to do.
+
+## Handed here by Task 6.6.2 — 2026-11-09: §10's `Intensity` node encoding, undecided and handed to this story by name
+
+**`PRODUCT_SPEC.md` §10 lists five possible node encodings — size,
+intensity, shape/icon, border, cluster — and Story 6.6 closed four of
+them (size refused, shape/icon confirmed taken by Story 6.2, border is
+Story 6.3's anomaly band, cluster is Story 6.2's).** `Intensity — current
+price movement` is the fifth, and none of Story 6.6's seven acceptance
+criteria covered it; the omission was found during that story's own Gate
+1 shaping and escalated to the Product Owner, who settled it: **this
+story, not Story 6.6, owns the decision.**
+
+**Why it was not taken in Story 6.6.** It would have collided directly
+with Story 6.3's own anomaly-band ring — both are a node-level treatment
+answering "how unusual/how much has this moved," and shipping a second
+one beside it on the same 16-unit footprint, in the same story that was
+also drawing edge strength, would have been a fifth encoding on a screen
+whose own epic ordering says five shipped together makes none of them
+legible (`EPIC.md`'s "6.6 is late on purpose" reasoning).
+
+**Why this story is the right owner.** Its whole subject is live
+movement — "the graph moves on its own" — so a price-intensity treatment
+is a natural extension of whatever motion vocabulary this story already
+builds (the decay-on-arrival rule, the band-colour-change-on-update
+path), rather than a new concept layered on top of a story about static
+encodings.
+
+**What already exists and should be checked before taking this on.**
+`Movers` and `Unusual activity` already answer "which securities moved,
+and by how much" elsewhere on `/` — a reader does not currently lack
+that information, only a spatial/graph-native version of it. Whether that
+makes a node-level intensity treatment genuinely additive, or merely a
+third home for one fact, is this story's own question to answer — not
+assumed either way here.
+
+**What this story does NOT inherit as settled**: whether `Intensity`
+ships at all. The options, as Task 6.6.2 framed them, remain open: take
+it here (with its own channel, distinct from the band ramp — hue is
+spent, so likely a motion/decay treatment rather than a static one,
+which fits this story's subject particularly well); refuse it in
+writing, permanently, on the grounds that `Movers`/`Unusual activity`
+already cover the need; or some other resolution this story's own
+shaping finds. Whichever way it goes, §10's fifth encoding should be
+closed with a one-line record the way Story 6.6 closed `shape/icon`,
+so a future reader does not find it looking perpetually open.

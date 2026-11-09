@@ -140,6 +140,18 @@ that it was unpaid-for at this size.
 kinds (solid membership and hub, both gapped at both ends), four existing
 tokens and zero new ones, zero hue — the resting graph is achromatic by
 decision, leaving the whole amber ramp unspent for Story 6.3's anomaly band.
+
+**This shape ladder is `PRODUCT_SPEC.md` §10's `shape/icon — security
+type` node encoding — taken here, by this story, 2026-11-01 — closed in
+writing by Task 6.6.2 on 2026-11-09 after Story 6.6's own shaping found
+it had never been recorded as such.** §10 names five possible node
+encodings; `cluster` is this story's own wedge allocation, `shape/icon`
+is the ladder above, `border` is Story 6.3's anomaly ring, `size` is
+refused (Story 6.6, Open Decision 1 — a node cannot express "we don't
+know" the way a band's hollow `unscored` state can, and every candidate
+quantity either omits securities or inverts the hierarchy it claims to
+show), and `intensity` (current price movement) is undecided, handed to
+Story 6.7 by name.
 The cluster is drawn **by the edge alone** — no hull, no wash, no per-sector
 palette — for three independent reasons recorded on the canvas, any one
 fatal. No equity is labelled at rest (501 tickers do not fit without a

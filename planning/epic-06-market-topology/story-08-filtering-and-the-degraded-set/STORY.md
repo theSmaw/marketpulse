@@ -69,3 +69,61 @@ honest in every state where it has less to draw than a full market.
 ## Out of scope
 
 The rehearsal, the sweeps and the close (6.9).
+
+## Handed here by Task 6.6.2 — 2026-11-09: whether a correlation edge is an affordance at all, deferred here from Task 6.5.2's own close with the measurements already taken
+
+**Story 6.5 shipped correlation edges as pure ink — not an affordance of
+any kind.** A reader cannot hover, select, or keyboard-reach one, even
+though an edge is a measurement (a signed coefficient, a counted overlap
+`n`, a 60-session window, a tape) a reader might reasonably want to
+interrogate. Task 6.5.2's own close raised three distinct questions about
+this and explicitly declined to answer them; Story 6.6 (which drew edge
+strength into the stroke) was asked whether it wanted to take them and
+declined too, at Gate 1, on the grounds that interaction is a different
+kind of work from encoding and this story already owns what a filtered
+or degraded edge-set looks like — the natural next owner.
+
+**The three questions, unchanged from Task 6.5.2's own wording:**
+
+1. **Is an edge hoverable at all?** `hit-test.ts` answers _which node is
+   under this pointer_ and has no concept of a segment. A point-to-segment
+   test over up to ~1,900 edges is a different cost and a different
+   ambiguity problem from the node test — which is already measured as
+   **contested at 0.0 px** in the `TECHNOLOGY` cluster at 390 (Story 6.4's
+   own hand-off, re-confirmed since by Task 6.5.3 and Task 6.5.4's own
+   probe runs) — and an edge passes _through_ that same crowding, so an
+   edge hit-test inside a dense cluster would be resolving between a node
+   and several edges in the same few pixels.
+2. **If it is, what does the plate say?** The hover/selection readout has
+   **five reserved line slots** and a fixed height (`Movers`' held-row
+   lesson, carried from rows to lines) — an edge's facts (two tickers, a
+   signed coefficient, a counted overlap, a window) do not obviously fit
+   the ticker/name/sector/band shape a node's five slots already hold, and
+   a second plate layout is a second height this region has never needed
+   before.
+3. **Can a keyboard reader reach one?** `walk.ts` is a tree walk over
+   nodes, keyed on ticker. An edge has no position in that tree, and the
+   obvious answer — _from a selected node, walk its own edges_ — would
+   make the walk's own shape depend on the correlation set, which changes
+   **nightly** and is **absent entirely on CI** (this story's own second
+   half, the degraded set, is exactly the surface that has to answer what
+   a keyboard walk does when the thing it would walk does not exist).
+   Story 6.4's own rule that the band must never move a reader's position
+   under their stationary hands applies here with more force.
+
+**What is already true and should not be re-derived.** The edge's own
+weight reaches the renderer (Task 6.6.1) and is spent entirely on the
+stroke; the counted overlap `n` is on the wire (`CorrelationPayload`) but
+**deliberately not on the shared model** (`TopologyCorrelationEdge`),
+because nothing has ever drawn it — carrying it to the model is this
+story's own decision to take, not an oversight to fix blindly.
+
+**Why this story rather than another.** Open Decision 1 above already
+asks _filter by what_, and names correlation strength as a candidate
+("closer to a query than a filter") — a reader who can filter by
+correlation strength but cannot select an individual edge to see its
+own coefficient is a half-finished version of exactly this question.
+Whether this story answers all three edge-affordance questions, some of
+them, or refuses them again (a third refusal, this time with a stated
+reversal trigger rather than a silent deferral) is this story's own
+shaping to do — nothing above is a decision already taken.
