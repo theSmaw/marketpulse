@@ -10798,6 +10798,194 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "nothing-under-the-topology-recomputes-a-correlation",
+    claim:
+      "Edge strength is drawn from the stored `weight` and nothing under " +
+      "`apps/frontend/src/topology/` derives a statistic from it: exactly one " +
+      "file reads the field, `edge-strength.ts`, and that file compares a " +
+      "magnitude against two measured floors and does no arithmetic over the " +
+      "set.",
+    check() {
+      // **Task 6.6.1, Story 6.6's acceptance criterion 5** — *edge strength is
+      // drawn from the stored `weight` and nothing else is recomputed in the
+      // renderer*.
+      //
+      // ## Why this is a check rather than a sentence in a document
+      //
+      // The criterion is a NEGATIVE over a tree, which is the shape nothing
+      // mechanical in this repository could see before: `tsc` is happy with an
+      // arithmetic mean of 1,860 coefficients, `pnpm lint` has no opinion
+      // about one, and a test over today's fixtures is green either way —
+      // because a recomputed statistic produces a number, and a number drawn
+      // in a stroke width looks exactly as deliberate as the right one.
+      //
+      // **And the temptation is this story's own.** Story 6.6's first Open
+      // Decision is *size a node by what?*, settled as **refuse** — and the
+      // nearest thing to a quantity this renderer already holds is a node's
+      // own edge weights. A mean, a sum or a max over them is a statistic
+      // computed in a renderer over a selection (`retainedN = 5` per node)
+      // that was never a sample of anything, and it would be invariant 1's own
+      // prohibition — *every number a user sees comes from deterministic code
+      // in the tool layer* — broken at the far end of the wire. The same shape
+      // would arrive from renormalising the drawn widths against the batch's
+      // own min and max, which reads as a reasonable scaling and is a second,
+      // undocumented, per-frame distribution over the one the nightly pass
+      // measured.
+      //
+      // ## The clause a re-implementer cannot avoid
+      //
+      // **Reading the field.** Not a function name, not a shape: whatever gets
+      // built, it has to get at `TopologyCorrelationEdge.weight`, because that
+      // is the only number about a relationship that reaches this tree at all
+      // (`n` is on the route payload and deliberately not on the model). So
+      // the corpus claim is a COUNT of readers — one — and the second conjunct
+      // is what that one reader may contain.
+      const DIRECTORY = "apps/frontend/src/topology";
+
+      /**
+       * **The one permitted reader**, and the positive anchor besides: a check
+       * that nothing reads the weight is worth nothing if nothing draws it,
+       * which is exactly what this tree was until this task — the field sat on
+       * the model unread from 2026-11-06 to 2026-11-09. So the reader has to
+       * still be there, still classifying.
+       */
+      const READER = `${DIRECTORY}/edge-strength.ts`;
+
+      /**
+       * Everything a statistic needs and a classifier does not. **Each one is
+       * absent from this whole tree today**, verified before this check was
+       * written, which is what makes the list a ban rather than an allowlist
+       * with holes in it.
+       *
+       * `Math.hypot` is deliberately NOT here and is this check's known
+       * escape: it is a Pearson denominator rearranged, and it is also how
+       * every segment in this renderer measures its own length — three live
+       * call sites in `renderer-canvas.ts`. The ban is on the one file that
+       * holds the weight, where `hypot` has nothing to measure, and the corpus
+       * conjunct is what stops the arithmetic moving to a file that may call
+       * it.
+       */
+      const STATISTICS = [
+        ".reduce(",
+        "Math.sqrt",
+        "Math.pow",
+        "Math.log",
+        "Math.exp",
+        "Math.atanh",
+        "Math.tanh",
+        "Math.hypot",
+        "/ count",
+        "/ length",
+        "+=",
+      ];
+
+      const readers = [];
+      const offenders = [];
+
+      for (const { path, text } of sourceFilesUnder(
+        resolve(REPO_ROOT, DIRECTORY),
+      )) {
+        // Stories and tests are excluded for `shippedSourceFiles`' own reason:
+        // neither reaches a reader, and `edge-strength.test.ts` asserts on the
+        // floors with arithmetic of its own.
+        if (/\.(?:test|stories)\.tsx?$/u.test(path)) continue;
+
+        // Comments BLANKED rather than removed, newlines kept, so a reported
+        // line number is the line in the FILE —
+        // `no-second-affordance-on-a-topology-node`'s own idiom. It matters
+        // more here than there: the paragraphs above and the docblocks in
+        // `edge-strength.ts` discuss Pearson, Fisher-z and a mean at length,
+        // as the argument for why none of them is computed. **A check a prose
+        // explanation of the prohibition can trip is a check nobody can keep
+        // green.**
+        const lines = text
+          .replace(/\/\*[\s\S]*?\*\//gu, (comment) =>
+            comment.replace(/[^\n]/gu, " "),
+          )
+          .replace(/(^|[^:])\/\/[^\n]*/gu, "$1")
+          .split("\n");
+
+        const relativePath = relative(REPO_ROOT, path);
+        const isReader = relativePath === READER;
+
+        for (const [index, line] of lines.entries()) {
+          if (/\bweight\b/u.test(line) && !isReader) {
+            readers.push(
+              `${relativePath}:${String(index + 1)}\n        ${line.trim()}`,
+            );
+          }
+
+          if (!isReader) continue;
+
+          for (const token of STATISTICS) {
+            if (!line.includes(token)) continue;
+            offenders.push(
+              `${relativePath}:${String(index + 1)} (\`${token}\`)\n        ${line.trim()}`,
+            );
+          }
+        }
+      }
+
+      if (readers.length > 0) {
+        throw new InvariantFailure(
+          `${String(readers.length)} line(s) outside \`${READER}\` read a ` +
+            "correlation's stored weight:\n      " +
+            readers.join("\n      ") +
+            `\n    Story 6.6's acceptance criterion 5 is that edge strength ` +
+            "is drawn from the stored weight and nothing is recomputed in " +
+            "the renderer, and the way it is held is that exactly ONE file " +
+            "under this tree can see the field at all — a classifier, with " +
+            "two measured floors and no state. A second reader is where a " +
+            "mean, a renormalisation against the batch's own extremes, or a " +
+            "per-node aggregate would live, and every one of those is a " +
+            "statistic computed over a top-5-per-node SELECTION that was " +
+            "never a sample of anything.\n    If a surface genuinely needs a " +
+            "second fact about a relationship, it comes from the tool layer " +
+            "and over the wire (invariant 1), not from arithmetic in a " +
+            "canvas renderer.",
+        );
+      }
+
+      const reader = withoutComments(readAnchored(resolve(REPO_ROOT, READER)));
+
+      if (
+        !reader.includes("Math.abs(weight)") ||
+        !reader.includes("CORRELATION_STRENGTH_FLOORS")
+      ) {
+        throw new InvariantFailure(
+          `${READER} no longer classifies a stored weight against ` +
+            "`CORRELATION_STRENGTH_FLOORS` with `Math.abs(weight)`, so " +
+            "nothing under this tree reads the model's weight at all — and a " +
+            "ban on recomputing a correlation is worth nothing over a tree " +
+            "that draws none. That is what this tree WAS between 2026-11-06, " +
+            "when `TopologyCorrelationEdge.weight` shipped, and 2026-11-09, " +
+            "when Task 6.6.1 first read it: the absence is the failure " +
+            "rather than the pass.",
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${READER}\` do ` +
+            "arithmetic a classifier does not need:\n      " +
+            offenders.join("\n      ") +
+            "\n    This file's whole job is to decide which of three stroke " +
+            "widths draws a stored coefficient — two comparisons against two " +
+            "measured floors. An accumulation, a square root, a logarithm or " +
+            "a division by a count is a statistic, and a statistic derived " +
+            "here is one this product cannot explain: the band floors are " +
+            "the tertiles of a measured distribution and are recorded with " +
+            "their query, while a figure computed in a renderer has no " +
+            "provenance and no home.\n    The tape-and-ratio rule (ADR 0045) " +
+            "is the other half of why: before combining two market figures " +
+            "somebody has to ask what they are figures OF, and a canvas " +
+            "renderer is the one place in this product with no access to " +
+            "the answer.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

@@ -6274,3 +6274,42 @@ continuing to treat each occurrence as news.
 rather than re-run past one** — until then, the correct response to a red
 run of this specific test is the one already taken four times: a
 one-worker control, not a re-run at the same concurrency.
+
+## A real performance cost of the correlation-strength encoding exists only on software-rendered Canvas2D, and no gate can see it
+
+**Added 2026-11-09 by Task 6.6.1.** Drawing correlation edges at three
+quantised stroke widths (weak/moderate/strong, one `stroke()` call per
+class rather than one for the whole batch) was measured twice, on the
+same test harness, with opposite results. Headless Chromium — this
+harness's default, software rendering via `ANGLE (Google, Vulkan 1.3.0
+(SwiftShader Device …))`, the same GPU Story 6.5.3's own frame-rate
+baseline was taken on — showed a real, reproducible regression: rAF-gap
+p95 **50.1–50.9 ms** (against the pre-task baseline's 18.2–18.3 ms), 14–23
+of ~210 frames over 50 ms, and **48 `longtask` entries across 48 frames
+drawn** — one on every single frame. The interleaved `membership` arm,
+untouched by this task, stayed clean in the same runs (p95 17.3–17.5 ms,
+0 over 50 ms, 0 `longtask`), which is what makes the regression
+attributable rather than machine noise. Re-taken with `--headed` on a
+real GPU (`ANGLE (Apple, ANGLE Metal Renderer: Apple M3, …)` — the same
+hardware ADR 0048's own original renderer bake-off used): **no
+regression** — p95 17.5–17.6 ms, 0–1 of ~170 frames over 50 ms, 0
+`longtask` entries, matching the pre-task baseline almost exactly.
+
+**Not mechanisable, structurally.** Neither `pnpm verify` nor `pnpm e2e`
+launches Chromium with real GPU acceleration — this harness's own instrument
+needs the explicit `--headed` flag and a machine with one, which CI does
+not have. So the one channel that shows this mechanism's real cost is
+permanently invisible to every gated run, and the one channel every gated
+run CAN see (headless/software) shows a cost that does not reflect what an
+actual reader's browser does. A future change to this same drawing loop
+that regresses ONLY under software rendering — symmetrically possible —
+would be equally invisible.
+
+**Re-measure**: `node scripts/topology-instrument.mjs --headed`, two
+interleaved runs, load read before each, compared against this entry's own
+figures.
+
+**Owner: the same future rehearsal/sitting that owns watching the deployed
+correlation edges for the first time (Story 6.9)** — a person on a real
+machine with a real GPU is the only verification this mechanism's actual
+cost has ever had or can mechanically have.

@@ -437,3 +437,13 @@ at 390 px is covered by its own endpoints' node bodies, where no stroke
 treatment whatsoever can show. Story 6.6, which owns edge strength as a
 visible property, is the right place for the Product Owner to take this
 one, not a later sweep finding it abandoned a second time.
+
+**Amended 2026-11-09 by Task 6.6.1 — the 21.2% figure above was already
+stale the day this amendment was written, because the same task (6.5.4)
+also suppressed the whole correlation batch below
+`TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38` in the same change.** At 390
+(fit scale 0.1639) the layer draws zero ink at default zoom — not 78.8%
+of it — so 21.2% bounds nothing there any more. The real bound on the
+stroke channel is at **1440**, the one width that clears 0.38 at default
+zoom: measured coverage there is **0 of 1,860**, so the channel is
+unbounded by node coverage at the width a reader actually meets it.
