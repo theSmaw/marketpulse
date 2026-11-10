@@ -1,6 +1,6 @@
 # Story 6.7 — Live Updates, & the Graph That Stays at 60 FPS
 
-**Status:** Not started
+**Status:** **Gate 1 approved 2026-11-10 — decomposed into four tasks.**
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.6
 **Epic scope covered:** Live visual updates
@@ -39,45 +39,142 @@ arriving is marked, and the picture stays smooth while it happens.
 
 ## Acceptance criteria
 
-1. **60 FPS at 500 nodes and 5,000 edges during pan and zoom**, measured on a
-   production build on a representative laptop, with the load read **before**
-   each run. §28's target, taken for the first time.
-2. **No routine main-thread task over 50 ms**, on **three channels**, each
-   proved by a plant on the page that produced the figure — because a channel
-   going quiet and a cost going away produce the same output, and `longtask`
-   alone can no longer see this product's existing breach.
-3. **A burst is absorbed.** The feed delivers one burst a minute; the graph must
-   not stutter once a minute. Measured against the real cadence, and the cadence
-   is **furnished** if no offline source produces it — said beside the figure,
-   every time.
-4. **The arrival mark keeps its shipped meaning.** It fires on a **bar
-   arriving**, keyed on `arrivalKey`'s answer — the observation's own content —
-   and never on the score, which is now the node's only figure and therefore the
-   cheapest thing for the next author to reach for.
-5. **Reduced motion is honoured.** Under `prefers-reduced-motion` the decay does
-   not run and what survives is the state, which is the rule the identity
-   block's disc already follows and a browser asserts.
-6. **The graph does not re-layout under live data.** Positions are deterministic
-   (6.1) and a node that moved because its score changed is a different claim
-   from a node that moved because the layout re-ran. The securities table
-   **never re-orders** under live data — chosen, and asserted — and the same
-   argument applies with more force to a spatial surface.
-7. **A node that stops being heard from is honest about it.** The feed's median
-   per-symbol minute coverage is **65.1%**, worst case **2.1%**, so at any
-   instant a third of the graph has not been heard from recently. An **age
-   rather than a verdict** is this product's rule, with no threshold and no
-   connection word.
+**Rewritten at Gate 1, 2026-11-10, after six parallel shaping reports found
+AC1 unsatisfiable with real data, AC3/AC7 missing their own population, AC4
+held by an invariant that is structurally blind to a canvas call site, and
+AC5's "what survives" never named.** Kept struck below each rewrite, per
+this repository's own rule that a sentence recording what was asked for is
+not the same sentence as one recording what the data permits.
+
+1. ~~60 FPS at 500 nodes and 5,000 edges during pan and zoom, measured on a
+   production build… §28's target, taken for the first time.~~ — **The real
+   shipped graph is 516 nodes and ~2,372 edges (512 membership + up to
+   1,860 correlation), not 5,000 — the synthetic mode that reaches 5,000 is
+   Epic 14's by name and stays out of scope here (confirmed, not
+   re-litigated).** Rewritten: **60 FPS at the shipped graph's real size,
+   during pan, zoom, AND a live update firing concurrently**, measured as a
+   three-part conjunction — the loop ran (frame count advanced), the loop
+   kept up (rAF-gap p50 ≤ 16.7 ms, p95 near quantum, 0 gaps over 50 ms), and
+   nothing blocked (0 `longtask`, 0 `long-animation-frame` over 50 ms) — on
+   a **production build, `--headed` against a real GPU** (the authoritative
+   figure; a headless/SwiftShader figure is recorded too, as the regression
+   floor this repository's own gates can retake, per Task 6.6.1's own
+   finding that extra draw-call cost is real under software rendering and
+   near-zero on real hardware). Load read before each run. **A route-level
+   interaction harness is required infrastructure for this criterion** —
+   `pnpm probe`'s own pan/zoom path has never been wired to `/` (Storybook
+   only), a gap TOPOLOGY.md §4 has named twice (Stories 6.3, 6.6) without
+   closing it.
+2. **No routine main-thread task over 50 ms, on three channels, each proved
+   by a plant on the page that produced the figure** — unchanged, and
+   precision added: the plant must land on a frame the **live-update
+   mechanism** scheduled, with the pointer still, not on a wheel-provoked
+   frame, or the arm proves the wrong path.
+3. ~~A burst is absorbed… the graph must not stutter once a minute.~~ —
+   **"Stutter" was not falsifiable; rewritten with the population and the
+   pass criterion named.** Over at least 3 consecutive bursts, no frame
+   during or within 1 s of a burst exceeds the 50 ms ceiling (AC2's own
+   ceiling, not a new one), and the worst rAF gap during a burst is reported
+   against the same figure taken in the 59 quiet seconds between. Both the
+   real subscribed population (516, since Open Decision 0 below) and a
+   furnished arm are reported, each labelled. Measured via the shipped
+   `e2e/support/feed.ts` harness (`serveFeed`/`send`), which already
+   furnishes exactly this shape for ten other specs — no new instrument
+   needed.
+4. **The arrival mark keeps its shipped meaning** — unchanged in intent,
+   precision added: `an-arrival-mark-is-keyed-on-the-arrival`
+   (`scripts/check-invariants.mjs`) is **structurally blind to a canvas
+   renderer verb** (it matches an `arrival:`/`arrival={` prop or a
+   `useArrival(` call, neither of which a `TopologyRenderer` method has).
+   This task widens that check (not a second, parallel one) to also see the
+   renderer's own arrival-marking call site, with a `pnpm break` that plants
+   the defect the next author would actually write (keying the mark on the
+   score) and confirms the check passes **wrongly** first.
+5. ~~Reduced motion is honoured… a browser asserts.~~ — **"What survives"
+   was never named; rewritten to name it.** Under `prefers-reduced-motion`
+   the decay does not run, and **the observation instant the mark would
+   have announced survives as text already on screen** (the plate's own new
+   staleness line, Task 6.7.3) — never a persisting visual residue, and
+   never literally nothing where a default reader was told something.
+   Mechanically: the renderer reads `--motion-duration-decay` as a string
+   through the token layer (added to `TOKEN_NAMES`), never a second,
+   parallel `matchMedia` read — the one-home rule for a design decision
+   already encoded as a token. Asserted in a browser via `page.emulateMedia`
+   and a before/after sample of the renderer's own `framesDrawn()`.
+6. **The graph does not re-layout under live data** — unchanged in intent.
+   Already true by construction today (`the-topology-layout-reads-no-edge`,
+   Story 6.6; `securities`' own array identity gates the mount effect) —
+   what this story adds is proof that its OWN new mechanism doesn't
+   introduce a renderer-side nudge the model-level check cannot see: a
+   producer-side test (the renderer is never handed a second layout) plus a
+   new invariant, a mechanical sibling of `the-topology-layout-reads-no-edge`,
+   refusing any read of an arrival key or an observation instant inside the
+   renderer's own placement/draw-position code.
+7. ~~A node that stops being heard from is honest about it… a third of the
+   graph has not been heard from recently.~~ — **The premise used the wrong
+   window.** 65.1% is **per-minute** coverage; every other freshness claim
+   on this product is measured over the **5-minute** observation window
+   (ADR 0040/0043), and the aggregate already ships the real figure
+   (`breadth.measured` against 501) — nobody had taken it before this
+   story. Rewritten: **a reader can learn, for the node they select, when
+   that security was last heard from — as an instant, in the plate, with no
+   threshold, no status word and no connection word** — and the region's
+   own accessible sentence states its own population the way `Market
+breadth`'s and `Movers`' sentences already do, so a third of the graph
+   drawing `unscored` is never silently mistaken for a third of the graph
+   being broken.
 
 ## Open decisions — for the Product Owner
 
-1. **What moves when a node updates?** The band changing colour is the minimum.
-   A decaying arrival mark per node at 516 nodes is 516 animations; the chart
-   layer's answer at that scale was **one** path rather than one element per bar,
-   and the same arithmetic applies.
-2. **Does the graph show staleness per node, or not at all?** Six surfaces
-   announcing one fact is how two of them come to disagree, and the connection's
-   one home is the status bar — but a node is a _security_, and a stale security
-   is a per-node fact rather than a connection fact.
+**All settled at Gate 1, 2026-11-10.**
+
+0. **New at Gate 1 — does `/`'s subscription widen to the full tracked
+   universe?** Not in the story's own original text; found during shaping,
+   because every other decision below depends on it. **SETTLED: yes, widen
+   to the full tracked universe (`trackedTickers()`)**, against the
+   unanimous recommendation of five independent shaping reports (keep the
+   narrow ~25-30-symbol subscription) — taken explicitly with the real,
+   unmeasured cost named rather than assumed: Task 6.7.1 owes the real
+   figure (the existing 3.7–5.1 ms/batch browser-cost reading was taken at
+   ~30 observations and is **unmeasured at 516**). The resubscribe-rate
+   consequence is expected to **improve** — a fixed, universe-wide
+   subscription no longer needs to change when movers/unusual rankings
+   shift, which today costs 12–24 resubscribes a session.
+1. ~~What moves when a node updates?~~ — **SETTLED: one graph-level
+   decaying mark per burst**, fired by the aggregate's own observation
+   instant advancing, not a per-node mark. Taken against the option the
+   widened subscription (Decision 0) would have made newly affordable for
+   **all** 516 nodes, on the strength of the burst-synchrony finding: ~340
+   nodes marking in the same instant once a minute reads as the graph
+   flashing rather than as individual events (five independent reports),
+   and `--motion-duration-decay`'s own design-token docblock already names
+   the reversal condition this would trip — _the first surface where it
+   fires more than once a second_. The band ring recolouring (shipped,
+   Story 6.3) remains the per-node motion.
+2. ~~Does the graph show staleness per node, or not at all?~~ — **SETTLED:
+   yes, but only as text in the readout plate, for the node a reader has
+   selected — never as node ink.** A per-node visual treatment was refused
+   on the strength of this product's own standing rule (an age, not a
+   verdict, already refused once in writing with a measured 187-minute
+   ordinary gap behind the refusal — `LIVE-DATA.md` §11.2) and the risk of
+   a second, hard-to-distinguish hollow state beside the shipped `unscored`
+   treatment. The widened subscription (Decision 0) is what makes this
+   reach **every** node once selected, rather than only the ~25-30 a
+   narrower subscription would have covered.
+
+## Handed here by Task 6.6.2 — settled at this story's own Gate 1, 2026-11-10: §10's `Intensity` node encoding
+
+**SETTLED: the full per-equity encoding is refused in writing; the signed
+direction is taken instead, in the plate.** The composite anomaly score is
+a magnitude (`Math.abs`), so a node at `extreme` has drawn identically for
+a crash and a spike since Story 5.6 shipped it — a real, live gap this
+story closes cheaply rather than by inventing a new node-level channel: no
+hue, size or annulus space is spent (all already claimed by the band ring,
+edge strength and shape), and the widened subscription means the sign is
+derivable for any selected node rather than needing a narrower, separate
+wire addition for only the ~165 nodes in `high`/`extreme`. §10's fifth
+node encoding is now closed by a named story, the same one-line-record
+discipline Story 6.6 used for `shape/icon`.
 
 ## Out of scope
 
@@ -122,7 +219,30 @@ explicitly and leave the condition unfired for the next story — the
 trigger is a condition, not a deadline, and firing it without a real need
 is the thing Story 6.4's own Gate 1 declined to do.
 
+**Evaluated at this story's own Gate 1, 2026-11-10, and the condition
+stays unfired, by all six independent shaping reports' own reading.**
+Nothing this story settled on needs the selection from outside
+`MarketTopology`: the graph-level arrival mark (Open Decision 1) is keyed
+on the aggregate's own observation instant, selection-blind; the plate's
+new staleness and direction lines (Open Decision 2, the Intensity
+hand-off) are drawn by the renderer, the same owner that already holds
+the selection — a read of a fact the renderer already has, not a second
+home for it. The one mechanism worth naming explicitly rather than
+passing over: if the plate's new facts are sourced for the selected
+symbol specifically, the renderer's own selection reaches
+`MarketOverview.tsx` through the existing `onSelect` report (the same
+path `openable` already uses) — a **lift** of the renderer's own fact to
+its caller, not a second selection mechanism, so the trigger's own test
+(_two regions that must agree about one security that NEITHER owns_)
+still does not apply. Recorded here so the next reader finds this
+evaluated rather than silently skipped a third time.
+
 ## Handed here by Task 6.6.2 — 2026-11-09: §10's `Intensity` node encoding, undecided and handed to this story by name
+
+**Settled at this story's own Gate 1, 2026-11-10 — see the dated section
+above, "Handed here by Task 6.6.2 — settled..."** The original hand-off
+below is left standing as the record of what was asked and why, per this
+repository's own rule that a live document corrects rather than erases.
 
 **`PRODUCT_SPEC.md` §10 lists five possible node encodings — size,
 intensity, shape/icon, border, cluster — and Story 6.6 closed four of
