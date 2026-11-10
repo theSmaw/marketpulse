@@ -1,6 +1,19 @@
 # Story 6.6 — Node Size, Edge Strength, & the Encodings That Remain
 
-**Status:** **Gate 1 approved 2026-11-09 — decomposed into three tasks.**
+**Status:** **Complete — accepted at Gate 2, 2026-11-10.** All 7 acceptance
+criteria hold (AC2 vacuous by construction, since node size is refused)
+and both Open Decisions are settled (node size refused, with a reversal
+trigger; no landmark treatment beyond the shape already shipped). Two
+further questions escalated at Gate 1 were resolved by hand-off rather
+than by this story: §10's `Intensity` encoding to Story 6.7, the three
+edge-affordance questions to Story 6.8. ADR 0048's Decision-3 reversal
+trigger, open since Story 6.5, is fully discharged. PRs:
+[#665](https://github.com/theSmaw/marketpulse/pull/665) (Gate 1, the
+decisions), [#666](https://github.com/theSmaw/marketpulse/pull/666)
+(6.6.1, edge strength), [#667](https://github.com/theSmaw/marketpulse/pull/667)
+(6.6.2, the decisions closed and two defects fixed),
+[#668](https://github.com/theSmaw/marketpulse/pull/668) (6.6.3, ADR 0048
+closed and the sweep).
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.3, 6.5
 **Epic scope covered:** Node sizing · Edge strength
