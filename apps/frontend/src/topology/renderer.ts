@@ -282,6 +282,21 @@ export interface TopologyRenderer {
    */
   setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
   /**
+   * Play the graph-level live-update mark, decaying (Task 6.7.2, Open
+   * Decision 1) — a brief, whole-surface highlight saying *a live batch just
+   * arrived*, without re-mounting and without touching `setBands`'s own
+   * band map.
+   *
+   * **A verb, not a value** — like `reset()`, this is a command aimed at a
+   * resource the renderer already owns, called once per burst rather than
+   * reflecting a prop. Calling it again while a mark is already decaying
+   * **restarts** it from full strength rather than compounding two marks:
+   * there is one clock (`burstStartedAt`), and a second call simply moves it.
+   *
+   * **A no-op after `destroy()`**, same contract as every other method here.
+   */
+  markBurst(): void;
+  /**
    * **Put DOM focus on the canvas** (Task 6.4.4) — the one home for *where a
    * keyboard reader of this region belongs*.
    *

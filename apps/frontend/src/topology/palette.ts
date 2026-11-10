@@ -252,6 +252,34 @@ export interface TopologyPalette {
    * — twice over now, in both directions.
    */
   readonly focusRingEdge: string;
+  /**
+   * The graph-level live-update mark's own ink — `--ink-primary` (Task
+   * 6.7.2, Open Decision 1).
+   *
+   * **The same dark value `sectorEtf`/`marketProxy`/`focusRingEdge` already
+   * spend, composited at a low alpha rather than drawn as a shape.** No hue,
+   * for this module's own standing reason: the amber ramp is spent in full
+   * on the anomaly ring, and a wash over the entire screen in the one hue
+   * this surface reserves for degradation would read as the graph alarming
+   * — exactly backwards for *the market just breathed*.
+   */
+  readonly liveMark: string;
+  /**
+   * `--motion-duration-decay`, in milliseconds (Task 6.7.2) — the one
+   * non-colour, non-type value this module carries, because the live-update
+   * mark is the first thing this renderer draws that is timed rather than
+   * static.
+   *
+   * **Read once, at mount, through `getComputedStyle`'s own resolution of
+   * `prefers-reduced-motion`** — `tokens.css`'s media query already
+   * overrides this to `0ms` there, so a renderer built under that
+   * preference draws no visible mark at all (the decay function reaches
+   * `shape = 0` on its very first frame) with no second, parallel
+   * `matchMedia` read. The accepted limitation this shares with every other
+   * mount-time token read in this application: an OS preference toggled
+   * mid-session is not picked up until the next mount.
+   */
+  readonly motionDurationDecayMs: number;
 }
 
 /**
@@ -269,6 +297,29 @@ function pixels(name: string, value: string): number {
       `Design token ${name} is "${value}", which is not a positive length. ` +
         "The topology renderer draws with it, and a default here is a mark " +
         "nothing on screen can see.",
+    );
+  }
+
+  return parsed;
+}
+
+/**
+ * `"900ms"` → `900`, or **throw** — never defaulting, same rule as
+ * {@link pixels}.
+ *
+ * **`>= 0` rather than `> 0`**, unlike `pixels()`: `0ms` is the CORRECT,
+ * reachable value under `prefers-reduced-motion` (`tokens.css`'s own media
+ * query), not a missing stylesheet masquerading as a legitimate zero. A
+ * `> 0` floor here would throw on the one mode this token exists to support.
+ */
+function milliseconds(name: string, value: string): number {
+  const parsed = Number.parseFloat(value);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(
+      `Design token ${name} is "${value}", which is not a duration in ` +
+        "milliseconds. A default here is a mark whose timing nothing on " +
+        "screen or in this function can verify.",
     );
   }
 
@@ -338,5 +389,10 @@ export function topologyPalette(): TopologyPalette {
     selectionGround: tokens["--surface-inverse"],
     focusRing: tokens["--ink-inverse"],
     focusRingEdge: tokens["--ink-primary"],
+    liveMark: tokens["--ink-primary"],
+    motionDurationDecayMs: milliseconds(
+      "--motion-duration-decay",
+      tokens["--motion-duration-decay"],
+    ),
   };
 }

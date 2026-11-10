@@ -6501,4 +6501,37 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-topology-layout-reads-no-edge",
   },
+  {
+    name: "the-graph-level-mark-does-not-self-re-arm",
+    proves:
+      "The graph-level live-update mark's own loop — `markBurst()` " +
+      "starts it, and `draw()` is supposed to call `invalidate()` again " +
+      "every frame the mark is still live, stopping on its own the first " +
+      "time `shape` reaches 0. Remove the re-arming call and the mark " +
+      "PAINTS but never ANIMATES: `markBurst()`'s own `invalidate()` " +
+      "schedules exactly one frame, that frame draws the mark at " +
+      "whatever `shape` the clock gives it in that instant, and then " +
+      "nothing schedules a next one — so the wash freezes at its first " +
+      "painted alpha and stays there forever rather than fading. " +
+      "Produced under the break: a browser spec sampling the canvas six " +
+      "times across the decay window sees one distinct value rather than " +
+      "several.",
+    file: "apps/frontend/src/topology/renderer-canvas.ts",
+    find:
+      "        invalidate();\n" +
+      "      } else {\n" +
+      "        // The mark finished sometime before this frame drew",
+    replace:
+      "        // pnpm break: reverted automatically\n" +
+      "      } else {\n" +
+      "        // The mark finished sometime before this frame drew",
+    // Vite serves this file from source, so no build is needed.
+    command: [
+      "pnpm",
+      "e2e",
+      "overview-market-topology-live-mark.spec.ts",
+      "--anyway",
+    ],
+    expect: "distinct).toBeGreaterThan(2)",
+  },
 ];

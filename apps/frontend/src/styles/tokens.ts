@@ -201,6 +201,17 @@ const TOKEN_NAMES = [
   "--font-size-micro",
   "--letter-spacing-micro",
 
+  // Added 2026-11-10 by Task 6.7.2. The first JavaScript consumer of a
+  // DURATION rather than a colour or a type value: the topology's own
+  // graph-level live-update mark is drawn on a `<canvas>`, which cannot run
+  // a CSS `animation`, so its decay has to be timed from a number read here
+  // rather than from the `arrival-decays` keyframes `motion.module.css`
+  // already runs for every other arrival mark. Reading it through
+  // `getComputedStyle` is what makes `prefers-reduced-motion` resolve for
+  // free — `tokens.css`'s own media query already overrides it to `0ms`,
+  // so no second, parallel `matchMedia` read is needed here.
+  "--motion-duration-decay",
+
   // Authorship — agent.css. Added 2026-09-11 with the third colour scope.
   // No JavaScript consumer yet, and here for the canary reason `--brand-ink`
   // is: `agent.css` is a fourth global stylesheet whose absence would render
