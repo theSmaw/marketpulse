@@ -1,6 +1,17 @@
 # Story 6.7 — Live Updates, & the Graph That Stays at 60 FPS
 
-**Status:** **Gate 1 approved 2026-11-10 — decomposed into four tasks.**
+**Status:** **Complete — 2026-11-10.** All four tasks merged:
+[6.7.1](https://github.com/theSmaw/marketpulse/pull/671) (the universe
+subscribed, and the real cost measured), [6.7.2](https://github.com/theSmaw/marketpulse/pull/672)
+(the graph marks a burst, decaying), [6.7.3](https://github.com/theSmaw/marketpulse/pull/673)
+(per-node facts in the plate: staleness and direction), [6.7.4](https://github.com/theSmaw/marketpulse/pull/674)
+(60 FPS measured for the first time, and the close). §28's 60 FPS target has
+a real figure against the shipped graph for the first time: 16.7 ms median
+frame time on every arm, clean on the software-rendered regression floor and
+clean on the great majority of frames on a real GPU — see Task 6.7.4's own
+record and `TOPOLOGY.md` §7 for the full figures and the one open item (a
+from-rest real-GPU sitting, named in `docs/GAPS.md` and `LIVE-REHEARSAL.md`
+row 6.7).
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.6
 **Epic scope covered:** Live visual updates
