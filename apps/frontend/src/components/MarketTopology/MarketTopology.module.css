@@ -304,9 +304,18 @@
   inset-inline-start: var(--space-8);
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: repeat(5, var(--line-height-micro));
-  /* Five line slots, the padding, and the 1 px border on each side. */
-  block-size: calc(5 * var(--line-height-micro) + 2 * var(--space-8) + 2px);
+  /*
+   * **Seven, since Task 6.7.3** — the four original fields (ticker, the
+   * name's two, the sector, the band) plus staleness and direction. Grown
+   * from five rather than fitted into a spare one: `pnpm probe` measured
+   * the five original rows as exactly, fully claimed (name alone spans
+   * two), so there was no slack to find and this is a real, measured growth
+   * rather than a free one. `MARKET-OVERVIEW.md` §1.4's displacement
+   * trigger is evaluated against it below.
+   */
+  grid-template-rows: repeat(7, var(--line-height-micro));
+  /* Seven line slots, the padding, and the 1 px border on each side. */
+  block-size: calc(7 * var(--line-height-micro) + 2 * var(--space-8) + 2px);
   inline-size: min(calc(100% - 2 * var(--space-8)), 18rem);
   padding: var(--space-8);
   overflow: hidden;
@@ -317,24 +326,28 @@
 }
 
 /*
- * One of the two states, and never both: the instruction spans all five slots
- * (it wraps to two or three of them at 390), the four facts take one slot
- * each but the name, which takes two.
+ * One of the two states, and never both: the instruction spans all seven
+ * slots (it wraps to two or three of them at 390), the six facts take one
+ * slot each but the name, which takes two.
  *
  * Switched on the plate's own `data-topology-readout` rather than on a class,
  * because the writer is imperative — one attribute write per hover change,
- * against four class toggles — and because a browser spec can read an
+ * against six class toggles — and because a browser spec can read an
  * attribute and cannot read a hashed class name.
  */
 .readout[data-topology-readout="reading"] .readoutIdle,
 .readout[data-topology-readout="idle"] .readoutTicker,
 .readout[data-topology-readout="idle"] .readoutName,
 .readout[data-topology-readout="idle"] .readoutSector,
-.readout[data-topology-readout="idle"] .readoutBand {
+.readout[data-topology-readout="idle"] .readoutBand,
+.readout[data-topology-readout="idle"] .readoutStaleness,
+.readout[data-topology-readout="idle"] .readoutDirection {
   display: none;
 }
 
 .readoutIdle {
+  /* `-1`, not `6` — it spans whatever the box reserves, so this rule did not
+     need to change when Task 6.7.3 grew it from five rows to seven. */
   grid-row: 1 / -1;
   margin: 0;
   color: var(--ink-secondary);
@@ -451,6 +464,37 @@
   grid-row: 5;
   overflow: hidden;
   color: var(--ink-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * When this node was last heard from — an instant, never a verdict (Task
+ * 6.7.3, Open Decision 2). The empty string for a node this browser has
+ * never heard from reserves this row silently, the same idiom `.readoutSector`
+ * already carries for the four market proxies.
+ */
+.readoutStaleness {
+  grid-row: 6;
+  overflow: hidden;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * Rise or fall, for a `high`/`extreme` node only (Task 6.7.3, the Task 6.6.2
+ * hand-off on §10's `Intensity`) — reserved for every node and empty for the
+ * three bands that never carry it, same idiom as the row above.
+ */
+.readoutDirection {
+  grid-row: 7;
+  overflow: hidden;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
