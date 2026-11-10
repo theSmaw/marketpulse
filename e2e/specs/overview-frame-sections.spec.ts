@@ -8,6 +8,7 @@ import {
 } from "@marketpulse/shared";
 import type {
   MarketFeed,
+  SecuritiesResponse,
   SectorLadderStep,
   WireFeedState,
   WireMarketMovers,
@@ -19,7 +20,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page, WebSocketRoute } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
-import { MARKET_DATA_ROUTE_PATTERN } from "../support/pair.js";
+import { MARKET_DATA_ROUTE_PATTERN, backendOrigin } from "../support/pair.js";
 import { FURNISHED_BREADTH } from "../support/feed.js";
 
 // **The two things about this frame that no other spec can see** (Task 4.4.1).
@@ -193,6 +194,22 @@ const latest = (
       overview.sectors === undefined ? carried : overview,
     undefined,
   );
+
+/**
+ * `GET /securities`, from the backend the running pair resolved —
+ * `overview-breadth-counts.spec.ts`'s own idiom, copied rather than shared
+ * because each spec in this suite states its network claims independently.
+ *
+ * **Added by Task 6.7.1.** The subscription this route sends is no longer
+ * built from the frame's sections (see the flood-half assertion below), so
+ * the independent set to check it against is this response rather than any
+ * overview frame.
+ */
+async function securities(page: Page): Promise<SecuritiesResponse> {
+  const response = await page.request.get(`${backendOrigin}/securities`);
+  expect(response.ok()).toBe(true);
+  return (await response.json()) as SecuritiesResponse;
+}
 
 // ---------------------------------------------------------- the driven half
 
@@ -466,6 +483,7 @@ test("the frame this product's own server sends carries exactly the four index p
    * real server because a furnished `figures` array is the thing under test.
    */
   const { overviews, subscriptions } = await openWithRecordedStream(page);
+  const universe = await securities(page);
 
   // **The positive state, waited for before anything is read**: a recorded
   // frame carrying both sections, which is what says the server has answered
@@ -498,21 +516,11 @@ test("the frame this product's own server sends carries exactly the four index p
   // **And the page asked the real gateway for all fifteen.** This is defect 1
   // stated against the server rather than against a stub: the subscription is
   // built from the frame above, and a route that drew eleven sector rows while
-  // asking for four symbols is exactly what shipped.
-  //
-  // **It was an equality against those fifteen until 2026-10-08 (Task
-  // 4.5.5), and the movers section is why it cannot be.** A top-N's
-  // membership is the frame's answer rather than a known set, so the
-  // subscription is fifteen **plus whatever the lists currently name** — on a
-  // store with bars, up to ten more; on CI, none. An equality would also be
-  // flaky in a way the two claims below are not: membership changes during a
-  // session (measured at 0.21–0.44 a minute), so the union of everything ever
-  // subscribed legitimately exceeds the latest frame's set.
-  //
-  // So the one claim becomes two, and neither is weaker than the original.
+  // asking for four symbols is exactly what shipped. Subsumed by the
+  // full-universe claim below since Task 6.7.1, and kept because it is the
+  // narrower, sharper statement of the original defect.
   const subscribed = () => new Set(subscriptions.flat());
 
-  // Every one of the fifteen is asked for — the omission half, unchanged.
   await expect
     .poll(() =>
       [...PROXIES, ...SECTOR_BENCHMARKS]
@@ -521,35 +529,37 @@ test("the frame this product's own server sends carries exactly the four index p
     )
     .toEqual([]);
 
-  // **And nothing is asked for that no frame ever named** — the flood half,
-  // which is what the equality was really buying. A subscription to the whole
-  // universe, to a hard-coded list, or to a symbol read off the drawn rows
-  // (the held pads are non-breaking spaces) all fail here.
-  //
-  // **The `unusual` rows joined this set on 2026-10-16 (Task 5.4.5), and the
-  // omission had been silent since Task 5.4.3.** The route has subscribed to
-  // that section's symbols since the region shipped — a region drawing an
-  // arrival mark from `observations` needs them, which is Task 4.3.6's
-  // shipped defect — but on a store with no provider the section carried
-  // **no rows**, so this clause passed over an empty set and read as a check.
-  // The session arm (`0014`) is the first thing that puts ten stored
-  // securities in it, and the first run after that went red here with ten
-  // perfectly legitimate tickers.
-  const everyNamedSymbol = new Set(
-    overviews.flatMap((received) =>
-      [
-        ...received.figures,
-        ...(received.sectors ?? []),
-        ...(received.movers?.gainers ?? []),
-        ...(received.movers?.losers ?? []),
-        ...(received.unusual?.rows ?? []),
-      ].map((figure) => figure.symbol),
-    ),
-  );
+  /*
+   * **Amended by Task 6.7.1 — 2026-11-10: the flood half is now the opposite
+   * claim, by the Product Owner's own choice at Story 6.7's Gate 1.**
+   *
+   * Until this story, "nothing is asked for that no frame ever named" was
+   * the whole second half of this test — a subscription to the whole
+   * universe was named here as one of the three ways to fail it. Story 6.7
+   * widens the subscription to the full tracked universe on purpose (Open
+   * Decision 0), so any node a reader selects has a live fact to show
+   * (Task 6.7.3), diverging from all six shaping roles' unanimous
+   * recommendation to keep the narrow, per-section key. That is a reversal
+   * of the claim, not a relaxation of it: the correct failure mode is now a
+   * subscription that is STILL scoped to the frame's sections, because that
+   * is the shipped defect this story's own widening would silently
+   * reintroduce by omission.
+   *
+   * The independent set to check it against is no longer any overview
+   * frame — every section's membership is now a *subset* of the
+   * subscription by construction, which would make a frame-derived set
+   * pass under either design — but `GET /securities`, fetched above exactly
+   * as the route itself fetches it.
+   */
+  const wantedUniverse = [...universe.securities]
+    .map((security) => security.symbol)
+    .sort();
 
-  expect(
-    [...subscribed()].filter((symbol) => !everyNamedSymbol.has(symbol)).sort(),
-  ).toEqual([]);
+  // **Polled rather than read once**, for the same reason the clause above
+  // is: `liveSymbols` starts empty (before `GET /securities` has resolved)
+  // and the full-universe `subscribe` is a second message the socket sends
+  // once that request settles, racing the overview frame's own arrival.
+  await expect.poll(() => [...subscribed()].sort()).toEqual(wantedUniverse);
 
   await expectNothingFailedToRender(page);
 });

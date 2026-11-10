@@ -3002,68 +3002,38 @@ export const BREAKS = [
     build: true,
   },
   {
-    name: "the-landing-page-asks-only-for-the-proxies",
+    name: "the-landing-page-subscribes-to-nothing",
     proves:
-      "The landing route's subscription is built from `overview.figures` " +
-      "alone — the four index proxies — while the page draws eleven " +
-      "sector rows from `overview.sectors`. The gateway scopes both `bars` " +
-      'and `snapshot` to what a client asked for, so `observations.get("XLK")` ' +
-      "is permanently `undefined` and the arrival mark Story 4.3 designed, " +
-      "drew, tested and shipped CANNOT FIRE on the deployed page. It shipped " +
-      "that way and was invisible to everything: the unit tests hand " +
-      "`sectorPerformance` an observations map directly, and the three " +
-      "furnished browser specs serve sector observations the gateway could " +
-      "never have sent. Produced under the break: `the page has not " +
-      "subscribed to XLK — it asked for DIA, IWM, QQQ, SPY`.",
-    // **The defect somebody else will write, and it is the one that shipped.**
-    // Nobody deletes a spread; what happens is that a section is added to this
-    // frame and nothing adds it here, because the subscription reads like a
-    // detail of the strip rather than the page's whole claim on the feed. So
-    // the substitution is *the frame's other sections dropped*, which is
-    // exactly the state Story 4.3 left behind.
-    //
-    // Vite serves this file from source, so no build is needed — unlike
-    // the two backend entries below.
-    //
-    // **Repointed 2026-10-08 by Task 4.5.5, which is this entry's own rule
-    // happening.** The key gained the movers' ten — a third section, added by
-    // the task after the one that wrote this break — and the `find` stopped
-    // matching. `every-break-can-still-land` is what said so; nothing else
-    // would have, because breaks are outside `pnpm verify`.
-    //
-    // The substitution is unchanged in meaning: the key collapses to the four
-    // proxies, which is the shipped defect. It now proves **two** sections at
-    // once — the spec's sector test fails first, on `XLK`, and its movers test
-    // fails the same way on `NVDA` — and the `expect` below is deliberately
-    // the sector one, so this entry keeps asserting the state it was written
-    // around rather than quietly becoming a test of the newest section.
+      "The landing route's subscription is the full tracked universe " +
+      "since Task 6.7.1 — `useSecurities()`'s own fetch, read directly " +
+      "rather than rebuilt from the overview frame's sections — because " +
+      "Story 6.7's Gate 1 widened it so that selecting ANY of the 516 " +
+      "nodes has a live fact to show, not only the ~25–30 the old " +
+      "per-section key ever named. A regression back to a narrower " +
+      'subscription drops `observations.get("XLK")` to permanently ' +
+      "`undefined`, and the sector arrival mark Story 4.3 designed, drew " +
+      "and tested cannot fire. Produced under the break: `the page has " +
+      "not subscribed to XLK — it asked for `.",
+    // **Supersedes `the-landing-page-asks-only-for-the-proxies`, retired by
+    // this same task.** That entry proved a narrowing mechanism — a
+    // per-section key collapsing to `figures` alone — that Task 6.7.1
+    // deleted outright: there is no section union left to collapse, so its
+    // `find` could never match again and repointing it would have been
+    // dishonest about what regressed. The REAL regression this design can
+    // still suffer is the one this entry proves: `liveSymbols` stops
+    // reading the universe fetch. **The defect somebody else will write**
+    // is the most innocent-looking one — a conditional that looks
+    // unchanged but no longer resolves to the mapped array on the happy
+    // path, which is why the substitution keeps the `useMemo` and its
+    // dependency intact and only changes what it RETURNS.
     file: "apps/frontend/src/routes/MarketOverview.tsx",
-    //
-    // **Repointed again 2026-10-16 by Task 5.4.3, which is this entry's own
-    // rule happening a second time.** The key gained the unusual section's
-    // five — a fourth section, added by a story two epics later — and the
-    // `find` stopped matching, with `every-break-can-still-land` the only
-    // thing that said so. The substitution is unchanged in meaning: the key
-    // collapses to the four proxies, which is the shipped defect, and it now
-    // proves **three** sections at once. The `expect` is still the sector
-    // one, so this entry keeps asserting the state it was written around
-    // rather than quietly becoming a test of the newest section.
-    //
-    // **The `find` is now the DECLARATION rather than the list**, which is
-    // what stops this entry rotting a third time: the list is the thing every
-    // story adds to, so an anchor containing it is an anchor the next section
-    // invalidates. The substitution declares the proxies-only key first and
-    // lets the real array literal fall through to a binding nothing reads —
-    // the defect expressed as a shadow rather than as a deletion, which is
-    // the same observable and a far shorter anchor.
-    find: "  const symbolKey = [\n",
+    find:
+      '      universe.state === "loaded"\n' +
+      "        ? universe.securities.map((security) => security.symbol)\n" +
+      "        : EMPTY_LIVE_SYMBOLS,\n",
     replace:
-      "  // pnpm break: reverted automatically\n" +
-      "  const symbolKey = [...(overview?.figures ?? [])]\n" +
-      "    .map((figure) => figure.symbol)\n" +
-      "    .sort()\n" +
-      '    .join(",");\n' +
-      "  const brokenSymbolKey = [\n",
+      "      // pnpm break: reverted automatically\n" +
+      "      EMPTY_LIVE_SYMBOLS,\n",
     command: ["pnpm", "e2e", "overview-frame-sections.spec.ts", "--anyway"],
     expect: "has not subscribed to XLK",
   },

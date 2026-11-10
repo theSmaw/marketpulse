@@ -35,10 +35,8 @@ import { useOrderHold } from "../components/OrderHeldBadge/use-order-hold.js";
 import {
   marketBreadth,
   marketMovers,
-  moverSymbols,
   sectorPerformance,
   unusualActivity,
-  unusualSymbols,
   type LiveFeedView,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
@@ -513,33 +511,38 @@ export function MarketOverview({
    * figures above, and the point at which the resubscribes overtake the
    * gateway's own cadence — **or** a second churning section on this frame,
    * because two of them multiply on one key rather than adding.
+   *
+   * ## Amended by Task 6.7.1 — 2026-11-10: superseded, by the Product Owner's
+   * own choice rather than by either reversal trigger above firing
+   *
+   * Story 6.7's Gate 1 put the widening question to all six shaping roles,
+   * who were unanimous that the per-section key above should stay — neither
+   * trigger had fired, the measured resubscribe rate stayed under 3% of the
+   * gateway's own load, and the topology's own `Intensity`/staleness facts
+   * (Task 6.7.3) only need a node's data once it is *selected*, not before.
+   * **The Product Owner chose to widen anyway**, to the full tracked
+   * universe, so that selecting ANY of the 516 nodes — not only the ~25–30
+   * this key ever named — has a live fact to show. That is a product
+   * decision this file cannot re-argue; what follows is the design it
+   * produced.
+   *
+   * Everything above this amendment is the reasoning for the key this
+   * widening REPLACES, left standing because it is why the narrow key was
+   * right until this story, and because the resubscribe-cost arithmetic it
+   * derived (0.21–0.44 rebuilds a minute, under 3% of the gateway's load) is
+   * exactly what the widening now retires: a subscription fixed at mount,
+   * from the universe fetch, resubscribes only on a retry — not 12–171 times
+   * a session, but close to **once**. The real cost this trades it for is a
+   * larger steady-state `observations` map and a larger `bars` frame on every
+   * batch, measured in Task 6.7.1's own record below rather than estimated
+   * here.
    */
-  const symbolKey = [
-    ...[...(overview?.figures ?? []), ...(overview?.sectors ?? [])].map(
-      (figure) => figure.symbol,
-    ),
-    ...moverSymbols(overview),
-    /*
-     * **The fifth section's contribution** (Task 5.4.3). A region that draws
-     * an arrival mark from `observations` is drawing from a map this page's
-     * subscription fills, so a section left out of this key can never mark on
-     * the deployed page — Task 4.3.6's shipped defect, and the reason the key
-     * is built from every section rather than from `figures`.
-     *
-     * It adds at most five symbols, and they **overlap the movers' ten
-     * heavily by construction**: both are selections from the same eligibility
-     * pass, and a security whose five-minute move is in its own 99th
-     * percentile is usually one of the day's larger movers. The key is sorted
-     * and joined, so a duplicate changes nothing and the resubscribe rate is
-     * bounded by the union's membership rather than by its size.
-     */
-    ...unusualSymbols(overview),
-  ]
-    .sort()
-    .join(",");
   const liveSymbols = useMemo(
-    () => (symbolKey === "" ? [] : symbolKey.split(",")),
-    [symbolKey],
+    () =>
+      universe.state === "loaded"
+        ? universe.securities.map((security) => security.symbol)
+        : EMPTY_LIVE_SYMBOLS,
+    [universe],
   );
 
   // Declared here and withdrawn on unmount, which is `SecurityExplorer`'s rule:
@@ -1096,3 +1099,5 @@ const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_SNAPSHOT: ReadonlySet<string> = new Set();
 /** The same, for `equitySymbols` — Task 6.3.3's anomaly-band fallback. */
 const EMPTY_EQUITY_SYMBOLS: readonly Ticker[] = [];
+/** The same, for `liveSymbols` before the universe fetch has settled — Task 6.7.1. */
+const EMPTY_LIVE_SYMBOLS: readonly Ticker[] = [];
