@@ -161,9 +161,9 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): five of nine stories complete, 2026-11-07, and
-the graph now shows which securities move together, not only how the market
-is organised.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): six of nine stories complete, 2026-11-10, and
+the graph now shows which securities move together AND how strongly, not
+only how the market is organised.** Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -212,8 +212,10 @@ not in breach: **0 of 10 loads over 50ms**, worst rAF gap **18.6–18.7ms**
 against a 24.7/34.7ms baseline taken before this story landed.
 `MARKET-OVERVIEW.md` §1.1, §1.4 and §9 and `TOPOLOGY.md` carry the fuller
 account; what remains Storybook-only or unbuilt is everything the next four
-stories still own — node size and live updates. ~~correlation edges~~ shipped
-2026-11-07, Story 6.5.
+stories still own — ~~node size~~ and live updates. ~~correlation edges~~
+shipped 2026-11-07, Story 6.5. ~~node size~~ refused rather than shipped,
+2026-11-09, Story 6.6 — a decision rather than an omission, with its own
+reversal trigger.
 
 **And since 2026-11-03 the graph's nodes carry what the market is doing,
 not only how it is organised — Story 6.3, the half of this epic's exit
@@ -377,6 +379,35 @@ looked at them, nor checked a single coefficient against an outside
 source — both named in `docs/GAPS.md` with an owner (Story 6.9, which is
 where Epic 6's own rehearsal sitting lives, the way `LIVE-REHEARSAL.md`
 is Epic 3's).
+
+**And since 2026-11-10 a correlation edge's own measured strength reaches
+the picture, and §10's five node encodings are each closed by a named
+story.** A stronger relationship now draws as a visibly heavier dashed
+line than a weaker one — three quantised stroke widths, derived from the
+real retained generation's own tertiles (|r| 0.4139 and 0.5496), floored
+at the stroke every edge already drew at so nothing fades below what
+shipped. **Node size is refused, explicitly, with a reversal trigger**:
+every candidate quantity either omits securities or actively inverts the
+hierarchy it would claim to show (`iex` volume runs inversely with
+liquidity), and a node has exactly one radius — it cannot say "we don't
+know" the way the anomaly ring's hollow state can. Six shaping roles
+converged on that recommendation independently. §10's `shape/icon`
+encoding (the circle/square/diamond ladder) turns out to have shipped
+with Story 6.2 and never been recorded as answering that spec item until
+now; `intensity` (current price movement) is undecided and handed to
+Story 6.7 by name, whose own subject — live movement — is the natural
+owner. **ADR 0048's Decision-3 trigger, which fired at Story 6.5's close
+and sat half-evaluated, is now fully discharged**: the layout stays
+closed-form and weight-blind, for reasons that are not "determinism" (a
+weight-keyed offset would be deterministic too) but the server/browser
+coordinate agreement Epic 7's tools need and a measured zero spatial
+budget at 390. Two pre-existing defects were found and fixed along the
+way, independent of anything this story decided: a docblock claiming a
+1.25 px focus-ring clearance where the renderer's own code produces
+0.00 px, and the eleven sector ETFs drawing as unlabelled squares at
+three of the four widths this product tests. What no gated machine will
+ever see: the stroke encoding, for the same reason no gated machine has
+ever seen a correlation edge at all.
 
 ### What a user can see today
 

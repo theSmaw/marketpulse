@@ -447,3 +447,120 @@ of it — so 21.2% bounds nothing there any more. The real bound on the
 stroke channel is at **1440**, the one width that clears 0.38 at default
 zoom: measured coverage there is **0 of 1,860**, so the channel is
 unbounded by node coverage at the width a reader actually meets it.
+
+## Amended 2026-11-09 by Task 6.6.3 — Decision 3's reversal trigger is now fully discharged: the layout stays closed-form AND weight-blind, and edge strength lives only in the stroke
+
+The 2026-11-07 amendment above recorded that this trigger fired and that
+only the type half had been evaluated. The layout half is taken here, as
+a decision, by the technical architect consulted during Story 6.6's own
+Gate 1 shaping. **The closed-form layout does not read an edge's weight,
+and `buildTopologyLayout` remains a function of the graph's nodes and
+clusters alone.** Edge strength is a renderer concern, spent entirely on
+the correlation batch's stroke (Task 6.6.1).
+
+**The trigger's own premise is accepted and answered rather than
+dismissed.** It is true that a layout ignoring edge strength draws a
+picture its data does not fully express. What it predicted — that the
+closed-form-against-simulation question would re-open "with a new
+argument on the other side" — did not survive contact with three
+measurements and one structural fact, none of which existed when this
+ADR was written:
+
+1. **The layout is a function of the curated universe alone, and two
+   processes depend on that.** Story 6.5 deliberately left
+   `buildTopologyGraph` unchanged and merged the measured set through a
+   separate pure function (`withCorrelationEdges`), so a weight-responsive
+   layout would make node **position** a function of `return_correlations`
+   — a nightly table — in the model Epic 7 reads server-side to answer
+   `highlight_graph_nodes`. Server and browser would then have to hold the
+   same generation of that table for a highlight to land on the right
+   node, with no error anywhere when they do not. That is consequence 2 of
+   `no-random-in-the-shared-model`'s own argument — _the coordinates the
+   tool reasons about are not the coordinates on screen_ — reached through
+   data staleness instead of through randomness, and therefore outside the
+   reach of the check written for it.
+2. **Decision 3's third property — "adding a security moves one cluster,
+   not every node" — would become "last night's pass moves every node."**
+   The correlation set is absent in three live states (a request in
+   flight, a request that failed, a store that has never run the pass —
+   CI permanently) and changes nightly. All three states draw the same
+   picture today, asserted at `apps/frontend/src/topology/
+graph-source.test.ts`'s own _"gives a correlation set and no
+   correlation set the same LAYOUT"_ case. A weight-responsive layout
+   makes a late payload a market that re-arranges under a reader's
+   stationary hands, which is Story 6.4's own settled rule for the
+   keyboard walk applied to position rather than to focus order.
+3. **There is no spatial budget, measured rather than argued.** The
+   closest node pair in the whole 516-node graph is **17.83 layout
+   units** against a `TOPOLOGY_NODE_FOOTPRINT` of **16** — 1.83 units of
+   total slack — and Story 6.4's hit-test found one `TECHNOLOGY` node
+   already contested at **0.0 px** at 390. **82.4–83.6% of retained
+   correlation edges join two securities in the same cluster**, so a
+   within-cluster attraction would act precisely where the slack is zero.
+   A displacement that respected the footprint would be clamped to
+   roughly 1.8 of 16 units: invisible to a reader, and still enough to
+   invalidate the equal-area spiral's own bound (`distance ≤ r_s`) on
+   which the 131.40-unit cluster-circle disjointness proof rests. A
+   collision pass to recover it is a relaxation pass, which is the
+   simulation this decision refuses, arrived at sideways.
+
+**And one reason offered in the 2026-11-07 amendment above is withdrawn
+as unsound, deliberately rather than quietly.** It said determinism is
+what this rests on. It is not: a within-cluster offset that is a pure
+function of `weight` is fully deterministic, needs no seed and no
+iteration count, and `no-random-in-the-shared-model` would be **green**
+on it. "Deterministic" and "weight-responsive" are not mutually
+exclusive, and a decision resting on that dichotomy would be re-litigated
+by the first reader who noticed. The three reasons above do not depend
+on determinism at all.
+
+### Alternative rejected, with its figure
+
+- **A hybrid: sector wedge, centroid and derived cluster radius
+  unchanged, with a within-cluster spiral offset that is a pure
+  deterministic function of a member's strongest retained correlation.**
+  Rejected on the three points above, and specifically on the
+  measurement: the honest displacement available inside the footprint is
+  ~1.8 of 16 units, so the encoding would be unreadable at the cost of
+  the server/browser coordinate agreement and of the single-picture
+  property. Not rejected on non-determinism, which it does not have.
+
+### What this leaves the stroke, and the bound on it
+
+Edge strength now has exactly one channel, and its bound is already
+measured: Task 6.6.1's own stroke classification (three quantised
+widths, 1/1.5/2 px, derived from the real retained distribution's
+tertiles) is the whole of what the stroke can carry, and
+`CORRELATION_EDGE_CLEARANCE_SHARE`'s own table records **0 of 1,860**
+correlation segments entirely covered by their own endpoints' node
+bodies at 1440 — the one width the layer draws at default zoom. That is
+the bound on the chosen channel, not a defect of it.
+
+### Reversal trigger — replacing Decision 3's original, which has fired and is discharged
+
+**The first consumer that needs two securities' measured relationship
+expressed as distance rather than as ink** — a renderer that cannot
+express strength in a stroke at all, or a reader requirement that
+strongly-correlated pairs be **spatially** adjacent across sector
+boundaries. At that point the question is not "closed form or
+simulation" but **whether the sector wedge is still the organising
+principle of this screen**, which is a design-canvas and Product Owner
+question before it is an architectural one, and it reopens Decision 3
+with the three points above as the cost to be paid rather than as
+arguments to be answered.
+
+**Not a trigger:** a denser correlation set, a second measured edge
+kind, or a reader wishing the strong edges were easier to see. The first
+two change no argument above; the third is the stroke's job and the
+design canvas's.
+
+**The mechanical half, owed in the same change as this amendment.**
+`graph-source.test.ts`'s layout-identity test is the behavioural anchor
+and would fail on any weight-keyed displacement — but it lives in
+`apps/frontend` while the model it protects lives in `packages/shared`,
+so Epic 7's server-side reader, which calls `buildTopologyLayout`
+directly, is covered by a test it does not run. A `pnpm invariants`
+clause refusing an edge read in `packages/shared/src/topology-layout.ts`
+— keyed on the **read** rather than on a type name, the way
+`no-random-in-the-shared-model` covers four shapes of one reach — plus
+its `pnpm break`, lands with this amendment (Task 6.6.3).

@@ -10986,6 +10986,105 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-topology-layout-reads-no-edge",
+    claim:
+      "`packages/shared/src/topology-layout.ts` is a function of a graph's " +
+      "nodes and clusters alone — it never reads `graph.edges`, never " +
+      "destructures or imports `TopologyEdge`/`TopologyCorrelationEdge`, " +
+      "and never reads a `.weight`. Node POSITION does not depend on edge " +
+      "strength.",
+    check() {
+      // **ADR 0048's Decision 3, discharged 2026-11-09 by Task 6.6.3** — the
+      // layout stays closed-form AND weight-blind, and edge strength lives
+      // only in the renderer's stroke (Task 6.6.1). This is the mechanical
+      // half that amendment is owed: a claim about a mechanism reads
+      // identically whether the mechanism is there or not, and the
+      // behavioural anchor that WOULD catch a weight-keyed displacement —
+      // `apps/frontend/src/topology/graph-source.test.ts`'s *"gives a
+      // correlation set and no correlation set the same LAYOUT"* — lives in
+      // `apps/frontend` while the model it protects lives in
+      // `packages/shared`. Epic 7's server-side reader calls
+      // `buildTopologyLayout` directly and never goes through
+      // `topologySource`, so it is covered by a test it does not run.
+      //
+      // ## Why this is a corpus clause rather than a function signature
+      //
+      // `buildTopologyLayout(graph: TopologyGraph, options?)` takes the
+      // WHOLE graph, which structurally carries `.edges` — a type check
+      // cannot see whether the function body reads that field, only
+      // whether it compiles without doing so. The three reasons ADR 0048's
+      // amendment gives (the server/browser coordinate agreement Epic 7's
+      // tools need, the single-picture-under-absence property, zero
+      // measured spatial slack at 390) all argue against a weight-keyed
+      // offset SPECIFICALLY — so the clause is keyed on the read, the way
+      // `no-random-in-the-shared-model` covers four shapes of one reach
+      // rather than one literal.
+      //
+      // ## What it deliberately does NOT flag
+      //
+      // `graph.nodes` and `graph.clusters` are both read extensively and
+      // correctly — this file's whole job is placing them. The ban is
+      // narrow: `.edges`, the two edge-carrying type names, and `.weight`.
+      // A mention in prose is still a match (this docblock itself would
+      // trip the file-wide grep if it used the literal property-access
+      // spelling, which is why it is paraphrased above as "the field" in
+      // comments elsewhere in this repository's break registry) — but
+      // trailing comments and block comments are stripped before matching
+      // here regardless, so a docblock explaining the prohibition cannot
+      // trip the check it documents.
+      const FILE = "packages/shared/src/topology-layout.ts";
+      const path = resolve(REPO_ROOT, FILE);
+      const text = withoutComments(readAnchored(path));
+
+      const SHAPES = [
+        { as: "`.edges`", pattern: /\.edges\b/u },
+        { as: "`TopologyEdge`", pattern: /\bTopologyEdge\b/u },
+        {
+          as: "`TopologyCorrelationEdge`",
+          pattern: /\bTopologyCorrelationEdge\b/u,
+        },
+        {
+          as: "`TopologyMembershipEdge`",
+          pattern: /\bTopologyMembershipEdge\b/u,
+        },
+        { as: "`.weight`", pattern: /\.weight\b/u },
+      ];
+
+      const offenders = [];
+
+      for (const [index, line] of text.split("\n").entries()) {
+        const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+        if (shape === undefined) continue;
+
+        offenders.push(
+          `${FILE}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${FILE}\` read an ` +
+            "edge, a weight, or an edge-carrying type:\n      " +
+            offenders.join("\n      ") +
+            "\n    ADR 0048's Decision 3 was amended 2026-11-09 specifically " +
+            "to refuse this: node POSITION is a function of the curated " +
+            "universe alone, never of a correlation's measured strength. A " +
+            "weight-responsive layout makes CI's picture and production's " +
+            "picture structurally different (CI never runs the correlation " +
+            "pass), makes a late or failed correlation request re-arrange " +
+            "nodes under a reader's stationary hands, and breaks the " +
+            "server/browser coordinate agreement Epic 7's " +
+            "`highlight_graph_nodes` depends on. If a node's SIZE or COLOUR " +
+            "needs to read a weight, that is the renderer's job " +
+            "(`apps/frontend/src/topology/edge-strength.ts` already does " +
+            "exactly this for stroke width) — this file answers WHERE a " +
+            "node sits, and where never depends on how strongly it " +
+            "correlates with anything.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

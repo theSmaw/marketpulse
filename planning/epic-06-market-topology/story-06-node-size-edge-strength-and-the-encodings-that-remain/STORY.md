@@ -324,3 +324,13 @@ the width a reader actually meets it by default. A reader who zooms past
 are at their largest and the real coverage share has never been
 measured — named rather than taken here, since this story's own subject
 is the stroke encoding and not a second crowding instrument.
+
+**Confirmed 2026-11-09 by Task 6.6.3, closing the trigger as the hand-off
+above asked for: this story keeps the layout closed-form.** The layout
+does not read an edge's weight; edge strength lives entirely in the
+stroke (Task 6.6.1). The technical-architect's own reasoning — the real
+costs are the server/browser coordinate agreement Epic 7's tools need, the
+single-picture-under-absence property, and the measured zero spatial slack
+at 390 (not determinism, which a within-cluster deterministic offset would
+also have satisfied) — is recorded in full in ADR 0048's own 2026-11-09
+amendment, which this confirmation points to rather than repeats.
