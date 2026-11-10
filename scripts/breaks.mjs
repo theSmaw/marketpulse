@@ -3038,6 +3038,42 @@ export const BREAKS = [
     expect: "has not subscribed to XLK",
   },
   {
+    name: "the-graph-level-mark-is-keyed-on-the-score",
+    proves:
+      "The topology's graph-level live-update mark (Task 6.7.2) is fired " +
+      "from an effect watching `liveFeed.observations` — a reference that " +
+      "changes only when a bar genuinely arrived — never `overview`, " +
+      "whose own identity changes on every one of the gateway's up-to-" +
+      "16-a-minute recomputes whether or not a price moved " +
+      "(`sameLiveFeedView`'s own docblock). `an-arrival-mark-is-keyed-on-" +
+      "the-arrival` (Task 6.7.4) widens to see this call site, never a " +
+      "second, parallel check — the same shape the `arrival:`/`useArrival`" +
+      " clauses already forbid for a value, applied to an effect's own " +
+      "dependency array since `markBurst()` itself takes no argument to " +
+      "key. Produced under the break: the mark fires on every recompute, " +
+      "up to sixteen times a minute, which is exactly the shape Decision " +
+      "1's own reversal trigger (`--motion-duration-decay`'s docblock: " +
+      '"the first surface where it fires more than once a second") exists ' +
+      "to catch.",
+    // **Confirmed to pass WRONGLY before this task widened the check**:
+    // before Task 6.7.4, nothing in `an-arrival-mark-is-keyed-on-the-
+    // arrival` mentioned `markBurst` at all — the check's own two existing
+    // clauses match only an `arrival:`/`arrival={…}` assignment or a
+    // `useArrival(…)` call, neither of which a zero-argument
+    // `TopologyRenderer` method is. So this exact substitution, applied to
+    // the tree as it stood before this task's own widening, left `pnpm
+    // invariants` reporting a clean run — proving the gap this task closes
+    // was real rather than theoretical.
+    file: "apps/frontend/src/routes/MarketOverview.tsx",
+    find: "    topology.current?.markBurst();\n  }, [observations]);",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    topology.current?.markBurst();\n  }, [overview]);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect:
+      "markBurst() called from an effect whose own dependency array is [overview]",
+  },
+  {
     name: "the-proxy-section-is-taken-negatively",
     proves:
       "The proxy section of the overview frame is defined as the COMPLEMENT " +
@@ -6533,5 +6569,28 @@ export const BREAKS = [
       "--anyway",
     ],
     expect: "distinct).toBeGreaterThan(2)",
+  },
+  {
+    name: "the-topology-view-reads-an-arrival",
+    proves:
+      "`apps/frontend/src/topology/fit.ts` — the affine transform between " +
+      "layout units and screen pixels — reads nothing about an arrival, " +
+      "an observation or a bar's own instant (Task 6.7.4, AC 6). The " +
+      'defect this plants is the one a future author chasing "make a ' +
+      'freshly-arrived node pop on screen" would actually reach for: a ' +
+      "recency read inside `worldToScreen` itself, which would move a " +
+      "node's drawn POSITION on a live batch — breaking the server/" +
+      "browser coordinate agreement Epic 7's `highlight_graph_nodes` " +
+      "needs, since the server's own `buildTopologyLayout` call has no " +
+      "live feed to read a recency from in the first place.",
+    file: "apps/frontend/src/topology/fit.ts",
+    find: "  const unit = view.scale * view.zoom;\n\n  return {\n    x: (x - view.centreX) * unit",
+    replace:
+      "  const unit = view.scale * view.zoom;\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const recencyNudge = node?.lastBar?.startsAt ?? 0;\n\n" +
+      "  return {\n    x: (x - view.centreX) * unit",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-view-reads-no-arrival",
   },
 ];

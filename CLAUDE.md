@@ -161,9 +161,9 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): six of nine stories complete, 2026-11-10, and
-the graph now shows which securities move together AND how strongly, not
-only how the market is organised.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): seven of nine stories complete, 2026-11-10, and
+the graph now moves on its own, with §28's 60 FPS target measured against
+it for the first time.** Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -394,9 +394,13 @@ know" the way the anomaly ring's hollow state can. Six shaping roles
 converged on that recommendation independently. §10's `shape/icon`
 encoding (the circle/square/diamond ladder) turns out to have shipped
 with Story 6.2 and never been recorded as answering that spec item until
-now; `intensity` (current price movement) is undecided and handed to
+now; ~~`intensity` (current price movement) is undecided and handed to
 Story 6.7 by name, whose own subject — live movement — is the natural
-owner. **ADR 0048's Decision-3 trigger, which fired at Story 6.5's close
+owner.~~ — **settled 2026-11-10 at Story 6.7's own Gate 1: the signed
+direction alone, in the plate, for a selected node — never node ink, the
+same reasoning that refused `size`.** `PRODUCT_SPEC.md` §10's fifth and
+last node encoding is now closed by a named story. **ADR 0048's Decision-3
+trigger, which fired at Story 6.5's close
 and sat half-evaluated, is now fully discharged**: the layout stays
 closed-form and weight-blind, for reasons that are not "determinism" (a
 weight-keyed offset would be deterministic too) but the server/browser
@@ -408,6 +412,44 @@ way, independent of anything this story decided: a docblock claiming a
 three of the four widths this product tests. What no gated machine will
 ever see: the stroke encoding, for the same reason no gated machine has
 ever seen a correlation edge at all.
+
+**And since 2026-11-10 the graph moves on its own, and `PRODUCT_SPEC.md`
+§28's 60 FPS target has a real figure against it for the first time —
+Story 6.7.** `/`'s subscription widened to the full 516-security tracked
+universe (Task 6.7.1, against the unanimous recommendation of five
+independent shaping reports, taken with the real cost named rather than
+assumed); a graph-level mark decays on each burst, keyed on the
+aggregate's own observation instant rather than a per-node signal (Task
+6.7.2, because ~340 nodes marking in the same instant once a minute would
+read as the graph flashing); and the readout plate carries a selected
+node's own staleness instant and move direction, with no threshold and no
+status word (Task 6.7.3). **The missing measurement infrastructure this
+file has named twice without closing (`TOPOLOGY.md` §4, Stories 6.3 and
+6.6) now exists**: `scripts/topology-instrument.mjs` gained a route-level
+`--live` arm driving the real `/` route, continuous pan and zoom running
+concurrently with real burst arrivals, rather than the Storybook-only
+fixed path every earlier figure in this epic was taken against.
+**The figure: 16.7 ms median frame time — the 60 FPS line exactly — on
+every arm of every run, both the software-rendered regression floor
+(perfectly clean across two full runs) and a real Apple M3 GPU** (clean
+on the great majority of frames across three independent runs, with a
+small number of isolated, non-reproducible single-frame anomalies that
+moved between different arms and populations each run and never recurred
+in the same place twice — recorded honestly in `docs/GAPS.md`, alongside
+this specific development machine's own measured real contention, rather
+than smoothed into a clean pass). **A new permanent e2e spec proves a
+burst is absorbed** — zero frames over the 50 ms ceiling across 3
+consecutive bursts, at both the real subscribed population and a smaller
+furnished comparison arm — and it is the one live-topology feature a
+gated machine can actually exercise despite CI's permanent zero-bar
+store, because it is driven by the socket rather than by stored data, a
+genuine exception to this epic's own recurring limitation
+(`docs/GAPS.md` carries the contrast). Two mechanical guards close the
+story's remaining acceptance criteria: the arrival-mark invariant widened
+to see the renderer's own call site, and a new invariant refusing any
+read of an arrival key or a bar's own instant inside the layout-to-screen
+transform — `pnpm invariants` now holds **84**. `TOPOLOGY.md` §7 carries
+the fuller account.
 
 ### What a user can see today
 

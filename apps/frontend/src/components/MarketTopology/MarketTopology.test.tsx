@@ -435,6 +435,53 @@ describe("MarketTopology", () => {
       expect(lastDestroy).not.toHaveBeenCalled();
       expect(renderer?.framesDrawn()).toBe(framesBefore);
     });
+
+    it("is never handed a second layout across setBands, markBurst AND setObservations interleaved — AC 6's own producer-side test, Task 6.7.4", () => {
+      // **AC 6: the graph does not re-layout under live data.** Already
+      // true by construction — `securities`' own array identity gates the
+      // mount effect — and what this test adds is proof that Story 6.7's
+      // THREE new live-update mechanisms, used together exactly as a real
+      // live batch uses them (a band update, the graph-level mark, and the
+      // plate's live facts all fire from the same `MarketOverview.tsx`
+      // effects on the same `observations`/`overview` change), introduce
+      // no renderer-side nudge the model-level invariants
+      // (`the-topology-layout-reads-no-edge`,
+      // `the-topology-view-reads-no-arrival`) cannot see from their own
+      // static text alone.
+      const universe = securitiesFixtureView("full");
+      const handle = createRef<MarketTopologyHandle>();
+
+      render(
+        <MarketTopology
+          ref={handle}
+          universe={universe}
+          relationships={NO_MEASUREMENT}
+          bands={new Map([[toTicker("NVDA"), "elevated"]] as const)}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      const renderer = mountCanvasTopology.mock.results[0]?.value as
+        TopologyRenderer | undefined;
+      expect(renderer).toBeDefined();
+
+      for (let batch = 0; batch < 5; batch += 1) {
+        act(() => {
+          handle.current?.setObservations(new Map());
+          handle.current?.markBurst();
+        });
+      }
+
+      // **The producer, not the wire**, same reason the test above reads
+      // this way: one mount, the SAME renderer instance throughout, no
+      // `destroy()` — proof that nothing along this path ever re-mounts
+      // with a fresh `graph`/`layout`, whichever of the three mechanisms
+      // fired.
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(mountCanvasTopology.mock.results[0]?.value).toBe(renderer);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
   });
 
   describe("the anomaly-band update channel — Task 6.3.2", () => {
