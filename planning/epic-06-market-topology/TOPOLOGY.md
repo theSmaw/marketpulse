@@ -62,10 +62,23 @@ deployed `baselines` job ran the correlation phase for the first time at
 1,351 s against its own 5,400 s budget) and the deployed route has been
 serving those rows to every real visitor since. Three task files, this
 document and a `docs/GAPS.md` entry all carried the same now-false claim;
-all are corrected in this same sweep. What bounds the
+all are corrected in this same sweep. ~~What bounds the
 sections below now is **node sizing, edge strength and live updates** —
 Stories 6.6–6.8 — and §2's renderer figures are still local, one-laptop
-ones (§4). See §5.
+ones (§4). See §5.~~ — **narrower since 2026-11-09/10: node sizing and
+edge strength are both decided.** Story 6.6 drew correlation-edge strength
+as three quantised stroke widths and refused node size outright, in
+writing, with a reversal trigger — §10's five node encodings are each now
+closed by a named story. See §6. ~~What bounds the sections below now is
+**live updates** alone — Story 6.7 — and §2's renderer figures are still
+local, one-laptop ones (§4).~~ — **closed 2026-11-10: Story 6.7 shipped,
+and §28's 60 FPS target has a real figure for the first time.** The graph
+moves on its own, and the three-part conjunction §28 names was measured
+against the real shipped graph, concurrently with pan and zoom, both
+headless and on a real GPU. See §7. **What bounds the sections below now
+is only what Epic 6's own remaining story (6.8, filtering and the
+degraded set) has not yet built, and §2's renderer figures are still
+local, one-laptop ones (§4).**
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 
@@ -222,10 +235,14 @@ at zoom 1 — is exact.
   only surface any of this exists on. Story 6.2 is what changes that.~~ —
   **false since 2026-11-01: Story 6.2 shipped.** `/`'s second region draws
   the real graph — 516 securities, the elliptical ring, pan/zoom, a real
-  retry, an accessible fallback. What remains true of the sentence above is
+  retry, an accessible fallback. ~~What remains true of the sentence above is
   everything downstream of this epic's remaining seven stories: the anomaly
   band, node size, correlation edges, live updates and interaction are all
-  still Storybook-only or not yet built.
+  still Storybook-only or not yet built.~~ — **false since 2026-11-10: only
+  `interaction` (filtering and the degraded set, Story 6.8) still is.** The
+  anomaly band (Story 6.3), correlation edges (Story 6.5), node size's own
+  refusal (Story 6.6) and live updates (Story 6.7) have each shipped on `/`
+  in turn; §§3–7 below carry each in order.
 - **The frame-rate and no-task-over-50ms figures are local, one laptop, and
   not §28's scale** — 518 nodes / 514 edges, not §28's 500/5,000 nor its own
   5,000/25,000 synthetic target. `docs/GAPS.md` carries the entry; Epic 14
@@ -653,3 +670,83 @@ mechanism costs real time under headless/software-rendered Canvas2D
 nothing measurable on a real GPU (`--headed`, Apple M3 Metal) — both
 figures recorded in `docs/GAPS.md`, because no gated machine can see the
 real-GPU figure, which is the one that matters.
+
+## 7. Live updates, and §28's 60 FPS target measured for the first time (Story 6.7, 2026-11-10)
+
+**The graph moves on its own, and §28's one unmet target finally has a
+figure.** `/`'s subscription widened to the full tracked universe
+(Task 6.7.1, `trackedTickers()` rather than the ~25–30-symbol narrow set),
+a graph-level decaying mark fires on each burst keyed on the aggregate's
+own observation instant (Task 6.7.2, never a per-node mark — ~340 nodes
+marking in the same instant once a minute would read as the graph flashing
+rather than individual events), and the readout plate carries a selected
+node's own staleness instant and move direction, sourced from its
+`lastBar` (Task 6.7.3) — never node ink, never a per-node visual treatment,
+per this story's own Open Decisions.
+
+**The missing measurement infrastructure — a gap this file named twice
+without closing (Stories 6.3, 6.6) — now exists.** `pnpm probe`'s own
+pan/zoom path had only ever reached `MarketTopology.stories.tsx`'s fixed
+Storybook container; `scripts/topology-instrument.mjs` gained a `--live`
+top-level branch driving the real `/` route through a production pair,
+with a continuous pan+zoom gesture running **concurrently** with real
+burst arrivals rather than a one-shot scripted path.
+
+**The figure: 16.7 ms median frame time — the 60 FPS line exactly — on
+every arm, both the software-rendered regression floor and a real GPU.**
+Measured as the three-part conjunction Story 6.7's own Gate 1 rewrote AC1
+into (the loop ran, the loop kept up, nothing blocked), at the real
+shipped graph's size (516 nodes, ~2,372 edges), with an interleaved
+`marketpulse_bare` membership-only control per ADR 0048's own precedent.
+Headless was clean across two full runs with zero exceptions on any
+channel. The headed arm, on a real Apple M3 GPU, held the frame-time
+figure (`gapP50 16.7 ms` on every single arm of three independent runs)
+while showing isolated, non-reproducible single-frame contention on 6 of
+12 arm-runs — never the same arm/population/channel twice, zero script
+attribution on every captured entry, and correlated with this specific
+development machine's own measured real contention (a VM, a Teams VDI
+session, Chrome) rather than a reproducible product cost. `docs/GAPS.md`
+carries the full figures and the open item (a from-rest sitting) rather
+than smoothing the finding into a clean pass.
+
+**AC3's burst-absorption mechanism is the one live-topology feature a
+gated machine can actually exercise, and it is worth naming as a genuine
+exception to this epic's own recurring limitation.** Every other live
+figure this epic has shipped (the anomaly band, the composite score a
+ring reads) is store-gated — CI's zero-bar database means it never runs
+there, for ever. The live-update mark and the burst-absorption behaviour
+are socket-driven instead: `e2e/specs/overview-market-topology-burst-
+absorption.spec.ts` furnishes `bars` frames directly over a mocked socket
+via the shipped `e2e/support/feed.ts` harness, needing no stored bar and
+no provider, and is therefore a genuinely CI-reachable proof — 0 frames
+over the 50 ms ceiling across 3 consecutive bursts, at both the real
+~516-subscribed population and a furnished ~30-symbol comparison arm,
+run on every gated `pnpm e2e` pass. `docs/GAPS.md` carries the contrast
+in full.
+
+**Two new mechanical guards close this story's remaining acceptance
+criteria.** `an-arrival-mark-is-keyed-on-the-arrival` widened (not a
+second check) to see the renderer's own `markBurst()` call site, over
+every shipped source file, with an exclusion for the renderer's internal
+forwarding call that carries no arrival decision of its own. A new
+invariant, `the-topology-view-reads-no-arrival` — a mechanical sibling of
+`the-topology-layout-reads-no-edge` — refuses any read of an arrival key,
+an observation identity, or a bar's own instant inside `fit.ts`, the
+affine transform between layout units and screen pixels: a live update
+must never nudge where a node is drawn, the same server/browser
+coordinate-agreement reasoning ADR 0048's own discharged Decision-3
+trigger already established for edge weight. `pnpm invariants` now holds
+**84** (up from 83). Both guards' own breaks plant the specific defect a
+future author would plausibly write and are confirmed red before being
+restored.
+
+**§10's `intensity` node encoding, undecided and handed here by Task
+6.6.2's own close, was settled at this story's own Gate 1** — see §6's
+own closing paragraph above, which this story's Task 6.7.3 discharged:
+the signed direction alone, in the plate, never node ink.
+
+**What no person has yet watched.** A real-GPU sitting with nothing else
+running on the machine, to separate this story's own headed-arm
+contention noise from a genuine cost — named above and in `docs/GAPS.md`,
+owned by the same future rehearsal (Story 6.9) that owns watching the
+deployed correlation edges for the first time.

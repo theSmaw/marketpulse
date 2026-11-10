@@ -6419,3 +6419,87 @@ describes, since fifteen nodes at known ring positions rather than 501 at
 arbitrary ones might clear the same longest-name constraint differently),
 or accepting the trade-off as stated and relying on a reader's own
 positional memory. Neither is decided here.
+
+## The real-GPU `--live` route arm of the topology instrument shows isolated, non-reproducible single-frame contention noise, and three runs could not separate it from this laptop's own background load
+
+**Added 2026-11-10 by Task 6.7.4, extending the same mechanism Task 6.6.1's
+entry above names (a real performance channel invisible to every gated
+run) with a second instance of it, found while taking Story 6.7's own AC1
+figure for the first time.** `scripts/topology-instrument.mjs --live
+--headed` drives the real `/` route on a real Apple M3 GPU through a
+continuous pan+zoom gesture running CONCURRENTLY with a live-update burst
+every few seconds, over two populations (`marketpulse_bare`, the
+membership-only control, and `marketpulse`, the full graph with real
+correlation edges), interleaved twice — four arms a run. The quantum-tight
+half of the figure never moved across any arm of any run: `gapP50 16.7
+ms`, `gapP95 17.4–17.6 ms`, every time. What did move, across three
+independent runs (twelve arm-runs total, taken as load settled from a
+measured peak of 25.0 across 8 cores — ratio ≈ 3.1 — down to 0.50–0.69):
+a single `gapsOver50` or a single-to-few `longEntriesOver50` entry
+appeared in 6 of the 12 arm-runs, never more than 2 entries on either
+channel, never in the same population/arm-position/channel combination
+twice across the three runs, and every captured `long-animation-frame`
+entry carried `scriptMs: 0` and `invokers: []` — no script this product
+wrote is attributable to any of them. `ps` taken during the elevated
+reading showed a running Virtualization VM (32.3% CPU), a Microsoft Teams
+VDI session (23.9%) and Chrome (21.8%) all independently active on the
+same machine. The headless (software-rendered) arm of the same instrument,
+run twice over the same two populations, was perfectly clean — `0`
+`gapsOver50`, `0` `longEntriesOver50` — on all eight of its own arm-runs,
+both before and after the headed runs above, which is the control this
+repository's own standing rule (`CLAUDE.md`'s _the calibrator does not
+divide out_ / _before attributing a flake to a branch_ passages) asks for
+before writing "regression": a genuine product cost on this specific
+drawing path would not vanish under software rendering the way Story
+6.6.1's own correlation-stroke regression did NOT.
+
+**Not mechanisable as a check, for the same reason Task 6.6.1's entry
+above gives** — neither `pnpm verify` nor `pnpm e2e` launches Chromium with
+real GPU acceleration, so the one channel that could show a real cost on
+this exact concurrent pan+zoom+live-update path is permanently invisible
+to every gated run, and the channel every gated run CAN see (headless) is
+clean throughout. The scattered, non-repeating shape of the three headed
+runs here is itself evidence against a reproducible product defect, but
+three runs on one contended development laptop cannot rule one out with
+the confidence a from-rest sitting would.
+
+**Re-measure**: `node scripts/topology-instrument.mjs --live --headed`,
+with `uptime` read immediately before the run and nothing else started on
+the machine for its ~90 s duration — ideally several interleaved runs, as
+this entry's own finding came from comparing three rather than trusting
+one.
+
+**Owner: the same future rehearsal/sitting that owns watching the deployed
+correlation edges for the first time (Story 6.9)** — a real machine with a
+real GPU and nothing else running on it is the only way this mechanism's
+actual headed-arm cost has ever been, or can mechanically be, cleanly
+separated from ordinary laptop contention.
+
+## The live-update mechanism is the one feature in this epic a gated machine CAN exercise despite the permanent zero-bar store, because it is socket-driven rather than store-driven
+
+**Added 2026-11-10 by Task 6.7.4.** Every other live-data claim in this
+epic's own account above — band ring colours, correlation edges, the
+composite score a node's ring reads — is **store-gated**: CI's database
+has 516 securities and zero bars, so composite generation never runs
+there and the feature is structurally unreachable on any gated run, for
+ever, by construction (`CLAUDE.md`'s own repeated phrasing: "what no
+gated machine will ever see"). Story 6.7's own live-update mark, and the
+burst-absorption behaviour AC3 measures, are different in kind: they are
+driven by a `bars` frame arriving over the market-stream WebSocket, which
+`e2e/support/feed.ts`'s `serveFeed`/`send` harness furnishes directly over
+a mocked socket — no stored bar, no provider, and no nightly pass is
+needed anywhere in the path. **The result is that
+`e2e/specs/overview-market-topology-burst-absorption.spec.ts` is a
+genuinely gated, CI-reachable proof of this story's central behaviour**
+(no frame over the 50 ms ceiling across 3 consecutive bursts, at the real
+516-ish population and a furnished comparison population), which is an
+unusual, worth-stating positive for this epic rather than a gap in the
+ordinary sense this file otherwise records. The gap that remains is
+narrower than the rest of this epic's: AC1's own `--live` route harness
+(above) DOES need a real production pair and, for its authoritative
+headed arm, a real GPU — so the fps FIGURE stays unreachable on CI even
+though the absorption BEHAVIOUR it depends on is proved there every run.
+
+**Not an entry needing a re-measure or an owner** — recorded for the
+contrast it gives the rest of this epic's own account, not as an open
+item.

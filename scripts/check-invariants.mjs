@@ -10103,6 +10103,7 @@ const INVARIANTS = [
       const offenders = [];
       let assignments = 0;
       let hooks = 0;
+      let markBurstCalls = 0;
 
       for (const { path, text } of shippedSourceFiles()) {
         const file = relative(REPO_ROOT, path);
@@ -10176,6 +10177,57 @@ const INVARIANTS = [
               `useArrival(${argumentList.replace(/\s+/gu, " ").trim()})`,
           );
         }
+
+        // **And the canvas renderer's own verb — Task 6.7.4, widening this
+        // SAME check (not a second, parallel one) to see the one call site
+        // neither clause above can: `TopologyRenderer.markBurst()` takes no
+        // argument to key at all.** What decides whether a call means *an
+        // arrival* is the EFFECT that makes it, not a value passed in — so
+        // this reads FORWARD from each call to that effect's own closing
+        // `}, [deps])` rather than to an argument list, and requires
+        // `observations` in it. The defect this is written against is the
+        // one the next author would actually reach for: re-pointing the
+        // effect at `overview` (the aggregate the gateway recomputes up to
+        // sixteen times a minute whether or not a price moved,
+        // `sameLiveFeedView`'s own docblock) rather than at `observations`
+        // (which changes reference only when a bar genuinely arrived,
+        // Task 6.7.2's own finding) — keying the mark on the SCORE's own
+        // recompute rather than on the arrival, the identical shape the
+        // other two clauses forbid for a value.
+        // **Excluding the renderer's own component file's single call.**
+        // `MarketTopology.tsx` contains exactly one —
+        // `markBurst: () => renderer.current?.markBurst()` inside
+        // `MarketTopologyHandle`'s own `useImperativeHandle` factory — which
+        // FORWARDS the verb and carries no arrival decision of its own, the
+        // same reason `resetView`'s identical shape beside it is never
+        // asked to be keyed on anything. The decision lives at the CALLER,
+        // which is what this loop is for.
+        const isRendererOwnForwarder =
+          file ===
+          "apps/frontend/src/components/MarketTopology/MarketTopology.tsx";
+
+        for (const match of text.matchAll(/\.markBurst\s*\(\s*\)/gu)) {
+          if (isRendererOwnForwarder) continue;
+
+          const from = (match.index ?? 0) + match[0].length;
+          // A window rather than a full parse: every shipped call site is
+          // the last statement in its effect, so the effect's own closing
+          // `}, [...])` is close by. 400 characters is generous against the
+          // shipped call (under 40).
+          const after = text.slice(from, from + 400);
+          const deps = /\}\s*,\s*\[([^\]]*)\]\s*\)/u.exec(after);
+
+          markBurstCalls += 1;
+
+          if (deps !== null && /\bobservations\b/u.test(deps[1])) continue;
+
+          offenders.push(
+            `${file}:${String(text.slice(0, match.index ?? 0).split("\n").length)}  ` +
+              "markBurst() called from an effect whose own dependency " +
+              `array is ${deps === null ? "unreadable from here" : `[${deps[1].trim()}]`} ` +
+              '— expected "observations" in it.',
+          );
+        }
       }
 
       // The anchor, and both counts are taken from the tree as it stands
@@ -10203,6 +10255,16 @@ const INVARIANTS = [
             "route changing symbol underneath it without re-mounting — so " +
             "either that surface stopped marking arrivals, or the hook was " +
             "renamed.",
+        );
+      }
+
+      if (markBurstCalls === 0) {
+        throw new InvariantFailure(
+          "No shipped file calls `.markBurst()`, and this check's third " +
+            "clause (Task 6.7.4) has nothing to say. Either the topology's " +
+            "graph-level live-update mark stopped firing from anywhere, or " +
+            "the method was renamed — repoint this check in the same " +
+            "change rather than let it pass on an empty corpus.",
         );
       }
 
@@ -11081,6 +11143,82 @@ const INVARIANTS = [
             "exactly this for stroke width) — this file answers WHERE a " +
             "node sits, and where never depends on how strongly it " +
             "correlates with anything.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "the-topology-view-reads-no-arrival",
+    claim:
+      "`apps/frontend/src/topology/fit.ts` is a function of the layout and " +
+      "the viewport alone — it never reads `arrivalKey`, " +
+      "`observationIdentity`, a `Bar`, or a `.startsAt`. A node's POSITION " +
+      "does not depend on when it was last observed.",
+    check() {
+      // **`the-topology-layout-reads-no-edge`'s mechanical sibling (Task
+      // 6.7.4, AC 6)** — the same shape, a different placement module and a
+      // different forbidden read. That check protects node position from
+      // CORRELATION STRENGTH; this one protects it from LIVE DATA. Both
+      // exist for the identical reason ADR 0048's own amendment gives: the
+      // server/browser coordinate agreement Epic 7's `highlight_graph_nodes`
+      // needs breaks the moment a node's screen position depends on
+      // something the SERVER's own `buildTopologyLayout` call cannot see —
+      // and an observation instant is exactly that, doubly so, since it
+      // changes up to sixteen times a minute on a live page and never on a
+      // server that computes a layout once.
+      //
+      // `fit.ts`'s own module docblock already states the property this
+      // check makes mechanical: *"pure arithmetic, no canvas, no WebGL, no
+      // DOM"* — this file's whole job is the affine transform
+      // (`screen = (world − centre) · scale · zoom + viewportCentre + pan`),
+      // which takes a `TopologyLayout` and a viewport box and nothing about
+      // the market. `renderer-canvas.ts` is deliberately NOT this file's
+      // target: it legitimately reads `burstStartedAt`/the live-mark's own
+      // clock to compute the WASH's alpha (Task 6.7.2) and a node's BAND
+      // ring colour (Story 6.3) — this check would be red on correct code
+      // if it covered that file, which is why the scope is the one module
+      // that answers WHERE rather than the one that answers WHAT COLOUR.
+      const FILE = "apps/frontend/src/topology/fit.ts";
+      const path = resolve(REPO_ROOT, FILE);
+      const text = withoutComments(readAnchored(path));
+
+      const SHAPES = [
+        { as: "`arrivalKey`", pattern: /\barrivalKey\b/u },
+        { as: "`observationIdentity`", pattern: /\bobservationIdentity\b/u },
+        { as: "`Bar`", pattern: /\bBar\b/u },
+        { as: "`.startsAt`", pattern: /\.startsAt\b/u },
+      ];
+
+      const offenders = [];
+
+      for (const [index, line] of text.split("\n").entries()) {
+        const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+        if (shape === undefined) continue;
+
+        offenders.push(
+          `${FILE}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${FILE}\` read an ` +
+            "arrival key, an observation, or a bar's own instant:\n      " +
+            offenders.join("\n      ") +
+            "\n    `fit.ts` answers WHERE a node sits on screen, and where " +
+            "must not depend on WHEN its security was last heard from: a " +
+            "position that shifts on a live batch would move a node under " +
+            "a reader's stationary hands (Story 6.4's keyboard model keys " +
+            "clamping and wrapping on this exact invariant holding), and " +
+            "it would break the server/browser coordinate agreement Epic " +
+            "7's `highlight_graph_nodes` needs — the server's own " +
+            "`buildTopologyLayout` call has no live feed to read in the " +
+            "first place. If something about an arrival or a staleness " +
+            "instant needs to reach the picture, that is the RENDERER's " +
+            "job (`renderer-canvas.ts`'s live-mark wash and the plate's " +
+            "own staleness/direction lines already do exactly this) — " +
+            "never this file's.",
         );
       }
     },

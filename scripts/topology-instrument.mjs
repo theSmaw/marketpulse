@@ -68,6 +68,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, resolve } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { acquireLock, releaseLockOnExit } from "./heavy-job.mjs";
 import {
@@ -76,6 +77,7 @@ import {
   assertVisible,
   distribution,
   readMachineLoad,
+  startProductionPair,
 } from "./overview-instrument.mjs";
 
 // No `/* global */` block, and that is worth a line rather than an omission:
@@ -91,6 +93,7 @@ const OUT = resolve(REPO_ROOT, ".capture/topology");
 mkdirSync(OUT, { recursive: true });
 
 const headed = process.argv.includes("--headed");
+const live = process.argv.includes("--live");
 const ceilingArgument = (() => {
   const at = process.argv.indexOf("--ceiling");
   if (at === -1) return null;
@@ -371,6 +374,349 @@ async function drivePath(page) {
     await page.waitForTimeout(20);
   }
   await page.mouse.up();
+}
+
+// --- The route-level interaction harness — Task 6.7.4, AC 1 ---------------
+//
+// **Required infrastructure for AC 1, named as a gap in `TOPOLOGY.md` §4
+// twice (Stories 6.3, 6.6) without closing it.** Everything above this
+// point drives a Storybook story; `/` has never been driven by anything
+// but `pnpm probe`'s own static screenshot path. This is the first thing
+// in this repository to drive the REAL route's pan/zoom AND a live update
+// concurrently, which is what §28's 60 FPS claim is actually about — a
+// picture that keeps moving while a reader interacts with it, not a
+// picture that is merely present.
+//
+// ## Why a production pair, not the Storybook server above
+//
+// `/` needs a real backend (the universe, and — for the "full" arm — real
+// correlation rows), which Storybook's iframe never has. `overview-
+// instrument.mjs`'s `startProductionPair()` is this repository's own
+// established recipe (Task 4.8.x, reused unmodified by Task 6.7.1): a
+// built frontend served by `vite preview`, a real `dist/index.js` backend,
+// `provider=none` so no live writer runs against either store.
+//
+// ## The two arms, and why they are two STORES rather than one graph with
+// a flag
+//
+// `CANDIDATES` above compares `membership` against `correlations` through
+// two fixed Storybook stories; the real route has no such flag — its
+// graph is whatever the backend's `GET /securities` and
+// `GET /market-data/relationships` answer. `marketpulse_bare` (zero bars,
+// no provider, ever) answers the second with nothing, which is a
+// membership-only graph for free — the SAME shape `CANDIDATES[0]` is.
+// `marketpulse` is a developer's own store with Task 6.5's nightly pass
+// already run against it, so it answers with real correlation rows — the
+// SAME shape `CANDIDATES[1]` is. Interleaving the two stores is this
+// task's own version of ADR 0048's established control: an unaffected
+// baseline run beside the arm under test, which is what tells a real
+// cost apart from the machine having drifted mid-run.
+//
+// ## What proves "the loop ran", since `probe` is not an option here
+//
+// `pageInstrument()` below's `__mpTopologyFrames` counter depends on a
+// `probe` callback the renderer is constructed with — and
+// `MarketTopology.tsx`'s own module docblock states, as a traced fact
+// rather than an assumption, that "`probe` is `undefined` in every
+// application call site." So this harness proves the loop ran the way
+// `overview-market-topology-anomaly-bands.spec.ts` and
+// `overview-market-topology-live-mark.spec.ts` already do at the browser
+// level: a whole-canvas digest (`getImageData`, FNV-1a), sampled
+// repeatedly through the run, where MULTIPLE DISTINCT values are the
+// proof — a frozen picture would read back one value for ever.
+//
+// ## The live-update mechanism
+//
+// A pass-through `routeWebSocket` — the real gateway's own
+// subscribe/snapshot sequence is honoured — with one extra `bars` frame
+// injected directly on the client route every few seconds (compressed
+// from the real one-a-minute cadence, labelled as such), carrying every
+// one of the real subscribed universe's symbols. This is Task 6.7.1's own
+// measurement technique, reused rather than re-invented.
+
+/**
+ * The page-side instrument for the live route — `pageInstrument()` above,
+ * reused verbatim for its three channels and the calibrator, PLUS a
+ * whole-canvas digest function callable on demand (not inside the init
+ * script's own closure, because a digest is a READ taken whenever the
+ * harness asks, not a continuous recorder).
+ */
+function liveRoutePageInstrument() {
+  return `${pageInstrument()}
+(() => {
+  globalThis.__mpTopologyDigest = () => {
+    const canvas = document.querySelector("canvas");
+    if (canvas === null) return "no canvas";
+    const context = canvas.getContext("2d");
+    if (context === null) return "no context";
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let hash = 0x811c9dc5;
+    for (const byte of data) {
+      hash ^= byte;
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return String(hash >>> 0) + "@" + String(canvas.width) + "x" + String(canvas.height);
+  };
+})();`;
+}
+
+/**
+ * One continuous pan+zoom gesture, longer than {@link drivePath}'s ~5 s —
+ * the live arm runs for the length of several live-update bursts rather
+ * than one short scripted path, so the gesture loops rather than running
+ * once.
+ *
+ * @param {import("@playwright/test").Page} page
+ * @param {number} durationMs
+ */
+async function driveContinuousInteraction(page, durationMs) {
+  const cx = VIEWPORT.width / 2;
+  const cy = VIEWPORT.height / 2;
+  const until = Date.now() + durationMs;
+  let turn = 0;
+
+  await page.mouse.move(cx, cy);
+
+  while (Date.now() < until) {
+    const x = cx + Math.cos(turn) * 180;
+    const y = cy + Math.sin(turn) * 120;
+    await page.mouse.move(x, y);
+    if (Math.floor(turn * 2) % 5 === 0) {
+      await page.mouse.wheel(0, Math.sin(turn) > 0 ? -40 : 40);
+    }
+    turn += 0.12;
+    await page.waitForTimeout(20);
+  }
+}
+
+/**
+ * One live-route arm: a real production pair against `databaseName`, a
+ * pass-through socket with injected live-update bursts, a continuous
+ * pan/zoom gesture running concurrently, and the three-part conjunction
+ * read off at the end.
+ *
+ * @param {{ databaseName: string, label: string, headed: boolean, runSeconds: number }} options
+ */
+async function runLiveRouteArm({
+  databaseName,
+  label,
+  headed: isHeaded,
+  runSeconds,
+}) {
+  const pair = await startProductionPair({ databaseName, provider: "none" });
+
+  try {
+    const { chromium } = await import("@playwright/test");
+    // **The built output's own file path, not the bare `@marketpulse/shared`
+    // specifier** — a root-level script has no `node_modules` entry for a
+    // workspace package's alias, only the apps and the package itself do.
+    // `packages/shared/dist/index.js` is the same artefact every workspace
+    // import resolves to; `pnpm build` is what keeps it current, same as
+    // every other consumer.
+    const sharedModule = await import(
+      pathToFileURL(resolve(REPO_ROOT, "packages/shared/dist/index.js")).href
+    );
+    const browser = await chromium.launch({ headless: !isHeaded });
+    const context = await browser.newContext({ viewport: VIEWPORT });
+
+    const universeResponse = await context.request.get(
+      `${pair.backendOrigin}/securities`,
+    );
+    const universe = await universeResponse.json();
+    const symbols = universe.securities.map((security) => security.symbol);
+
+    let clientSocket = null;
+    let subscribedCount = 0;
+
+    await context.routeWebSocket(/\/market-stream$/u, (ws) => {
+      clientSocket = ws;
+      const server = ws.connectToServer();
+      server.onMessage((raw) => ws.send(raw));
+      ws.onMessage((raw) => {
+        try {
+          const decoded = JSON.parse(String(raw));
+          if (Array.isArray(decoded?.symbols)) {
+            subscribedCount = decoded.symbols.length;
+          }
+        } catch {
+          /* not a subscribe frame */
+        }
+        server.send(raw);
+      });
+    });
+
+    await context.addInitScript(liveRoutePageInstrument());
+
+    const page = await context.newPage();
+    await page.goto(`${pair.frontendOrigin}/`, {
+      waitUntil: "domcontentloaded",
+    });
+    await assertVisible(page);
+
+    const canvas = page
+      .getByRole("region", { name: "Market topology" })
+      .getByRole("img", { name: /A graph of every security we track/u });
+    await canvas.waitFor({ state: "visible", timeout: 15_000 });
+
+    // Settle the cold-load figures before anything this arm cares about.
+    await page.waitForTimeout(1_000);
+    await page.evaluate(() => globalThis.__mpDrain?.());
+
+    const gpu = await page.evaluate(() => globalThis.__mpGpu?.());
+    const calibrator = await page.evaluate(
+      (n) => globalThis.__mpCalibrate?.(n),
+      8,
+    );
+
+    const digests = new Set();
+    const started = Date.now();
+    let burst = 0;
+
+    const sampleDigest = async () => {
+      const digest = await page.evaluate(() =>
+        globalThis.__mpTopologyDigest?.(),
+      );
+      digests.add(digest);
+    };
+
+    const injectBurst = () => {
+      if (clientSocket === null) return;
+      burst += 1;
+      const observations = {};
+      const startsAt = new Date(started + burst * 1_000).toISOString();
+      for (const symbol of symbols) {
+        observations[symbol] = {
+          startsAt,
+          open: 100,
+          high: 100,
+          low: 100,
+          close: 100 + (burst % 5),
+          volume: 1_000,
+        };
+      }
+      clientSocket.send(
+        sharedModule.encodeMarketStreamMessage({
+          type: "bars",
+          version: sharedModule.MARKET_STREAM_PROTOCOL_VERSION,
+          sentAt: new Date().toISOString(),
+          observations,
+        }),
+      );
+    };
+
+    // **The interaction and the live updates, concurrent** — AC 1's own
+    // rewritten text. A burst every 4 s (compressed from the real ~60 s
+    // cadence, labelled as such) while the gesture loop above runs without
+    // stopping for it.
+    const gesture = driveContinuousInteraction(page, runSeconds * 1_000);
+    const burstInterval = setInterval(injectBurst, 4_000);
+    const digestInterval = setInterval(() => void sampleDigest(), 500);
+    injectBurst();
+
+    await gesture;
+    clearInterval(burstInterval);
+    clearInterval(digestInterval);
+    await sampleDigest();
+
+    const drained = await page.evaluate(() => globalThis.__mpDrain?.());
+
+    await browser.close();
+
+    const gaps = drained?.gaps ?? [];
+    const longs = (drained?.longs ?? []).filter((entry) => entry.ms > 50);
+
+    return {
+      label,
+      databaseName,
+      headed: isHeaded,
+      runSeconds,
+      subscribedCount,
+      universeSize: symbols.length,
+      bursts: burst,
+      gpu,
+      calibratorMs: calibrator,
+      distinctDigests: digests.size,
+      gapsSampleCount: gaps.length,
+      gapP50: distribution(gaps).p50,
+      gapP95: distribution(gaps).p95,
+      gapsOver50: gaps.filter((gap) => gap > 50).length,
+      longEntriesOver50: longs.length,
+      longEntries: longs.slice(0, 10),
+    };
+  } finally {
+    await pair.stop();
+  }
+}
+
+if (live) {
+  say("\nThe real route, driven — Task 6.7.4, AC 1\n");
+
+  const loadBeforeLive = await readMachineLoad(
+    ceilingArgument === null ? {} : { ceiling: ceilingArgument },
+  );
+  say(`1. ${loadBeforeLive.message}`);
+
+  if (!loadBeforeLive.ok) {
+    say(
+      "\n  REFUSED. A figure that was never allowed to be taken cannot be quoted.\n",
+    );
+    process.exit(1);
+  }
+
+  const liveLock = acquireLock("node scripts/topology-instrument.mjs --live");
+  if (!liveLock.ok) {
+    console.error(liveLock.message);
+    process.exit(1);
+  }
+  releaseLockOnExit();
+
+  const arms = [
+    {
+      databaseName: "marketpulse_bare",
+      label: "membership (control, zero bars)",
+    },
+    { databaseName: "marketpulse", label: "full (real correlation rows)" },
+    {
+      databaseName: "marketpulse_bare",
+      label: "membership (control, zero bars)",
+    },
+    { databaseName: "marketpulse", label: "full (real correlation rows)" },
+  ];
+
+  const results = [];
+  for (const arm of arms) {
+    say(
+      `\nRunning: ${arm.label} (${arm.databaseName}), headed=${String(headed)}`,
+    );
+    const loadDuring = await readMachineLoad(
+      ceilingArgument === null ? {} : { ceiling: ceilingArgument },
+    );
+    say(`  load before this arm: ${loadDuring.message}`);
+    // Arms run sequentially, deliberately — one production pair occupies
+    // the harness's two fixed ports, so a second one cannot start until
+    // this one's `stop()` has run.
+    const result = await runLiveRouteArm({
+      ...arm,
+      headed,
+      runSeconds: 20,
+    });
+    say(`  ${JSON.stringify(result, null, 2)}`);
+    results.push(result);
+  }
+
+  writeFileSync(
+    resolve(OUT, `live-${headed ? "headed" : "headless"}.json`),
+    JSON.stringify(
+      { startedAt: new Date().toISOString(), headed, arms: results },
+      null,
+      2,
+    ),
+  );
+
+  say(
+    `\nWritten to ${resolve(OUT, `live-${headed ? "headed" : "headless"}.json`)}`,
+  );
+  process.exit(0);
 }
 
 // --- 1. The machine, read BEFORE the run and never during -----------------
