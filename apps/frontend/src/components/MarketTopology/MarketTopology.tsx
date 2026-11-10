@@ -2,14 +2,21 @@ import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import type { Ref, RefObject } from "react";
 import { Link } from "react-router";
 
-import { SECTOR_LABELS } from "@marketpulse/shared";
+import {
+  OBSERVATION_INTERVAL_MS,
+  SECTOR_LABELS,
+  changeFromClose,
+} from "@marketpulse/shared";
 import type {
+  Bar,
+  SecurityLastClose,
   Ticker,
   TopologyCorrelation,
   TopologyGraph,
 } from "@marketpulse/shared";
 
 import { cx } from "../../cx.js";
+import { directionOf, formatSessionTime } from "../../market/index.js";
 import { securityPath } from "../../routes/paths.js";
 import type { RelationshipsView } from "../../use-relationships.js";
 import type {
@@ -263,6 +270,27 @@ export interface MarketTopologyHandle {
    * `setBands`.
    */
   markBurst(): void;
+
+  /**
+   * Push a fresh `observations` reference, for the plate's own staleness
+   * and direction lines (Task 6.7.3) — `markBurst`'s exact shape, and the
+   * same reason: `observations` is a new `Map` on every live batch, which
+   * is this component's own declined `React.memo` boundary's named
+   * reversal trigger if it ever arrived as a prop.
+   *
+   * **Held, not merely passed through** — this component's own plate is
+   * written from whichever node is CURRENTLY hovered or selected, which
+   * this call does not know and does not need to: it stores the reference
+   * and, if something is currently shown, rewrites the plate from it
+   * immediately (the same "told again, for the SAME node" clause
+   * `setBands` already carries) rather than waiting for the next hover or
+   * selection event to pick up the fresher data.
+   *
+   * A no-op in the one sense that matters while nothing is mounted — there
+   * is no plate to rewrite — but the reference is still held, so the
+   * facts are correct the instant something IS selected.
+   */
+  setObservations(observations: ReadonlyMap<string, Bar>): void;
 }
 
 export function MarketTopology({
@@ -373,6 +401,19 @@ export function MarketTopology({
   const offered = useRef<Ticker | null>(null);
 
   /**
+   * **The live feed's own observations, held rather than taken as a prop**
+   * (Task 6.7.3). This is the shape Task 6.7.2's own module docblock argues
+   * against for `markBurst` and the same argument applies here: `observations`
+   * is a new `Map` on every live batch, and a prop re-passed at that cadence
+   * is the declined `React.memo` boundary's own named reversal trigger.
+   * {@link MarketTopologyHandle.setObservations} pushes a fresh reference in
+   * imperatively, the same shape {@link MarketTopologyHandle.setBands} and
+   * {@link MarketTopologyHandle.markBurst} already use, so the mount effect's
+   * deps stay exactly `[topology, probe, sentenceId]`.
+   */
+  const liveObservations = useRef<ReadonlyMap<string, Bar>>(EMPTY_OBSERVATIONS);
+
+  /**
    * **The one anchor's own element, and why this component has to hold it**
    * (Task 6.4.3).
    *
@@ -420,6 +461,22 @@ export function MarketTopology({
   const anchorHeldFocus = useRef(false);
 
   const securities = universe.state === "loaded" ? universe.securities : null;
+
+  /**
+   * **A ref, not a plain narrowed value — unlike {@link securities}** (Task
+   * 6.7.3). `securities` only feeds `topology`, which IS a mount-effect
+   * dependency; this is read from two effects that must NOT re-run when it
+   * changes (the mount effect, for the declined-memo-boundary reason; the
+   * focus-recovery effect, because `lastCloses` has nothing to do with where
+   * focus belongs), so a plain variable would be a real
+   * `react-hooks/exhaustive-deps` warning rather than a false one. Updated
+   * on `universe` changing — rare, a retry — never read during a render.
+   */
+  const lastCloses = useRef(EMPTY_LAST_CLOSES);
+  useEffect(() => {
+    lastCloses.current =
+      universe.state === "loaded" ? universe.lastCloses : EMPTY_LAST_CLOSES;
+  }, [universe]);
 
   /**
    * **Built once, read by both the mount effect and the drawn sentence
@@ -488,6 +545,20 @@ export function MarketTopology({
         );
       },
       markBurst: () => renderer.current?.markBurst(),
+      setObservations: (observations) => {
+        liveObservations.current = observations;
+        // **The plate is told again, for the SAME node** (Task 6.7.3) —
+        // `setBands`'s own reason, one surface over: a reader holding the
+        // pointer still through a live batch is looking at a staleness
+        // line that has just gone stale itself if nothing rewrites it.
+        if (hovered.current !== null || chosen.current !== null) {
+          writeTopologyReadout(
+            plate.current,
+            hovered.current ?? chosen.current,
+            { observations, lastCloses: lastCloses.current },
+          );
+        }
+      },
     }),
     // **`correlationClause` joins `topology` here** (Task 6.5.2): the band
     // write composes the sentence and would otherwise close over the clause
@@ -544,7 +615,10 @@ export function MarketTopology({
      * render's value for ever.
      */
     const show = (): void => {
-      writeTopologyReadout(plate.current, hovered.current ?? chosen.current);
+      writeTopologyReadout(plate.current, hovered.current ?? chosen.current, {
+        observations: liveObservations.current,
+        lastCloses: lastCloses.current,
+      });
 
       const next = topologyOpenableSymbol(hovered.current, chosen.current);
       if (next === offered.current) return;
@@ -618,7 +692,10 @@ export function MarketTopology({
            */
           if (source !== "band") {
             keyboardSelection.current = source === "keyboard";
-            writeTopologyAnnouncement(announcement.current, selectedTarget);
+            writeTopologyAnnouncement(announcement.current, selectedTarget, {
+              observations: liveObservations.current,
+              lastCloses: lastCloses.current,
+            });
           }
           show();
         },
@@ -700,7 +777,10 @@ export function MarketTopology({
    * four strings in the same four slots.
    */
   useEffect(() => {
-    writeTopologyReadout(plate.current, hovered.current ?? chosen.current);
+    writeTopologyReadout(plate.current, hovered.current ?? chosen.current, {
+      observations: liveObservations.current,
+      lastCloses: lastCloses.current,
+    });
 
     // **Focus follows a KEYBOARD selection onto the one anchor** (Task
     // 6.4.3) — the roving-stop idea `RankedList` already uses, with one
@@ -986,14 +1066,17 @@ export function MarketTopology({
        * browser spec cannot import a CSS module's hashed class names and the
        * four facts are exactly what Done-when 6 asserts.
        *
-       * **Five reserved line slots in every state** (`grid-template-rows` in
-       * the stylesheet): the ticker, **two** for the name, the sector, and the
-       * band — with the idle instruction spanning all five. The second name
-       * slot is empty for every name in today's universe (measured; the
-       * stylesheet carries the figures and why it is kept anyway). So the
-       * plate is one height whatever is in it, which is `Movers`' held-row
-       * lesson — a region that changes height steps the whole lower page —
-       * carried from rows to lines.
+       * **Seven reserved line slots in every state since Task 6.7.3**
+       * (`grid-template-rows` in the stylesheet, grown from five): the
+       * ticker, **two** for the name, the sector, the band, the staleness
+       * line and the direction line — with the idle instruction spanning
+       * all seven. The second name slot is empty for every name in today's
+       * universe (measured; the stylesheet carries the figures and why it is
+       * kept anyway), and staleness/direction are each empty whenever their
+       * own condition is not met — same idiom, same reserved-not-missing
+       * room. So the plate is one height whatever is in it, which is
+       * `Movers`' held-row lesson — a region that changes height steps the
+       * whole lower page — carried from rows to lines.
        */}
       <div className={styles.readout} ref={plate} data-topology-readout="idle">
         <p className={styles.readoutIdle} data-readout="idle">
@@ -1051,6 +1134,8 @@ export function MarketTopology({
         <span className={styles.readoutName} data-readout="name" />
         <span className={styles.readoutSector} data-readout="sector" />
         <span className={styles.readoutBand} data-readout="band" />
+        <span className={styles.readoutStaleness} data-readout="staleness" />
+        <span className={styles.readoutDirection} data-readout="direction" />
       </div>
     </div>
   );
@@ -1082,6 +1167,11 @@ export function MarketTopology({
  */
 const TOPOLOGY_READOUT_IDLE =
   "Point at a security, or press Tab and the arrow keys.";
+
+/** Stable, so a mount with no live feed yet does not hand the plate a new Map. */
+const EMPTY_OBSERVATIONS: ReadonlyMap<string, Bar> = new Map();
+/** The same, for `topologyReadoutLines`' default `live.lastCloses`. */
+const EMPTY_LAST_CLOSES: ReadonlyMap<string, SecurityLastClose> = new Map();
 
 /**
  * What a keyboard reader is told when they reach the canvas (Task 6.4.3) —
@@ -1190,20 +1280,121 @@ export function topologyOpenableSymbol(
  * slot's room is still reserved, which is the stylesheet's job and not this
  * function's.
  */
-export function topologyReadoutLines(hovered: TopologyHoverTarget): {
+export function topologyReadoutLines(
+  hovered: TopologyHoverTarget,
+  /**
+   * The live feed's own facts, for the two lines Task 6.7.3 added — the
+   * node's own last-heard-from instant and, for a `high`/`extreme` node, its
+   * direction. Defaulted rather than required: every pre-6.7.3 call site
+   * (ten of them, in this file's own tests) asks for the four original
+   * lines and has no live feed to hand in, and {@link EMPTY_OBSERVATIONS}/
+   * {@link EMPTY_LAST_CLOSES} answer both new lines with the empty string
+   * exactly as if the fields had never existed.
+   */
+  live: {
+    readonly observations: ReadonlyMap<string, Bar>;
+    readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  } = { observations: EMPTY_OBSERVATIONS, lastCloses: EMPTY_LAST_CLOSES },
+): {
   readonly ticker: string;
   readonly name: string;
   readonly sector: string;
   readonly band: string;
+  readonly staleness: string;
+  readonly direction: string;
 } {
   const { node, treatment } = hovered;
+  const observation = live.observations.get(node.symbol);
 
   return {
     ticker: node.symbol,
     name: node.label,
     sector: node.cluster === null ? "" : SECTOR_LABELS[node.cluster],
     band: topologyReadoutBand(node.kind, treatment),
+    staleness: topologyReadoutStaleness(observation),
+    direction: topologyReadoutDirection(
+      treatment,
+      observation,
+      live.lastCloses.get(node.symbol),
+    ),
   };
+}
+
+/**
+ * When this node was last heard from — an instant, never a verdict (Task
+ * 6.7.3, Open Decision 2). **No threshold, no status word, no connection
+ * word**: Gate 1's own decision is that staleness is text in the plate,
+ * never node ink, and the text itself carries no judgement either —
+ * `UniverseTable`'s `Live price from 12:07` idiom, restated for a region
+ * with no price of its own to date.
+ *
+ * **The empty string for a node this browser has never heard from at
+ * all** — `observations` holds no entry until the security's own first bar
+ * arrives, which is every equity for the ~46 s after a cold deploy and the
+ * permanent state of a `MARKET_DATA_PROVIDER=none` store. A blank line is
+ * the honest answer; a dash or a placeholder would be inventing an instant
+ * nobody has.
+ *
+ * **The instant is the observation interval's END**, `measured-set.ts`'s own
+ * discipline (`describeMeasuredReach`) rather than a re-derivation: a bar's
+ * `startsAt` is the minute's **start**, so *heard from 14:01* about a bar
+ * that covers 14:01–14:02 understates how current the figure is by a
+ * minute — Task 3.3.4's fixed defect, met on this surface rather than
+ * re-introduced on it.
+ */
+function topologyReadoutStaleness(observation: Bar | undefined): string {
+  if (observation === undefined) return "";
+
+  const closedAt = new Date(
+    observation.startsAt.getTime() + OBSERVATION_INTERVAL_MS,
+  );
+
+  return `Heard from ${formatSessionTime(closedAt)}`;
+}
+
+/**
+ * Whether this node's current anomaly is a rise or a fall — never a
+ * magnitude, which the band word already carries (Task 6.7.3, the Task
+ * 6.6.2 hand-off on §10's `Intensity`).
+ *
+ * **Shown only for `high`/`extreme`.** Gate 1's own decision: the full
+ * per-equity encoding is refused and the sign is taken, scoped to exactly
+ * the two bands where a reader has already been told *this is a big move*
+ * and is reasonably asking *which way*. A `normal`/`elevated`/`unscored`
+ * node never carries this line.
+ *
+ * **The sign comes from `changeFromClose`, never from the composite
+ * score.** The composite's own price factor is a magnitude —
+ * `Math.abs(move)` — ranked against a distribution of magnitudes, by
+ * design: a factor that scores *how unusual* a move is must treat a crash
+ * and a spike as equally unusual, which is exactly what throws the sign
+ * away. `changeFromClose` is the one figure on this page already computed
+ * from a bar and a stored close for this exact purpose — `PriceChange`'s
+ * own source — so this reads it rather than building a second one.
+ *
+ * **The empty string when the sign cannot be read at all**: no
+ * observation, no stored close to measure from, or a move that rounds to
+ * dead level (`directionOf`'s own `"unchanged"`, which a `high`/`extreme`
+ * node is not expected to reach but is not asserted never to).
+ */
+function topologyReadoutDirection(
+  treatment: TopologyAnomalyTreatment | null,
+  observation: Bar | undefined,
+  lastClose: SecurityLastClose | undefined,
+): string {
+  if (treatment !== "high" && treatment !== "extreme") return "";
+  if (observation === undefined) return "";
+
+  const { percent } = changeFromClose(observation, lastClose);
+  if (percent === null) return "";
+
+  const direction = directionOf(percent);
+
+  return direction === "positive"
+    ? "up"
+    : direction === "negative"
+      ? "down"
+      : "";
 }
 
 /**
@@ -1257,6 +1448,11 @@ function topologyReadoutBand(
 function writeTopologyReadout(
   plate: HTMLElement | null,
   hovered: TopologyHoverTarget | null,
+  /** See {@link topologyReadoutLines}'s own `live` parameter. */
+  live: {
+    readonly observations: ReadonlyMap<string, Bar>;
+    readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  } = { observations: EMPTY_OBSERVATIONS, lastCloses: EMPTY_LAST_CLOSES },
 ): void {
   if (plate === null) return;
 
@@ -1264,8 +1460,15 @@ function writeTopologyReadout(
 
   const lines =
     hovered === null
-      ? { ticker: "", name: "", sector: "", band: "" }
-      : topologyReadoutLines(hovered);
+      ? {
+          ticker: "",
+          name: "",
+          sector: "",
+          band: "",
+          staleness: "",
+          direction: "",
+        }
+      : topologyReadoutLines(hovered, live);
 
   for (const [field, value] of Object.entries(lines)) {
     const line = plate.querySelector(`[data-readout="${field}"]`);
@@ -1306,11 +1509,19 @@ function writeTopologyReadout(
  */
 export function topologyAnnouncement(
   selected: TopologyHoverTarget | null,
+  /** See {@link topologyReadoutLines}'s own `live` parameter. */
+  live: {
+    readonly observations: ReadonlyMap<string, Bar>;
+    readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  } = { observations: EMPTY_OBSERVATIONS, lastCloses: EMPTY_LAST_CLOSES },
 ): string {
   if (selected === null) return "Selection cleared.";
 
-  const { ticker, name, sector, band } = topologyReadoutLines(selected);
-  const facts = [ticker, name, sector, band].filter((fact) => fact !== "");
+  const { ticker, name, sector, band, staleness, direction } =
+    topologyReadoutLines(selected, live);
+  const facts = [ticker, name, sector, band, staleness, direction].filter(
+    (fact) => fact !== "",
+  );
 
   return `Selected ${facts.join(", ")}.`;
 }
@@ -1328,10 +1539,15 @@ export function topologyAnnouncement(
 function writeTopologyAnnouncement(
   region: HTMLElement | null,
   selected: TopologyHoverTarget | null,
+  /** See {@link topologyReadoutLines}'s own `live` parameter. */
+  live: {
+    readonly observations: ReadonlyMap<string, Bar>;
+    readonly lastCloses: ReadonlyMap<string, SecurityLastClose>;
+  } = { observations: EMPTY_OBSERVATIONS, lastCloses: EMPTY_LAST_CLOSES },
 ): void {
   if (region === null) return;
 
-  region.textContent = topologyAnnouncement(selected);
+  region.textContent = topologyAnnouncement(selected, live);
 }
 
 /**
@@ -1398,34 +1614,60 @@ function topologyAnomalySentence(
 ): string {
   const structure = topologyDrawnSentence(graph);
 
-  const nothingScored = [...treatments.values()].some(
-    (treatment) => treatment === "unscored",
-  );
+  let scored = 0;
+  let unscored = 0;
+  let high = 0;
+  let extreme = 0;
 
-  if (nothingScored) {
+  for (const treatment of treatments.values()) {
+    if (treatment === "unscored") {
+      unscored += 1;
+      continue;
+    }
+
+    scored += 1;
+    if (treatment === "high") high += 1;
+    else if (treatment === "extreme") extreme += 1;
+  }
+
+  if (scored === 0) {
     // **Distinct wording from "the structure is drawn but nothing is scored
     // yet"** (STORY.md's Work item 5) — "unscored" rather than "calm" is
     // AC 4's own distinction, restated here in a sentence rather than only
     // in a ring.
+    //
+    // **`scored === 0` rather than `.some(unscored)` — corrected 2026-11-10
+    // by Task 6.7.3.** The old check fired on a single unscored equity in an
+    // otherwise fully-scored map, which this story's own widened universe
+    // makes a real, reachable state (Task 6.3.1's own measured session:
+    // 11 of 496 equities "too short a baseline", drawn `unscored` beside 485
+    // real bands) — and would have had the sentence falsely claim *nothing
+    // has been scored yet* about a graph that is almost entirely scored.
     return (
       `${structure} Nothing has been scored yet, so no security is drawn as ` +
       `calm — every one is unscored.`
     );
   }
 
-  let high = 0;
-  let extreme = 0;
-
-  for (const treatment of treatments.values()) {
-    if (treatment === "high") high += 1;
-    else if (treatment === "extreme") extreme += 1;
-  }
+  /**
+   * **AC 7's rewritten population clause (Task 6.7.3)** — the same
+   * discipline `Market breadth`'s and `Movers`' sentences already apply:
+   * an absence is stated as a count rather than left for a listener to
+   * infer. Without it, a third of the graph drawing `unscored` beside two
+   * clauses naming only `high`/`extreme` counts is silent about where
+   * those equities went — readable as *a third of the graph is broken*
+   * rather than as *a third has no score yet*, which is the honest claim.
+   * Omitted when `unscored` is `0`, matching `Market breadth`'s own rule
+   * that a cut clause over nothing is a denominator about nothing.
+   */
+  const unscoredClause =
+    unscored === 0 ? "" : ` ${String(unscored)} have not been scored yet.`;
 
   return (
     `${structure} Each equity also carries how unusual its recent behaviour ` +
     `is, on a four-band scale from normal through elevated and high to ` +
-    `extreme. ${String(high)} are high and ${String(extreme)} are extreme. ` +
-    `The ten most unusual are named in Unusual activity.`
+    `extreme. ${String(high)} are high and ${String(extreme)} are extreme.` +
+    `${unscoredClause} The ten most unusual are named in Unusual activity.`
   );
 }
 

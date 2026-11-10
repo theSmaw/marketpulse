@@ -359,6 +359,18 @@ export function MarketOverview({
     topology.current?.markBurst();
   }, [observations]);
 
+  /**
+   * **The plate's own staleness and direction lines, kept current** (Task
+   * 6.7.3, Open Decision 2 and the Task 6.6.2 hand-off) — a sibling effect
+   * to the one above rather than the same one, because this fires on EVERY
+   * `observations` change including the first: the plate needs the
+   * connection's own initial snapshot available the instant a reader
+   * selects a node, which is before any burst this route would ever mark.
+   */
+  useEffect(() => {
+    topology.current?.setObservations(observations);
+  }, [observations]);
+
   /*
    * **The two movers lists, derived once per frame — the route's third memo
    * boundary** (Task 4.5.5).

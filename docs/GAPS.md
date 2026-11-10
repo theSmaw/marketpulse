@@ -5947,15 +5947,24 @@ since it already requires exactly this precondition.
 **Added 2026-11-06 by Task 6.4.5, closing Story 6.4 — a defect a UX reviewer
 found by driving the real running app, and one nothing mechanical can see.**
 
-`MarketTopology.module.css`'s `.readout` is a 288×98 card positioned inside the
-canvas's own frame, bottom-left. The renderer's `fitView`/`measure()`
+`MarketTopology.module.css`'s `.readout` was a 288×98 card positioned inside
+the canvas's own frame, bottom-left — **grown to 288×130 on 2026-11-10 by
+Task 6.7.3**, which added two more reserved line slots (staleness and
+direction) and re-measured the count below rather than letting a now-stale
+figure stand. The renderer's `fitView`/`measure()`
 (`apps/frontend/src/topology/fit.ts`, `renderer-canvas.ts`) fit the **entire**
 frame box; neither has any notion that part of that box is covered. Counted
-against the shipped layout: **14 securities sit behind the plate at 1440, 46 at
-1024, 64 — 12.7% of the universe — at 768, and 0 at 390**, where the plate's own
-`100% - 2 * --space-8` cap puts it clear of the fitted graph. A reader can
-select one of them — by the keyboard walk, or by pointing through the plate's
-`pointer-events: none` — and then see neither its selection ring nor its ground
+against the shipped layout at **288×98**: 14 securities sat behind the plate
+at 1440, 46 at 1024, 64 — 12.7% of the universe — at 768, and 0 at 390.
+**Re-measured at the current 288×130**: **35 at 1440, 97 at 1024, 104 at
+768, and 7 at 390** — every width worse, 390 now non-zero for the first
+time, because the taller card reaches into the fitted graph's own bounds at
+a width that previously cleared it entirely. The plate's own `100% -
+2 * --space-8` cap still keeps it clear of the fitted graph in principle;
+it is the card's own GROWTH that moved the goalposts, not a change to that
+cap. A reader can select one of them — by the keyboard walk, or by pointing
+through the plate's `pointer-events: none` — and then see neither its
+selection ring nor its ground
 disc, because the card describing it is drawn over it.
 
 **What shipped is a mitigation, chosen deliberately over the two real fixes.**

@@ -604,9 +604,18 @@ story.
 circle/square/diamond ladder, confirmed in writing here for the first
 time (it had shipped but never been recorded as answering this specific
 §10 item). `border` — Story 6.3's anomaly ring. `size` — refused, Story
-6.6. `intensity` (current price movement) — undecided, hand-off written
-into Story 6.7's own `STORY.md`, whose subject (live movement) is the
-natural next owner.
+6.6. ~~`intensity` (current price movement) — undecided, hand-off
+written into Story 6.7's own `STORY.md`, whose subject (live movement)
+is the natural next owner.~~ — **closed 2026-11-10 by Task 6.7.3.** The
+full per-equity encoding is refused, for the same reason `size` was: no
+spatial room in the plate beyond what staleness already claims, and a
+third quantitative channel on a node whose shape and border are already
+spent. What is taken is the **sign** alone — rise or fall, never a
+magnitude, which the anomaly band's own ring already carries — read in
+the readout plate's text for a selected `high`/`extreme` node, never as
+node ink. `changeFromClose` supplies it rather than the composite
+score's own price factor, which is a magnitude (`Math.abs`) by design and
+cannot answer the question this encoding asks.
 
 **ADR 0048's Decision-3 reversal trigger (fired at Story 6.5's close) is
 fully discharged.** The closed-form layout stays closed-form **and**

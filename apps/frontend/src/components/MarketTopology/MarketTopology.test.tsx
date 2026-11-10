@@ -27,8 +27,8 @@ import { createRef } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { toTicker } from "@marketpulse/shared";
-import type { Ticker } from "@marketpulse/shared";
+import { toMarketDate, toTicker } from "@marketpulse/shared";
+import type { Bar, SecurityLastClose, Ticker } from "@marketpulse/shared";
 
 import type {
   TopologyAnomalyTreatment,
@@ -702,6 +702,61 @@ describe("MarketTopology", () => {
       expect(text).toMatch(/not? .*calm/iu);
       expect(text).not.toContain("are high");
       expect(text).not.toContain("are extreme");
+    });
+
+    it("states the unscored count beside the high/extreme counts for a MIXED population — Task 6.7.3, AC 7, corrected from a bug this fixture would have hidden", () => {
+      // **The defect this test exists to catch**: the old check was
+      // `.some(unscored)`, which fires on a SINGLE unscored equity in an
+      // otherwise fully-scored map — exactly this map — and would have
+      // drawn the all-unscored sentence about a population that is 3/4
+      // scored. Story 6.3.1's own measured session puts this state at
+      // real scale: 11 of 496 equities "too short a baseline" beside 485
+      // real bands.
+      const bands = new Map([
+        [toTicker("AAPL"), "elevated"],
+        [toTicker("MSFT"), "high"],
+        [toTicker("TSLA"), "extreme"],
+        [toTicker("NVDA"), "unscored"],
+      ] as const);
+
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      const text = sentence().textContent;
+
+      // The scored population's own counts, unchanged by the one unscored
+      // entry sharing the map.
+      expect(text).toContain("1 are high");
+      expect(text).toContain("1 are extreme");
+
+      // **The new clause**: the unscored equity is named as a count, never
+      // silently dropped — the AC 7 fix.
+      expect(text).toContain("1 have not been scored yet");
+
+      // And this is NOT the all-unscored sentence — the scored population
+      // is real and the sentence must not claim otherwise.
+      expect(text).not.toMatch(/Nothing has been scored yet/u);
+    });
+
+    it("omits the unscored clause entirely when nothing is unscored — the cut-over-nothing rule", () => {
+      const bands = new Map([[toTicker("TSLA"), "extreme"]] as const);
+
+      render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
+          bands={bands}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(sentence().textContent).not.toContain("have not been scored");
     });
 
     it("leaves the plain structural sentence when no bands have ever been applied", () => {
@@ -2128,6 +2183,255 @@ describe("MarketTopology", () => {
       expect(proxy.band).toBe("Benchmarks are not scored");
       expect(proxy.ticker).toBe("QQQ");
     });
+  });
+
+  describe("topologyReadoutLines' live facts — Task 6.7.3", () => {
+    const bar = (startsAt: string, close: number): Bar => ({
+      startsAt: new Date(startsAt),
+      open: close,
+      high: close,
+      low: close,
+      close,
+      volume: 1_000,
+    });
+
+    /**
+     * A PRIOR session's close, deliberately — `changeFromClose`'s own
+     * same-session branch reads `previousClose` instead, which this helper
+     * does not supply, and the point of this test is the sign rather than
+     * which of the two branches produced it.
+     */
+    const lastClose = (close: number): SecurityLastClose => ({
+      symbol: "NVDA",
+      session: toMarketDate("2026-11-06"),
+      close,
+      previousClose: null,
+    });
+
+    const equity = (
+      treatment: TopologyAnomalyTreatment | null,
+    ): TopologyHoverTarget => ({
+      node: {
+        symbol: toTicker("NVDA"),
+        label: "NVIDIA Corporation",
+        kind: "equity",
+        cluster: "technology",
+      },
+      treatment,
+    });
+
+    it("states an empty staleness line for a node this browser has never heard from", () => {
+      expect(
+        topologyReadoutLines(equity("extreme"), {
+          observations: new Map(),
+          lastCloses: new Map(),
+        }).staleness,
+      ).toBe("");
+    });
+
+    it("states the observation INTERVAL'S END, not its start — Task 3.3.4's own fixed defect", () => {
+      // A bar stamped 14:01 covers 14:01–14:02 and so has reached us whole a
+      // minute later than its own `startsAt` — `measured-set.ts`'s discipline.
+      const lines = topologyReadoutLines(equity("extreme"), {
+        observations: new Map([
+          [toTicker("NVDA"), bar("2026-11-09T19:01:00Z", 101)],
+        ]),
+        lastCloses: new Map(),
+      });
+
+      expect(lines.staleness).toBe("Heard from 14:02");
+      expect(lines.staleness).not.toContain("14:01");
+    });
+
+    it("states direction for a high/extreme node, never for normal/elevated/unscored", () => {
+      const observations = new Map([
+        [toTicker("NVDA"), bar("2026-11-09T19:01:00Z", 110)],
+      ]);
+      const lastCloses = new Map([[toTicker("NVDA"), lastClose(100)]]);
+
+      for (const treatment of ["high", "extreme"] as const) {
+        expect(
+          topologyReadoutLines(equity(treatment), { observations, lastCloses })
+            .direction,
+        ).toBe("up");
+      }
+
+      for (const treatment of [
+        "normal",
+        "elevated",
+        "unscored",
+        null,
+      ] as const) {
+        expect(
+          topologyReadoutLines(equity(treatment), { observations, lastCloses })
+            .direction,
+        ).toBe("");
+      }
+    });
+
+    it("reads the sign from changeFromClose, not from a magnitude", () => {
+      const fallen = topologyReadoutLines(equity("extreme"), {
+        observations: new Map([
+          [toTicker("NVDA"), bar("2026-11-09T19:01:00Z", 90)],
+        ]),
+        lastCloses: new Map([[toTicker("NVDA"), lastClose(100)]]),
+      });
+
+      expect(fallen.direction).toBe("down");
+    });
+
+    it("states no direction when the sign cannot be read — no observation, or no stored close", () => {
+      const noObservation = topologyReadoutLines(equity("extreme"), {
+        observations: new Map(),
+        lastCloses: new Map([[toTicker("NVDA"), lastClose(100)]]),
+      });
+      expect(noObservation.direction).toBe("");
+
+      const noLastClose = topologyReadoutLines(equity("extreme"), {
+        observations: new Map([
+          [toTicker("NVDA"), bar("2026-11-09T19:01:00Z", 110)],
+        ]),
+        lastCloses: new Map(),
+      });
+      expect(noLastClose.direction).toBe("");
+    });
+
+    it("omits both new lines entirely when no live facts are given — every pre-6.7.3 call site", () => {
+      const lines = topologyReadoutLines(equity("extreme"));
+
+      expect(lines.staleness).toBe("");
+      expect(lines.direction).toBe("");
+    });
+  });
+});
+
+describe("the per-node live facts channel — Task 6.7.3", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+  });
+
+  const plate = (): HTMLElement => {
+    const found = document.querySelector("[data-topology-readout]");
+    if (found === null) throw new Error("no readout plate was rendered");
+    return found as HTMLElement;
+  };
+
+  const line = (field: string): string =>
+    plate().querySelector(`[data-readout="${field}"]`)?.textContent ?? "";
+
+  /** See the "selection, and the one way out" describe block's own copy. */
+  const channels = (): {
+    readonly select: (
+      selected: TopologyHoverTarget | null,
+      source?: TopologySelectionSource,
+    ) => void;
+  } => {
+    const options = mountCanvasTopology.mock.calls[0]?.[1] as
+      | {
+          onSelect?: (
+            selected: TopologyHoverTarget | null,
+            source: TopologySelectionSource,
+          ) => void;
+        }
+      | undefined;
+    const select = options?.onSelect;
+    if (select === undefined)
+      throw new Error("the renderer was mounted without the onSelect channel");
+    return {
+      select: (selected, source = "pointer") => {
+        select(selected, source);
+      },
+    };
+  };
+
+  const NVDA: TopologyHoverTarget = {
+    node: {
+      symbol: toTicker("NVDA"),
+      label: "NVIDIA Corporation",
+      kind: "equity",
+      cluster: "technology",
+    },
+    treatment: "extreme",
+  };
+
+  it("exposes setObservations on the ref as a no-op while nothing is mounted", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    render(
+      <MarketTopology
+        ref={ref}
+        universe={{ state: "loading" }}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(() => ref.current?.setObservations(new Map())).not.toThrow();
+  });
+
+  it("rewrites the plate with fresh staleness when a node is already selected", () => {
+    const handle = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={handle}
+        universe={securitiesFixtureView("full")}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      channels().select(NVDA);
+    });
+
+    expect(line("staleness")).toBe("");
+
+    act(() => {
+      handle.current?.setObservations(
+        new Map([
+          [
+            toTicker("NVDA"),
+            {
+              startsAt: new Date("2026-11-09T19:01:00Z"),
+              open: 101,
+              high: 101,
+              low: 101,
+              close: 101,
+              volume: 1_000,
+            },
+          ],
+        ]),
+      );
+    });
+
+    expect(line("staleness")).toBe("Heard from 14:02");
+  });
+
+  it("does not re-mount the renderer across repeated setObservations calls", () => {
+    const universe = securitiesFixtureView("full");
+    const ref = createRef<MarketTopologyHandle>();
+
+    render(
+      <MarketTopology
+        ref={ref}
+        universe={universe}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+
+    for (let batch = 0; batch < 5; batch += 1) {
+      act(() => {
+        ref.current?.setObservations(new Map());
+      });
+    }
+
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+    expect(lastDestroy).not.toHaveBeenCalled();
   });
 });
 
