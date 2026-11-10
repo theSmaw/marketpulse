@@ -568,3 +568,79 @@ And `docs/GAPS.md` carries the sharpest residue: the `setLineDash([])` reset
 after the correlation batch is invisible to every level — delete it and every
 later mark in the frame is dashed, on a store that has correlations, with
 nothing mechanical able to see it.
+
+## 6. Edge strength, node size refused, and §10's five node encodings closed (Story 6.6, 2026-11-09/10)
+
+**`TopologyCorrelationEdge.weight` reaches the renderer for the first time.**
+Every correlation edge now draws at one of three quantised stroke widths
+(1 / 1.5 / 2 px), classified by `Math.abs(weight)` against two floors
+derived from the real retained distribution's tertiles (|r| 0.4139 and
+0.5496, measured against the deployed 1,860-pair generation) — the shape
+`ANOMALY_BAND_FLOORS` already established, applied to a second measured
+quantity. The floor is fixed at the stroke every edge already drew at
+(1 px), so nothing fades below what Story 6.5 shipped, and the strongest-
+N-per-node cut (a rank cut, not a weight threshold — the real retained
+`|r|` spans 0.090 to 0.990) reads as a cut because a drawn edge is never
+fainter than any other drawn edge, never because of where the boundary
+sits. Batched by class (three `stroke()` calls, the `ANOMALY_RING_WIDTH`
+pattern), not one per edge.
+
+**Node size is refused, explicitly, with a reversal trigger.** Every
+candidate quantity either omits securities (market cap: no vendor, no
+history) or inverts the hierarchy it would claim to show (`iex` volume
+runs 3.54%–15.19% inversely with liquidity, so a volume-sized graph would
+draw thinly-traded names **larger**) — and a node has exactly one radius,
+so it cannot express "we don't know" the way the anomaly ring's hollow
+`unscored` state can. Six independent shaping roles converged on this
+recommendation for different reasons (interaction budget, plate line
+count, legend space, greyscale channel collision with the band ring, a
+focus-ring/anomaly-ring clearance arithmetic that was already tighter
+than documented). **Reversal trigger, a condition:** the first story
+that curates share-count or market-cap data with its own staleness
+story.
+
+**§10's five node encodings are now each closed by a named story.**
+`cluster` — Story 6.2's wedge allocation. `shape/icon` — Story 6.2's
+circle/square/diamond ladder, confirmed in writing here for the first
+time (it had shipped but never been recorded as answering this specific
+§10 item). `border` — Story 6.3's anomaly ring. `size` — refused, Story
+6.6. `intensity` (current price movement) — undecided, hand-off written
+into Story 6.7's own `STORY.md`, whose subject (live movement) is the
+natural next owner.
+
+**ADR 0048's Decision-3 reversal trigger (fired at Story 6.5's close) is
+fully discharged.** The closed-form layout stays closed-form **and**
+weight-blind — it does not read an edge's weight, and `buildTopologyLayout`
+remains a function of the curated universe alone. The decisive reasons are
+not "determinism" (a within-cluster offset keyed on weight would be
+deterministic too, and the ADR's own 2026-11-09 amendment withdraws that
+argument as unsound): they are the server/browser coordinate agreement
+Epic 7's `highlight_graph_nodes` needs, the single-picture-under-absence
+property (CI, a failed request, and a request in flight must draw the
+same layout — asserted at `graph-source.test.ts`), and a measured zero
+spatial budget (closest node pair 17.83 layout units against a 16-unit
+footprint). Held by a new `pnpm invariants` clause,
+`the-topology-layout-reads-no-edge`, keyed on the read rather than on a
+type name — the same shape `no-random-in-the-shared-model` already uses.
+
+**Two pre-existing defects, found while shaping this story and fixed
+independently of any decision in it.** `renderer-canvas.ts`'s own
+docblock claimed the `extreme`-anomaly-ring to focus-ring clearance at
+the zoom floor is 1.25 px; verified against the actual draw code (every
+stroke width in this renderer is a bare constant, never scaled by
+`nodeScale` — only radii scale), the real figure is **0.00 px**, the two
+rings already abut exactly today. And the eleven sector benchmark ETFs
+draw as unlabelled squares at three of the four widths this product
+tests (1024/768/390, all below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE = 0.38`)
+— a sharper framing of an already-accepted trade-off, not a new one,
+recorded in `docs/GAPS.md` with an owner.
+
+**What no gated machine has seen, and what no person has checked.** CI
+never draws a correlation edge, so the stroke-width encoding is
+permanently absent there, exactly as the rest of this edge kind already
+was. One real, measured performance finding: the new three-call drawing
+mechanism costs real time under headless/software-rendered Canvas2D
+(SwiftShader, this repository's own default test harness) and costs
+nothing measurable on a real GPU (`--headed`, Apple M3 Metal) — both
+figures recorded in `docs/GAPS.md`, because no gated machine can see the
+real-GPU figure, which is the one that matters.

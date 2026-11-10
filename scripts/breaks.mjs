@@ -6480,4 +6480,55 @@ export const BREAKS = [
     ],
     expect: "admits no landmark, whatever its own outcome says",
   },
+  {
+    name: "an-edge-read-in-the-topology-layout",
+    proves:
+      "`the-topology-layout-reads-no-edge` goes red on a within-cluster " +
+      "spiral offset keyed on a member's own correlation weight — " +
+      "ADR 0048's own rejected hybrid alternative, arriving as code rather " +
+      "than staying a rejected paragraph (Task 6.6.3).\n\n" +
+      "**The plant is the realistic next temptation, not an absurdity.** " +
+      "The spiral offset this file already computes — `distance` and " +
+      "`ordinal * TOPOLOGY_GOLDEN_ANGLE` — is exactly the geometry a " +
+      "within-cluster weight-responsive displacement would modify: shrink " +
+      "`distance` for a member with a strong retained correlation to its " +
+      "neighbours, so strongly-correlated securities sit visibly closer " +
+      "together inside their own sector wedge. ADR 0048's 2026-11-09 " +
+      "amendment names this exact shape as the alternative it rejects, " +
+      "with its own measured figure (the honest displacement available " +
+      "inside the 16-unit footprint is ~1.8 units) — the plant is that " +
+      "rejected alternative's first line, not a strawman.\n\n" +
+      "**Nothing else would catch it.** `tsc` is happy with a `graph.edges` " +
+      "read inside a function that already takes `graph` as a parameter; " +
+      "`pnpm lint` has no opinion; every structural test over the layout " +
+      "stays green, because a weight-keyed `distance` still places every " +
+      "node once, still clears the footprint, still bounds correctly — " +
+      "the same shape `no-random-in-the-shared-model`'s own docblock " +
+      "found true of a jittered layout. The ONE test that would notice — " +
+      "`apps/frontend/src/topology/graph-source.test.ts`'s layout-identity " +
+      "case, asserting a correlation set and no correlation set give the " +
+      "SAME layout — lives in `apps/frontend` and is never run by Epic " +
+      "7's server-side reader, which calls `buildTopologyLayout` directly. " +
+      "That gap is this break's own reason to exist: a corpus clause in " +
+      "`packages/shared` itself, reachable from wherever the function is " +
+      "called.",
+    file: "packages/shared/src/topology-layout.ts",
+    find: "    const offset = fromTwelve(ordinal * TOPOLOGY_GOLDEN_ANGLE, distance);",
+    replace:
+      "    // pnpm break: reverted automatically\n" +
+      "    const strongestRetained = graph.edges\n" +
+      '      .filter((edge) => edge.kind === "return_correlation")\n' +
+      "      .filter(\n" +
+      "        (edge) => edge.from === node.symbol || edge.to === node.symbol,\n" +
+      "      )\n" +
+      "      .reduce((max, edge) => Math.max(max, Math.abs(edge.weight)), 0);\n" +
+      "    const correlationAdjustedDistance =\n" +
+      "      distance * (1 - strongestRetained * 0.1);\n" +
+      "    const offset = fromTwelve(\n" +
+      "      ordinal * TOPOLOGY_GOLDEN_ANGLE,\n" +
+      "      correlationAdjustedDistance,\n" +
+      "    );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-layout-reads-no-edge",
+  },
 ];

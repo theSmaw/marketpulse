@@ -6219,7 +6219,7 @@ Story 6.7 (live updates, which would make the re-mount recur rather than
 fire once) are the likely next candidates, and either should take this
 figure rather than add to an unmeasured baseline.
 
-## A specific e2e test has now failed six times across two machines, and no rate is claimable from six points
+## A specific e2e test has now failed across a SEVENTH session, and for the first time the established one-worker control did not clear it on the first attempt
 
 **Added 2026-11-07 by Task 6.5.4, amended the same day with a fifth
 occurrence.** `overview-degraded-grid.spec.ts`'s "nine surfaces, every
@@ -6264,18 +6264,43 @@ symptom. Task 6.6.1's own diff touches the correlation batch and the
 accessible sentence's correlation clause only; the missing clause is the
 anomaly-band one, in a file this task did not change.
 
+**The seventh occurrence, 2026-11-10 during Task 6.6.3's own verification,
+is the first that genuinely strained the established control.** Two full
+`pnpm e2e` runs at default parallelism, minutes apart, both failed this
+spec — the first at three widths (1024/768/390) with load read mid-run at
+**26.40** (over 3× this machine's own 8-core ceiling, climbing from a
+settled 5.98 at the start — confirming the repository's own standing
+finding that _the suite is its own plant_), the second at the same three
+widths with load again elevated (24.44, risen from 5.98 at the start of
+that run too). The one-worker control — `pnpm e2e
+overview-degraded-grid.spec.ts --workers=1` — cleared 1440/1024/768 but,
+for the first time across seven occurrences, **did not clear 390 on the
+first attempt**: `Test timeout of 90000ms exceeded`, the spec's own
+extended ceiling, after running third-to-fourth in a sequential
+single-worker pass that had already carried whatever residual load the
+prior three widths' own browser contexts left behind. A **second,
+narrower** isolation — the 390 case alone, nothing else in the file
+running before or after it, `-g "390.*declared collisions"` — passed
+clean in 30.3 s. So the control still works; what changed is that under
+sufficiently extreme load (the 24–26 range, roughly 3× anything recorded
+in this entry before), one level of isolation (`--workers=1` across the
+whole file) was not always enough, and a second, narrower one was needed.
+
 **Still not a measured rate, and still not attributed to any one story's
 diff.** Nothing in Story 6.6 touches the overview aggregate, breadth,
-movers, the socket, or the anomaly-band scoring pass, and the one-worker
-control has now cleared it six times out of six, across three different
-concrete symptoms (a dead navigation, a live-feed content race, and a
-cross-row sentence mismatch). Six points is still short of a measured
+movers, the socket, or the anomaly-band scoring pass, and SOME level of
+isolation has now cleared every occurrence, seven sessions out of seven,
+across four different concrete symptoms (a dead navigation, a live-feed
+content race, a cross-row sentence mismatch, and now a cross-width
+timeout under extreme load). Seven points is still short of a measured
 rate (this repository's own standing rule: the floor for separating a
 flake from a regression is n = 24 on one checkout), but the growing
-variety of symptoms strengthens rather than weakens the contention
-reading — one cause (resource exhaustion under default parallelism on
-the longest spec in the suite) can plausibly surface as any of several
-different stalls depending on which race loses.
+severity under genuinely extreme load (3× this entry's own prior worst
+reading) is worth a sharper note than "still not negligible": a control
+that stops at `--workers=1` is not a guaranteed clear any more, and the
+next occurrence under similarly extreme load should go straight to the
+narrower per-test isolation rather than treating a `--workers=1` failure
+as itself surprising.
 
 **Not mechanisable as a check** — it is a property of machine contention
 under a specific test runner configuration, not of the product.
@@ -6287,8 +6312,10 @@ continuing to treat each occurrence as news.
 
 **Owner: the first task that needs to cite a flake rate for this spec
 rather than re-run past one** — until then, the correct response to a red
-run of this specific test is the one already taken five times: a
-one-worker control, not a re-run at the same concurrency.
+run of this specific test is a one-worker control first, and — new as of
+this occurrence — a narrower single-test isolation if `--workers=1`
+itself still fails under visibly extreme load, rather than treating that
+as a regression on the strength of one data point.
 
 ## A real performance cost of the correlation-strength encoding exists only on software-rendered Canvas2D, and no gate can see it
 
