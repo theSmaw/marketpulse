@@ -104,16 +104,21 @@ let lastSetBands = vi.fn();
  */
 let lastFocus = vi.fn();
 
+/** Same reason as {@link lastDestroy}, for `markBurst` (Task 6.7.2). */
+let lastMarkBurst = vi.fn();
+
 function createFakeRenderer(): TopologyRenderer {
   const frames = 1;
   lastDestroy = vi.fn();
   lastSetBands = vi.fn();
   lastFocus = vi.fn();
+  lastMarkBurst = vi.fn();
   return {
     kind: "canvas",
     resize: vi.fn(),
     reset: vi.fn(),
     setBands: lastSetBands,
+    markBurst: lastMarkBurst,
     focus: lastFocus,
     framesDrawn: () => frames,
     destroy: lastDestroy,
@@ -517,6 +522,99 @@ describe("MarketTopology", () => {
       );
 
       expect(lastSetBands).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("the live-update mark channel — Task 6.7.2", () => {
+    beforeEach(() => {
+      mountCanvasTopology.mockReset();
+      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    });
+
+    it("exposes markBurst on the ref as a no-op while nothing is mounted", () => {
+      // The same contract `resetView`'s own test names, at the same state:
+      // a universe still loading has no renderer, and `markBurst()` must
+      // not throw reaching for one.
+      const ref = createRef<MarketTopologyHandle>();
+
+      render(
+        <MarketTopology
+          ref={ref}
+          universe={{ state: "loading" }}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(() => ref.current?.markBurst()).not.toThrow();
+    });
+
+    it("calls the renderer's markBurst, reached through the ref rather than a prop", () => {
+      const handle = createRef<MarketTopologyHandle>();
+
+      render(
+        <MarketTopology
+          ref={handle}
+          universe={securitiesFixtureView("full")}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        handle.current?.markBurst();
+      });
+
+      expect(lastMarkBurst).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not re-mount the renderer across interleaved setBands and markBurst calls — the declined memo boundary's third evaluation", () => {
+      // **The producer-side account this module's own docblock points
+      // to.** `markBurst` is called through the SAME ref `setBands` already
+      // is, so this interleaves the two across several re-renders — the
+      // shape a real live batch actually produces, since Task 6.7.1's
+      // widened subscription means almost every batch touches both the
+      // anomaly bands AND the observation map `markBurst`'s own caller
+      // watches.
+      const universe = securitiesFixtureView("full");
+      const handle = createRef<MarketTopologyHandle>();
+
+      const { rerender } = render(
+        <MarketTopology
+          ref={handle}
+          universe={universe}
+          relationships={NO_MEASUREMENT}
+          bands={new Map([[toTicker("NVDA"), "elevated"]] as const)}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+
+      for (let batch = 0; batch < 5; batch += 1) {
+        act(() => {
+          handle.current?.markBurst();
+        });
+
+        rerender(
+          <MarketTopology
+            ref={handle}
+            universe={universe}
+            relationships={NO_MEASUREMENT}
+            bands={
+              new Map([
+                [toTicker("NVDA"), batch % 2 === 0 ? "high" : "extreme"],
+              ] as const)
+            }
+            onRetry={() => undefined}
+          />,
+        );
+      }
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+      expect(lastMarkBurst).toHaveBeenCalledTimes(5);
+      expect(lastSetBands).toHaveBeenCalledTimes(6); // the mount-time bands prop, plus the five re-renders
     });
   });
 

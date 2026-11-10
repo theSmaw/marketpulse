@@ -92,6 +92,18 @@ import styles from "./MarketTopology.module.css";
 // own condition (“the first prop that changes at feed cadence”) remains
 // unmet by construction; `MarketTopology.test.tsx`'s “anomaly-band update
 // channel” describe block is where this is held.
+//
+// **Evaluated a THIRD time, and it did NOT fire, when Task 6.7.2 wired the
+// graph-level live-update mark.** The shape most likely to have fired it —
+// a boolean or a timestamp prop the route flips on every burst — is exactly
+// what was declined: `markBurst()` is a method on `MarketTopologyHandle`,
+// reached the same way `setBands` already is, called from
+// `MarketOverview.tsx`'s own effect watching `liveFeed.observations`. The
+// mount effect's deps are still `[topology, probe, sentenceId]`, and this
+// component takes no prop that changes at feed cadence even now that it
+// draws a mark on every live batch. `MarketTopology.test.tsx`'s own
+// producer-side account (interleaving `setBands` and `markBurst` calls
+// across repeated re-renders) is where this is held.
 
 export interface MarketTopologyProps {
   /** The universe, in whichever state `use-securities.ts` has it. */
@@ -236,6 +248,21 @@ export interface MarketTopologyHandle {
    * **A no-op while nothing is mounted**, same contract as `resetView`.
    */
   setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
+
+  /**
+   * Play the graph-level live-update mark, decaying (Task 6.7.2, Open
+   * Decision 1) — `TopologyRenderer.markBurst`, reached imperatively for
+   * `setBands`'s exact reason: the route calls this from its own effect,
+   * watching the live feed's observations for a real arrival, and that is
+   * not a value this component could re-derive from its own props — this
+   * component takes no prop that changes at feed cadence at all, and a new
+   * one for this alone would reopen the declined `React.memo` boundary this
+   * file's own module docblock argues for.
+   *
+   * **A no-op while nothing is mounted**, same contract as `resetView` and
+   * `setBands`.
+   */
+  markBurst(): void;
 }
 
 export function MarketTopology({
@@ -460,6 +487,7 @@ export function MarketTopology({
           correlationClause,
         );
       },
+      markBurst: () => renderer.current?.markBurst(),
     }),
     // **`correlationClause` joins `topology` here** (Task 6.5.2): the band
     // write composes the sentence and would otherwise close over the clause

@@ -366,6 +366,63 @@ const FOCUS_RING_EDGE_RADIUS =
   FOCUS_RING_RADIUS + FOCUS_RING_WIDTH / 2 + FOCUS_RING_EDGE_WIDTH / 2;
 
 /**
+ * The live-update mark's PEAK `globalAlpha`, composited over the whole
+ * viewport (Task 6.7.2, Open Decision 1 — a graph-level mark rather than a
+ * per-node one; the closest two nodes in the whole layout are 17.83 layout
+ * units apart against a 16-unit footprint, essentially no spatial room for
+ * anything drawn per node).
+ *
+ * **0.06, a design judgement rather than a derivation — the one number in
+ * this mechanism that is.** Shaped from the adjacent evidence rather than
+ * guessed: the identity block's own arrival disc is small and concentrated
+ * and still reads as "nearly invisible" at full strength (Task 3.4.4's own
+ * measured session); this mark is 100% of the viewport, under every node,
+ * every edge and every label this renderer draws, so it has to sit an order
+ * of magnitude lower to read as ambient rather than as a shape. Confirmed
+ * against a running build with `pnpm probe` before this landed.
+ */
+const LIVE_MARK_PEAK_ALPHA = 0.06;
+
+/**
+ * The hold-then-fade shape's own hinge, as a fraction of the mark's total
+ * duration — `motion.module.css`'s `arrival-decays` keyframes, restated in
+ * JavaScript because a `<canvas>` cannot run a CSS `animation`.
+ *
+ * **Opacity 1 from 0 to this fraction, then a LINEAR fade to 0 across the
+ * remainder** — the same two clauses, the same fraction, as the keyframes
+ * every other arrival mark in this product already runs on. Two
+ * implementations of one shape would be exactly the drift this product's
+ * own motion vocabulary was written to prevent (`arrival.ts`'s module
+ * docblock makes the identical argument for *what counts as an arrival*);
+ * this is the canvas's unavoidable second implementation of the SHAPE, kept
+ * numerically identical rather than independently chosen.
+ */
+const LIVE_MARK_HOLD_FRACTION = 1 / 3;
+
+/**
+ * The live-update mark's current opacity factor, 0–1, for an elapsed time
+ * and a total duration — the hold-then-fade shape, as a pure function.
+ *
+ * Returns `0` for a zero or negative `durationMs` (reduced motion, or a mark
+ * whose clock has not been read since `destroy()`), which is what makes the
+ * reduced-motion case fall out of the arithmetic rather than needing a
+ * special-cased branch: `elapsedMs / 0` would be `NaN` or `Infinity`
+ * depending on the sign of `elapsedMs`, neither of which the comparisons
+ * below handle correctly.
+ */
+const liveMarkShape = (elapsedMs: number, durationMs: number): number => {
+  if (durationMs <= 0) return 0;
+
+  const progress = elapsedMs / durationMs;
+  if (progress >= 1) return 0;
+  if (progress <= LIVE_MARK_HOLD_FRACTION) return 1;
+
+  return (
+    1 - (progress - LIVE_MARK_HOLD_FRACTION) / (1 - LIVE_MARK_HOLD_FRACTION)
+  );
+};
+
+/**
  * Where the anomaly ring sits, beyond the equity ink's own radius — the
  * MIDDLE of the 4 px annulus `The graph at rest.dc.html` §03 reserves,
  * clear of the halo just inside it and the footprint edge Story 6.4's focus
@@ -878,6 +935,14 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   let view: TopologyView = fitView(layout, { width: 0, height: 0 });
   let frames = 0;
   let pending: number | null = null;
+  /**
+   * **The live-update mark's own clock, or `null` while none is decaying**
+   * (Task 6.7.2). `performance.now()` at the instant `markBurst()` was last
+   * called — never a frame counter, so a frame drawn for an unrelated reason
+   * (a pan, a hover) reports the correct progress and a dropped frame
+   * shortens the remainder rather than extending the fade.
+   */
+  let burstStartedAt: number | null = null;
   let dragging: number | null = null;
   let lastPointerX = 0;
   let lastPointerY = 0;
@@ -1577,6 +1642,44 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       context.arc(at.x, at.y, radius, 0, Math.PI * 2);
       context.stroke();
     }
+
+    // --- The graph-level live-update mark, LAST — a veil over the finished
+    // picture rather than a layer anything else sits on top of (Task 6.7.2,
+    // Open Decision 1). One `fillRect` over the exact viewport
+    // `clearRect` cleared at the top of this function, at a `globalAlpha`
+    // derived from the clock rather than from a frame count — see
+    // `liveMarkShape`'s own docblock for why a dropped frame shortens the
+    // remainder instead of extending the fade.
+    if (burstStartedAt !== null) {
+      const shape = liveMarkShape(
+        performance.now() - burstStartedAt,
+        palette.motionDurationDecayMs,
+      );
+
+      if (shape > 0) {
+        context.globalAlpha = LIVE_MARK_PEAK_ALPHA * shape;
+        context.fillStyle = palette.liveMark;
+        context.fillRect(0, 0, width, height);
+        context.globalAlpha = 1;
+
+        // **The self-re-arming half, and the whole reason this reuses
+        // `invalidate()`/`pending` rather than a second animation
+        // primitive.** This renderer's only loop is `pending ??=
+        // requestAnimationFrame(draw)`, a coalescing single-shot scheduler
+        // — `pending` was cleared to `null` at the TOP of this very call, so
+        // calling `invalidate()` here schedules exactly one more frame
+        // rather than two. The mark is still live after painting this
+        // frame, so there is a next frame to paint; the loop stops on its
+        // own the first time `shape` reaches `0` and nothing re-arms it.
+        invalidate();
+      } else {
+        // The mark finished sometime before this frame drew (a dropped
+        // frame, a tab that was hidden) — cleared here rather than left to
+        // the next `markBurst()` call, so `framesDrawn()` sampled after
+        // this point sees the loop having genuinely stopped.
+        burstStartedAt = null;
+      }
+    }
   };
 
   const invalidate = (): void => {
@@ -1827,6 +1930,14 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // with the pointer elsewhere would leave the plate's word disagreeing
       // with the ring on screen, and nothing would ever correct it.
       if (selected !== null) onSelect?.(targetOf(selected), "band");
+      invalidate();
+    },
+    markBurst: () => {
+      // **Restart rather than extend** (the method's own docblock): a
+      // second call while a mark is already decaying moves the one clock
+      // this renderer holds, so the mark simply plays again from full
+      // strength instead of two marks overlapping or a longer one running.
+      burstStartedAt = performance.now();
       invalidate();
     },
     // **The same call `Escape` makes, exposed** (Task 6.4.4) — see

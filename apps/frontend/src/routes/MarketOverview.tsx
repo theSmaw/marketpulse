@@ -326,6 +326,39 @@ export function MarketOverview({
     topology.current?.setBands(unscoredAnomalyTreatments(equitySymbols));
   }, [overview, equitySymbols]);
 
+  /**
+   * **The graph's own decaying mark, fired by `observations` advancing**
+   * (Task 6.7.2, Open Decision 1) — never by `overview`'s own identity,
+   * which changes on every one of the gateway's up-to-16-a-minute
+   * recomputes whether or not any price actually moved
+   * (`sameLiveFeedView`'s own docblock: *an aggregate whose figures are
+   * byte-identical to the last one still reports a change*). `observations`
+   * is the opposite: `withObservations` returns a genuinely new `Map`
+   * reference only when a bar actually arrived, and the same reference
+   * otherwise — the one signal on this frame that means *a live batch
+   * reached this browser* rather than *the join ran again*.
+   *
+   * **The first change is skipped, not marked.** The connection's initial
+   * snapshot is the first write to `observations` this component ever
+   * sees, and a snapshot is *what we already held when you connected*,
+   * never news (`arrival.ts`'s own rule for exactly this question, one
+   * surface over). A later reconnect's snapshot is not told apart from an
+   * ordinary burst here, and that is accepted rather than overlooked: fresh
+   * data did reach the browser, the mark reads as *the market just
+   * breathed*, and the direction of the error is the safe one — the same
+   * trade `sameLiveFeedView` itself makes, for the same reason.
+   */
+  const markedFirstObservations = useRef(false);
+
+  useEffect(() => {
+    if (!markedFirstObservations.current) {
+      markedFirstObservations.current = true;
+      return;
+    }
+
+    topology.current?.markBurst();
+  }, [observations]);
+
   /*
    * **The two movers lists, derived once per frame — the route's third memo
    * boundary** (Task 4.5.5).
