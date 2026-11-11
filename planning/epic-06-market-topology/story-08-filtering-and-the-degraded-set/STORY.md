@@ -1,6 +1,6 @@
 # Story 6.8 — Filtering, & the Degraded Set
 
-**Status:** Not started
+**Status:** Gate 1 approved 2026-11-11 — decomposed into four tasks.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.7
 **Epic scope covered:** Filtering
@@ -32,6 +32,12 @@ honest in every state where it has less to draw than a full market.
 
 ## Acceptance criteria
 
+**Rewritten at Gate 1, 2026-11-11, after six parallel shaping reports found AC3
+unfalsifiable as written for a client-side filter and AC5's seventh state
+naming a wire shape that does not exist.** Kept struck below each rewrite, per
+this repository's own rule that a sentence recording what was asked for is not
+the same sentence as one recording what the data permits.
+
 1. **Filtering states its own population**, the way every ranked and counted
    surface in this product does: _of the 501 companies we track…_. A graph
    showing 40 nodes with no statement of what was excluded is a confident claim
@@ -39,32 +45,113 @@ honest in every state where it has less to draw than a full market.
 2. **A filter is reflected in the URL** where it is a selection a reader would
    share or return to — ADR 0023's rule, and the window control's precedent
    (`?sessions=21`).
-3. **Filtering never blanks the screen.** The last answer stays until a newer
-   one replaces it, and a wait over 160 ms draws a cover over the picture rather
-   than over a number (ADR 0028).
+3. ~~Filtering never blanks the screen. The last answer stays until a newer one
+   replaces it, and a wait over 160 ms draws a cover over the picture rather
+   than over a number (ADR 0028).~~ — **A client-side filter over a universe
+   already in the browser makes no request, so ADR 0028's cover is unreachable
+   by construction — six shaping reports independently found this.** Rewritten:
+   **a filter change neither re-mounts the renderer nor resets the reader's
+   pan, zoom or selection** (mechanically checkable: `framesDrawn()` plus a
+   pan surviving a filter press), and the 160 ms cover is recorded as
+   unproducible per AC4's own escape clause rather than built for a wait this
+   feature cannot have.
 4. **Every degraded state is PRODUCED rather than furnished where it can be** —
    through the shipped socket, the shipped decoder and a real store — which is
    how Story 4.7's grid found **six lying aggregates** and a duplicate provenance
    line two years old. A state nobody can produce is named as unproducible.
-5. **The states this epic has to draw, each distinguishable from the others at
-   all four widths**: the whole market; one sector; a store with no bars (nodes
+5. ~~The states this epic has to draw, each distinguishable from the others at
+   all four widths: the whole market; one sector; a store with no bars (nodes
    and sector edges, no correlations, no scores); no provider; the aggregate
-   arrived carrying nothing; the backend unreachable; and **a degradation that
-   omits the topology section**, which must not look like a region nobody has
-   built.
-6. **No two states read identically at any width**, which is the claim the
-   degraded grid exists to hold, and the thing the nine-state pass proved for
-   the security page.
-7. **The canvas's accessible fallback carries the state in words**, because that
-   is what the grid reads and what a screen reader gets.
+   arrived carrying nothing; the backend unreachable; and a degradation that
+   omits the topology section, which must not look like a region nobody has
+   built.~~ — **"A degradation that omits the topology section" names a wire
+   shape that does not exist: the graph is a function of two always-present
+   requests (`GET /securities`, the relationships route) plus the aggregate's
+   optional `anomalyBands` section, so there is no single "topology section" to
+   omit.** Rewritten into the two real, producible readings, plus the one
+   genuine exception: **the whole market; one sector; a store with no bars; no
+   provider; the aggregate arrived carrying nothing; the backend unreachable;
+   an aggregate whose `anomalyBands` section is absent; a relationships route
+   that failed or answered a shape the decoder refuses; and the region nobody
+   has built** (named unproducible — no frame removes a shipped region from a
+   bundle, so this stays `ENUMERATED_AND_NOT_PRODUCED`, alongside "a region
+   whose content threw"). The degradation/deferred-placeholder distinction the
+   original wording was guarding against is a real, separate finding (Task
+   4.7.11's routed hand-off) and is this story's own to close now that only one
+   badged hatch remains on `/`.
+6. **No two states read identically at any width** — **with one named,
+   accepted exception**: a store with no bars, no provider, and the aggregate
+   arriving carrying nothing are **one picture and one sentence inside this
+   region**, because the topology reads only the universe, the correlations
+   route and `anomalyBands` — never the connection or the provider, which have
+   one home each, in the status bar and the source note, and `pnpm invariants`
+   refuses a second home for either by name. This is a **declared collision
+   class**, asserted in both directions (the three states collapse together;
+   every other state stays distinct), the same mechanism the landing page's own
+   degraded grid already uses for the session-basis and empty-join collisions.
+7. **The canvas's accessible fallback carries the state in words, and survives
+   a live band update** — the added clause closes a real risk found while
+   shaping: the structural sentence has two writers (this component's JSX and
+   the imperative batch writer), and a filter clause is the same collision a
+   third time if it is not threaded through both the same way `correlationClause`
+   already is.
 
-## Open decisions — for the Product Owner
+## Open decisions — settled at Gate 1, 2026-11-11
 
-1. **Filter by what?** Sector and band are the obvious two. Filtering by
-   correlation strength is a third and is closer to a query than a filter.
-2. **Does a filter hide nodes or dim them?** Hiding re-flows a spatial surface
-   and loses the shape; dimming keeps it and costs contrast — and contrast is
-   already carrying four bands.
+1. ~~Filter by what? Sector and band are the obvious two. Filtering by
+   correlation strength is a third and is closer to a query than a filter.~~ —
+   **SETTLED: sector and band, matching this story's own stated scope.
+   Correlation strength is REFUSED**, on the unanimous recommendation of six
+   independent shaping reports — it is closer to a query than a filter, its
+   natural control (a threshold slider) has no precedent anywhere in this
+   product, and the data it would filter on is absent on CI and every fresh
+   store, permanently. **Reversal trigger: the first surface in this product
+   that needs to name a single pair's own correlation coefficient to a
+   reader** — the same trigger that also covers the three edge-affordance
+   questions handed here by Task 6.6.2 (hover/select/keyboard-reach a
+   correlation edge), which are **refused a third time** for the same reason:
+   refusing one without the other is a half-finished version of the same
+   question. **A band filter over a store where nothing has been scored
+   refuses with a stated reason** rather than silently resolving to zero drawn
+   nodes — `Nothing here has been scored yet, so the graph can't be narrowed
+by band.` — because resolving to zero would be a fully-formed claim about
+   zero scored securities on the one state every gated machine is
+   permanently in, which is exactly the false impression ADR 0029 forbids.
+2. ~~Does a filter hide nodes or dim them? Hiding re-flows a spatial surface and
+   loses the shape; dimming keeps it and costs contrast — and contrast is
+   already carrying four bands.~~ — **SETTLED: hide the excluded equities;
+   hold the full-universe layout; de-emphasize (never fully hide) the fifteen
+   landmarks and the hub.** Five of six shaping reports converged on this
+   independently, on measured rather than aesthetic grounds: this canvas's
+   contrast ramp already carries four anomaly bands at steps as fine as
+   1.12:1, with `elevated` deliberately spending no hue at all **because**
+   that step is unreliable — a dim channel underneath would read as either a
+   fifth band or become indistinguishable from the existing hollow `unscored`
+   treatment (the same encoding collision this product has already found and
+   fixed once elsewhere). Hiding, by contrast, costs nothing already spent:
+   an excluded equity draws no ink, is not hit-testable and is not reachable
+   by the keyboard walk. **The layout is never rebuilt and the viewport never
+   re-fits to the filtered subset** — `buildTopologyLayout` keeps running over
+   the whole 516-node universe every time, placements are looked up by symbol
+   rather than recomputed, and a filtered sector draws small inside the full
+   frame, with `Reset view` and the reader's own zoom as the way in. This is
+   what keeps Epic 7's server/browser coordinate agreement intact and is why
+   the mount effect's deps stay unchanged by a filter. The fifteen landmarks
+   (eleven sector ETFs, four proxies, the hub) are **never hidden** — they are
+   the keyboard walk's own tree and the band encoding's own exclusion set —
+   but one whose sector is filtered out draws a visibly distinct, de-emphasized
+   treatment, never the same ink as `unscored`, so "not in your filter" and
+   "we have no score for this" stay two different claims.
+
+**A third, previously-undecided item, settled in the same Gate 1**: the
+native browser context menu a topology node has carried for free since Story
+6.4 (`docs/GAPS.md`, "A canvas node now carries a second, unauthored
+affordance") is **left alone** — filter controls live in the region's own
+chrome, never as a third kind of canvas press, so the entry's own firing
+condition ("before Story 6.8 adds a third kind of press to the same
+surface") does not fire. The real, unrelated defect found alongside it —
+`onPointerDown` not filtering `event.button`/`isPrimary`, so a right-click
+also moves the node selection — is fixed in Task 6.8.2 regardless.
 
 ## Out of scope
 
