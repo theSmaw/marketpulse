@@ -6651,12 +6651,74 @@ export const BREAKS = [
       "the check counts call sites across the whole module as well as " +
       "reading the one file.",
     file: "apps/frontend/src/topology/renderer-canvas.ts",
-    find: "      walkGraph = narrowTopologyGraph(graph, sector);",
+    // **Repointed 2026-11-11 by Task 6.8.2**, which moved the narrowing out of
+    // `setFilter` into `renarrow` — the one path a criterion change and a live
+    // band update now share. `every-break-can-still-land` caught the rot in
+    // the same run that introduced it, which is the whole of what that check
+    // is for.
+    find: "    walkGraph = narrowing.graph;",
     replace:
-      "      walkGraph = narrowTopologyGraph(graph, sector);\n" +
-      "      // pnpm break: reverted automatically\n" +
-      "      void buildTopologyLayout(walkGraph);",
+      "    walkGraph = narrowing.graph;\n" +
+      "    // pnpm break: reverted automatically\n" +
+      "    void buildTopologyLayout(walkGraph);",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-topology-layout-is-built-from-the-whole-universe",
+  },
+  {
+    name: "the-topology-walk-reads-a-band",
+    proves:
+      "`apps/frontend/src/topology/walk.ts` — the tree walk — reads " +
+      "nothing a feed moves (Task 6.8.2, AC 3). The defect this plants is " +
+      'the one a future author chasing "walk the unusual securities first" ' +
+      "would actually reach for: a band-keyed sort of a cluster's own " +
+      "members, inside `groupOf`, which is the function `ArrowLeft` and " +
+      "`ArrowRight` step through.\n\n" +
+      "**It is the next author's own temptation rather than an absurdity.** " +
+      "Task 6.8.2 put a band criterion in the address and a treatment map in " +
+      "the renderer, so the material is now in hand; and once a reader has " +
+      "narrowed to `extreme`, ordering what is left by score reads like a " +
+      "courtesy. `ArrowRight` through the ten most unusual first is a " +
+      "perfectly sensible-sounding feature request.\n\n" +
+      "**Nothing else would catch it.** `tsc` is happy. Every assertion in " +
+      "`walk.test.ts` passes a graph and a layout and asserts over the " +
+      "graph's own `members`, so a sort keyed on a map that file never " +
+      "builds is invisible to all 24 of them. What breaks is a reader's " +
+      "POSITION: the map is replaced 6.8–16.1 times a minute on a live " +
+      "page, so two presses of `ArrowRight` a second apart step through two " +
+      "different orders and land somewhere nobody chose — Story 6.4's " +
+      "Gate 1 decision, and the reason this walk is keyed on a ticker rather " +
+      "than on an index in the first place.\n\n" +
+      "**The substitution APPENDS and keeps the found line**, which is " +
+      "`CLAUDE.md`'s own rule added 2026-10-16: a break whose replacement " +
+      "deletes its own `find` goes red twice, from neither the check being " +
+      "proved nor the defect planted.\n\n" +
+      "**The planted map is declared inline so the defect COMPILES AND " +
+      "RUNS**, which is what lets the *passes wrongly* half of this " +
+      "repository's own procedure be demonstrated rather than asserted: " +
+      "with the plant applied, `pnpm --filter @marketpulse/frontend test " +
+      "walk.test` is green on all 24 tests. A plant referencing an " +
+      "undeclared `treatments` would have gone red at `ReferenceError`, " +
+      "which reads like proof and is not.",
+    file: "apps/frontend/src/topology/walk.ts",
+    find:
+      "  const cluster = graph.clusters.find(\n" +
+      "    (candidate) => candidate.id === node.cluster,\n" +
+      "  );\n" +
+      "  return { members: cluster?.members ?? [], wraps: false };",
+    replace:
+      "  const cluster = graph.clusters.find(\n" +
+      "    (candidate) => candidate.id === node.cluster,\n" +
+      "  );\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const bands = new Map<Ticker, string>();\n" +
+      "  const unusualFirst = [...(cluster?.members ?? [])].sort(\n" +
+      "    (left, right) =>\n" +
+      '      (bands.get(right) === "extreme" ? 1 : 0) -\n' +
+      '      (bands.get(left) === "extreme" ? 1 : 0),\n' +
+      "  );\n" +
+      "  void unusualFirst;\n" +
+      "  return { members: cluster?.members ?? [], wraps: false };",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-walk-reads-no-band",
   },
 ];

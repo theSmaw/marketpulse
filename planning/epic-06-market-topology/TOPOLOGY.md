@@ -876,3 +876,198 @@ the existing dropped-focus recovery (`anchorHeldFocus` + `activeElement ===
 document.body`) was **verified against this new trigger rather than assumed** —
 it fires, and lands the reader on the canvas. In the real product it usually
 does not need to, because the reader's hands are on the control they pressed.
+
+## 9. The band narrows it too, and refuses where nothing is scored (Story 6.8, Task 6.8.2, 2026-11-11)
+
+`?band=high,extreme` narrows the graph to the equities whose composite band is
+one of those named — **a union within the bands, an intersection with the
+sector**. A second disclosure beside the sector's one, five destinations, four
+of them toggles. The population sentence gains a second clause: `73 of the 501
+companies we track are in Technology, and 11 of those are high or extreme`.
+
+**And it is the first thing in this epic that drew a real figure on an ordinary
+laptop before any browser spec asserted it.** The arm was written against the
+real backend, went red, and the red was the feature working: this developer's
+own store has run the nightly composite pass, so `/?band=high,extreme` drew
+`122 of the 501 companies we track are high or extreme` — consistent with Task
+6.3.1's own measured session (21.9% `high` plus 3.3% `extreme` of 485 scored
+≈ 122), and the first band cut drawn anywhere.
+
+### 9.1 Two axes, two kinds of criterion — which is the whole of this task
+
+A sector is a **curated column** on `GET /securities` and is static for the
+life of a page load. A band is a **live measurement** that arrives through
+`TopologyRenderer.setBands`, changes up to sixteen times a minute, and **does
+not exist at all** on CI or any fresh store. Everything below falls out of
+that one difference.
+
+- **The criterion changes at reader cadence; the data under it changes at feed
+  cadence.** So `setFilter` and `setBands` share one re-partition (`renarrow`
+  in `renderer-canvas.ts`), and whichever arrived last re-resolves the other's
+  half. A second copy of that arithmetic in each is where the two would
+  disagree for exactly as long as the next batch took to arrive.
+- **`MarketTopology` takes no new prop that moves on a batch.** The declined
+  `React.memo` boundary's own reversal trigger — _the first prop this region
+  takes that changes at feed cadence_ — stays unfired. The treatment map
+  reaches the population sentence through `appliedBands`, a ref written by the
+  two callers of `applyAnomalyBands` and read **from effects only**, never
+  during a render.
+- **The note has two writers and React owns neither string.** React commits a
+  **band-blind** account (the cut over an empty map, which is the honest claim
+  before any batch: nothing is scored yet) into a `<span>` with no declared
+  children; the batch writer and a new reader-cadence effect each rewrite it
+  from the same builder. Without the second one, a press would read _nothing
+  here has been scored yet_ for up to nine seconds — and for ever out of
+  hours.
+
+### 9.2 The refusal, and it is the state every gated machine is in
+
+Where the scored cohort over the population is **zero**, the band cut is
+refused rather than resolved to zero drawn nodes:
+
+```
+Nothing here has been scored yet, so the graph can't be narrowed by band.
+```
+
+Settled at Story 6.8's Gate 1 and verbatim from it. Resolving to zero would be
+a fully-formed claim about zero scored securities on the one state CI, every
+fresh store and the first ~46 s of every cold deploy are permanently in —
+ADR 0029's false impression. **Stacked with a sector it states both**:
+`21 of the 501 companies we track are in Energy. Nothing here has been scored
+yet, so the graph can't be narrowed by band.`
+
+**Verified against a real `pnpm store:bare` run**, not only a furnished
+fixture, which is the task's own Work item. A backend on `marketpulse_bare`
+(516 securities, zero bars, no composite generation) serves an `overview` frame
+with **no `anomalyBands` section at all** — read off the socket and quoted in
+the task record — and the route's own AC-4 fallback marks every equity
+`unscored`, so the sentences above are what a browser against that store draws,
+with no page error.
+
+`scored` here counts a **real band** and never an absence: the renderer draws
+an equity missing from the map as `normal`, which is a drawing default rather
+than a reading, and a cut that treated it as a score would claim the composite
+had answered where it had not.
+
+### 9.3 A live band update never takes a reader's selection away
+
+A reader with `NVDA` selected whose band moves out of the active cut keeps it:
+drawn, selected, hit-testable, and in its cluster's own `members` so the arrow
+keys still work from it. `narrowTopology` takes a `pinned` symbol for exactly
+this, and the **count does not include it** — the figure is the criterion's own
+answer and the selection is what says why the extra node is there.
+
+**The opposite case is kept conceptually distinct and behaves oppositely**: a
+filter the READER changes that excludes the current selection clears it, by
+name, through `TopologySelectionSource`'s `"filter"` (Task 6.8.1). The two
+differ by one argument at the two call sites — `setBands` passes the selection,
+`setFilter` passes `null` — and letting go of a pinned selection withdraws the
+exemption.
+
+**The `role="status"` region does not re-speak on a band-driven population
+change.** The note is a figure a reader can go and read; a live-region write at
+feed cadence would be the first surface in this product to interrupt a listener
+6.8–16.1 times a minute. Asserted as **byte-identical** text across a batch, at
+the component level and in the browser, because an identical re-write is still
+a mutation a screen reader may announce.
+
+### 9.4 The new invariant, and the defect it refuses
+
+`the-topology-walk-reads-no-band` — `walk.ts` never reads a treatment, a band,
+an arrival key or a bar's own instant. `pnpm invariants` holds **86**.
+
+It is `the-topology-view-reads-no-arrival`'s sibling with the subject moved:
+those checks protect a node's POSITION from live data, this one protects a
+reader's own POSITION IN THE TREE. The defect planted by
+`pnpm break the-topology-walk-reads-a-band` is a band-keyed sort of a cluster's
+members inside `groupOf` — _walk the unusual ones first_, which is a perfectly
+sensible-sounding request now that the material is in hand. **It compiles, it
+runs, and all 24 of `walk.test.ts`'s assertions stay green on it**, which is
+the _passes wrongly_ half demonstrated rather than asserted.
+
+What the band legitimately narrows is the **graph** `walk.ts` is handed, so its
+membership changes exactly when the caller says so and the function stays pure.
+
+### 9.5 What it cost the chrome, measured — and the seven pixels
+
+Three controls in a header that already overflowed at one width.
+`pnpm probe / --within "Market topology"`, against the two-control baseline:
+
+| width | header |  title |  canvas | against the baseline                  |
+| ----: | -----: | -----: | ------: | ------------------------------------- |
+|  1440 |  59 px | 118×22 | 998×413 | unchanged                             |
+|  1024 |  95 px | 116×44 | 570×377 | header +36, canvas −36, title WRAPPED |
+|   768 |  59 px | 118×22 | 686×413 | unchanged                             |
+|   390 | 131 px |  61×44 | 308×341 | header +36, canvas −36                |
+
+**1024 was seven pixels short.** The three controls are 170 + 141 + 116 and the
+title wants 118: with two 8 px gaps that is 443 against the 444 left in a 570 px
+header, and the title wrapped **by two pixels**, which pushed the meta onto a
+second row. An 8 px **row** gap with a 4 px **column** gap restores 1024
+exactly — header 59 px, title 118×22, canvas 570×413, identical to the
+baseline. 1440 and 768 are unchanged either way.
+
+**390 is not repaired and is recorded rather than smoothed**: 308 px of header
+content against 431 px of controls, so the meta takes two rows where one
+sufficed, and the canvas loses 36 px of 377. **No page movement at any width**
+— the document's own `scrollHeight` is 3534 before and after, because row 1 of
+`.regions` tracks `82vh`. Looked at rather than inferred: at 390 the three
+controls stack right-aligned under a two-line title and read as designed.
+The condition for the next story, and the repair in hand and not taken, are in
+`MarketOverview.module.css` beside the rule.
+
+### 9.6 A shipped defect fixed on the way through
+
+`onPointerDown` filtered neither `event.button` nor `event.isPrimary`, so a
+**right-click on a node moved the reader's selection** — one press, two
+responses, with the plate's single anchor silently re-pointed underneath an
+open context menu, and a middle-click doing the same with no menu to explain
+it. Filtered to the primary button and the primary pointer. **The native menu
+itself is untouched**, which is Story 6.8's own Gate 1 decision: there is no
+`preventDefault()` on `contextmenu` anywhere in this module, and
+`docs/GAPS.md`'s entry on this surface's second, unauthored affordance stands.
+Covered by a browser test with its own positive control — the primary button
+still selects, without which _no anchor appeared_ is equally satisfied by a
+canvas that selects nothing at all.
+
+### 9.7 The burst arm, extended
+
+`overview-market-topology-burst-absorption.spec.ts` gained a third arm: the
+real 516-security population with `?band=high,extreme` in the address, which
+makes every batch re-resolve the whole drawn set on top of the band ink.
+Measured, three consecutive bursts:
+
+```
+real population (516), band filter active: quiet window — worst rAF gap 17.7 ms, 0 over 50 ms
+real population (516), band filter active: burst 1 of 3 (518 symbols) — worst rAF gap 17.6 ms, 0 over 50 ms
+real population (516), band filter active: burst 2 of 3 (518 symbols) — worst rAF gap 17.7 ms, 0 over 50 ms
+real population (516), band filter active: burst 3 of 3 (518 symbols) — worst rAF gap 17.7 ms, 0 over 50 ms
+```
+
+Indistinguishable from the two unfiltered arms in the same run (17.3–17.7 ms,
+0 over 50 ms). **The cut REFUSES on that harness** — no furnished
+`anomalyBands` — so what is measured is `narrowTopology`'s full pass plus both
+re-partitions over the whole universe, which is the expensive end: a drawable
+cut re-partitions a smaller drawn set.
+
+### 9.8 What no gated machine will ever see, and what no person has checked
+
+**The refusal is all CI will ever draw.** No gated run can reach a drawn band
+cut, for the reason this epic has now recorded five times: zero bars, no
+provider, no composite generation. The drawable arms of
+`overview-market-topology-filter.spec.ts` furnish one `anomalyBands` section
+through the shipped socket and assert figures the spec computes itself; the
+`122 of 501` and `73 … 11 of those` figures above came from one developer's
+populated store on one afternoon.
+
+**What no person has used**: the band control against a live feed, where the
+population moves under a reader's eyes while they are reading it. That is the
+one behaviour nothing here can characterise — whether a count that changes
+silently every few seconds reads as _alive_ or as _unstable_ is a question only
+a sitting answers, and it belongs with Story 6.9's own rehearsal.
+
+**And the eleventh screen-reader entry in `docs/GAPS.md` is unchanged and now
+has a sibling question**: a listener who narrows by band hears the clause once,
+on the press, and never again — so a population that has since moved is a
+figure the sentence they were read no longer states. That is the deliberate
+choice (the alternative interrupts at feed cadence) and it has never been heard.

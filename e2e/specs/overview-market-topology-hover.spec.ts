@@ -473,6 +473,16 @@ const tickerAnchor = (page: Page) => plate(page).getByRole("link");
  */
 const SECTOR_FILTER_CONTROL = "button · Sector All sectors";
 
+/**
+ * **The band filter, the same thing a second time** (added 2026-11-11 by Task
+ * 6.8.2) — and the four sets below went red again, for the third time in two
+ * tasks, which is exactly what an exhaustive enumeration is for.
+ *
+ * One entry rather than five, for `SECTOR_FILTER_CONTROL`'s own reason: the
+ * five destinations are inside a panel that is shut until it is pressed.
+ */
+const BAND_FILTER_CONTROL = "button · Band All bands";
+
 /** Every activatable thing in the region, as `role · name`, sorted. */
 async function regionControls(page: Page): Promise<readonly string[]> {
   const region = topologyRegion(page);
@@ -649,6 +659,7 @@ test("clicking a node selects it — a drawn ground, one anchor, and the address
   // counted at — the component test counts the component's.
   await expect(tickerAnchor(page)).toHaveCount(0);
   expect(await regionControls(page)).toStrictEqual([
+    BAND_FILTER_CONTROL,
     "button · Reset view — the market topology",
     SECTOR_FILTER_CONTROL,
   ]);
@@ -688,6 +699,7 @@ test("clicking a node selects it — a drawn ground, one anchor, and the address
   // has not moved, and no second control appeared with the selection.
   expect(pathNow(page)).toBe("/");
   expect(await regionControls(page)).toStrictEqual([
+    BAND_FILTER_CONTROL,
     "button · Reset view — the market topology",
     SECTOR_FILTER_CONTROL,
     `link · ${security.symbol}`,
@@ -877,6 +889,7 @@ test("a drag that ends over a different node selects neither end", async ({
 
   await expect(tickerAnchor(page)).toHaveCount(0);
   expect(await regionControls(page)).toStrictEqual([
+    BAND_FILTER_CONTROL,
     "button · Reset view — the market topology",
     SECTOR_FILTER_CONTROL,
   ]);
@@ -905,6 +918,7 @@ test("activating the one anchor produces exactly one outcome — AC 6's determin
   // surface whose every affordance has been counted, not about the one this
   // spec happened to click.
   expect(await regionControls(page)).toStrictEqual([
+    BAND_FILTER_CONTROL,
     "button · Reset view — the market topology",
     SECTOR_FILTER_CONTROL,
     `link · ${security.symbol}`,

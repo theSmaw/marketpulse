@@ -1,9 +1,18 @@
 import { SECTOR_LABELS } from "@marketpulse/shared";
-import type { SecuritiesResponse, Security, Sector } from "@marketpulse/shared";
+import type {
+  SecuritiesResponse,
+  Security,
+  Sector,
+  WireAnomalyBands,
+  WireMarketBreadth,
+  WireMarketMovers,
+  WireMarketOverview,
+} from "@marketpulse/shared";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
+import { serveFeed } from "../support/feed.js";
 import { backendOrigin } from "../support/pair.js";
 
 // **Narrowing the market topology to one sector** (Task 6.8.1).
@@ -439,4 +448,354 @@ test("a filter that excludes the selected security clears it, with its own sente
     () => document.activeElement?.tagName ?? "NONE",
   );
   expect(focused).not.toBe("BODY");
+});
+
+// --- Task 6.8.2: the band, stacked, and the refusal -----------------------
+//
+// ## Two halves measured against two different servers, on purpose
+//
+// **The refusal runs against the REAL backend** and is the one arm of this
+// feature a gated machine can exercise: CI's store has 516 securities, zero
+// bars and no composite generation, so the route's own fallback marks every
+// equity `unscored` and the scored cohort is zero, for ever. `pnpm store:bare`
+// reproduces that shape locally in seconds and this arm was verified against
+// it rather than only against a furnished frame — which is this task's own
+// Work item, and the distinction matters because the furnished arms below
+// cannot reach the refusal at all.
+//
+// **The drawable arms furnish `anomalyBands` through `serveFeed`**, exactly as
+// `overview-market-topology-anomaly-bands.spec.ts` does and for its stated
+// reason: `GET /securities` still hits the real backend, so the graph and the
+// tickers are genuine; only the one section no gated run can produce is
+// authored. Everything these arms assert is a figure this spec computes
+// itself from the furnished section — never a figure read off the page and
+// declared self-consistent (`MARKET-OVERVIEW.md` §9's trap 8).
+
+const AT = "2026-09-16T18:01:00Z";
+
+const BREADTH: WireMarketBreadth = {
+  basis: "observed",
+  advancing: 10,
+  declining: 5,
+  unchanged: 1,
+  measured: 16,
+  tracked: 501,
+  windowMinutes: 5,
+};
+
+const MOVERS: WireMarketMovers = {
+  basis: "observed",
+  gainers: [],
+  losers: [],
+  eligible: 0,
+  tracked: 501,
+  windowMinutes: 5,
+};
+
+const COHORT: WireAnomalyBands["cohort"] = {
+  factors: ["price", "excess"],
+  max: 75,
+  scored: 4,
+  others: 0,
+};
+
+function overviewWith(
+  anomalyBands: WireAnomalyBands | undefined,
+): WireMarketOverview {
+  return {
+    computedAt: AT,
+    observedAt: AT,
+    feeds: ["iex"],
+    figures: [],
+    breadth: BREADTH,
+    movers: MOVERS,
+    ...(anomalyBands === undefined ? {} : { anomalyBands }),
+  };
+}
+
+/** The band section this spec's figures are computed from. */
+const bandsOf = (
+  high: readonly string[],
+  extreme: readonly string[],
+  normal: readonly string[],
+): WireAnomalyBands => ({
+  normal: [...normal],
+  elevated: [],
+  high: [...high],
+  extreme: [...extreme],
+  cohort: COHORT,
+});
+
+const bandTrigger = (page: Page) =>
+  region(page).getByRole("button", { name: /^Band/u });
+
+/** The note's own line, which is written imperatively by two writers. */
+const noteLine = (page: Page) =>
+  region(page).locator("[data-topology-filter-line]");
+
+test("a band filter against an UNSCORED store refuses with a stated reason rather than drawing an empty market", async ({
+  page,
+}) => {
+  // **Furnished through the shipped socket, and the reason is a measurement
+  // this task took rather than a convenience.** The arm was written against
+  // the real backend first and went red on this developer's own store, which
+  // HAS run the nightly composite pass: it drew `122 of the 501 companies we
+  // track are high or extreme` — the first time a band cut has been drawn
+  // anywhere, and consistent with Task 6.3.1's own measured session (21.9%
+  // `high` plus 3.3% `extreme` of 485 scored ≈ 122). So *the store has no
+  // scores* is a property of the STORE and cannot be asserted against
+  // whichever one the runner happens to have.
+  //
+  // What is furnished is one thing only: an `overview` frame with **no**
+  // `anomalyBands` section. Everything downstream of that is the shipped
+  // product — `MarketOverview.tsx`'s own AC-4 fallback marks every equity
+  // `unscored`, the scored cohort is zero, and `narrowTopology` refuses. That
+  // is byte-for-byte the state CI, `pnpm store:bare` and the first ~46 s of
+  // every cold deploy are in, reached by the route's own policy rather than by
+  // a mock of the component.
+  //
+  // **Verified against a real `pnpm store:bare` run as well**, which is this
+  // task's own Work item: a backend on `marketpulse_bare` (516 securities,
+  // zero bars, no composite generation) serves exactly this sentence with no
+  // furnishing at all. The transcript is in the task record.
+  await serveFeed(page, { overview: overviewWith(undefined) });
+  await page.goto(`${OVERVIEW}?band=high,extreme`);
+  await expectNothingFailedToRender(page);
+  await drawnCanvas(page);
+
+  await expect(noteLine(page)).toHaveText(
+    "Nothing here has been scored yet, so the graph can't be narrowed by band.",
+  );
+
+  // **The whole market is still drawn**, which is the half that makes the
+  // refusal a refusal rather than a caption over an empty frame: the canvas's
+  // own accessible sentence is the unnarrowed one, and the region raises no
+  // refusal of its own.
+  await expect(
+    region(page).getByRole("img", { name: /^A graph of every security/u }),
+  ).toHaveCount(1);
+  await expect(
+    region(page).getByRole("img", { name: /Narrowed to/u }),
+  ).toHaveCount(0);
+
+  // The control names what is in force, and the way back clears it.
+  await expect(bandTrigger(page)).toContainText("high or extreme");
+  await region(page).getByRole("link", { name: "Show all" }).click();
+  await expect.poll(() => addressNow(page)).toBe("/");
+  await expect(note(page)).toHaveCount(0);
+});
+
+test("a band press moves the address, stacks with the sector, and states both clauses", async ({
+  page,
+}) => {
+  const universe = await securities(page);
+  const { sector, count } = biggestSector(universe);
+  const tracked = equityCount(universe);
+
+  // Four securities banded, chosen out of the real sector this spec just
+  // measured — so the intersection below is this spec's own arithmetic.
+  const inSector: readonly string[] = universe
+    .filter(
+      (security) => security.kind === "equity" && security.sector === sector,
+    )
+    .slice(0, 3)
+    .map((security) => security.symbol);
+  const outside = universe.find(
+    (security) => security.kind === "equity" && security.sector !== sector,
+  );
+  expect(
+    outside,
+    "the universe holds no equity outside the biggest sector",
+  ).toBeDefined();
+  if (outside === undefined) return;
+
+  const high = [inSector[0] ?? "", outside.symbol].filter((s) => s !== "");
+  const extreme = [inSector[1] ?? ""].filter((s) => s !== "");
+  const normal = [inSector[2] ?? ""].filter((s) => s !== "");
+
+  await serveFeed(page, {
+    overview: overviewWith(bandsOf(high, extreme, normal)),
+  });
+  await page.goto(OVERVIEW);
+  await expectNothingFailedToRender(page);
+  await drawnCanvas(page);
+
+  await expect(note(page)).toHaveCount(0);
+
+  // --- The band alone.
+  await bandTrigger(page).click();
+  await region(page).getByRole("link", { name: "high", exact: true }).click();
+  await expect.poll(() => addressNow(page)).toBe("/?band=high");
+
+  await expect(noteLine(page)).toHaveText(
+    `${String(high.length)} of the ${String(tracked)} companies we track are high`,
+  );
+
+  // --- A second band STACKS as a union rather than replacing the first.
+  await bandTrigger(page).click();
+  await region(page)
+    .getByRole("link", { name: "extreme", exact: true })
+    .click();
+  await expect.poll(() => addressNow(page)).toBe("/?band=high%2Cextreme");
+
+  await expect(noteLine(page)).toHaveText(
+    `${String(high.length + extreme.length)} of the ${String(tracked)} companies we track are high or extreme`,
+  );
+
+  // --- And the sector INTERSECTS it: the band is a cut within the sector's
+  // own population, which is the two-clause grammar this task shipped.
+  await trigger(page).click();
+  await region(page)
+    .getByRole("link", { name: SECTOR_LABELS[sector], exact: true })
+    .click();
+
+  const bothInSector = [...high, ...extreme].filter((symbol) =>
+    inSector.includes(symbol),
+  ).length;
+
+  await expect(noteLine(page)).toHaveText(
+    `${String(count)} of the ${String(tracked)} companies we track are in ` +
+      `${SECTOR_LABELS[sector]}, and ${String(bothInSector)} of those are ` +
+      `high or extreme`,
+  );
+
+  // The accessible sentence carries the same claim — AC 7, with two criteria.
+  await expect(
+    region(page).getByRole("img", {
+      name: new RegExp(
+        `Narrowed to ${SECTOR_LABELS[sector]} and high or extreme`,
+        "u",
+      ),
+    }),
+  ).toHaveCount(1);
+
+  // **One `Show all` clears both**, and nothing else in the address.
+  await region(page).getByRole("link", { name: "Show all" }).click();
+  await expect.poll(() => addressNow(page)).toBe("/");
+});
+
+test("a live band update never takes the reader's own selection away, and never re-speaks", async ({
+  page,
+}) => {
+  // **The hardest claim in this task, and the only level it is reachable
+  // at.** The criterion changes at reader cadence and the data under it at
+  // feed cadence — so a security that falls out of the active band on a batch
+  // stays drawn, stays selected and stays reachable, which is the same
+  // reasoning this product already applies to a revised bar under a
+  // crosshair. A reader who CHANGES the filter is the opposite case and is
+  // covered by the sector arm above.
+  const universe = await securities(page);
+  const equities = universe
+    .filter((security) => security.kind === "equity")
+    .map((security) => security.symbol);
+
+  const subject = equities[0] ?? "";
+  const others = equities.slice(1, 4);
+  expect(subject).not.toBe("");
+
+  const feed = await serveFeed(page, {
+    overview: overviewWith(bandsOf([subject, ...others], [], [])),
+  });
+  await page.goto(`${OVERVIEW}?band=high`);
+  await expectNothingFailedToRender(page);
+  await drawnCanvas(page);
+
+  // The cut is drawable, so the subject is on the canvas and findable.
+  await expect(noteLine(page)).toContainText("are high");
+
+  const found = await discoverNodes(page);
+  const at = found[subject];
+  expect(
+    at,
+    `the sweep did not find ${subject} under a band cut`,
+  ).toBeDefined();
+  if (at === undefined) return;
+
+  const box = await page.locator("canvas").first().boundingBox();
+  if (box === null) throw new Error("the canvas has no box");
+
+  await page.mouse.move(box.x + at.x, box.y + at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect.poll(() => readoutTicker(page)).toBe(subject);
+
+  const spokenBefore =
+    (await region(page).locator('[role="status"]').textContent()) ?? "";
+  expect(spokenBefore).toContain(`Selected ${subject}`);
+
+  // **The batch that would drop it**: the subject is `normal` now, so the
+  // `high` cut no longer matches it.
+  const served = feed.overviews();
+  feed.sendOverview(overviewWith(bandsOf(others, [], [subject])));
+  await expect
+    .poll(() => feed.overviews(), { timeout: 10_000 })
+    .toBeGreaterThan(served);
+
+  // The population moved — so the cut was genuinely re-applied against the
+  // new map rather than left stale.
+  await expect(noteLine(page)).toHaveText(
+    `${String(others.length)} of the ${String(equityCount(universe))} companies we track are high`,
+  );
+
+  // **And the selection is exactly where the reader left it.** The plate still
+  // names it, and the one anchor on this surface still points at it.
+  expect(await readoutTicker(page)).toBe(subject);
+  await expect(region(page).locator(`a[data-ticker="${subject}"]`)).toHaveCount(
+    1,
+  );
+
+  // **The live region did not re-speak** — byte-identical, which is what
+  // *silent* means for a `role="status"`: an identical re-write is still a
+  // mutation a screen reader may announce.
+  expect(
+    (await region(page).locator('[role="status"]').textContent()) ?? "",
+  ).toBe(spokenBefore);
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a RIGHT-click does not move the selection, and the native context menu is left alone", async ({
+  page,
+}) => {
+  // **A shipped defect, found while shaping Story 6.8's Gate 1.**
+  // `onPointerDown` filtered neither `button` nor `isPrimary`, so a
+  // right-click started a potential click and the matching `pointerup` moved
+  // the reader's selection — one press, two responses, with the plate's one
+  // anchor silently re-pointed underneath an open menu.
+  await page.goto(OVERVIEW);
+  await expectNothingFailedToRender(page);
+  await drawnCanvas(page);
+
+  const found = await discoverNodes(page);
+  const first = Object.entries(found)[0];
+  expect(first, "the sweep found no node").toBeDefined();
+  if (first === undefined) return;
+  const [symbol, at] = first;
+
+  const box = await page.locator("canvas").first().boundingBox();
+  if (box === null) throw new Error("the canvas has no box");
+
+  // Nothing selected to start with, which is what makes the negative below
+  // readable: a right-click must leave it that way.
+  await expect(region(page).locator("a[data-ticker]")).toHaveCount(0);
+
+  await page.mouse.move(box.x + at.x, box.y + at.y);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.up({ button: "right" });
+
+  // **No selection.** The plate may still be READING this node under the
+  // pointer — that is hover, which a right-click does not change either way —
+  // so the claim is on the anchor, which exists only for a selection.
+  await expect(region(page).locator("a[data-ticker]")).toHaveCount(0);
+
+  // **And the primary button still works**, so this is a filter rather than a
+  // dead handler — the positive control without which the assertion above is
+  // equally satisfied by a canvas that selects nothing at all.
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(region(page).locator(`a[data-ticker="${symbol}"]`)).toHaveCount(
+    1,
+  );
+
+  await expectNothingFailedToRender(page);
 });

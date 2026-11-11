@@ -10,7 +10,6 @@ import {
 import type {
   Bar,
   SecurityLastClose,
-  Sector,
   Ticker,
   TopologyCorrelation,
   TopologyGraph,
@@ -26,15 +25,18 @@ import type {
 } from "../../use-securities.js";
 import {
   mountCanvasTopology,
-  narrowTopologyGraph,
+  narrowTopology,
+  topologyClearPath,
+  topologyCriterion,
+  topologyFilterNames,
   topologyFilterWords,
   topologyPalette,
-  topologySectorPath,
   topologySource,
 } from "../../topology/index.js";
 import type {
   TopologyAnomalyTreatment,
   TopologyFilter,
+  TopologyFilterCriterion,
   TopologyHoverTarget,
   TopologyRenderer,
 } from "../../topology/index.js";
@@ -353,6 +355,19 @@ export function MarketTopology({
   const plate = useRef<HTMLDivElement>(null);
 
   /**
+   * **The population note's own line** (Task 6.8.2) — the plate's idiom, one
+   * element over, and for a sharper version of its reason.
+   *
+   * The figures this line states are a cut over a **live** quantity, so the
+   * string has two authors: a reader's press and a feed batch. React declares
+   * the element and **no children for it**, so its diff never finds a reason
+   * to touch the node — exactly the standing condition the accessible sentence
+   * and the plate's seven lines already live under. The `Show all` link beside
+   * it stays React's, because it is a destination rather than a figure.
+   */
+  const filterLine = useRef<HTMLSpanElement>(null);
+
+  /**
    * **The announcement region — a SECOND element, never a write into the
    * sentence `applyAnomalyBands` already owns** (Task 6.4.4).
    *
@@ -535,10 +550,35 @@ export function MarketTopology({
    * written by the time the renderer is constructed. Every later change is the
    * `setFilter` effect's, below.
    */
-  const sectorFilter = useRef<Sector | null>(null);
+  const filterCriterion = useRef<TopologyFilterCriterion>(NO_CUT);
   useEffect(() => {
-    sectorFilter.current = filter?.sector ?? null;
+    filterCriterion.current =
+      filter === undefined ? NO_CUT : topologyCriterion(filter);
   }, [filter]);
+
+  /**
+   * **The last treatment map this component applied** (Task 6.8.2) — the one
+   * piece of live data the band filter's own sentence needs, held where a
+   * render cannot see it.
+   *
+   * A band criterion is a cut over a **live** quantity, so the figures in the
+   * population note (*12 of those are high or extreme*) are a function of
+   * `setBands`' map. Reaching that map through a prop is the one shape this
+   * region may not take: {@link MarketTopologyProps.bands}' own docblock and
+   * this file's module docblock both turn on the declined `React.memo`
+   * boundary, whose reversal trigger is *the first prop this region takes that
+   * changes at feed cadence* — and a prop carrying 501 bands 6.8–16.1 times a
+   * minute is that trigger firing.
+   *
+   * So the map is written here, by the two callers of
+   * {@link applyAnomalyBands}, and read from **effects only** — never during a
+   * render, which is the React Compiler's `refs` rule and is also what keeps
+   * this out of the component's render output entirely. What a render produces
+   * is the **band-blind** account (see {@link filterAccount} below); what a
+   * reader sees is written imperatively from one of two places, both outside
+   * React's reconciliation of the nodes concerned.
+   */
+  const appliedBands = useRef(EMPTY_TREATMENTS);
 
   /**
    * **Built once, read by both the mount effect and the drawn sentence
@@ -601,16 +641,24 @@ export function MarketTopology({
    *
    * `null` for the whole market, which is an **absence of a clause** rather
    * than a clause about an absence: see `topologyFilterWords`' own note.
+   *
+   * **This one is BAND-BLIND, and that is the whole of Task 6.8.2's
+   * two-writers arrangement.** A render has no treatment map — reading
+   * {@link appliedBands} here would be the React Compiler's `refs` rule and,
+   * worse, a figure that went stale the moment the next batch landed. So what
+   * React commits is the account over an **empty** map, which is a true
+   * statement about what this browser has been told so far: nothing is scored
+   * yet, so a band cut is refused and says so. The band-aware account is
+   * written imperatively, from {@link applyAnomalyBands} on a batch and from
+   * the reader-cadence effect below on a press — and because this string is a
+   * pure function of values that do not move between renders, React's own
+   * diff never touches those nodes again after the first commit, which is the
+   * standing condition `applyAnomalyBands` has relied on since Task 6.3.4.
    */
-  const narrowed =
+  const filterWords =
     topology === null
       ? null
-      : narrowTopologyGraph(topology.graph, filter?.sector ?? null);
-
-  const filterWords =
-    topology === null || narrowed === null || filter === undefined
-      ? null
-      : topologyFilterWords(topology.graph, narrowed, filter);
+      : filterAccount(topology.graph, filter, EMPTY_TREATMENTS);
 
   /**
    * **Every clause the accessible sentence carries beyond its own structure,
@@ -625,6 +673,18 @@ export function MarketTopology({
    * edge population.
    */
   const trailingClauses = `${filterWords?.clause ?? ""}${correlationClause}`;
+
+  /**
+   * **Whether the population note is on screen at all — the one question
+   * about the criterion a render may ask** (Task 6.8.2).
+   *
+   * Its *text* depends on the live treatment map and is written imperatively;
+   * its *presence* depends only on whether the address names anything, which
+   * is a function of the prop. Splitting the two is what lets the note's own
+   * `<span>` carry no React-declared children — the plate's standing idiom —
+   * so neither writer can clobber the other.
+   */
+  const narrowedAtAll = filter !== undefined && topologyFilterNames(filter);
 
   /**
    * **`[topology]`, not `[]`** — unlike `resetView`, `setBands` needs the
@@ -642,12 +702,13 @@ export function MarketTopology({
       resetView: () => renderer.current?.reset(),
       setBands: (treatments) => {
         if (topology === null) return;
+        appliedBands.current = treatments;
         applyAnomalyBands(
-          renderer,
-          sentence,
+          { renderer, sentence, filterLine },
           topology.graph,
           treatments,
-          trailingClauses,
+          filter,
+          correlationClause,
         );
       },
       markBurst: () => renderer.current?.markBurst(),
@@ -677,7 +738,14 @@ export function MarketTopology({
     // closed over a stale criterion would silently un-say *narrowed to
     // Energy* on the next live batch. Still a string, so a filter press
     // recreates the handle once and a quiet render never does.
-    [topology, trailingClauses],
+    //
+    // **`filter` replaces `trailingClauses` at Task 6.8.2**, because the
+    // clause is no longer a value a render can compute: it is a function of
+    // the criterion AND of the treatment map this call is being handed, so
+    // what the closure needs is the criterion itself. `useTopologyFilter`
+    // memoises on the query string, so this identity moves on a press and
+    // never on a batch — the same property `trailingClauses` had.
+    [topology, filter, correlationClause],
   );
 
   /**
@@ -746,10 +814,10 @@ export function MarketTopology({
          * **The criterion the FIRST frame is drawn with** (Task 6.8.1) — read
          * from a ref rather than from the prop, which is what keeps this
          * effect's deps at `[topology, probe, sentenceId]`; see
-         * {@link sectorFilter} for why a cold `/?sector=energy` cannot be left
-         * to the filter effect below.
+         * {@link filterCriterion} for why a cold `/?sector=energy` cannot be
+         * left to the filter effect below.
          */
-        sector: sectorFilter.current,
+        filter: filterCriterion.current,
         layout: topology.layout,
         palette: topologyPalette(),
         probe,
@@ -1021,14 +1089,46 @@ export function MarketTopology({
    */
   useEffect(() => {
     if (bands === undefined || topology === null) return;
+    appliedBands.current = bands;
     applyAnomalyBands(
-      renderer,
-      sentence,
+      { renderer, sentence, filterLine },
       topology.graph,
       bands,
-      trailingClauses,
+      filter,
+      correlationClause,
     );
-  }, [bands, topology, trailingClauses]);
+  }, [bands, topology, filter, correlationClause]);
+
+  /**
+   * **The reader-cadence half of the population note's two writers** (Task
+   * 6.8.2) — the press, where {@link applyAnomalyBands} is the batch.
+   *
+   * Why a press needs its own writer at all: a band criterion's figures are a
+   * function of the live treatment map, and the string React committed is the
+   * **band-blind** one (see {@link filterWords}). Without this effect, a
+   * reader pressing `extreme` on a real store would read *nothing here has
+   * been scored yet* for however long the next batch took to arrive — up to
+   * nine seconds at the feed's measured cadence, and for ever out of hours.
+   *
+   * **It reads {@link appliedBands} rather than taking it as a dependency**,
+   * which is the whole point: an effect may read a ref, and the alternative —
+   * the map as a prop or as state — is the declined `React.memo` boundary's
+   * own reversal trigger firing.
+   *
+   * It writes the same two elements the batch writer does, from the same
+   * builder, so the two can only ever agree.
+   */
+  useEffect(() => {
+    if (topology === null) return;
+
+    writeTopologyFilterNote(
+      { sentence, filterLine },
+      topology.graph,
+      appliedBands.current,
+      filter,
+      correlationClause,
+    );
+  }, [topology, filter, correlationClause]);
 
   /**
    * **The filter's own channel, kept apart from the mount effect for
@@ -1042,12 +1142,14 @@ export function MarketTopology({
    *
    * **It fires on the first commit too, and that is harmless rather than
    * wasted**: the renderer was mounted with the same criterion a few
-   * microseconds earlier (through {@link sectorFilter}), and
+   * microseconds earlier (through {@link filterCriterion}), and
    * `TopologyRenderer.setFilter` early-returns on a criterion that has not
    * moved. A no-op by construction, not by luck.
    */
   useEffect(() => {
-    renderer.current?.setFilter(filter?.sector ?? null);
+    renderer.current?.setFilter(
+      filter === undefined ? NO_CUT : topologyCriterion(filter),
+    );
   }, [filter]);
 
   if (universe.state === "loading") {
@@ -1275,12 +1377,12 @@ export function MarketTopology({
        * it covers canvas the same way the plate does; the ring is drawn
        * centred, so the top-left corner is the emptiest ground available.
        */}
-      {filterWords !== null && (
+      {narrowedAtAll && (
         <p className={styles.filterNote} data-topology-filter="narrowed">
-          <span data-topology-filter-line="">{filterWords.line}</span>{" "}
+          <span data-topology-filter-line="" ref={filterLine} />{" "}
           <Link
             className={styles.filterClear}
-            to={topologySectorPath(filter?.search ?? "", null)}
+            to={topologyClearPath(filter.search)}
           >
             Show all
           </Link>
@@ -1939,28 +2041,132 @@ function topologyAnomalySentence(
  * warning.
  */
 function applyAnomalyBands(
-  renderer: RefObject<TopologyRenderer | null>,
-  sentence: RefObject<HTMLParagraphElement | null>,
+  writers: TopologyTextWriters,
   graph: TopologyGraph,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
   /**
-   * Every clause the sentence carries beyond the structure and the bands —
-   * the filter's and the measurement's, composed by the caller (Task 6.8.1,
-   * where this was `correlationClause` alone).
+   * The criterion the address names, so the filter's own clause and line are
+   * rebuilt against **this** batch's treatments (Task 6.8.2, where this was a
+   * pre-composed `clauses` string).
+   *
+   * It has to be the criterion rather than a string, because the band half of
+   * the population note is a function of the map above: a caller that passed a
+   * string would be passing a figure computed against the PREVIOUS batch.
    */
-  clauses: string,
+  filter: TopologyFilter | undefined,
+  /** The measured-edge clause, which no batch changes. See `correlationClause`. */
+  correlationClause: string,
 ): void {
-  renderer.current?.setBands(treatments);
+  writers.renderer.current?.setBands(treatments);
 
-  if (sentence.current !== null) {
+  const account = filterAccount(graph, filter, treatments);
+
+  if (writers.sentence.current !== null) {
     // **The trailing clauses are re-appended here**, because this write
     // replaces the whole string. Without them the measured-edge clause and
     // the filter's own population clause would survive exactly as long as the
     // next live batch took to arrive — the two-writers problem
-    // `trailingClauses`' own note describes, and the reason they are a
-    // parameter rather than something this function could work out for itself.
-    sentence.current.textContent = `${topologyAnomalySentence(graph, treatments)}${clauses}`;
+    // `trailingClauses`' own note describes.
+    writers.sentence.current.textContent =
+      topologyAnomalySentence(graph, treatments) +
+      `${account?.clause ?? ""}${correlationClause}`;
   }
+
+  // **The drawn note too, silently** (Task 6.8.2). The population a band cut
+  // states moves on every batch, and this element is deliberately NOT a live
+  // region: a figure a reader can go and read is not a figure a listener
+  // should be interrupted with 6.8–16.1 times a minute. The `role="status"`
+  // paragraph a few lines above it in the DOM is untouched by this write, and
+  // nothing in this function reaches it.
+  writeFilterLine(writers.filterLine, account);
+}
+
+/** The three nodes this component writes without React's help. */
+interface TopologyTextWriters {
+  readonly renderer: RefObject<TopologyRenderer | null>;
+  readonly sentence: RefObject<HTMLParagraphElement | null>;
+  readonly filterLine: RefObject<HTMLSpanElement | null>;
+}
+
+/** Stable, so a component with no `filter` prop hands the renderer one object. */
+const NO_CUT: TopologyFilterCriterion = { sector: null, bands: [] };
+
+/**
+ * Stable, so the band-blind account at render and a mount with no feed yet are
+ * reading the same empty map rather than allocating one per render.
+ */
+const EMPTY_TREATMENTS: ReadonlyMap<Ticker, TopologyAnomalyTreatment> =
+  new Map();
+
+/**
+ * **What the criterion did, in one call** — the single builder both writers
+ * and the render-time band-blind pass go through (Task 6.8.2).
+ *
+ * `undefined` for a component with no `filter` prop at all, which is every
+ * Storybook story and every test written before Task 6.8.1.
+ */
+function filterAccount(
+  graph: TopologyGraph,
+  filter: TopologyFilter | undefined,
+  treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
+): { readonly line: string; readonly clause: string } | null {
+  if (filter === undefined) return null;
+
+  return topologyFilterWords(
+    // **`pinned: null`**, deliberately: the counts this sentence states are
+    // the criterion's own answer, never the criterion plus whichever node the
+    // reader happens to have selected. The renderer draws that one extra node
+    // (`narrowTopology`'s own docblock) and the selection itself is what says
+    // why it is there.
+    narrowTopology(graph, topologyCriterion(filter), treatments, null),
+    filter,
+  );
+}
+
+/** Write the drawn population line, or empty it. One home, two callers. */
+function writeFilterLine(
+  filterLine: RefObject<HTMLSpanElement | null>,
+  account: { readonly line: string } | null,
+): void {
+  if (filterLine.current === null) return;
+
+  filterLine.current.textContent = account?.line ?? "";
+}
+
+/**
+ * **The population note and the accessible sentence, rebuilt at READER
+ * cadence** (Task 6.8.2) — {@link applyAnomalyBands} without the renderer
+ * call, because a press changes no band.
+ *
+ * It rewrites the sentence as well as the line, and that is not belt-and-
+ * braces: React has just committed the **band-blind** clause over whatever
+ * the last batch wrote, so without this a press would un-say a correct
+ * population until the next batch arrived.
+ *
+ * **`topologyAnomalySentence` only once a real map has been applied.** With an
+ * empty map that function's `scored === 0` arm reads *nothing has been scored
+ * yet* — true after a batch that said so, and a fabrication before any batch
+ * at all, which is the state every fresh mount is in.
+ */
+function writeTopologyFilterNote(
+  writers: Omit<TopologyTextWriters, "renderer">,
+  graph: TopologyGraph,
+  treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
+  filter: TopologyFilter | undefined,
+  correlationClause: string,
+): void {
+  const account = filterAccount(graph, filter, treatments);
+
+  writeFilterLine(writers.filterLine, account);
+
+  if (writers.sentence.current === null) return;
+
+  const structure =
+    treatments.size === 0
+      ? topologyDrawnSentence(graph)
+      : topologyAnomalySentence(graph, treatments);
+
+  writers.sentence.current.textContent = `${structure}${account?.clause ?? ""}${correlationClause}`;
 }
 
 /**

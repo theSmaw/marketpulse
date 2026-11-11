@@ -64,7 +64,7 @@ import type {
 import { isTopologyClick } from "./click-gesture.js";
 import { CORRELATION_EDGE_WIDTH, edgeStrength } from "./edge-strength.js";
 import type { TopologyCorrelationStrength } from "./edge-strength.js";
-import { narrowTopologyGraph } from "./filter.js";
+import { narrowTopology, narrowTopologyGraph } from "./filter.js";
 import {
   clampNodeScale,
   fitView,
@@ -78,6 +78,7 @@ import { topologyNodeAt } from "./hit-test.js";
 import { TOPOLOGY_NODE_INK } from "./renderer.js";
 import type {
   TopologyAnomalyTreatment,
+  TopologyFilterCriterion,
   TopologyHoverTarget,
   TopologyRenderer,
   TopologyRendererFactory,
@@ -786,22 +787,31 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   // {@link drawnSymbols}, and its own first call (a few lines below) happens
   // before the edge and label partitions exist.
   //
-  // **`options.sector` rather than `null`, and that is a FIRST-PAINT
+  // **`options.filter` rather than nothing, and that is a FIRST-PAINT
   // decision** (Task 6.8.1). A cold load of `/?sector=energy` mounts this
   // renderer with the criterion already in hand, so the first frame it ever
   // draws is the narrowed one. The alternative — the component's own
   // `setFilter` effect, which runs after paint — would flash all 516 nodes and
   // then remove 480 of them on a shared link.
-  let sector: Sector | null = options.sector ?? null;
+  //
+  // **The BAND half of a mount criterion narrows nothing yet**, and that is
+  // arithmetic rather than an omission (Task 6.8.2): `bands` below is empty at
+  // mount, so the scored cohort is zero and `narrowTopology` refuses the band
+  // cut until the first `setBands` call arrives. A cold `/?band=high` draws the
+  // whole market and the note says why — never an empty market.
+  let criterion: TopologyFilterCriterion = options.filter ?? {
+    sector: null,
+    bands: [],
+  };
 
   /**
    * The graph the KEYBOARD walks, and the one whose nodes are drawn.
    *
-   * `narrowTopologyGraph` returns the same object by identity for the whole
-   * market, so this is `graph` itself unless a reader has narrowed it — which
-   * is what makes the unfiltered case cost nothing.
+   * `narrowTopology` returns the input graph itself, by identity, where
+   * nothing is excluded — which is what makes the unfiltered case cost
+   * nothing.
    */
-  let walkGraph: TopologyGraph = narrowTopologyGraph(graph, sector);
+  let walkGraph: TopologyGraph = narrowTopologyGraph(graph, criterion.sector);
 
   /**
    * Which symbols are drawn, or **`null` for all of them**.
@@ -811,7 +821,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * test per node, per edge or per label.
    */
   let drawnSymbols: ReadonlySet<Ticker> | null =
-    sector === null
+    walkGraph === graph
       ? null
       : new Set(walkGraph.nodes.map((node) => node.symbol));
 
@@ -1086,7 +1096,9 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   let sectorEtfMuted: readonly DrawableNode[] = [];
 
   const regroupFilter = (): void => {
-    if (sector === null) {
+    const { sector } = criterion;
+
+    if (sector === null && drawnSymbols === null) {
       hitDrawn = hitCandidates;
       drawnMembership = membership;
       drawnHub = hub;
@@ -1098,7 +1110,6 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       return;
     }
 
-    const narrowedSector = sector;
     const drawnEdge = (edge: DrawableEdge): boolean =>
       isDrawn(edge.from) && isDrawn(edge.to);
 
@@ -1121,7 +1132,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // carry no cluster and are never suppressed: the four proxies are the
     // market rather than a sector of it.
     drawnLabels = labels.filter(
-      (label) => label.cluster === null || label.cluster === narrowedSector,
+      (label) => label.cluster === null || label.cluster === sector,
     );
 
     // **The split is by the ETF's OWN sector** — see {@link sectorEtfFull}.
@@ -1131,7 +1142,13 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     const muted: DrawableNode[] = [];
 
     for (const drawable of nodesByKind.get("sector_etf") ?? []) {
-      if (drawable.node.cluster === narrowedSector) full.push(drawable);
+      // **A landmark is muted by the SECTOR cut alone and never by the band
+      // cut** (Task 6.8.2). `sector === null` with a band criterion in force
+      // draws all eleven at full strength, which is the honest picture: a
+      // reader who asked for *the extreme ones* has excluded no sector, and
+      // muting the benchmarks would say they had.
+      if (sector === null || drawable.node.cluster === sector)
+        full.push(drawable);
       else muted.push(drawable);
     }
 
@@ -1140,6 +1157,39 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   };
 
   regroupFilter();
+
+  /**
+   * **Re-resolve both cuts and re-partition everything they touch** — the one
+   * path a criterion change and a live band update share (Task 6.8.2).
+   *
+   * `setFilter` and `setBands` both land here, and that sharing is the whole
+   * design rather than a tidy-up: the criterion changes at **reader** cadence
+   * and the treatment map it is applied against changes at **feed** cadence,
+   * so whichever arrived last has to re-resolve the other's half. A second
+   * copy of this arithmetic in each of them is where the two would disagree
+   * for exactly as long as it took the next batch to arrive.
+   *
+   * `pinned` is the reader's own selection where it must survive the
+   * recomputation and `null` where it must not — see `narrowTopology`'s own
+   * docblock, and the two call sites below, which is where that difference
+   * lives.
+   */
+  const renarrow = (pinned: Ticker | null): void => {
+    const narrowing = narrowTopology(graph, criterion, bands, pinned);
+
+    walkGraph = narrowing.graph;
+    drawnSymbols =
+      narrowing.graph === graph
+        ? null
+        : new Set(narrowing.graph.nodes.map((node) => node.symbol));
+
+    regroupFilter();
+    // **Both partitions, in this order.** The anomaly groups are the equities'
+    // own and they read `drawnSymbols`, so they are as stale as the edge
+    // arrays until this runs — and an equity left in `bodyDefault` after being
+    // filtered out would draw ink for a node nothing can point at or walk to.
+    regroupAnomalyTreatments();
+  };
 
   let view: TopologyView = fitView(layout, { width: 0, height: 0 });
   let frames = 0;
@@ -1286,7 +1336,21 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   ): void => {
     if (next === selected) return;
 
+    const departed = selected;
     selected = next;
+
+    // **Letting go of a PINNED selection un-draws it** (Task 6.8.2). A band
+    // cut keeps the selected equity drawn even where it no longer matches
+    // (`renarrow`'s own `pinned`), so the moment a reader clears or moves the
+    // selection that exemption has to go with it — otherwise the node they
+    // deselected sits on the canvas for ever, matching nothing, as the one
+    // thing on screen the stated population does not count.
+    //
+    // Guarded on a band cut being in force at all, so the ordinary unfiltered
+    // and sector-only cases pay nothing per click: there is no exemption to
+    // withdraw where nothing was exempt.
+    if (criterion.bands.length > 0 && departed !== null)
+      renarrow(next?.node.symbol ?? null);
 
     onSelect?.(next === null ? null : targetOf(next), source);
     invalidate();
@@ -1972,8 +2036,32 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * down — never here, because a press carries no information about either yet.
    * The pan itself is unchanged and still begins on the first move: a press
    * that never moves pans by zero.
+   *
+   * **The PRIMARY button only, and that is a shipped defect repaired** (Task
+   * 6.8.2, found while shaping Story 6.8's own Gate 1). This handler filtered
+   * neither `button` nor `isPrimary`, so a **right-click** on a node started a
+   * potential click here, and the matching `pointerup` moved the reader's
+   * selection — one press, two responses: the browser's own context menu AND a
+   * selection change nobody asked for, with the plate's one anchor silently
+   * re-pointed underneath an open menu. A middle-click did the same with no
+   * menu at all to explain it.
+   *
+   * **`isPrimary` as well as `button`, because they refuse different
+   * gestures.** `button !== 0` is the mouse's secondary and middle buttons;
+   * `!isPrimary` is the second and later contacts of a multi-touch gesture,
+   * which must not each start their own pan — the pointer-capture call below
+   * is per `pointerId` and two captured pointers panning the same view is a
+   * fight over one `view`.
+   *
+   * **The native context menu itself is deliberately untouched** — Story 6.8's
+   * Gate 1 settled that, and `docs/GAPS.md`'s entry on this surface's second,
+   * unauthored affordance stands: no `preventDefault()` on `contextmenu`
+   * anywhere in this module. What is fixed is the selection moving, not the
+   * menu appearing.
    */
   const onPointerDown = (event: PointerEvent): void => {
+    if (event.button !== 0 || !event.isPrimary) return;
+
     dragging = event.pointerId;
     downPointer = event.pointerId;
     downX = event.clientX;
@@ -2141,7 +2229,20 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     },
     setBands: (treatments) => {
       bands = treatments;
-      regroupAnomalyTreatments();
+      // **A live batch re-resolves the BAND CUT as well as the ink** (Task
+      // 6.8.2) — the criterion did not move, the data under it did, and a
+      // picture narrowed to `extreme` that kept drawing last minute's extreme
+      // securities would be a criterion stated on screen and not applied.
+      //
+      // **`selected?.node.symbol` and never `null`.** A reader's own selection
+      // is pinned through this recomputation: a node that falls out of the
+      // active band under a live update stays drawn, stays selected and stays
+      // reachable, which is the same reasoning this product already applies to
+      // a revised bar under a crosshair — *a reading that is stale about the
+      // minute it names is wrong in a way a not-the-latest one is not*. The
+      // opposite case, a reader CHANGING the criterion, is `setFilter` below,
+      // and it clears.
+      renarrow(selected?.node.symbol ?? null);
       // **The readout is told again, for the SAME node** (Task 6.4.1). A
       // reader holding the pointer still through a live batch is looking at a
       // band that has just been redrawn; a plate that kept the old word would
@@ -2158,27 +2259,26 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       invalidate();
     },
     setFilter: (next) => {
-      // **A no-op when the criterion has not moved.** The component's own
-      // effect is keyed on the filter object's identity, which a re-read of
-      // the same address can legitimately change; re-partitioning 2,400 edges
-      // for an answer that cannot differ is the shape every other update
-      // channel here already refuses.
-      if (next === sector) return;
+      // **A no-op when the criterion has not moved — compared FIELD BY FIELD
+      // and never by identity.** The component's own effect is keyed on the
+      // filter object, which a re-read of the same address legitimately
+      // replaces on every render; re-partitioning 2,400 edges for an answer
+      // that cannot differ is the shape every other update channel here
+      // already refuses.
+      if (
+        next.sector === criterion.sector &&
+        next.bands.length === criterion.bands.length &&
+        next.bands.every((band, at) => band === criterion.bands[at])
+      )
+        return;
 
-      sector = next;
-      walkGraph = narrowTopologyGraph(graph, sector);
-      drawnSymbols =
-        sector === null
-          ? null
-          : new Set(walkGraph.nodes.map((node) => node.symbol));
-
-      regroupFilter();
-      // **Both partitions, in this order.** The anomaly groups are the
-      // equities' own and they read `drawnSymbols`, so they are as stale as
-      // the edge arrays until this runs — and an equity left in `bodyDefault`
-      // after being filtered out would draw ink for a node nothing can point
-      // at or walk to.
-      regroupAnomalyTreatments();
+      criterion = next;
+      // **`null`, not the selection.** A reader who pressed a filter asked for
+      // a different picture, so a selection the new criterion excludes is
+      // cleared below rather than pinned — which is the one respect in which
+      // this differs from `setBands` above, and the reason both go through
+      // `renarrow` rather than each doing its own arithmetic.
+      renarrow(null);
 
       // **The pointer first.** A reader whose pointer is resting on a node
       // the filter has just removed is being shown facts about something that

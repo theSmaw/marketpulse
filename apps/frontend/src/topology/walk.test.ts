@@ -14,8 +14,9 @@ import type {
 } from "@marketpulse/shared";
 
 import { securitiesFixtureBody } from "../fixtures/securities.js";
-import { narrowTopologyGraph } from "./filter.js";
+import { narrowTopology, narrowTopologyGraph } from "./filter.js";
 import { TOPOLOGY_WALK_KEYS, isTopologyWalkKey, topologyWalk } from "./walk.js";
+import type { TopologyWalkKey } from "./walk.js";
 
 // **The tree walk, over the REAL recorded universe** (Task 6.4.3).
 //
@@ -330,5 +331,98 @@ describe("a graph narrowed to one sector", () => {
     expect(step(at(membersOf(NARROWED_TO), 0), "ArrowUp")).toBe(
       SECTOR_ETFS[NARROWED_TO],
     );
+  });
+});
+
+// **The walk under a BAND cut** (Task 6.8.2) — the same three claims as the
+// sector block above, against a criterion that changes under a reader's
+// stationary hands.
+//
+// The reason this block exists at all is that the two cuts shrink the graph in
+// different places: a sector cut empties ten clusters whole, and a band cut
+// takes some members out of **every** cluster. So `ArrowRight` within a
+// cluster has to step across the gaps, `ArrowDown` has to land on whichever
+// member survived, and a reader's own pinned selection has to remain a symbol
+// `step` can find — which is why `narrowTopology` keeps it in `members`.
+describe("topologyWalk under a band cut", () => {
+  /** Every other equity, by position in the universe — a cut with gaps. */
+  const EVERY_OTHER: ReadonlyMap<Ticker, "high" | "normal"> = new Map(
+    GRAPH.nodes
+      .filter((node) => node.kind === "equity")
+      .map((node, at) => [node.symbol, at % 2 === 0 ? "high" : "normal"]),
+  );
+
+  const BANDED = narrowTopology(
+    GRAPH,
+    { sector: null, bands: ["high"] },
+    EVERY_OTHER,
+    null,
+  ).graph;
+
+  const bandedStep = (from: Ticker | null, key: TopologyWalkKey) =>
+    topologyWalk(BANDED, LAYOUT, from, key);
+
+  const bandedMembers = (sector: (typeof SECTORS)[number]): readonly Ticker[] =>
+    BANDED.clusters.find((cluster) => cluster.id === sector)?.members ?? [];
+
+  it("enters a cluster at its first DRAWN member, never at a hidden one", () => {
+    for (const sector of SECTORS) {
+      const members = bandedMembers(sector);
+      if (members.length === 0) continue;
+
+      expect(bandedStep(SECTOR_ETFS[sector], "ArrowDown"), sector).toBe(
+        members[0],
+      );
+    }
+  });
+
+  it("steps between drawn siblings, skipping the gaps the cut left", () => {
+    const sector = SECTORS.find(
+      (candidate) => bandedMembers(candidate).length > 2,
+    );
+    expect(sector).toBeDefined();
+    if (sector === undefined) return;
+
+    const members = bandedMembers(sector);
+    expect(bandedStep(members[0] ?? null, "ArrowRight")).toBe(members[1]);
+    expect(bandedStep(members.at(-1) ?? null, "ArrowRight")).toBeNull();
+    expect(bandedStep(members[0] ?? null, "End")).toBe(members.at(-1));
+  });
+
+  it("can still step away from a PINNED selection the cut excluded", () => {
+    // **The claim the pin exists for.** A reader's selected equity stays drawn
+    // through a live band update that moved it out of the active band — and a
+    // symbol `step` cannot find in its own group answers `null`, so a pin that
+    // was not also in `members` would leave the arrow keys dead on the one
+    // node the reader is actually on.
+    const excluded = GRAPH.nodes.find(
+      (node) =>
+        node.kind === "equity" && EVERY_OTHER.get(node.symbol) === "normal",
+    );
+    expect(excluded).toBeDefined();
+    if (excluded === undefined) return;
+
+    const pinned = narrowTopology(
+      GRAPH,
+      { sector: null, bands: ["high"] },
+      EVERY_OTHER,
+      excluded.symbol,
+    ).graph;
+
+    const next = topologyWalk(pinned, LAYOUT, excluded.symbol, "ArrowRight");
+    expect(next).not.toBeNull();
+    expect(next).not.toBe(excluded.symbol);
+    // And `ArrowUp` still leaves by the way it came.
+    expect(topologyWalk(pinned, LAYOUT, excluded.symbol, "ArrowUp")).toBe(
+      SECTOR_ETFS[excluded.cluster ?? "technology"],
+    );
+  });
+
+  it("walks the full ring and reaches the hub whatever the band cut hides", () => {
+    // The fifteen landmarks are outside the encoding entirely, so no band cut
+    // can take the reader's own tree away.
+    expect(bandedStep(TOPOLOGY_HUB, "ArrowDown")).toBe(RING[0]);
+    expect(bandedStep(RING[0] ?? null, "ArrowUp")).toBe(TOPOLOGY_HUB);
+    expect(bandedStep(RING.at(-1) ?? null, "ArrowRight")).toBe(RING[0]);
   });
 });
