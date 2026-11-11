@@ -11223,6 +11223,136 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "the-topology-layout-is-built-from-the-whole-universe",
+    claim:
+      "`buildTopologyLayout` is called from exactly one place under " +
+      "`apps/frontend/src/topology/` — `graph-source.ts` — and that file " +
+      "hands it a graph built from the WHOLE `securities` array, with no " +
+      "filtering between the two. A reader's sector filter narrows what is " +
+      "DRAWN; it never re-lays-out the market.",
+    check() {
+      // **Story 6.8's settled Open Decision 2, made mechanical** (Task
+      // 6.8.1). The decision is *hide the excluded equities, hold the
+      // full-universe layout*, and the defect it forbids is a single
+      // plausible line: filter `securities` (or the graph) before building
+      // the layout, so that a filtered sector is re-laid-out to fill the
+      // frame.
+      //
+      // ## Why that defect is invisible to everything else
+      //
+      // It LOOKS better. A sector re-laid-out into the whole viewport is a
+      // bigger, more legible picture, and every structural test over the
+      // layout stays green because it still places every node once, still
+      // clears the footprint and still bounds correctly. What it breaks is
+      // three things no test here asserts together: a reader's pan and zoom
+      // (every press becomes a jump), the single-picture-under-absence
+      // property (CI's filtered graph and production's would differ in
+      // SHAPE), and the server/browser coordinate agreement Epic 7's
+      // `highlight_graph_nodes` needs — the server's own
+      // `buildTopologyLayout` call has no reader's filter to apply.
+      //
+      // ## The two conjuncts, and why the first is a corpus clause
+      //
+      // `the-topology-layout-reads-no-edge`'s own shape: the call takes a
+      // whole `TopologyGraph`, so a type check cannot see what was filtered
+      // out of it before it arrived. The first conjunct therefore counts
+      // CALL SITES over the whole module — a second one anywhere under
+      // `topology/` is a second layout, by definition — and the second
+      // reads the one legitimate site for the narrowing shapes an author
+      // would reach for.
+      //
+      // **`securities` by bare name is the clause a re-implementer cannot
+      // avoid.** Whatever they filter on — a sector, a band, a search
+      // string — the parameter stops being passed whole, so
+      // `buildTopologyGraph(securities)` stops matching. That is a stronger
+      // anchor than a list of forbidden shapes, which is why both are here:
+      // the positive clause catches an inline filter and the negative one
+      // catches a narrowed local assigned a line earlier.
+      const HOME = "apps/frontend/src/topology/graph-source.ts";
+      const directory = resolve(REPO_ROOT, "apps/frontend/src/topology");
+
+      const sites = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({
+          path: relative(REPO_ROOT, path),
+          calls: (withoutComments(text).match(/buildTopologyLayout\(/gu) ?? [])
+            .length,
+        }))
+        .filter(({ calls }) => calls > 0);
+
+      const total = sites.reduce((sum, site) => sum + site.calls, 0);
+
+      if (total !== 1 || sites[0]?.path !== HOME) {
+        throw new InvariantFailure(
+          `\`buildTopologyLayout\` is called ${String(total)} time(s) under ` +
+            "`apps/frontend/src/topology/`, expected exactly 1 in " +
+            `\`${HOME}\`:\n      ` +
+            (sites
+              .map((site) => `${site.path}  ×${String(site.calls)}`)
+              .join("\n      ") ||
+              "(nowhere — if the builder was renamed, repoint this check in " +
+                "the same change: a grep that matches nothing looks exactly " +
+                "like a pass)") +
+            "\n    One layout, over the whole 516-node universe, memoised on " +
+            "the universe's own identity. A second call site is a second " +
+            "layout — and the one a filter would produce re-arranges the " +
+            "market under a reader's stationary hands on every press, " +
+            "destroys their pan and zoom, and breaks the server/browser " +
+            "coordinate agreement Epic 7's `highlight_graph_nodes` needs. " +
+            "A filter narrows what is DRAWN (`topology/filter.ts`'s " +
+            "`narrowTopologyGraph`, read by the renderer and the keyboard " +
+            "walk); placements are looked up by symbol from this one " +
+            "unfiltered layout.",
+        );
+      }
+
+      const text = withoutComments(readAnchored(resolve(REPO_ROOT, HOME)));
+
+      if (!/buildTopologyGraph\(\s*securities\s*\)/u.test(text)) {
+        throw new InvariantFailure(
+          `\`${HOME}\` no longer passes the whole \`securities\` array to ` +
+            "`buildTopologyGraph` by name. Either a narrowing was " +
+            "introduced between the parameter and the build — which is the " +
+            "defect this clause exists to refuse — or the parameter was " +
+            "renamed, in which case repoint this check in the same change.",
+        );
+      }
+
+      const SHAPES = [
+        { as: "`.filter(`", pattern: /\.filter\(/u },
+        { as: "`narrowTopologyGraph`", pattern: /\bnarrowTopologyGraph\b/u },
+        { as: "`TopologyFilter`", pattern: /\bTopologyFilter\b/u },
+        { as: "`Sector`", pattern: /\bSector\b/u },
+      ];
+
+      const offenders = [];
+
+      for (const [index, line] of text.split("\n").entries()) {
+        const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+        if (shape === undefined) continue;
+
+        offenders.push(
+          `${HOME}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${HOME}\` narrow the ` +
+            "universe or read a reader's criterion:\n      " +
+            offenders.join("\n      ") +
+            "\n    This file's whole job is *the graph and the layout for " +
+            "ONE universe*, memoised on that universe's identity. A filter " +
+            "reaching it would re-lay-out the market on every press — see " +
+            "the call-site clause above for what that breaks — and would " +
+            "also poison the memo, since the cache holds exactly one entry " +
+            "keyed on `securities` and the correlation set.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

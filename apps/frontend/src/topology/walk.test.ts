@@ -14,6 +14,7 @@ import type {
 } from "@marketpulse/shared";
 
 import { securitiesFixtureBody } from "../fixtures/securities.js";
+import { narrowTopologyGraph } from "./filter.js";
 import { TOPOLOGY_WALK_KEYS, isTopologyWalkKey, topologyWalk } from "./walk.js";
 
 // **The tree walk, over the REAL recorded universe** (Task 6.4.3).
@@ -258,5 +259,76 @@ describe("a graph with no hub", () => {
     // there — the same *claim nothing that is not drawn* rule as the three
     // edgeless proxies.
     expect(topologyWalk(withoutHub, layout, at(RING, 0), "ArrowUp")).toBeNull();
+  });
+});
+
+// **The walk over a NARROWED graph** (Task 6.8.1).
+//
+// Story 6.8's Gate 1 decision is that an excluded equity *is skipped by the
+// keyboard walk*, and this module needed **no change at all** to honour it:
+// the renderer hands it `narrowTopologyGraph(graph, sector)` rather than the
+// graph it was mounted with, so the walk's own presence filters
+// (`indexGraph`'s `nodes.has`, `groupOf`'s `cluster.members`) already answer
+// about the picture. That is a claim about a mechanism, which reads identically
+// whether the mechanism is there or not — so it is asserted here rather than
+// argued in the renderer's own docblock.
+describe("a graph narrowed to one sector", () => {
+  const NARROWED_TO: (typeof SECTORS)[number] = "energy";
+  const narrowed = narrowTopologyGraph(GRAPH, NARROWED_TO);
+  const step = (
+    symbol: Ticker | null,
+    key: (typeof TOPOLOGY_WALK_KEYS)[number],
+  ): Ticker | null => topologyWalk(narrowed, LAYOUT, symbol, key);
+
+  it("walks the whole eleven-ETF ring, because a landmark is never excluded", () => {
+    // The ring is the way OUT of a narrowed sector. A reader who filtered to
+    // `ENERGY` and could only reach `XLE` would be trapped in their own
+    // criterion.
+    expect(step(TOPOLOGY_HUB, "ArrowDown")).toBe(at(RING, 0));
+    for (const [index, benchmark] of RING.entries()) {
+      expect(step(benchmark, "ArrowRight"), benchmark).toBe(
+        at(RING, (index + 1) % RING.length),
+      );
+    }
+  });
+
+  it("enters the drawn sector and stops at its own ends", () => {
+    const members = membersOf(NARROWED_TO);
+    expect(step(SECTOR_ETFS[NARROWED_TO], "ArrowDown")).toBe(at(members, 0));
+    expect(step(at(members, -1), "ArrowRight")).toBeNull();
+    expect(step(at(members, 0), "End")).toBe(at(members, -1));
+  });
+
+  it("refuses to enter a sector whose equities are not drawn", () => {
+    // **The assertion this whole describe block exists for.** `ArrowDown` on a
+    // filtered-out benchmark answers `null` rather than entering a cluster
+    // whose 70 members draw no ink, are not hit-testable and have no
+    // placement a focus ring could be drawn at.
+    for (const sector of SECTORS) {
+      if (sector === NARROWED_TO) continue;
+      expect(step(SECTOR_ETFS[sector], "ArrowDown"), sector).toBeNull();
+      // `Home`/`End` move within the group `ArrowLeft`/`ArrowRight` moves in,
+      // which for a benchmark is the RING rather than its own members — so
+      // they are unaffected by the filter, and asserting that is what proves
+      // the refusal above is scoped to *entering* and has not quietly
+      // deadened the ring a reader leaves by.
+      expect(step(SECTOR_ETFS[sector], "Home"), sector).toBe(at(RING, 0));
+      expect(step(SECTOR_ETFS[sector], "End"), sector).toBe(at(RING, -1));
+    }
+  });
+
+  it("seeds at the centre from a security the filter has excluded", () => {
+    // The reachable sequence: a reader selects a `TECHNOLOGY` equity, then
+    // narrows to `ENERGY`. The renderer clears the selection in the same call
+    // (`setFilter`'s own `"filter"` source), so this is the belt behind that
+    // brace — and `null` from a ghost would leave the keyboard dead.
+    const outside = at(membersOf("technology"), 0);
+    expect(step(outside, "ArrowRight")).toBe(TOPOLOGY_HUB);
+  });
+
+  it("leaves a drawn equity by the way it came in", () => {
+    expect(step(at(membersOf(NARROWED_TO), 0), "ArrowUp")).toBe(
+      SECTOR_ETFS[NARROWED_TO],
+    );
   });
 });

@@ -27,6 +27,7 @@
 
 import type {
   AnomalyBand,
+  Sector,
   Ticker,
   TopologyGraph,
   TopologyLayout,
@@ -103,8 +104,18 @@ export type TopologyRendererKind = "canvas" | "sigma";
  * nothing downstream has to read *a pointer did this* about a batch arriving
  * on a socket. `ChartReading.tsx`'s own `source: "pointer" | "keyboard"` on
  * its reading is the precedent for carrying this at all.
+ *
+ * **`"filter"` is a fourth, added at Task 6.8.1, and it is the only one that
+ * is always a CLEARING.** A sector filter that excludes the selected node
+ * clears it, and the two things a caller does differently for it are both
+ * reasons it cannot be folded into `"keyboard"`: the announcement names the
+ * security that went (*"NVDA is not in this filter, so the selection was
+ * cleared"*, never the generic `Escape` wording), and focus is left exactly
+ * where the reader's hands are, which is on the filter control in the
+ * region's own chrome.
  */
-export type TopologySelectionSource = "pointer" | "keyboard" | "band";
+export type TopologySelectionSource =
+  "pointer" | "keyboard" | "band" | "filter";
 
 /**
  * The ink diameter of each node kind, in **CSS pixels at zoom 1**.
@@ -143,6 +154,19 @@ export const TOPOLOGY_NODE_SCALE_CEILING = 1.5;
 export interface TopologyRendererOptions {
   /** The graph, from `buildTopologyGraph`. */
   readonly graph: TopologyGraph;
+  /**
+   * The sector this picture is narrowed to at MOUNT, or `null`/absent for the
+   * whole market (Task 6.8.1).
+   *
+   * **A mount option as well as {@link TopologyRenderer.setFilter}, and the
+   * reason is the first frame.** A cold load of `/?sector=energy` is an
+   * ordinary shared link, and the component's own filter effect runs after
+   * paint — so without this the reader would see all 516 nodes and then watch
+   * 480 of them go. The two are not two homes for one fact: this is the
+   * criterion a renderer is *born* with and that method is how it is *told* of
+   * a change, the same division `bands`/`setBands` already has.
+   */
+  readonly sector?: Sector | null | undefined;
   /** Where every node sits, from `buildTopologyLayout`. */
   readonly layout: TopologyLayout;
   /** Every colour and type value, read from tokens. See {@link TopologyPalette}. */
@@ -281,6 +305,35 @@ export interface TopologyRenderer {
    * drawing them unscored.
    */
   setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
+  /**
+   * Narrow the drawn graph to one sector, or widen it back to the whole
+   * market with `null` — **without re-mounting and without re-laying-out**
+   * (Task 6.8.1).
+   *
+   * `setBands`' own contract one subject over, and the same three
+   * guarantees: a reader's pan, zoom and (where it survives the criterion)
+   * selection are untouched, the viewport never re-fits to the narrowed
+   * subset, and `buildTopologyLayout` is not called again — placements are
+   * the unfiltered layout's, looked up by symbol, which is what keeps the
+   * server/browser coordinate agreement Epic 7's tools need.
+   *
+   * **What it changes, in one pass rather than per frame**: the equities
+   * outside the sector draw no ink, are not hit-testable and are not
+   * reachable by the keyboard walk; the edges that reached them go with
+   * them; the excluded sectors' names are not drawn; and their eleven
+   * benchmark ETFs are drawn quieter rather than hidden
+   * (`STORY.md`'s settled Open Decision 2 — the fifteen landmarks are never
+   * excluded, because they are the walk's own tree).
+   *
+   * **It can clear the selection, and says so through
+   * {@link TopologySelectionSource}'s own fourth value.** A selected node
+   * the new criterion excludes is reported as `onSelect(null, "filter")`,
+   * which is the one selection change no input device made.
+   *
+   * **A no-op after `destroy()` and a no-op for the criterion already in
+   * force**, same contract as every other method here.
+   */
+  setFilter(sector: Sector | null): void;
   /**
    * Play the graph-level live-update mark, decaying (Task 6.7.2, Open
    * Decision 1) — a brief, whole-surface highlight saying *a live batch just

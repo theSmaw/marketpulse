@@ -20,7 +20,9 @@ import { Region } from "../components/Region/Region.js";
 import {
   anomalyTreatmentsFromWire,
   unscoredAnomalyTreatments,
+  useTopologyFilter,
 } from "../topology/index.js";
+import { SectorFilter } from "../components/SectorFilter/SectorFilter.js";
 import {
   SectorPerformance,
   SectorPerformanceMeta,
@@ -117,6 +119,21 @@ export function MarketOverview({
    * owns.
    */
   const topology = useRef<MarketTopologyHandle>(null);
+
+  /**
+   * **Which sector of the market the topology draws, read out of the address**
+   * (Task 6.8.1).
+   *
+   * One reader on this route, handed to **two** consumers — the control in the
+   * region's own chrome and the region itself — which is why it is read here
+   * rather than inside either of them: two readers of one parameter are two
+   * places for the default and the decoding to disagree, which is
+   * `FRONTEND-STATE.md` §3's whole reason for the one-reader rule.
+   *
+   * It changes on a reader's press and never on a live batch, so the three
+   * memo boundaries below are unaffected.
+   */
+  const topologyFilter = useTopologyFilter();
 
   /*
    * **The sector rows, derived once per frame — the first of this task's two
@@ -963,7 +980,32 @@ export function MarketOverview({
            * that is briefly inert.
            */
           meta={
-            <>
+            /*
+             * **One wrapper, so this region's meta can WRAP** (Task 6.8.1) —
+             * `Panel.meta` is a nowrap flex row shared by eight regions, and
+             * the measurement that forced this is in
+             * `MarketOverview.module.css` beside the rule: with three items
+             * in it, the header no longer fits at 390 and the title is
+             * squeezed to 10 px over two lines. A wrapper this region owns is
+             * the local answer; widening `Panel` would change seven other
+             * headers for one region's problem.
+             */
+            <div className={styles.topologyMeta}>
+              {/*
+               * **The sector filter** (Task 6.8.1) — twelve destinations, each
+               * a `<Link>` resolved at render, in the region's own chrome
+               * rather than on the canvas or in the plate (`STORY.md`'s Work
+               * item, and Gate 1's own decision that a filter is never a third
+               * kind of canvas press).
+               *
+               * **First in the slot, so the two controls read as a pair at the
+               * right-hand end and the static legend sits between them and the
+               * title.** Measured with `pnpm probe` at all four widths — see
+               * `MARKET-OVERVIEW.md` §1.1 — because this slot already
+               * overflows its own header at 390, which is why the legend is
+               * hidden there.
+               */}
+              <SectorFilter filter={topologyFilter} />
               {/*
                * **The band key** (Task 6.3.4) — a static, non-interactive
                * glossary of the four band words, gated on `pnpm probe`
@@ -995,7 +1037,7 @@ export function MarketOverview({
               >
                 Reset view
               </Button>
-            </>
+            </div>
           }
         >
           <MarketTopology
@@ -1013,6 +1055,15 @@ export function MarketOverview({
              * — is still unmet.
              */
             relationships={relationships}
+            /*
+             * **The criterion, as the address names it** (Task 6.8.1) — a prop
+             * rather than a call on `MarketTopologyHandle`, and that component's
+             * own `filter` docblock carries the division: `setBands` is a
+             * command because the route owns a stateful policy, and this is
+             * state the route holds (in the URL) and re-passes. Its identity
+             * changes on a press and never on a batch.
+             */
+            filter={topologyFilter}
             /*
              * **`useSecurities().retry` — Decision 3 makes this region the
              * owner of *the tracked universe is not available*** (Task

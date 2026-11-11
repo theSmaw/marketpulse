@@ -1,0 +1,161 @@
+/*
+ * The sector filter — a `Button` naming the current value, and a panel of
+ * twelve links under it (Task 6.8.1).
+ *
+ * **No colour is spent anywhere in this file**, which is `TimeWindowControl`'s
+ * own rule for the same reason: this screen's entire colour budget is the
+ * anomaly ramp, `market.css` resolves `--anomaly-high` and the chrome's three
+ * degraded tokens all to `--palette-amber`, and a tinted control 8 px from the
+ * band legend would put a reader's criterion and a market degradation in one
+ * hue. The chosen option is marked by weight and a step of ink, so
+ * `grayscale(1)` changes nothing here.
+ */
+
+/*
+ * The anchor for the panel.
+ *
+ * `position: relative` with an absolutely-positioned panel rather than a
+ * portal: the panel opens DOWN into `.frame`'s own 413 px box, which is inside
+ * `Panel`'s `overflow: auto` and therefore not clipped by it — measured with
+ * `pnpm probe` rather than assumed, because a popup inside a scrolling box is
+ * exactly where a clipped surface comes from. A portal would need a position
+ * computed in JavaScript and kept in step with a scroll this page does on
+ * every wheel notch.
+ */
+.control {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * The subject word, in the micro-label idiom the region's own band legend and
+ * the status strip already use — so the control reads as part of this
+ * instrument's chrome rather than as a web form.
+ */
+.subject {
+  composes: microLabel from "../../styles/type.module.css";
+  color: var(--ink-secondary);
+}
+
+/*
+ * The current value. `--font-data` for `TimeWindowControl`'s own reason: this
+ * is the figure-and-identifier face, and the value here is a datum rather
+ * than prose.
+ *
+ * `nowrap` because `Communication Services` breaking across two lines inside a
+ * 28 px control is the one way this can look broken, and it would grow the
+ * region's header — `MARKET-OVERVIEW.md` §1.4's displacement trigger, which
+ * has fired on this region three times.
+ */
+.value {
+  /*
+   * **The gap is a margin rather than the flex row's own `gap`** — the row is
+   * `Button`'s, which spaces an icon from its label and knows nothing about
+   * this control's two-part label. Found by LOOKING at `pnpm probe`'s
+   * screenshot, where the trigger read `SECTORALL SECTORS`: two adjacent
+   * inline-flex children with no gap, which no test at any level can see.
+   */
+  margin-inline-start: var(--space-4);
+  color: var(--ink-primary);
+  font-family: var(--font-data);
+  font-weight: var(--font-weight-strong);
+  white-space: nowrap;
+}
+
+/*
+ * The disclosure indicator — `chevronRight` turned, which is why it is a
+ * wrapper rather than a seventh `ICON_NAMES` entry (`SectorFilter.tsx`'s own
+ * note). `Icon` is `1em` square and inherits `currentColor`, so this box is
+ * sized by the type beside it and needs no figure of its own.
+ */
+.chevron {
+  display: inline-flex;
+  margin-inline-start: var(--space-4);
+  color: var(--ink-secondary);
+  transform: rotate(90deg);
+  transition: transform var(--motion-duration-quick) var(--motion-ease-standard);
+}
+
+/*
+ * Open: the chevron points back the way it came.
+ *
+ * **A state that PERSISTS rather than a fact that decays**, which is this
+ * product's own motion vocabulary (`work in progress loops, a state persists,
+ * a fact arriving decays`) — so this is a transition between two held
+ * positions and not a decay. It inherits `prefers-reduced-motion` from the
+ * token: `tokens.css` overrides every duration to `0ms` there, so the chevron
+ * still turns and simply does not animate.
+ */
+.open {
+  transform: rotate(-90deg);
+}
+
+/*
+ * The panel.
+ *
+ * **`inset-inline-end: 0`, so it grows leftwards from the control's right
+ * edge.** The control sits at the right-hand end of the region's header
+ * (`Region`'s `meta` slot justifies to the end), and a panel anchored on the
+ * left would run off the viewport at 390 where the header is 308 px wide.
+ *
+ * `--surface-raised` with a hairline and no shadow: this tree has no elevation
+ * vocabulary, and a drop shadow invented here would be the one in the product.
+ * What separates it from the canvas under it is the border and the ground,
+ * which is how every other panel in this application is separated.
+ */
+.panel {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-4));
+  inset-inline-end: 0;
+  z-index: 1;
+
+  display: grid;
+  min-inline-size: 11rem;
+  /*
+   * **`start`, because `Panel.meta` is `text-align: right` and a popup
+   * inherits it** — found by LOOKING at a screenshot of the open panel, where
+   * twelve sector names ran down the right-hand edge with ragged left ends.
+   * A list of names is read down its first letter, which is the one thing
+   * right alignment takes away. Nothing below a browser can see this: the DOM
+   * is identical either way.
+   */
+  text-align: start;
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--rule-hairline);
+}
+
+/*
+ * One destination.
+ *
+ * A link rather than a row of a listbox — see the component's header. The
+ * affordance is the ground on hover and focus, which is `TimeWindowControl`'s
+ * cell exactly: hover owns the ground, and the chosen value takes none of it,
+ * so a reader using a pointer and a keyboard together cannot confuse *what I
+ * am pointing at* with *what is on screen*.
+ */
+.option {
+  display: block;
+  padding: var(--space-4) var(--space-8);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-dense);
+  line-height: var(--line-height-dense);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.option:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+}
+
+/*
+ * The value on screen: **weight and a step of ink, never hue** — the three
+ * channels `TimeWindowControl.checked` spends, minus the bar, which would be a
+ * second affordance inside a list that already marks its current member to a
+ * screen reader through `aria-current`.
+ */
+.chosen {
+  color: var(--ink-primary);
+  font-weight: var(--font-weight-strong);
+}

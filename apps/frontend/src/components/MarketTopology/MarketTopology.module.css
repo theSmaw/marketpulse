@@ -498,3 +498,79 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/*
+ * **What this region is narrowed to, and the way back** (Task 6.8.1) — drawn
+ * only while a filter is in force, top-left inside the frame.
+ *
+ * ## Absolute, for the same reason the plate is
+ *
+ * This region shares a grid row with `Sector performance` and `Movers` at two
+ * of the four widths, and `MARKET-OVERVIEW.md` §1.4's displacement trigger has
+ * fired on it three times already. An absolutely-positioned note takes no room
+ * in `.frame`'s own box, so a press that narrows the graph cannot step the
+ * lower page — which is also why it is here rather than in the region's `meta`
+ * slot, where a second line would grow the header at 390 exactly as the band
+ * legend measurably does.
+ *
+ * ## Top-left, and translucent for the plate's measured reason
+ *
+ * `.readout` holds the bottom-left corner, so this takes the other end of the
+ * same edge rather than competing with it. It covers canvas the same way the
+ * plate does and carries the same 80% ground — the figures in `.readout`'s own
+ * docblock are the measurement, and they apply unchanged: the same two tokens
+ * over the same two node fills. The graph is drawn as a centred ellipse, so a
+ * corner is the emptiest ground this picture has.
+ *
+ * `pointer-events` is NOT disabled here, unlike the plate: the only thing in
+ * it besides eight words is a link, and a link nothing can click is not a
+ * link. The note is 1 CSS px taller than its own line box and sits clear of
+ * the fitted graph's own top edge at every width, so there is no node under it
+ * for a `pointerleave` to flicker — unlike the plate, whose corner holds 14–64
+ * real securities.
+ */
+.filterNote {
+  position: absolute;
+  inset-block-start: var(--space-8);
+  inset-inline-start: var(--space-8);
+  box-sizing: border-box;
+  margin: 0;
+  max-inline-size: calc(100% - 2 * var(--space-8));
+  padding: var(--space-4) var(--space-8);
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  /* See `.readout`: 80%, measured, and a mitigation rather than a fix. */
+  background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
+  border: 1px solid var(--rule-hairline);
+}
+
+/*
+ * The way back, and the affordance is an underline painted rather than laid
+ * out — `.readoutTickerLink`'s own rule and its reason: this note sits over a
+ * canvas inside a region whose height is budgeted, so a border or a weight
+ * change on hover would reflow a box that must not move.
+ */
+.filterClear {
+  /*
+   * **Separated and underlined, both found by LOOKING** (`pnpm probe
+   * "/?sector=energy"`). Written first as `.readoutTickerLink`'s hover-only
+   * underline with a single space before it, the note read
+   * `21 of the 501 companies we track — Energy Show all` — a control
+   * indistinguishable from the end of the sentence it follows. The plate's
+   * own rule does not transfer: there the ticker is a column in a table of
+   * facts and the only activatable thing on the surface, and here it is a
+   * control at the end of a line of prose, where an always-underlined link is
+   * the ordinary affordance.
+   */
+  margin-inline-start: var(--space-12);
+  color: var(--ink-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+}
+
+.filterClear:hover,
+.filterClear:focus-visible {
+  text-decoration-thickness: 2px;
+}

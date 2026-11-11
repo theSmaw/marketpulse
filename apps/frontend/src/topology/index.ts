@@ -47,6 +47,18 @@ export { topologySource } from "./graph-source.js";
 export type { TopologySource } from "./graph-source.js";
 
 export {
+  TOPOLOGY_SECTOR_PARAM,
+  UNFILTERED_TOPOLOGY,
+  narrowTopologyGraph,
+  readTopologyFilter,
+  topologyEquityCount,
+  topologyFilterWords,
+  topologySectorPath,
+} from "./filter.js";
+export type { TopologyFilter } from "./filter.js";
+export { useTopologyFilter } from "./use-topology-filter.js";
+
+export {
   anomalyTreatmentsFromWire,
   unscoredAnomalyTreatments,
 } from "./anomaly-treatments.js";

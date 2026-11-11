@@ -59,6 +59,32 @@ export interface TopologyPalette {
   readonly sectorEtf: string;
   /** The four market proxies. `--ink-primary`. */
   readonly marketProxy: string;
+  /**
+   * A sector ETF whose own sector a reader has filtered OUT — `--ink-secondary`
+   * (Task 6.8.1).
+   *
+   * **A value step and no alpha**, which is `STORY.md`'s settled Open Decision
+   * 2 read literally: *it must survive `grayscale(1)` on a channel that is not
+   * alpha*. `--ink-secondary` against `sectorEtf`'s `--ink-primary` is a
+   * luminance step, so the difference is intact in greyscale and the mark
+   * stays fully opaque — nothing shows through a landmark that has been
+   * de-emphasised, which a transparency would have allowed.
+   *
+   * **It is the SECOND channel rather than the only one.**
+   * `renderer-canvas.ts`' `FILTERED_LANDMARK_INK_SCALE` draws the same square
+   * at 0.6x its ink, and the ~48 equities that converged on it are gone — so
+   * the reading survives both a greyscale pass and a reader who cannot resolve
+   * a one-step value difference at 6 px.
+   *
+   * **`--ink-secondary` rather than `--ink-disabled`**, and the distinction is
+   * the claim: `--ink-disabled` is this application's product-wide *we have no
+   * figure for this*, which is what the `unscored` node already strokes, and
+   * *not in your filter* is not an absence of data. It is the same token the
+   * sector labels and the `elevated` ring read, neither of which can collide
+   * with this one — no label is drawn for a filtered-out sector, and a sector
+   * ETF carries no band at all.
+   */
+  readonly landmarkMuted: string;
   /** The 501 equity → sector-ETF edges. `--chart-grid`. */
   readonly membershipEdge: string;
   /** The eleven SPY → sector-ETF edges. `--chart-reference`. */
@@ -369,6 +395,7 @@ export function topologyPalette(): TopologyPalette {
     equity: tokens["--chart-volume"],
     sectorEtf: tokens["--ink-primary"],
     marketProxy: tokens["--ink-primary"],
+    landmarkMuted: tokens["--ink-secondary"],
     membershipEdge: tokens["--chart-grid"],
     hubEdge: tokens["--chart-reference"],
     correlationEdge: tokens["--chart-seam"],

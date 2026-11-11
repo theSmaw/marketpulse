@@ -284,6 +284,20 @@ absence of an epic badge — and at 1440 **the three unbuilt regions read as mor
 intentional than the four built ones**, which are white voids with one 12 px grey
 sentence.
 
+**And since 2026-11-11 the topology's head carries a second control, which is
+the first time a region on this screen has had two** (Task 6.8.1): a `Sector`
+filter beside `Reset view`, narrowing the graph to one sector with
+`?sector=<slug>` in the address. Two measured consequences for this screen
+rather than for that region alone, both in `TOPOLOGY.md` §8.4. The band legend
+is now hidden at **`width <= 1024px`** rather than only at 390 — at 1024 this
+region sits in a 570 px column while at 768 it runs the full width, so the two
+widths are not ordered the way a reader would assume and the legend
+measurably does not fit at the wider one. And at **390 this region's meta
+WRAPS**, through a wrapper the route passes rather than `flex-wrap` on the
+shared `Panel.meta`: without it the title was squeezed to **10 px over two
+lines**. The region's own height is unchanged at every width, so the page does
+not step; what absorbs the wrap is the canvas, **413 → 377 px at 390**.
+
 ### 1.2 The grid restates its spans at every breakpoint, and that is a correctness requirement
 
 `MarketOverview.module.css` names **grid areas** rather than auto-placing, and the

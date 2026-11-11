@@ -54,7 +54,9 @@ import {
   topologyClusterRadius,
 } from "@marketpulse/shared";
 import type {
+  Sector,
   Ticker,
+  TopologyGraph,
   TopologyNode,
   TopologyPlacement,
 } from "@marketpulse/shared";
@@ -62,6 +64,7 @@ import type {
 import { isTopologyClick } from "./click-gesture.js";
 import { CORRELATION_EDGE_WIDTH, edgeStrength } from "./edge-strength.js";
 import type { TopologyCorrelationStrength } from "./edge-strength.js";
+import { narrowTopologyGraph } from "./filter.js";
 import {
   clampNodeScale,
   fitView,
@@ -460,6 +463,45 @@ const ANOMALY_RING_WIDTH = {
 const ANOMALY_UNSCORED_STROKE_WIDTH = 1;
 
 /**
+ * **How a landmark whose own sector is filtered OUT is drawn** (Task 6.8.1) —
+ * the same shape and the same solid fill, at this fraction of its ink.
+ *
+ * ## Why de-emphasised rather than hidden, and why this channel
+ *
+ * `STORY.md`'s settled Open Decision 2: the eleven sector ETFs, the four
+ * proxies and the hub are **never hidden**, because they are the keyboard
+ * walk's own tree — a reader who narrowed to `ENERGY` has to be able to walk
+ * out of it — and they are the band encoding's own exclusion set.
+ *
+ * **It must not be alpha and it must not read as `unscored`**, which are that
+ * decision's own two constraints. So the treatment spends **size and value**,
+ * both of which survive `grayscale(1)` intact:
+ *
+ *   * 0.6× the ink, which is a geometric channel nothing else on this canvas
+ *     uses (node size encodes **kind** and Story 6.6 refused it for anything
+ *     quantitative, so there is no scale here to collide with);
+ *   * `palette.landmarkMuted` (`--ink-secondary`) in place of
+ *     `--ink-primary`, a value step rather than a transparency — so the mark
+ *     is as opaque as it ever was and nothing shows through it.
+ *
+ * It cannot be confused with `unscored`, which is a **hollow** `--ink-disabled`
+ * outline on a full-size **circle** belonging to an equity: this is a filled,
+ * smaller square or diamond belonging to a landmark. Different shape,
+ * different fill state, different ink, different size — and no equity can ever
+ * draw it, because the two treatments' populations are disjoint by
+ * construction.
+ *
+ * **0.6 rather than a smaller figure**: at 0.6 a sector ETF's 10 px square is
+ * 6 px, still above the 4 px floor an equity reaches at `clampNodeScale`'s own
+ * minimum, so a muted landmark stays visible and stays targetable. The hit
+ * radius is deliberately **not** scaled with it (`hit-test.ts` reads
+ * `TOPOLOGY_NODE_INK` and the zoom alone), which keeps a muted landmark as
+ * easy to point at as it was before the filter — a reader walking out of a
+ * narrowed sector must not have to aim at a smaller target to do it.
+ */
+const FILTERED_LANDMARK_INK_SCALE = 0.6;
+
+/**
  * **No fit-scale suppression for `elevated`, measured rather than assumed
  * (Task 6.3.2).** The Work item this ring was built against anticipated a
  * "4 px node" state at low fit scale, parallel to
@@ -533,6 +575,20 @@ interface DrawableNode {
 
 /** One edge, as two points and the clearance each end wants. */
 interface DrawableEdge {
+  /**
+   * The two endpoints' own symbols (Task 6.8.1).
+   *
+   * **Added for the filter and for nothing else**: the three edge arrays are
+   * built once at mount from the WHOLE graph, and re-partitioning them when a
+   * reader narrows the picture needs to know which nodes each segment joins.
+   * The alternative — rebuilding the arrays from a narrowed graph on every
+   * press — would re-resolve 516 placements and re-classify 1,860 strengths
+   * for an answer that cannot have changed, which is exactly the per-frame
+   * work this whole module is arranged to avoid.
+   */
+  readonly from: Ticker;
+  /** See {@link from}. */
+  readonly to: Ticker;
   readonly fromX: number;
   readonly fromY: number;
   readonly toX: number;
@@ -565,6 +621,18 @@ interface DrawableLabel {
    * to gate against.
    */
   readonly sector: boolean;
+  /**
+   * Which cluster this label names, or `null` for a ticker and the
+   * `MARKET PROXIES` heading (Task 6.8.1).
+   *
+   * **A sector's name is not drawn while that sector's equities are not.** A
+   * label over an empty patch of canvas is a claim about a cluster that is not
+   * there — the one shape this renderer has already paid for twice, in the two
+   * earlier tasks that found a label colliding with a cluster it did not
+   * belong to. The filtered sector keeps its own label, which is what says
+   * which market is on screen.
+   */
+  readonly cluster: Sector | null;
   readonly x: number;
   readonly y: number;
   readonly mono: boolean;
@@ -710,6 +778,47 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     hitCandidates.map((drawable) => [drawable.node.symbol, drawable]),
   );
 
+  // --- The sector filter, declared here and partitioned below ------------
+  //
+  // **Declared before the anomaly block because that block reads it.** An
+  // excluded equity draws no ink at all, which means it is absent from every
+  // one of the six treatment groups — so `regroupAnomalyTreatments` consults
+  // {@link drawnSymbols}, and its own first call (a few lines below) happens
+  // before the edge and label partitions exist.
+  //
+  // **`options.sector` rather than `null`, and that is a FIRST-PAINT
+  // decision** (Task 6.8.1). A cold load of `/?sector=energy` mounts this
+  // renderer with the criterion already in hand, so the first frame it ever
+  // draws is the narrowed one. The alternative — the component's own
+  // `setFilter` effect, which runs after paint — would flash all 516 nodes and
+  // then remove 480 of them on a shared link.
+  let sector: Sector | null = options.sector ?? null;
+
+  /**
+   * The graph the KEYBOARD walks, and the one whose nodes are drawn.
+   *
+   * `narrowTopologyGraph` returns the same object by identity for the whole
+   * market, so this is `graph` itself unless a reader has narrowed it — which
+   * is what makes the unfiltered case cost nothing.
+   */
+  let walkGraph: TopologyGraph = narrowTopologyGraph(graph, sector);
+
+  /**
+   * Which symbols are drawn, or **`null` for all of them**.
+   *
+   * `null` rather than a 516-entry set in the common case: every partition
+   * below short-circuits on it, so the unfiltered picture pays no membership
+   * test per node, per edge or per label.
+   */
+  let drawnSymbols: ReadonlySet<Ticker> | null =
+    sector === null
+      ? null
+      : new Set(walkGraph.nodes.map((node) => node.symbol));
+
+  /** Whether a node is in the drawn set. See {@link drawnSymbols}. */
+  const isDrawn = (symbol: Ticker): boolean =>
+    drawnSymbols === null || drawnSymbols.has(symbol);
+
   // --- Anomaly treatments, regrouped on every `setBands` call ------------
   //
   // **Scoped to equities, by construction** (Gate 1 Decision 3): this reads
@@ -744,6 +853,11 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     ringExtreme = [];
 
     for (const drawable of nodesByKind.get("equity") ?? []) {
+      // **An excluded equity is in no group at all** (Task 6.8.1) — it draws
+      // no ink, which is Gate 1's hide-rather-than-dim decision arriving at
+      // the one loop that decides what an equity looks like.
+      if (!isDrawn(drawable.node.symbol)) continue;
+
       const treatment: TopologyAnomalyTreatment =
         bands.get(drawable.node.symbol) ?? "normal";
 
@@ -805,6 +919,8 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     if (from === undefined || to === undefined) continue;
 
     const drawable: DrawableEdge = {
+      from: edge.from,
+      to: edge.to,
       fromX: from.x,
       fromY: from.y,
       toX: to.x,
@@ -866,6 +982,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     labels.push({
       text: cluster.label.toUpperCase(),
       sector: true,
+      cluster: cluster.id,
       x: centre.x,
       y: centre.y - topologyClusterRadius(cluster.members.length),
       mono: false,
@@ -900,6 +1017,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     labels.push({
       text: node.symbol,
       sector: false,
+      cluster: null,
       x: placement.x + TOPOLOGY_NODE_INK[node.kind],
       y: placement.y,
       mono: true,
@@ -926,11 +1044,102 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     labels.push({
       text: "MARKET PROXIES",
       sector: false,
+      cluster: null,
       x: head.x,
       y: Math.min(...column.map((proxy) => proxy.y)) - TOPOLOGY_NODE_FOOTPRINT,
       mono: false,
     });
   }
+
+  // --- What the filter actually draws, re-partitioned once per change -------
+  //
+  // **`regroupAnomalyTreatments`' own precedent, exactly** (Task 6.8.1): a
+  // pan, a zoom and a burst all redraw through `invalidate()` with no new
+  // criterion, so filtering 2,400 edges and 516 nodes per FRAME would be work
+  // this closure can do once per actual press instead. Everything below is a
+  // view of the mount-built arrays and never a second copy of their contents.
+  //
+  // The unfiltered case assigns the mount arrays themselves, by reference — so
+  // a reader who never presses anything is drawing exactly the arrays Story
+  // 6.5 shipped, with no allocation and no filter pass at all.
+  let hitDrawn: readonly DrawableNode[] = hitCandidates;
+  let drawnMembership: readonly DrawableEdge[] = membership;
+  let drawnHub: readonly DrawableEdge[] = hub;
+  let drawnCorrelation: Record<
+    TopologyCorrelationStrength,
+    readonly DrawableEdge[]
+  > = correlationByStrength;
+  let drawnCorrelationCount = correlation.length;
+  let drawnLabels: readonly DrawableLabel[] = labels;
+  /**
+   * The sector ETFs drawn at full strength, and the ones drawn quieter.
+   *
+   * **Only a SECTOR ETF can be muted**, which falls out of the model rather
+   * than being arranged: `cluster === null` on the four market proxies and the
+   * hub is a complete answer — *an index proxy does not belong to a sector* —
+   * so a filter over sectors has nothing to say about them and
+   * `nodesByKind.get("index_etf")` is drawn unchanged in every state. Which
+   * also means the muted batch is all one shape, and strokes as one path.
+   */
+  let sectorEtfFull: readonly DrawableNode[] =
+    nodesByKind.get("sector_etf") ?? [];
+  let sectorEtfMuted: readonly DrawableNode[] = [];
+
+  const regroupFilter = (): void => {
+    if (sector === null) {
+      hitDrawn = hitCandidates;
+      drawnMembership = membership;
+      drawnHub = hub;
+      drawnCorrelation = correlationByStrength;
+      drawnCorrelationCount = correlation.length;
+      drawnLabels = labels;
+      sectorEtfFull = nodesByKind.get("sector_etf") ?? [];
+      sectorEtfMuted = [];
+      return;
+    }
+
+    const narrowedSector = sector;
+    const drawnEdge = (edge: DrawableEdge): boolean =>
+      isDrawn(edge.from) && isDrawn(edge.to);
+
+    hitDrawn = hitCandidates.filter((drawable) =>
+      isDrawn(drawable.node.symbol),
+    );
+    drawnMembership = membership.filter(drawnEdge);
+    drawnHub = hub.filter(drawnEdge);
+    drawnCorrelation = {
+      weak: correlationByStrength.weak.filter(drawnEdge),
+      moderate: correlationByStrength.moderate.filter(drawnEdge),
+      strong: correlationByStrength.strong.filter(drawnEdge),
+    };
+    drawnCorrelationCount =
+      drawnCorrelation.weak.length +
+      drawnCorrelation.moderate.length +
+      drawnCorrelation.strong.length;
+    // A sector name draws only while that sector's own equities do — see
+    // {@link DrawableLabel.cluster}. A proxy ticker and the column heading
+    // carry no cluster and are never suppressed: the four proxies are the
+    // market rather than a sector of it.
+    drawnLabels = labels.filter(
+      (label) => label.cluster === null || label.cluster === narrowedSector,
+    );
+
+    // **The split is by the ETF's OWN sector** — see {@link sectorEtfFull}.
+    // What is muted is the ten benchmark ETFs whose own ~480 equities have
+    // just stopped being drawn.
+    const full: DrawableNode[] = [];
+    const muted: DrawableNode[] = [];
+
+    for (const drawable of nodesByKind.get("sector_etf") ?? []) {
+      if (drawable.node.cluster === narrowedSector) full.push(drawable);
+      else muted.push(drawable);
+    }
+
+    sectorEtfFull = full;
+    sectorEtfMuted = muted;
+  };
+
+  regroupFilter();
 
   let view: TopologyView = fitView(layout, { width: 0, height: 0 });
   let frames = 0;
@@ -1149,7 +1358,11 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     if (!isTopologyWalkKey(event.key)) return;
 
     const next = topologyWalk(
-      graph,
+      // **The NARROWED graph** (Task 6.8.1) — so the walk agrees with the
+      // picture and the hit test by construction rather than by a predicate
+      // written three times. `walkGraph` is `graph` itself while nothing is
+      // narrowed; `narrowTopologyGraph` returns it by identity.
+      walkGraph,
       layout,
       selected?.node.symbol ?? null,
       event.key,
@@ -1286,8 +1499,8 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     context.lineWidth = 1;
 
     for (const [edges, colour] of [
-      [membership, palette.membershipEdge],
-      [hub, palette.hubEdge],
+      [drawnMembership, palette.membershipEdge],
+      [drawnHub, palette.hubEdge],
     ] as const) {
       context.beginPath();
       context.strokeStyle = colour;
@@ -1368,7 +1581,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // viewport is reading it — the same reason it already states 1,860 pairs
     // while some of them show no ink under a node body.
     if (
-      correlation.length > 0 &&
+      drawnCorrelationCount > 0 &&
       effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE
     ) {
       context.strokeStyle = palette.correlationEdge;
@@ -1397,7 +1610,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // relationship is the one on top. Nothing depends on it, and it is the
       // right default for a picture whose subject is which relationship is
       // stronger.
-      for (const [strength, edges] of Object.entries(correlationByStrength)) {
+      for (const [strength, edges] of Object.entries(drawnCorrelation)) {
         if (edges.length === 0) continue;
 
         context.lineWidth =
@@ -1468,11 +1681,23 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     context.lineWidth = 2;
     context.strokeStyle = palette.halo;
 
-    for (const [shape, drawables, colour] of [
-      ["circle", bodyDefault, palette.equity],
-      ["circle", bodyExtreme, palette.anomalyExtreme],
-      ["rect", nodesByKind.get("sector_etf") ?? [], palette.sectorEtf],
-      ["diamond", nodesByKind.get("index_etf") ?? [], palette.marketProxy],
+    for (const [shape, drawables, colour, inkScale] of [
+      ["circle", bodyDefault, palette.equity, 1],
+      ["circle", bodyExtreme, palette.anomalyExtreme, 1],
+      ["rect", sectorEtfFull, palette.sectorEtf, 1],
+      ["diamond", nodesByKind.get("index_etf") ?? [], palette.marketProxy, 1],
+      // **The ten benchmark ETFs a filter has excluded** (Task 6.8.1) — the
+      // same square, the same solid fill, 0.6x the ink and a value step
+      // quieter. A fifth entry in this loop rather than a pass of its own,
+      // because what differs is two of the three values the loop already
+      // takes; see {@link FILTERED_LANDMARK_INK_SCALE} for why size and value
+      // rather than alpha.
+      [
+        "rect",
+        sectorEtfMuted,
+        palette.landmarkMuted,
+        FILTERED_LANDMARK_INK_SCALE,
+      ],
     ] as const) {
       if (drawables.length === 0) continue;
 
@@ -1480,7 +1705,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
 
       for (const drawable of drawables) {
         const at = worldToScreen(view, drawable.x, drawable.y);
-        const half = (drawable.ink * nodeScale) / 2;
+        const half = (drawable.ink * nodeScale * inkScale) / 2;
 
         if (shape === "circle") {
           context.moveTo(at.x + half, at.y);
@@ -1564,7 +1789,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // rather than it staying suppressed at the fit this component started at.
     context.fillStyle = palette.label;
 
-    for (const label of labels) {
+    for (const label of drawnLabels) {
       if (label.sector && effectiveScale < TOPOLOGY_SECTOR_LABEL_MIN_SCALE)
         continue;
 
@@ -1703,7 +1928,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * look a placement back up by symbol.
    */
   const nodeAt = (screenX: number, screenY: number): DrawableNode | null =>
-    topologyNodeAt(view, hitCandidates, screenX, screenY);
+    topologyNodeAt(view, hitDrawn, screenX, screenY);
 
   /**
    * Re-test `lastHoverClientX`/`Y` against the CURRENT view, for a view
@@ -1930,6 +2155,48 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // with the pointer elsewhere would leave the plate's word disagreeing
       // with the ring on screen, and nothing would ever correct it.
       if (selected !== null) onSelect?.(targetOf(selected), "band");
+      invalidate();
+    },
+    setFilter: (next) => {
+      // **A no-op when the criterion has not moved.** The component's own
+      // effect is keyed on the filter object's identity, which a re-read of
+      // the same address can legitimately change; re-partitioning 2,400 edges
+      // for an answer that cannot differ is the shape every other update
+      // channel here already refuses.
+      if (next === sector) return;
+
+      sector = next;
+      walkGraph = narrowTopologyGraph(graph, sector);
+      drawnSymbols =
+        sector === null
+          ? null
+          : new Set(walkGraph.nodes.map((node) => node.symbol));
+
+      regroupFilter();
+      // **Both partitions, in this order.** The anomaly groups are the
+      // equities' own and they read `drawnSymbols`, so they are as stale as
+      // the edge arrays until this runs — and an equity left in `bodyDefault`
+      // after being filtered out would draw ink for a node nothing can point
+      // at or walk to.
+      regroupAnomalyTreatments();
+
+      // **The pointer first.** A reader whose pointer is resting on a node
+      // the filter has just removed is being shown facts about something that
+      // is no longer drawn — and `setHovered` reports `null` through
+      // `onHover`, which blanks the plate back to its idle instruction.
+      if (hovered !== null && !isDrawn(hovered.node.symbol)) setHovered(null);
+
+      // **Then the selection, with its own source** (Task 6.8.1). `"filter"`
+      // rather than `"pointer"` or `"keyboard"` because the caller's answer
+      // differs: this is the one selection change no input device made, and
+      // the sentence it is announced with names the security that went rather
+      // than reading as the generic `Escape` clearing. Focus is deliberately
+      // NOT moved here — the reader's hands are on the filter control, which
+      // is where they still are afterwards.
+      if (selected !== null && !isDrawn(selected.node.symbol)) {
+        setSelectedNode(null, "filter");
+      }
+
       invalidate();
     },
     markBurst: () => {
