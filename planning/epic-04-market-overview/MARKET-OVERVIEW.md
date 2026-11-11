@@ -284,6 +284,25 @@ absence of an epic badge — and at 1440 **the three unbuilt regions read as mor
 intentional than the four built ones**, which are white voids with one 12 px grey
 sentence.
 
+**Answered in part on 2026-11-11 by Task 6.8.3, and the part that is answered is
+the part this condition named.** The condition fired (Story 6.2 rendered a graph
+node), and the question it asked — _what does a **degraded** topology look like
+against a **deferred** one_ — is now settled **for that region, by measurement
+rather than by inspection**: `MarketTopology` always renders children, so
+`Region`'s `reserved` (keyed on `children === undefined`) never engages, and the
+region draws `solid plain` in all nine of its degraded states at all four widths,
+against `Current investigations` reading `dashed hatched` on the same page in the
+same run. `overview-market-topology-degraded.spec.ts` asserts both, per row, with
+the deferred region as the positive control.
+
+**The general finding is NOT discharged and is now sharper.** A **rollback**
+aggregate still draws the deferred hatch on every region that reads a section it
+omits — `Market breadth`, `Movers`, `Unusual activity` — for the mechanical
+reason above, and `Current investigations` is now the **only** badged hatch on
+this screen, so a badge-less one reads more like house style than it did when
+this finding was written. Nothing in Epic 6 repairs that; `docs/GAPS.md` carries
+it with its own condition.
+
 **And since 2026-11-11 the topology's head carries a second control, which is
 the first time a region on this screen has had two** (Task 6.8.1): a `Sector`
 filter beside `Reset view`, narrowing the graph to one sector with

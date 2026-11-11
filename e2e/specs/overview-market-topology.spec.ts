@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
-import { backendOrigin } from "../support/pair.js";
+import { RELATIONSHIPS_ROUTE_PATTERN, backendOrigin } from "../support/pair.js";
 
 // **`Market topology`, the first region on `/` a gated machine can verify for
 // real** (Task 6.2.5, Story 6.2's acceptance criterion 9's browser-level
@@ -284,7 +284,7 @@ test("the measured edges: an edge is actually DRAWN, and losing the measurement 
   // drawings of one universe at one size, differing only in whether the
   // correlation request succeeded — which is the only way a canvas can be
   // asked *did this layer draw anything*, there being no DOM for a stroke.
-  await page.route("**/market-data/relationships*", (route) => route.abort());
+  await page.route(RELATIONSHIPS_ROUTE_PATTERN, (route) => route.abort());
   await page.goto("/");
   await expectNothingFailedToRender(page);
 
@@ -302,7 +302,7 @@ test("the measured edges: an edge is actually DRAWN, and losing the measurement 
 
   const withoutEdges = await ink(page);
 
-  await page.unroute("**/market-data/relationships*");
+  await page.unroute(RELATIONSHIPS_ROUTE_PATTERN);
   await page.goto("/");
   await expectNothingFailedToRender(page);
   await expect(region.getByRole("img")).toBeVisible();

@@ -117,3 +117,19 @@ export const MARKET_DATA_ROUTE_PATTERN = "**/market-data";
  * string, which every real request to this endpoint carries.
  */
 export const BARS_ROUTE_PATTERN = "**/market-data/bars*";
+
+/**
+ * A URL pattern matching the measured-relationships endpoint (Task 6.8.3).
+ *
+ * A glob for the reason the two above are globs and with the same fence: this
+ * application has no `/market-data/relationships` **route**, so the glob cannot
+ * fulfil a document navigation by accident. The trailing `*` admits a query
+ * string this endpoint does not currently take — the pattern is written for the
+ * request rather than for today's parameters.
+ *
+ * **Spelled here because two specs intercept it.** It was a literal in
+ * `overview-market-topology.spec.ts` until `overview-market-topology-degraded.spec.ts`
+ * needed the same one; a second copy of a route pattern is how one spec ends up
+ * silently matching nothing while reporting the state it meant to produce.
+ */
+export const RELATIONSHIPS_ROUTE_PATTERN = "**/market-data/relationships*";

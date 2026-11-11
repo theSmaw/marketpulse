@@ -663,6 +663,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     describedBy,
     onHover,
     onSelect,
+    onCorrelationLayer,
   } = options;
 
   const canvas = document.createElement("canvas");
@@ -1202,6 +1203,16 @@ export const mountCanvasTopology: TopologyRendererFactory = (
    * shortens the remainder rather than extending the fade.
    */
   let burstStartedAt: number | null = null;
+  /**
+   * **What was last reported through `onCorrelationLayer`, or `null` for
+   * nothing yet** (Task 6.8.3).
+   *
+   * `null` rather than `false`, so the **first** drawn frame always reports
+   * whichever answer it has: a renderer mounted at 390 reports `false` once
+   * rather than silently agreeing with an initial `false` the caller would
+   * then have had to guess.
+   */
+  let correlationLayerReported: boolean | null = null;
   let dragging: number | null = null;
   let lastPointerX = 0;
   let lastPointerY = 0;
@@ -1491,6 +1502,37 @@ export const mountCanvasTopology: TopologyRendererFactory = (
      */
     const effectiveScale = view.scale * view.zoom;
 
+    /*
+     * **Whether this view is large enough to draw the measured-edge layer, told
+     * to the caller once per change** (Task 6.8.3).
+     *
+     * Reported from here rather than computed by the caller because the two
+     * inputs are both this renderer's — the container's own fit scale and the
+     * reader's zoom — and the threshold is this module's constant. See
+     * `TopologyRendererOptions.onCorrelationLayer` for what the boolean means
+     * and, more importantly, what it deliberately does not: it is a fact about
+     * the **viewport**, never about whether the store holds a pair or whether
+     * the filter kept one.
+     *
+     * **After the zero-box guard above**, which is load-bearing: `measure()`
+     * runs once synchronously at mount against whatever box exists in that
+     * instant, and a 0×0 box has a fit scale of zero — reporting from there
+     * would tell the caller the layer is suppressed on every mount and then
+     * correct itself, which is a sentence that briefly says the wrong thing
+     * for no reason a reader could act on.
+     *
+     * **Only on a change**, so a reader zooming costs one call rather than one
+     * a frame — the condition the caller's own React state depends on.
+     */
+    if (
+      correlationLayerReported !==
+      effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE
+    ) {
+      correlationLayerReported =
+        effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE;
+      onCorrelationLayer?.(correlationLayerReported);
+    }
+
     // --- The hovered node's ground disc, under everything ------------------
     //
     // One `fill()` for one node — there is never more than one hovered node,
@@ -1640,10 +1682,24 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // *nothing retained* states — while the membership and hub edges, the
     // node bodies and the anomaly rings are untouched at every width. Above
     // it (1440 and anything wider) nothing changes from what Task 6.5.2
-    // shipped. The accessible sentence is deliberately NOT width-aware: it is
-    // an account of the MEASUREMENT, which happened regardless of which
-    // viewport is reading it — the same reason it already states 1,860 pairs
-    // while some of them show no ink under a node body.
+    // shipped.
+    //
+    // **"The accessible sentence is deliberately NOT width-aware" stood here
+    // until 2026-11-11 and is withdrawn by Task 6.8.3**, with the half of it
+    // that was right kept. Right: the **account of the measurement** — the
+    // retained count, the population, the window, the per-security `N` — is a
+    // fact about last night's pass and is stated identically at every width.
+    // Wrong: the clause beside it said *are joined by a dashed edge, drawn
+    // heavier where the relationship is stronger*, which is a description of
+    // **ink**, and at 1024, 768 and 390 there is none. The analogy to *some
+    // pairs show no ink under a node body* does not carry, because that is a
+    // partial occlusion of a layer that drew and this is the layer not drawing
+    // at all — and Story 6.8's acceptance criterion 7 is exactly that the
+    // canvas's accessible fallback carries the state in words. The viewport's
+    // own half of the answer now leaves here through
+    // `onCorrelationLayer` (see the report in `draw`), and
+    // `MarketTopology.tsx`'s `topologyCorrelationClause` composes one tail
+    // under three heads.
     if (
       drawnCorrelationCount > 0 &&
       effectiveScale >= TOPOLOGY_SECTOR_LABEL_MIN_SCALE
