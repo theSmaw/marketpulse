@@ -1,6 +1,19 @@
 # Story 6.8 — Filtering, & the Degraded Set
 
-**Status:** Gate 1 approved 2026-11-11 — decomposed into four tasks.
+**Status:** **Complete — 2026-11-11.** All four tasks merged:
+[6.8 Gate 1](https://github.com/theSmaw/marketpulse/pull/676) (the decisions),
+[6.8.1](https://github.com/theSmaw/marketpulse/pull/677) (sector narrows the
+graph, honestly), [6.8.2](https://github.com/theSmaw/marketpulse/pull/678)
+(band narrows the graph too, honestly refusing),
+[6.8.3](https://github.com/theSmaw/marketpulse/pull/679) (the degraded set,
+produced rather than furnished), [6.8.4](https://github.com/theSmaw/marketpulse/pull/680)
+(the sweeps and this story's close). A reader can narrow the market topology
+by sector and by band, both as a draw-time mask over one unfiltered
+516-node layout — the reader's pan, zoom and selection survive every press —
+and the topology is honest in every state where the data behind it is thin,
+through the real socket, decoder and store wherever that is possible. See
+Task 6.8.4's own record and `TOPOLOGY.md` §8–§10 for the full figures and
+evidence per acceptance criterion.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.7
 **Epic scope covered:** Filtering
