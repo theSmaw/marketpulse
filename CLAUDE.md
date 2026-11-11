@@ -161,9 +161,9 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): seven of nine stories complete, 2026-11-10, and
-the graph now moves on its own, with §28's 60 FPS target measured against
-it for the first time.** Story 6.1 decided and built the market-as-a-graph
+**Epic 6 (Market Topology): eight of nine stories complete, 2026-11-11, and
+a reader can now narrow the graph and trust it when the data is thin.**
+Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
 Sigma.js/WebGL, which `PRODUCT_SPEC.md` §27 had named, and a hand-rolled
@@ -450,6 +450,66 @@ to see the renderer's own call site, and a new invariant refusing any
 read of an arrival key or a bar's own instant inside the layout-to-screen
 transform — `pnpm invariants` now holds **84**. `TOPOLOGY.md` §7 carries
 the fuller account.
+
+**And since 2026-11-11 a reader can narrow the graph by sector and by band,
+and the topology is honest in every state where the data is thin — Story
+6.8.** A `Sector` control and a `Band` control sit in the region's own
+chrome, each a disclosure of destinations rather than a second home for
+imperative navigation (`<Link>`s resolved at render, never
+`setSearchParams` in a handler); `?sector=<slug>` and `?band=high,extreme`
+make a narrowed picture shareable and reloadable. **Filtering is a draw-time
+mask, never a second layout**: `buildTopologyLayout` keeps running over the
+whole 516-node universe on every call, held by a new invariant
+(`the-topology-layout-is-built-from-the-whole-universe`, two breaks,
+because its call-site clause and its narrowing clause catch different
+authors) — a filtered sector draws small inside the unchanged full frame,
+with the reader's own pan, zoom and selection surviving every press.
+Excluded equities draw no ink and are not hit-testable or walkable; the
+fifteen landmarks are never excluded, and one whose own sector is filtered
+out draws a new, de-emphasized treatment, structurally unconfusable with
+the existing hollow `unscored` state.
+
+**Sector is curated, a band is a live measurement, and every decision
+about the second axis falls out of that one difference.** A band filter's
+criterion changes at reader cadence; the DATA it is applied against — each
+node's current band — changes at feed cadence, up to sixteen times a
+minute, so `setFilter` and `setBands` share one re-partition and
+`MarketTopology` takes no new prop that moves on a live batch — the
+declined `React.memo` boundary's own reversal trigger, evaluated a fourth
+time, stays unfired. A live band update never drops a reader's own
+selection and never re-speaks the announcement region; only a reader-driven
+press does either. **Where nothing has been scored — CI's and every fresh
+store's permanent state — a band filter refuses with a stated reason**
+rather than silently drawing an empty market, which would be a fully-formed
+claim about zero scored securities on the one state every gated machine is
+permanently in. A new invariant, `the-topology-walk-reads-no-band`, holds
+the keyboard walk's membership independent of anything that changes at
+feed cadence; `pnpm invariants` now holds **86**.
+
+**The degraded set is produced through the real socket, decoder and store,
+not furnished, with one state named unproducible.** A new sibling e2e spec
+asserts nine states as distinct or, for three of them (no bars, no
+provider, the aggregate carrying nothing), as one **declared collision
+class** — the real differentiators (the connection word, the provider
+line) live in the status bar and the source note, which `pnpm invariants`
+already gives one home each, so this region does not restate them. Two
+real, previously-undiscovered defects were found and fixed along the way:
+the correlation-edge accessible sentence was **width-blind**, claiming
+edges were drawn at three of the four widths this product tests where the
+layer is actually suppressed below the fit-scale threshold; and a counted
+noun disagreed with its own count (`1 are high`) in the one sentence on
+this surface a listener hears, in two separate builders, both repaired.
+Task 4.7.11's routed "a degraded region reads as one nobody has built"
+finding is **discharged for this region, by measurement** — `MarketTopology`
+always renders children, so `Panel`'s `reserved` hatch structurally cannot
+engage here — and found **sharper** for the rest of the screen: with this
+region and `Unusual activity` both filled, `Current investigations` is now
+the only badged hatch left on `/`, which is itself the condition the
+original finding was watching for. The native context-menu question Story
+6.4 left open is closed: the menu is left alone, because filtering added no
+third kind of press to the canvas; the real bug beside it (a right-click
+also moving the selection) is fixed. `TOPOLOGY.md` §8–§10 carry the fuller
+account.
 
 ### What a user can see today
 
