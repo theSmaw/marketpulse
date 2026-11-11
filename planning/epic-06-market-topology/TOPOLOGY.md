@@ -1071,3 +1071,240 @@ has a sibling question**: a listener who narrows by band hears the clause once,
 on the press, and never again — so a population that has since moved is a
 figure the sentence they were read no longer states. That is the deliberate
 choice (the alternative interrupts at feed cadence) and it has never been heard.
+
+## 10. The degraded set, produced rather than furnished (Story 6.8, Task 6.8.3, 2026-11-11)
+
+**This region's own degraded set is a KEPT spec**, not a table in this file:
+[`e2e/specs/overview-market-topology-degraded.spec.ts`](../../e2e/specs/overview-market-topology-degraded.spec.ts)
+produces **nine states × four widths**, reads this region's text and its drawn
+treatment back, prints the grid as the run's own output, and asserts the
+collapse as **declared collision classes in both directions**. Task 3.10.9's
+grid was deleted and took a repair with it that had to be re-derived two epics
+later, which is why this one, like the landing page's, lives in a spec.
+
+**It is a sibling of `overview-degraded-grid.spec.ts` rather than three more
+rows of it.** That grid keys on the overview **aggregate**, nine surfaces wide,
+and already carries four rows (18–21) on a second axis plus a separate
+assertion that this region is constant across the first one. This region is a
+function of **two requests and one aggregate section** — `GET /securities`,
+`GET /market-data/relationships`, and `overview.anomalyBands` — so a third axis
+there would multiply a nine-surface key by states that change exactly one of
+them.
+
+### 10.1 The nine states, and what each one is
+
+| #   | State                                  | How it is produced                                                                                                         |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 01  | the whole market                       | a real band section through the socket, the real store's own relationships                                                 |
+| 02  | one sector                             | the same, at `/?sector=technology`                                                                                         |
+| 03  | a store with no bars                   | the relationships route answers `{"correlations":[]}`, the aggregate carries no band section, a provider **is** configured |
+| 04  | no provider                            | `serveFeed(page, { feed: null })`, same two answers                                                                        |
+| 05  | the aggregate arrived carrying nothing | every section present and empty, no `observedAt` at all                                                                    |
+| 06  | the backend unreachable                | `route.abort("connectionrefused")` on `GET /securities`                                                                    |
+| 07  | the band section withdrawn             | bands applied, **then** a real rollback frame with no `anomalyBands`                                                       |
+| 08  | the relationships route failed         | a 503 with a correlation id                                                                                                |
+| 09  | the relationships body refused         | `r = 4.2`, which the shipped predicate refuses whole                                                                       |
+
+**Row 06 is produced at the ROUTE and never by killing the backend**, which
+would poison every later spec in a shared run. **Row 09 is the only row this
+file labels `furnished-body`**, and it is the one that proves the refusal
+happens at all: a decoder that admitted an impossible coefficient would read
+`measured` here and draw an edge at `r = 4.2`.
+
+### 10.2 The declared collision classes — three of them, both directions
+
+**`one-region-three-thin-stores`** is Story 6.8's acceptance criterion 6's
+named, accepted exception: rows **03, 04 and 05** are **one picture and one
+sentence** inside this region. That is correct rather than a gap — this region
+reads the universe, the measured relationships and `anomalyBands`, and all
+three states leave all three in the same condition. It reads **neither the
+connection nor the provider**, which have one home each (the status bar's
+connection word, the source note's provider line) and which `pnpm invariants`
+refuses a second home for **by name**. So the differentiators are real and one
+surface away; inventing region-level wording to separate them would be that
+second home.
+
+**`a-withdrawn-band-section-changes-nothing-here`** is rows **01 and 07**, and
+it is Story 6.3's acceptance criterion 5 asserted from the outside for the
+first time: a rollback never blanks what is already drawn.
+`MarketOverview.tsx`'s `appliedRealAnomalyBands` ref is the mechanism, and if a
+withdrawn section ever reverted the graph to `unscored` these two rows would
+separate.
+
+**`the-measurement-could-not-be-read-is-one-state`** is rows **08 and 09**, by
+`toRelationshipsView`'s own contract — five outcomes collapse onto `failed`,
+because there is nothing a reader could act on differently and nothing on
+screen to repair.
+
+### 10.3 The degraded-vs-deferred hatch question, answered (Task 4.7.11's hand-off)
+
+**For this region it is discharged by construction, and the evidence is the
+drawn ink rather than a code path.** `Panel`'s `reserved` state is three
+declarations — a hatched `repeating-linear-gradient`, a dashed border, no
+shadow — and `Region` keys it on `children === undefined`. `MarketTopology`
+always renders children, including in its three failure states, so the region
+draws `solid plain` in **all nine states at all four widths**, asserted per row.
+The positive control is beside it: `Current investigations`, the one badged
+hatch left on `/`, reads `dashed hatched` on the same page, in the same run.
+
+**The words differ in kind too, which is the half a treatment check cannot
+see**: the deferred region names whose work fills it (`Epic 7`), and the
+degraded one says what it could not do, offers the one repair worth offering,
+and carries no epic badge anywhere.
+
+**What is NOT discharged is the finding's general form, and it is now sharper
+rather than smaller.** A **rollback aggregate** still draws `Panel`'s reserved
+hatch on every region that reads a section it omits — `Market breadth`,
+`Movers`, `Unusual activity` — because `Region`'s own `reserved` is keyed on
+having no children and a region whose section is missing has none. With
+`Current investigations` the last badged hatch on this screen, a badge-less
+hatch now reads **more** like house style than it did when Task 4.7.11 wrote
+the finding, exactly as that finding predicted. It is not this region's to
+repair and `docs/GAPS.md` carries it.
+
+### 10.4 One height in every state, measured — because the spec is text
+
+The spec reads strings and **cannot see a layout**, which this repository has
+recorded twice as a thing a text grid is silently blind to. Measured instead,
+with the Task 6.8.1/6.8.2 filter controls present, on a populated store:
+
+```
+state                                 390        768        1024       1440
+01-the-whole-market                   342x522    720x522    604x522    1032x522
+02-one-sector                         342x522    720x522    604x522    1032x522
+02b-sector-and-band                   342x522    720x522    604x522*   1032x522
+03-a-store-with-no-bars               342x522    720x522    604x522    1032x522
+04-no-provider                        342x522    720x522    604x522    1032x522
+05-the-aggregate-carrying-nothing      342x522    720x522    604x522    1032x522
+06-the-backend-unreachable            342x522    720x522    604x522    1032x522
+07-the-band-section-withdrawn         342x522    720x522    604x522    1032x522
+08-the-relationships-route-failed     342x522    720x522    604x522    1032x522
+09-the-relationships-body-refused     342x522    720x522    604x522    1032x522
+```
+
+**522 px in every state at every width**, no region scrolling in any of them,
+and no page error in any of them. `*` is the one thing that moves: at **1024
+with both filters named**, the header grows **59 → 95 px** as the meta wraps
+(`Band high or extreme` is a longer `nowrap` string than `Band all bands`) and
+the **canvas absorbs it**, `461 → 425` — which is §8.4's and §9.5's measured
+behaviour at 390 arriving at a second width, and the reason the region's own
+box does not move. `pnpm probe / --within "Market topology"` and
+`pnpm probe "/?sector=technology&band=high,extreme" --within "Market topology"`
+are the two reachable halves of this table; the seven degraded rows need route
+interception, so they were taken with a throwaway instrument of the same shape
+and the table above is its recorded output.
+
+### 10.5 The width-blind correlation clause — a shipped defect, found by shaping this
+
+**The accessible sentence claimed ink that is not on the canvas at three of the
+four widths this product tests.** `renderer-canvas.ts` has suppressed the whole
+correlation batch below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE` since Task 6.5.4
+(§5's own measured repair) — the four resolved content boxes are 998, 570, 686
+and 308 px at fit scales **0.4604, 0.3033, 0.3650, 0.1639**, so only **1440**
+clears `0.38` — and the clause beside it went on reading _are joined by a dashed
+edge, drawn heavier where the relationship is stronger_ at all four. That is
+Story 6.8's acceptance criterion 7 (_the canvas's accessible fallback carries
+the state in words_) failing on its own subject, read by the one reader who
+cannot check it against the picture.
+
+**It survived a review, a story close and two merges because each half was
+argued in its own file and neither mentioned the other's reader.** Task 6.5.4's
+own comment said in as many words that _the accessible sentence is deliberately
+NOT width-aware_, on the analogy that it already states 1,860 pairs while some
+of them show no ink under a node body. The analogy does not carry: that is a
+**partial occlusion** of a layer that drew, and this is the layer **not drawing
+at all**. That comment is withdrawn in place, dated, with the half of it that
+was right kept.
+
+**The repair: the renderer reports, and the sentence is one tail under three
+heads.** `TopologyRendererOptions.onCorrelationLayer` fires on the first drawn
+frame and then **only on a change**, so a reader zooming across the threshold
+costs one call rather than one a frame — which is what makes it safe to hold in
+React state without reopening the declined `React.memo` boundary: it moves at
+**reader** cadence, and `MarketTopology` still takes no prop that changes at
+feed cadence. The boolean is a fact about the **viewport** alone and
+deliberately says nothing about whether the store holds a pair or the filter
+kept one, because folding those in would make _we measured nothing_ and _this
+view is too small_ one answer.
+
+The three heads, over an identical account:
+
+```
+drawn      Securities whose movements are measurably related are joined by a
+           dashed edge, drawn heavier where the relationship is stronger:
+suppressed Securities whose movements are measurably related are not drawn at
+           this size, where the sector clusters are unlabelled too:
+not yet    Securities whose movements are measurably related were measured
+           here:
+```
+
+**`null` is a third answer and is not defaulted**, which is two real states
+rather than a loophole: the microseconds between the measurement landing and
+the next animation frame, and — **permanently** — a renderer that threw, where
+there is no canvas at all and _joined by a dashed edge_ would be the falsest of
+the three. The **account** stays byte-identical at every width, because the
+retained count, the reach, the population, the window and the per-security `N`
+are facts about last night's pass rather than about a viewport.
+
+**Measured on a real canvas, on a populated store**, which is the only machine
+that can draw one of these edges:
+
+```
+1440  … are joined by a dashed edge, drawn heavier where the relationship is
+      stronger: 1,860 pairs, reaching 496 of the 501 equities, from 122,760
+      pairs measured over 60 trading sessions with the strongest 5 kept for
+      each security.
+1024  … are not drawn at this size, where the sector clusters are unlabelled
+768   too: 1,860 pairs, reaching 496 of the 501 equities, from 122,760 pairs
+390   measured over 60 trading sessions with the strongest 5 kept for each
+      security.
+```
+
+### 10.6 A second defect, and one finding routed rather than repaired
+
+**A counted noun now agrees with its count.** The band sentence read `1 are
+high and 1 are extreme` and `1 have not been scored yet` — this application's
+own `count === 1 ? "minute" : "minutes"` idiom (`measured-set.ts`, and
+`topologyCorrelationClause`'s own `pair`/`pairs` two functions down) missing
+from the one sentence on this surface a listener **hears** rather than reads.
+Found by producing a frame that scores one security in each band; reachable on
+the deployed product any session where exactly one security is `extreme`, which
+is a plausible count away from the 16 the one measured store held.
+
+**Routed, with a condition rather than a story number**: the same class of
+defect is in `topology/filter.ts`' population sentence — `one of the 501
+companies we track **are** high` — a different builder with its own tests and
+its own e2e expectations, and a state no store this has run against can reach
+today. Its condition is **the first session where exactly one security is high
+or extreme**, and `docs/GAPS.md` carries it.
+
+**And three inert controls now sit over a region with no graph**, which is
+reported rather than changed: in row 06 the region's header still offers
+`Sector`, `Band` and `Reset view` above a one-sentence failure — 131 px of
+chrome at 390 over a sentence and a `Try again`. That is `Reset view`'s own
+recorded argument (_a control that comes and goes under a reader is worse than
+one that is briefly inert_) inherited by the two controls Tasks 6.8.1 and 6.8.2
+added beside it, and whether it reads as consistent or as broken is a question
+for this story's own Gate 2 rather than for a check.
+
+### 10.7 What no gated machine will see here, and what no person has
+
+**Rows 01, 02 and 07 draw a band section no gated store can produce** — CI has
+zero bars, no provider and no composite generation — so they are furnished
+through the shipped socket, which is what `overview-market-topology-anomaly-bands.spec.ts`
+already does and for the same stated reason. **Rows 03, 04, 05, 08 and 09 are
+CI's own neighbourhood**: on that store the real relationships route answers
+`{"correlations":[]}` for ever anyway, so what the furnishing buys there is
+determinism rather than reach.
+
+**The width-aware clause's drawn arm is unreachable on CI, permanently.** A
+gated run has no measured pass, so the arm it takes is `never-measured` — which
+claims no ink at any width and is asserted as such rather than skipped. Both
+halves of the repair have been seen only on **one developer's populated store**,
+on one afternoon.
+
+**And no person has looked at any of these nine pictures.** The spec reads
+strings; the heights above are a machine's; the photographs are behind
+`TOPOLOGY_DEGRADED_PHOTOS=1` and were produced for this task and looked at by
+the developer who wrote it. Whether six absence sentences in one region read as
+careful or as broken is Story 6.9's sitting.

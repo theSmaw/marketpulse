@@ -427,6 +427,34 @@ export function MarketTopology({
   const [openable, setOpenable] = useState<Ticker | null>(null);
 
   /**
+   * **The SECOND piece of state this surface takes from the renderer, and
+   * `null` is a real third answer** (Task 6.8.3).
+   *
+   * Whether the measured-edge layer is large enough to be drawn at all —
+   * reported by `TopologyRendererOptions.onCorrelationLayer`, which fires on
+   * the first drawn frame and then only when the answer changes. It is state
+   * rather than a ref because the **accessible sentence** depends on it, and
+   * the sentence is composed at render and handed to both of its writers: a
+   * ref would be read once on a render nothing triggered.
+   *
+   * **It does not reopen the declined `React.memo` boundary**, which is the
+   * one question to ask of any new state in this file. The boundary's own
+   * reversal trigger is *the first prop this region takes that changes at feed
+   * cadence*; this is not a prop and it does not change at feed cadence. It
+   * moves when the container is resized or the reader zooms across one
+   * threshold — reader cadence, at most a handful of times in a session —
+   * because the renderer compares before it reports.
+   *
+   * `null` until a frame reports, and nulled again by the mount effect's
+   * cleanup for `setOpenable(null)`'s own recorded reason: a new renderer has
+   * reported nothing, and keeping the old answer would be a claim about a
+   * canvas that no longer exists.
+   */
+  const [correlationLayerDrawn, setCorrelationLayerDrawn] = useState<
+    boolean | null
+  >(null);
+
+  /**
    * **What the plate is CURRENTLY showing, as two refs rather than one**
    * (Task 6.4.2).
    *
@@ -620,6 +648,7 @@ export function MarketTopology({
   const correlationClause = topologyCorrelationClause(
     topology?.graph ?? null,
     relationships,
+    correlationLayerDrawn,
   );
 
   /**
@@ -848,6 +877,22 @@ export function MarketTopology({
           show();
         },
         /*
+         * **Whether the measured-edge layer is drawn at this size, which the
+         * accessible sentence has to say** (Task 6.8.3).
+         *
+         * Adds no dependency for `onHover`'s own reason — declared inside the
+         * effect, closing over a `useState` setter whose identity React
+         * guarantees — so the deps stay `[topology, probe, sentenceId]`. It is
+         * the one channel here that goes to React state rather than to a DOM
+         * write, because what it changes is a **string composed at render and
+         * handed to two writers**; writing it imperatively would make a third
+         * writer of the sentence those two already clobber each other over.
+         * Safe at that cadence because the renderer reports only on a change.
+         */
+        onCorrelationLayer: (drawn) => {
+          setCorrelationLayerDrawn(drawn);
+        },
+        /*
          * **The selection channel, and the one place a pointer event on this
          * canvas reaches React state at all** (Task 6.4.2).
          */
@@ -964,6 +1009,11 @@ export function MarketTopology({
       chosen.current = null;
       offered.current = null;
       setOpenable(null);
+      // **And the renderer's own report goes with the renderer** (Task
+      // 6.8.3), for the line above's recorded reason: the next renderer has
+      // reported nothing yet, and a kept `true` would describe a dashed edge
+      // on a canvas that has been destroyed.
+      setCorrelationLayerDrawn(null);
       // **Emptied rather than announced** (Task 6.4.4). The selection is
       // genuinely gone — a fresh universe may not even contain the symbol —
       // so leaving the old sentence in the accessibility tree would be a
@@ -2009,12 +2059,31 @@ function topologyAnomalySentence(
    * that a cut clause over nothing is a denominator about nothing.
    */
   const unscoredClause =
-    unscored === 0 ? "" : ` ${String(unscored)} have not been scored yet.`;
+    unscored === 0
+      ? ""
+      : ` ${String(unscored)} ${unscored === 1 ? "has" : "have"} not been` +
+        ` scored yet.`;
+
+  /**
+   * **A counted noun agrees with its count** (Task 6.8.3, found by producing
+   * this sentence against a frame scoring one security in each band).
+   *
+   * It read `1 are high and 1 are extreme` and `1 have not been scored yet`,
+   * which is this application's own `count === 1 ? "minute" : "minutes"` idiom
+   * (`measured-set.ts`, and `topologyCorrelationClause`'s own `pair`/`pairs`
+   * two functions down) missing from the one sentence on this surface a
+   * listener hears rather than reads. **Reachable on the deployed product any
+   * session where exactly one security is `extreme`** — the one store this has
+   * been measured against held 16, so the defect was a plausible count away
+   * rather than hypothetical.
+   */
+  const isAre = (count: number): string =>
+    `${String(count)} ${count === 1 ? "is" : "are"}`;
 
   return (
     `${structure} Each equity also carries how unusual its recent behaviour ` +
     `is, on a four-band scale from normal through elevated and high to ` +
-    `extreme. ${String(high)} are high and ${String(extreme)} are extreme.` +
+    `extreme. ${isAre(high)} high and ${isAre(extreme)} extreme.` +
     `${unscoredClause} The ten most unusual are named in Unusual activity.`
   );
 }
@@ -2206,10 +2275,41 @@ function writeTopologyFilterNote(
  * measured this*, *we measured and kept nothing* and *we could not read the
  * measurement* are three different facts with three different repairs, and
  * nothing else on the screen distinguishes them.
+ *
+ * ## And since Task 6.8.3 the presence state has THREE heads over ONE tail
+ *
+ * **A real defect, shipped since Task 6.5.4 and found by shaping Story 6.8's
+ * degraded set.** `renderer-canvas.ts` suppresses the entire correlation batch
+ * below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE`, which is **three of the four widths
+ * this product tests** (1024, 768, 390) — and this clause went on saying *are
+ * joined by a dashed edge, drawn heavier where the relationship is stronger*
+ * at all four. That is a description of ink that is not on the canvas, read by
+ * the one reader who cannot check it against the picture, which is Story 6.8's
+ * acceptance criterion 7 failing on its own subject. It survived a review, a
+ * story close and two merges because the suppression was argued in the
+ * renderer and the sentence was argued here, and neither file's reasoning
+ * mentioned the other's reader.
+ *
+ * The split keeps what was right about the old argument: the **account** is a
+ * fact about last night's pass and is byte-identical at every width, so it is
+ * one tail. What varies is the **ink claim**, and `drawn` is the renderer's own
+ * report (`TopologyRendererOptions.onCorrelationLayer`) rather than anything
+ * computed here — a second copy of the threshold and of the fit arithmetic is
+ * exactly the second home this repository's rules forbid.
+ *
+ * **`null` is a third answer and is not defaulted.** It means no frame has
+ * reported yet, which is two real states rather than a loophole: the
+ * microseconds between the measurement landing and the next animation frame,
+ * and — permanently — a renderer that threw, where there is no canvas at all
+ * and *joined by a dashed edge* would be the falsest of the three. So `null`
+ * says the measurement happened and claims nothing about the drawing, which is
+ * `loading`'s own *absence of a clause rather than a clause about an absence*
+ * applied one clause down.
  */
 function topologyCorrelationClause(
   graph: TopologyGraph | null,
   relationships: RelationshipsView,
+  correlationLayerDrawn: boolean | null,
 ): string {
   if (graph === null) return "";
 
@@ -2316,9 +2416,34 @@ function topologyCorrelationClause(
       // already here from Task 6.5.2: the drawn set is a **per-security
       // selection**, not everything above a threshold, so a listener cannot
       // infer that an unjoined pair was measured and found weak.
+      //
+      // **One tail, three heads** (Task 6.8.3) — see this function's own
+      // docblock. The tail is the account of the measurement and is
+      // byte-identical at every width; the head is the claim about the ink,
+      // and only the renderer knows whether there is any.
+      const head =
+        correlationLayerDrawn === null
+          ? // Nothing has drawn yet, or nothing can: the measurement is
+            // stated and no claim is made about the picture.
+            ` Securities whose movements are measurably related were measured` +
+            ` here:`
+          : correlationLayerDrawn
+            ? ` Securities whose movements are measurably related are joined` +
+              ` by a dashed edge, drawn heavier where the relationship is` +
+              ` stronger:`
+            : // **The suppressed state, and it says WHY in the renderer's own
+              // terms** — the clusters are unlabelled at this size too, which
+              // is the same threshold and the same qualitative reason (Task
+              // 6.5.4's measured repair). No verdict word, no instruction: a
+              // reader of this sentence cannot necessarily zoom, and a
+              // keyboard reader has no zoom key at all, so offering one would
+              // be a control this surface does not have.
+              ` Securities whose movements are measurably related are not` +
+              ` drawn at this size, where the sector clusters are unlabelled` +
+              ` too:`;
+
       return (
-        ` Securities whose movements are measurably related are joined by a` +
-        ` dashed edge, drawn heavier where the relationship is stronger:` +
+        head +
         ` ${measured.length.toLocaleString("en-US")} ${drawnNoun}, reaching` +
         ` ${reach.size.toLocaleString("en-US")} of the` +
         ` ${equities.toLocaleString("en-US")} equities, from ${measuredPopulation}` +

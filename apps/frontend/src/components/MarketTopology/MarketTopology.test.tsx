@@ -33,6 +33,7 @@ import type { Bar, SecurityLastClose, Ticker } from "@marketpulse/shared";
 import type {
   TopologyAnomalyTreatment,
   TopologyFilterCriterion,
+  TopologyRendererOptions,
   TopologyHoverTarget,
   TopologyRenderer,
   TopologySelectionSource,
@@ -131,6 +132,26 @@ function createFakeRenderer(): TopologyRenderer {
     destroy: lastDestroy,
   };
 }
+
+/**
+ * **The mock implementation every suite in this file installs**, extracted at
+ * Task 6.8.3 from thirteen copies of `() => createFakeRenderer()`.
+ *
+ * It exists because a real renderer does one thing at mount that the bare
+ * factory did not: it **reports whether the measured-edge layer is drawn at
+ * this size** (`TopologyRendererOptions.onCorrelationLayer`, fired from the
+ * first drawn frame). `true` is the honest default here — it is what a real
+ * canvas reports at 1440, the width every figure in this epic's own probe
+ * table is anchored to — and a suite that wants the suppressed answer, or no
+ * answer at all, installs its own implementation.
+ */
+const fakeMount = (
+  _container: HTMLElement,
+  options: TopologyRendererOptions,
+): TopologyRenderer => {
+  options.onCorrelationLayer?.(true);
+  return createFakeRenderer();
+};
 
 const { mountCanvasTopology, FAKE_PALETTE } = vi.hoisted(() => ({
   mountCanvasTopology: vi.fn(),
@@ -393,7 +414,7 @@ describe("MarketTopology", () => {
   describe("the declined memo boundary — Task 6.2.5, Story 6.2's acceptance criterion 8", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     it("does not re-mount the renderer across several applied batches", () => {
@@ -494,7 +515,7 @@ describe("MarketTopology", () => {
   describe("the anomaly-band update channel — Task 6.3.2", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     it("never calls the renderer's setBands when no bands prop was given — Task 6.3.3's tightened contract", () => {
@@ -582,7 +603,7 @@ describe("MarketTopology", () => {
   describe("the live-update mark channel — Task 6.7.2", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     it("exposes markBurst on the ref as a no-op while nothing is mounted", () => {
@@ -675,7 +696,7 @@ describe("MarketTopology", () => {
   describe("the accessible sentence's anomaly content — Task 6.3.4", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     /** The sentence `setBands`/`applyAnomalyBands` rewrites in place. */
@@ -709,7 +730,7 @@ describe("MarketTopology", () => {
       // **Counts for `high`/`extreme` only** — two `high`, one `extreme`,
       // read off the same map rather than hard-coded.
       expect(text).toContain("2 are high");
-      expect(text).toContain("1 are extreme");
+      expect(text).toContain("1 is extreme");
 
       // **Never `elevated`'s own count** — STORY.md note 2's reading: it is
       // usually close to half the scored universe and would read as an
@@ -786,12 +807,14 @@ describe("MarketTopology", () => {
 
       // The scored population's own counts, unchanged by the one unscored
       // entry sharing the map.
-      expect(text).toContain("1 are high");
-      expect(text).toContain("1 are extreme");
+      expect(text).toContain("1 is high");
+      expect(text).toContain("1 is extreme");
 
       // **The new clause**: the unscored equity is named as a count, never
       // silently dropped — the AC 7 fix.
-      expect(text).toContain("1 have not been scored yet");
+      // **`has` rather than `have`** (Task 6.8.3) — the counted noun agrees
+      // with its count, which this clause did not do either.
+      expect(text).toContain("1 has not been scored yet");
 
       // And this is NOT the all-unscored sentence — the scored population
       // is real and the sentence must not claim otherwise.
@@ -832,7 +855,7 @@ describe("MarketTopology", () => {
   describe("the hover readout — Task 6.4.1", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     /** The plate itself, which exists in the `loaded` state only. */
@@ -953,7 +976,7 @@ describe("MarketTopology", () => {
   describe("selection, and the one way out — Task 6.4.2", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     const plate = (): HTMLElement => {
@@ -1337,7 +1360,7 @@ describe("MarketTopology", () => {
   describe("the keyboard model — Task 6.4.3", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     /** The mount options the renderer was handed. */
@@ -1519,7 +1542,7 @@ describe("MarketTopology", () => {
   describe("the announcement region — Task 6.4.4", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     /** The announcement region itself — the one `role="status"` here. */
@@ -1821,8 +1844,8 @@ describe("MarketTopology", () => {
       // nothing.
       const structureAfter = sentence().textContent;
       expect(structureAfter).not.toBe(structureBefore);
-      expect(structureAfter).toContain("1 are high");
-      expect(structureAfter).toContain("1 are extreme");
+      expect(structureAfter).toContain("1 is high");
+      expect(structureAfter).toContain("1 is extreme");
       // **And it is still only the structure.** No selection leaked into it.
       expect(structureAfter).not.toContain("Selected");
       expect(structureAfter).not.toContain("NVIDIA Corporation");
@@ -1876,7 +1899,7 @@ describe("MarketTopology", () => {
   describe("the focus the one anchor drops — Task 6.4.4", () => {
     beforeEach(() => {
       mountCanvasTopology.mockReset();
-      mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+      mountCanvasTopology.mockImplementation(fakeMount);
     });
 
     const channels = (): {
@@ -2362,7 +2385,7 @@ describe("MarketTopology", () => {
 describe("the per-node live facts channel — Task 6.7.3", () => {
   beforeEach(() => {
     mountCanvasTopology.mockReset();
-    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    mountCanvasTopology.mockImplementation(fakeMount);
   });
 
   const plate = (): HTMLElement => {
@@ -2492,7 +2515,7 @@ describe("the per-node live facts channel — Task 6.7.3", () => {
 describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => {
   beforeEach(() => {
     mountCanvasTopology.mockReset();
-    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    mountCanvasTopology.mockImplementation(fakeMount);
   });
 
   const sentence = () =>
@@ -2815,8 +2838,237 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
     const text = sentence().textContent;
 
     // Both facts, in one sentence, after the imperative write.
-    expect(text).toContain("1 are high");
+    expect(text).toContain("1 is high");
     expect(text).toContain("1 pair, reaching 2 of the");
+  });
+});
+
+// **The width-blind over-claim, which is a real defect this story found and
+// fixed** (Task 6.8.3, Story 6.8's acceptance criterion 7).
+//
+// `renderer-canvas.ts` has suppressed the whole correlation batch below
+// `TOPOLOGY_SECTOR_LABEL_MIN_SCALE` since Task 6.5.4 — three of the four
+// widths this product tests — while the clause beside the canvas went on
+// saying *are joined by a dashed edge, drawn heavier where the relationship is
+// stronger* at every one of them. A description of ink that is not on the
+// canvas, read by the one reader who cannot check it against the picture.
+//
+// **Everything below is reachable here because the renderer is mocked**: the
+// real one needs a 2d context, so the suppression itself is unassertable at
+// this level and is `pnpm probe`'s and the degraded spec's. What IS assertable
+// is the half that was wrong — that the component asks the renderer, and that
+// each of the three answers produces its own words over an identical account.
+describe("the measured-edge clause is width-aware — Task 6.8.3", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+  });
+
+  /** A renderer that reports the given answer at mount, or none at all. */
+  const mountReporting = (drawn: boolean | null) => {
+    mountCanvasTopology.mockImplementation(
+      (_container: HTMLElement, options: TopologyRendererOptions) => {
+        if (drawn !== null) options.onCorrelationLayer?.(drawn);
+        return createFakeRenderer();
+      },
+    );
+  };
+
+  const PASS = {
+    observedAt: "2026-09-11T20:00:00.000Z",
+    trackedEquities: 501,
+    eligibleEquities: 496,
+    splitDiscontinuity: 5,
+    absent: 0,
+    candidatePairs: 122_760,
+    computedPairs: 122_760,
+    retainedPairs: 2,
+    tooFewOverlappingSamples: 0,
+    zeroVariance: 0,
+    belowSignificance: 20_752,
+    retainedN: 5,
+    lookbackSessions: 60,
+    spanMinutes: 5,
+    feed: "sip",
+  } as const;
+
+  const MEASURED: RelationshipsView = {
+    state: "measured",
+    correlations: [
+      { low: toTicker("AAPL"), high: toTicker("MSFT"), r: 0.8 },
+      { low: toTicker("AAPL"), high: toTicker("NVDA"), r: 0.7 },
+    ],
+    pass: PASS,
+  };
+
+  /** The account of the measurement — the tail all three heads share. */
+  const ACCOUNT =
+    "2 pairs, reaching 3 of the 503 equities, from 122,760 pairs measured " +
+    "over 60 trading sessions with the strongest 5 kept for each security.";
+
+  const sentence = () =>
+    screen.getByText(/^A graph of every security we track/u);
+
+  const renderMeasured = () => {
+    render(
+      <MarketTopology
+        universe={securitiesFixtureView("full")}
+        relationships={MEASURED}
+        onRetry={() => undefined}
+      />,
+    );
+  };
+
+  it("asks the renderer whether the layer is drawn at all, rather than assuming it is", () => {
+    mountReporting(true);
+    renderMeasured();
+
+    const options = mountCanvasTopology.mock.calls[0]?.[1] as {
+      onCorrelationLayer?: (drawn: boolean) => void;
+    };
+
+    // **The channel itself**, because the whole defect was its absence: a
+    // component that never asks cannot be told, and the sentence it writes is
+    // then right at one width out of four by coincidence.
+    expect(typeof options.onCorrelationLayer).toBe("function");
+  });
+
+  it("claims the dashed edges where the renderer says it drew them", () => {
+    mountReporting(true);
+    renderMeasured();
+
+    const text = sentence().textContent;
+
+    expect(text).toContain(
+      "Securities whose movements are measurably related are joined by a " +
+        "dashed edge, drawn heavier where the relationship is stronger:",
+    );
+    expect(text).toContain(ACCOUNT);
+  });
+
+  /**
+   * **The test that would have caught the shipped defect.** At 1024, 768 and
+   * 390 the real renderer draws no correlation edge at all, and before this
+   * task the sentence said it did.
+   */
+  it("claims no edge at all where the renderer suppressed the layer, and keeps the whole account", () => {
+    mountReporting(false);
+    renderMeasured();
+
+    const text = sentence().textContent;
+
+    expect(text).toContain(
+      "Securities whose movements are measurably related are not drawn at " +
+        "this size, where the sector clusters are unlabelled too:",
+    );
+    // **The measurement is still stated in full** — it is a fact about last
+    // night's pass rather than about this viewport, which is the half of the
+    // old argument that was right.
+    expect(text).toContain(ACCOUNT);
+    expect(text).not.toContain("joined by a dashed edge");
+    expect(text).not.toContain("drawn heavier");
+  });
+
+  /**
+   * **`null` is a third answer rather than a default**, and it is permanent
+   * for a renderer that threw: jsdom's own state here, and a browser with no
+   * 2d context. *Joined by a dashed edge* would be the falsest of the three
+   * on a page with no canvas at all.
+   */
+  it("claims neither where no frame has reported yet", () => {
+    mountReporting(null);
+    renderMeasured();
+
+    const text = sentence().textContent;
+
+    expect(text).toContain(
+      "Securities whose movements are measurably related were measured here:",
+    );
+    expect(text).toContain(ACCOUNT);
+    expect(text).not.toContain("joined by a dashed edge");
+    expect(text).not.toContain("not drawn at this size");
+  });
+
+  /**
+   * **The two-writers collision, a third time** — this file's own standing
+   * hazard and Story 6.8's AC 7 in as many words. The clause is composed at
+   * render and handed to both writers, so a band batch rewriting
+   * `textContent` must not drop the width the renderer reported.
+   */
+  it("survives a live band update, with the suppressed wording intact", () => {
+    mountReporting(false);
+    const ref = createRef<MarketTopologyHandle>();
+
+    render(
+      <MarketTopology
+        ref={ref}
+        universe={securitiesFixtureView("full")}
+        relationships={MEASURED}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(new Map([[toTicker("NVDA"), "high"]]));
+    });
+
+    const text = sentence().textContent;
+
+    expect(text).toContain("1 is high");
+    expect(text).toContain("are not drawn at this size");
+    expect(text).not.toContain("joined by a dashed edge");
+  });
+
+  /**
+   * **A report crossing the threshold rewrites the sentence without
+   * re-mounting**, which is what makes this safe to hold in state at all: a
+   * reader zooming in at 390 crosses the threshold and the words must follow
+   * the picture, with the renderer the reader's pan and zoom live in left
+   * exactly where it was.
+   */
+  it("follows the renderer across a zoom that crosses the threshold, without re-mounting", () => {
+    mountReporting(false);
+    renderMeasured();
+
+    expect(sentence().textContent).toContain("are not drawn at this size");
+
+    const report = (
+      mountCanvasTopology.mock.calls[0]?.[1] as {
+        onCorrelationLayer?: (drawn: boolean) => void;
+      }
+    ).onCorrelationLayer;
+
+    act(() => {
+      report?.(true);
+    });
+
+    expect(sentence().textContent).toContain("joined by a dashed edge");
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+    expect(lastDestroy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * **The three absence states say nothing about a width**, because there is
+   * no ink to be absent: the clause is about a measurement that was never
+   * made, kept nothing, or could not be read.
+   */
+  it("says nothing about a size in any state with no measurement to draw", () => {
+    for (const relationships of [
+      { state: "loading" },
+      { state: "never-measured" },
+      { state: "failed" },
+    ] as const) {
+      mountReporting(false);
+      const view = render(
+        <MarketTopology
+          universe={securitiesFixtureView("full")}
+          relationships={relationships}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(sentence().textContent).not.toContain("at this size");
+      view.unmount();
+    }
   });
 });
 
@@ -2831,7 +3083,7 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
 describe("the sector filter channel — Task 6.8.1", () => {
   beforeEach(() => {
     mountCanvasTopology.mockReset();
-    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    mountCanvasTopology.mockImplementation(fakeMount);
   });
 
   /**
@@ -3049,7 +3301,7 @@ describe("the sector filter channel — Task 6.8.1", () => {
     });
 
     const text = sentence().textContent;
-    expect(text).toContain("1 are high");
+    expect(text).toContain("1 is high");
     expect(text).toContain("Narrowed to Energy");
   });
 
@@ -3170,7 +3422,7 @@ describe("the sector filter channel — Task 6.8.1", () => {
 describe("the band filter channel — Task 6.8.2", () => {
   beforeEach(() => {
     mountCanvasTopology.mockReset();
-    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+    mountCanvasTopology.mockImplementation(fakeMount);
   });
 
   const UNIVERSE = securitiesFixtureView("full");

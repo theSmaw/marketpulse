@@ -6503,3 +6503,69 @@ though the absorption BEHAVIOUR it depends on is proved there every run.
 **Not an entry needing a re-measure or an owner** — recorded for the
 contrast it gives the rest of this epic's own account, not as an open
 item.
+
+## A rollback aggregate still draws a DEGRADED region in the picture this screen uses for one nobody has BUILT, and `Current investigations` is now the only badged hatch left to tell them apart by
+
+**Added 2026-11-11 by Task 6.8.3, which closed the half of this that is the
+market topology's own and found the rest sharper rather than smaller.** Task
+4.7.11 routed this finding to Epic 6 with the condition _the first commit that
+renders a graph node_; that condition fired at Story 6.2 and the question it
+asked is settled **for the topology**, by measurement:
+`overview-market-topology-degraded.spec.ts` asserts the region draws
+`solid plain` in all nine of its degraded states at all four widths, against
+`Current investigations` reading `dashed hatched` on the same page in the same
+run — `MarketTopology` always renders children, so `Region`'s `reserved`, which
+is keyed on `children === undefined`, structurally cannot engage there.
+
+**What is still live is every region that is a function of an aggregate
+SECTION.** A rollback frame — a new bundle meeting a pinned previous image, the
+state `overview-degraded-grid.spec.ts` rows 08 and 17 produce — leaves
+`Market breadth`, `Movers` or `Unusual activity` with no children, so each draws
+the hatched ground and the dashed hairline a **deferred** region draws, and the
+only difference is the absence of an `EPIC n` badge. Filling `Unusual activity`
+(Story 5.4) and the topology (Story 6.2) each removed a badged hatch, so there
+is now exactly **one** left on this screen — which makes a badge-less hatch read
+**more** like house style than it did when the finding was written, exactly as
+that finding predicted it would.
+
+**Why it is not mechanisable as it stands**: the two states are the same
+component in the same state by construction, so no check can separate pictures
+that are identical by design. The repair is a product decision — a second
+treatment for _degraded_, or a sentence in the region's body saying which it is
+— and it belongs to whoever owns the next rollback-reachable region rather than
+to a check.
+
+**Re-measure**: `DEGRADED_GRID_PHOTOS=1 pnpm e2e overview-degraded-grid.spec.ts`
+and look at rows `08-rollback-no-breadth-section` and
+`17-rollback-no-unusual-section` beside `Current investigations` at 1440.
+
+**Owner: the first story that fills `Current investigations` (Epic 7+)** — the
+condition is **the last badged hatch leaving this screen**, because at that
+point every hatch a reader can meet on `/` is a degradation and the badge stops
+distinguishing anything at all.
+
+## A counted noun in `topology/filter.ts`' population sentence does not agree with its count, and no store this has run against can reach the state
+
+**Added 2026-11-11 by Task 6.8.3, which fixed the same defect in the sibling
+sentence and routed this one rather than widening a task.** The band sentence in
+`MarketTopology.tsx` read `1 are high and 1 are extreme` and `1 have not been
+scored yet`; both are repaired, with the house idiom
+(`count === 1 ? "is" : "are"`, `measured-set.ts`' own
+`count === 1 ? "was" : "were"`). The same class of defect is in
+`topologyFilterWords`' population clause — `one of the 501 companies we track
+**are** high`, reachable through `countInWords(1)` — which is a **different
+builder**, with its own unit tests and its own e2e expectations that construct
+the string from a count.
+
+**Why it was routed**: the state needs **exactly one** security in the selected
+band or band union, and the one populated store this epic has measured against
+held 122 (`high` plus `extreme`) and 16 (`extreme` alone), so nothing can
+produce it today without furnishing it — while changing the grammar touches
+assertions Tasks 6.8.1 and 6.8.2 wrote around the current strings.
+
+**Re-measure**: `pnpm --filter @marketpulse/frontend test filter` after making
+`narrowing.matched` 1 in a case, and read the clause.
+
+**Owner: the first session where exactly one security is `high` or `extreme`** —
+or, sooner and more cheaply, Story 6.8's own close sweep (Task 6.8.4), which is
+already walking these two builders.

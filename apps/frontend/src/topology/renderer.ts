@@ -265,6 +265,44 @@ export interface TopologyRendererOptions {
   readonly onHover?:
     ((hovered: TopologyHoverTarget | null) => void) | undefined;
   /**
+   * Called when **whether this view is large enough to draw the measured-edge
+   * layer at all** changes, and once on the first drawn frame (Task 6.8.3).
+   *
+   * ## What it reports, and the one thing it deliberately does not
+   *
+   * `true` when the current effective scale (the container's own fit scale ×
+   * the reader's zoom) clears the renderer's label threshold, `false` below
+   * it. **It says nothing about whether any correlation edge survived the
+   * filter, or whether the store holds one at all** — those are facts about
+   * the data and the criterion, which the caller already knows, and folding
+   * them in here would make *we measured nothing* and *this viewport is too
+   * small* one boolean. It is a fact about the **viewport**.
+   *
+   * ## Why it exists: a sentence that over-claimed at three of four widths
+   *
+   * `renderer-canvas.ts` suppresses the whole correlation batch below that
+   * threshold, which is three of the four widths this product tests (Task
+   * 6.5.4's own measured repair). The accessible sentence beside the canvas
+   * went on stating a retained-pair count and *are joined by a dashed edge*
+   * regardless — a description of ink that is not on the canvas, which is
+   * Story 6.8's acceptance criterion 7 (*the canvas's accessible fallback
+   * carries the state in words*) failing on the one surface it names. A
+   * caller cannot compute this for itself without a second copy of the
+   * threshold and of the fit arithmetic, so the renderer reports it.
+   *
+   * **A push rather than a getter**, because the answer moves: a `ctrl`+wheel
+   * zoom and a container resize both cross it. It fires **only on a change**,
+   * so a reader zooming through the threshold costs the caller one call rather
+   * than one per frame — which is what makes it safe for the caller to put in
+   * React state without reopening `MarketTopology`'s declined `React.memo`
+   * boundary: it moves at reader cadence, never at feed cadence.
+   *
+   * **It is never called at all when the renderer fails to mount**, and the
+   * caller must treat *not yet reported* as a third answer rather than
+   * defaulting it: a canvas that threw draws no edge either.
+   */
+  readonly onCorrelationLayer?: ((drawn: boolean) => void) | undefined;
+  /**
    * Called when the **selected** node changes — a click on a node selects it, a
    * click on empty canvas clears it, a click on a different node moves it
    * (Task 6.4.2).
