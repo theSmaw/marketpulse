@@ -75,10 +75,16 @@ local, one-laptop ones (§4).~~ — **closed 2026-11-10: Story 6.7 shipped,
 and §28's 60 FPS target has a real figure for the first time.** The graph
 moves on its own, and the three-part conjunction §28 names was measured
 against the real shipped graph, concurrently with pan and zoom, both
-headless and on a real GPU. See §7. **What bounds the sections below now
+headless and on a real GPU. See §7. ~~What bounds the sections below now
 is only what Epic 6's own remaining story (6.8, filtering and the
 degraded set) has not yet built, and §2's renderer figures are still
-local, one-laptop ones (§4).**
+local, one-laptop ones (§4).~~ — **closed 2026-11-11: Story 6.8 shipped.**
+A reader can narrow the graph by sector and by band, both as a draw-time
+mask over the one unfiltered layout, and the degraded set is produced
+through the real socket, decoder and store with one state named
+unproducible. See §8–§10. **What bounds the remainder of this document now
+is only §2's renderer figures, still local and one-laptop, and Epic 6's
+own final story (6.9, the rehearsal, the sweep and the epic close).**
 
 ## 1. The model — a graph is domain data, and the renderer is a reader
 

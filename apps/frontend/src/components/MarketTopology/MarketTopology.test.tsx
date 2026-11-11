@@ -3558,7 +3558,8 @@ describe("the band filter channel — Task 6.8.2", () => {
     );
 
     // No second `setBands` call anywhere — this is the press alone.
-    expect(line()).toMatch(/^1 of the \d+ companies we track are extreme$/u);
+    // (`is`, not `are` — Task 6.8.4's grammar fix, docs/GAPS.md.)
+    expect(line()).toMatch(/^1 of the \d+ companies we track is extreme$/u);
     expect(sentence().textContent).toContain("Narrowed to extreme");
   });
 
@@ -3617,8 +3618,9 @@ describe("the band filter channel — Task 6.8.2", () => {
 
     // The CRITERION has not moved — still `high or extreme` — only the
     // population inside it has, which is the whole point of this arm.
+    // (`is`, not `are` — Task 6.8.4's grammar fix, docs/GAPS.md.)
     expect(line()).toMatch(
-      /^1 of the \d+ companies we track are high or extreme$/u,
+      /^1 of the \d+ companies we track is high or extreme$/u,
     );
     expect(spoken()).toBe("");
   });

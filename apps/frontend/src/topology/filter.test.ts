@@ -723,6 +723,48 @@ describe("topologyFilterWords — the two-clause grammar", () => {
     expect(stacked?.line).not.toContain(" 0 ");
   });
 
+  it("spells a matched count of exactly 1 with `is`, never `are` — both grammars (Task 6.8.4, docs/GAPS.md)", () => {
+    // The sibling of `MarketTopology.tsx`'s own `isAre` repair (Task 6.8.3),
+    // routed here because no store this epic has measured against holds
+    // exactly one `extreme` equity — reachable only by constructing the
+    // treatment map directly, as this test does.
+    const equities = GRAPH.nodes.filter((node) => node.kind === "equity");
+    const exactlyOneExtreme: ReadonlyMap<Ticker, TopologyAnomalyTreatment> =
+      new Map(
+        equities.map((node, at) => [
+          node.symbol,
+          at === 0 ? "extreme" : "normal",
+        ]),
+      );
+
+    const bandOnly = wordsFor(
+      readTopologyFilter("?band=extreme"),
+      exactlyOneExtreme,
+    );
+    expect(bandOnly?.line).toBe(
+      `1 of the ${String(topologyEquityCount(GRAPH))} companies we track is extreme`,
+    );
+    expect(bandOnly?.line).not.toContain("1 are");
+
+    const biggestEquities = GRAPH.nodes.filter(
+      (node) => node.kind === "equity" && node.cluster === BIGGEST,
+    );
+    const oneExtremeInBiggest: ReadonlyMap<Ticker, TopologyAnomalyTreatment> =
+      new Map(
+        biggestEquities.map((node, at) => [
+          node.symbol,
+          at === 0 ? "extreme" : "normal",
+        ]),
+      );
+
+    const stacked = wordsFor(
+      readTopologyFilter(`?sector=${BIGGEST}&band=extreme`),
+      oneExtremeInBiggest,
+    );
+    expect(stacked?.line).toContain("and 1 of those is extreme");
+    expect(stacked?.line).not.toContain("of those are extreme");
+  });
+
   it("says which PARAMETER was not understood, rather than `not a filter we recognise`", () => {
     expect(wordsFor(readTopologyFilter("?band=HIGH"))?.line).toBe(
       "Not a band we score — the whole market is drawn",

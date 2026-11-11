@@ -6038,11 +6038,16 @@ underneath, alongside opening the menu above it — a pre-existing shape (a drag
 answered the same way before this story), newly consequential now that a
 press commits to something.
 
-**Not mechanised, and a judgement call rather than a defect**: whether a
-native context menu over a product's own interactive canvas is a problem is a
-product question, not a correctness one. **Owner: the Product Owner, at this
-story's own Gate 2** — a disposition is owed before Story 6.8 (filtering)
-adds a third kind of press to the same surface.
+**Closed 2026-11-11 at Story 6.8's own Gate 1.** The disposition: **the native
+menu is left alone.** Filter controls (sector, band) live in the region's own
+chrome, never as a third kind of canvas press, so this entry's own firing
+condition — "before Story 6.8 adds a third kind of press to the same
+surface" — never fired. Suppressing a standard browser affordance over a
+product's own canvas was judged to cost something (a reader's own "save image
+as", "inspect") and buy nothing here. **The second, smaller finding is fixed**
+— Task 6.8.2 added the `event.button`/`isPrimary` guard `onPointerDown` was
+missing, so a right-click no longer also moves the node selection; the native
+menu opens over the node that was already there, nothing more.
 
 ## A thinly-traded security's correlations attenuate toward zero, so the edge ranking is biased against exactly the securities a reader can least verify
 
@@ -6544,28 +6549,28 @@ condition is **the last badged hatch leaving this screen**, because at that
 point every hatch a reader can meet on `/` is a degradation and the badge stops
 distinguishing anything at all.
 
-## A counted noun in `topology/filter.ts`' population sentence does not agree with its count, and no store this has run against can reach the state
+## A counted noun in `topology/filter.ts`' population sentence did not agree with its count, and no store this epic has run against could reach the state
 
-**Added 2026-11-11 by Task 6.8.3, which fixed the same defect in the sibling
-sentence and routed this one rather than widening a task.** The band sentence in
-`MarketTopology.tsx` read `1 are high and 1 are extreme` and `1 have not been
-scored yet`; both are repaired, with the house idiom
-(`count === 1 ? "is" : "are"`, `measured-set.ts`' own
-`count === 1 ? "was" : "were"`). The same class of defect is in
-`topologyFilterWords`' population clause — `one of the 501 companies we track
-**are** high`, reachable through `countInWords(1)` — which is a **different
-builder**, with its own unit tests and its own e2e expectations that construct
-the string from a count.
+**Added 2026-11-11 by Task 6.8.3, which fixed the sibling defect in
+`MarketTopology.tsx`'s own band sentence and routed this one rather than
+widening that task.** **Closed the same day by Task 6.8.4, taken up on this
+entry's own cheaper route** rather than left for the first session that
+happens to produce the state. `topologyFilterWords`' population clause read
+`1 of the 501 companies we track **are** high` — `countInWords(1)` returns the
+digit `"1"` rather than a word, so the `count === 1 ? "is" : "are"` idiom this
+sentence's own sibling already used (`isAre`, `MarketTopology.tsx`) was simply
+missing from this builder. Repaired with the same idiom, inline
+(`matchedVerb`), at both of the clause's two call sites (band alone, and band
+stacked with a sector).
 
-**Why it was routed**: the state needs **exactly one** security in the selected
-band or band union, and the one populated store this epic has measured against
-held 122 (`high` plus `extreme`) and 16 (`extreme` alone), so nothing can
-produce it today without furnishing it — while changing the grammar touches
-assertions Tasks 6.8.1 and 6.8.2 wrote around the current strings.
+**Reachable on the deployed product any session where exactly one security is
+`high` or `extreme` alone** — the one populated store this epic has measured
+against held 122 (`high` plus `extreme`) and 16 (`extreme` alone), so the
+defect was a plausible count away rather than hypothetical, the same shape as
+the sibling defect Task 6.8.3 found and fixed. Held by a new unit test
+constructing the exact state by hand (`filter.test.ts`, "spells a matched
+count of exactly 1 with `is`, never `are`"), since no store this epic has
+measured against reaches it — the first mechanical test of this specific
+clause at `count === 1`.
 
-**Re-measure**: `pnpm --filter @marketpulse/frontend test filter` after making
-`narrowing.matched` 1 in a case, and read the clause.
-
-**Owner: the first session where exactly one security is `high` or `extreme`** —
-or, sooner and more cheaply, Story 6.8's own close sweep (Task 6.8.4), which is
-already walking these two builders.
+**Not an entry needing a re-measure or an owner** — closed.

@@ -695,21 +695,28 @@ export function topologyFilterWords(
   }
 
   const matched = countInWords(narrowing.matched);
+  // **`is`/`are` on the matched count, never a bare `are`** — the same defect
+  // `MarketTopology.tsx`'s own `isAre` repairs for the band ring's sentence
+  // (Task 6.8.3, `docs/GAPS.md`): `1 are high` is reachable the first session
+  // exactly one security is `high` or `extreme` alone, and `countInWords`
+  // turns the count into a word rather than a digit, so the verb has to be
+  // chosen beside it rather than read off a literal `1`.
+  const matchedVerb = narrowing.matched === 1 ? "is" : "are";
 
   if (label === null) {
-    const drawn = `${capitalised(matched)} of the ${tracked} companies we track are ${words}`;
+    const drawn = `${capitalised(matched)} of the ${tracked} companies we track ${matchedVerb} ${words}`;
     return {
       line: drawn,
       clause:
         ` Narrowed to ${words}: ${matched} of the ${tracked} companies we` +
-        ` track are ${words}, and only those are drawn. The others are not;` +
+        ` track ${matchedVerb} ${words}, and only those are drawn. The others are not;` +
         LANDMARKS_REMAIN,
     };
   }
 
   const line =
     `${inSector} of the ${tracked} companies we track are in ${label},` +
-    ` and ${matched} of those are ${words}`;
+    ` and ${matched} of those ${matchedVerb} ${words}`;
 
   return {
     line,
