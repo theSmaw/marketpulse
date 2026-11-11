@@ -1,6 +1,10 @@
 /*
- * The sector filter — a `Button` naming the current value, and a panel of
- * twelve links under it (Task 6.8.1).
+ * A filter control — a `Button` naming the current value, and a panel of
+ * links under it (Task 6.8.1 for the sector; **extracted at Task 6.8.2**, when
+ * the band became a second control beside it and the four dismissals,
+ * the two-part label and the chevron would otherwise have been written
+ * twice. `SectorFilter.tsx`'s own note about `Button` is the argument: two
+ * controls side by side that were built twice are two controls that drift).
  *
  * **No colour is spent anywhere in this file**, which is `TimeWindowControl`'s
  * own rule for the same reason: this screen's entire colour budget is the

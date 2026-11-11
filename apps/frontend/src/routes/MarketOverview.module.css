@@ -444,10 +444,54 @@
  * edge the slot already reads from, rather than hanging in the middle of the
  * header.
  */
+/*
+ * **Re-measured 2026-11-11 by Task 6.8.2, which put a THIRD control in this
+ * slot — and the column gap is the whole of the repair.**
+ *
+ * `pnpm probe / --within "Market topology"`, the band control added and this
+ * rule still at a flat `gap: var(--space-8)`:
+ *
+ * | width | header | title  | canvas  | against the two-control baseline
+ * | ----: | -----: | -----: | ------: | -------------------------------
+ * |  1440 |  59 px | 118x22 | 998x413 | unchanged
+ * |  1024 |  95 px | 116x44 | 570x377 | header +36, canvas -36, title WRAPPED
+ * |   768 |  59 px | 118x22 | 686x413 | unchanged
+ * |   390 | 131 px |  61x44 | 308x341 | header +36, canvas -36
+ *
+ * **1024 was seven pixels short, measured rather than guessed.** The three
+ * controls are 170 + 141 + 116 px and the title wants 118: with two 8 px gaps
+ * in the meta that is 443 px against the 444 px left in a 570 px header, and
+ * the title wrapped by **two pixels** — which pushed the meta onto a second
+ * row and took 36 px off the canvas. An 8 px row gap with a **4 px column
+ * gap** spends 8 px fewer across the row and restores 1024 exactly: header
+ * 59 px, title 118x22, canvas 570x413, byte-identical to the baseline. 1440
+ * and 768 are unchanged either way.
+ *
+ * **390 is NOT repaired and that is recorded rather than smoothed.** The
+ * header there has 308 px of content and the three controls want 431 even at
+ * the tighter gap, so the meta takes two rows of its own where Task 6.8.1's
+ * two controls took one: header 95 -> 131 px, canvas 377 -> 341. The title was
+ * already two lines at this width before this task (84x44) and is now 62x44.
+ * **No page movement at any width** — the document's own `scrollHeight` is
+ * 3534 before and after, because row 1 of `.regions` tracks `82vh` and the
+ * canvas absorbs the header's growth, so `MARKET-OVERVIEW.md` §1.4's
+ * displacement trigger does not fire. The capability is present at all four
+ * widths, which is Task 6.8.1's Done-when 6 clause.
+ *
+ * The condition for the next story: **the first story that adds a FOURTH item
+ * to this slot, or that needs the 390 canvas back.** The repair in hand and
+ * not taken is to hide each trigger's subject word below some width and leave
+ * it to the accessible name — which would fit all three controls on one row at
+ * 390 (264 px) and give the title its full 118, at the cost of a sighted
+ * reader there seeing two bare values. That is a design decision with a
+ * measurement behind it rather than a tidy-up, and it belongs to whoever next
+ * has a reason to take it.
+ */
 .topologyMeta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-8);
+  row-gap: var(--space-8);
+  column-gap: var(--space-4);
 }

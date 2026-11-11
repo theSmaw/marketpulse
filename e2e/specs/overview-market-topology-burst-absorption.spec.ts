@@ -125,6 +125,26 @@ async function measureBurstAbsorption(
   page: Page,
   symbols: readonly string[],
   label: string,
+  /**
+   * The address to open — **`/?band=…` is the filtered arm** (Task 6.8.2).
+   *
+   * A band cut re-partitions the drawn set on **every** `setBands` call
+   * (`renderer-canvas.ts`'s `renarrow`), which is work no earlier arm of this
+   * spec paid: 516 nodes re-tested, 2,400 edges re-filtered and six anomaly
+   * groups rebuilt, per batch, inside the same frame budget. That is the one
+   * thing this task could plausibly have put over AC 2's 50 ms ceiling, and it
+   * is measured here rather than argued.
+   *
+   * **The cut REFUSES on this harness, and that is the arm worth having
+   * anyway.** `serveFeed` furnishes no `anomalyBands` section, so the route's
+   * own fallback marks every equity `unscored`, the scored cohort is zero and
+   * the band cut is refused — which means the per-batch cost measured here is
+   * `narrowTopology`'s own full pass plus both re-partitions, taken on the
+   * state CI and every fresh store are permanently in. A drawable cut would
+   * re-partition a SMALLER drawn set, so this is the expensive end rather than
+   * the cheap one.
+   */
+  address: string = OVERVIEW,
 ): Promise<void> {
   await page.addInitScript(RECORDER);
 
@@ -133,7 +153,7 @@ async function measureBurstAbsorption(
   );
 
   const feed = await serveFeed(page, { snapshot: universeObservations });
-  await page.goto(OVERVIEW);
+  await page.goto(address);
 
   const canvas = page
     .getByRole("region", { name: "Market topology" })
@@ -213,14 +233,20 @@ async function measureBurstAbsorption(
   await expectNothingFailedToRender(page);
 }
 
-test("the real subscribed population (516) absorbs 3 consecutive bursts with nothing over the 50 ms ceiling", async ({
-  page,
-}) => {
+/** Every active symbol the running backend tracks. */
+async function trackedSymbols(page: Page): Promise<readonly string[]> {
   const universe = await page.request.get(`${backendOrigin}/securities`);
   const body = (await universe.json()) as {
     readonly securities: readonly { readonly symbol: string }[];
   };
-  const symbols = body.securities.map((security) => security.symbol);
+
+  return body.securities.map((security) => security.symbol);
+}
+
+test("the real subscribed population (516) absorbs 3 consecutive bursts with nothing over the 50 ms ceiling", async ({
+  page,
+}) => {
+  const symbols = await trackedSymbols(page);
 
   expect(symbols.length).toBeGreaterThan(500);
 
@@ -268,4 +294,41 @@ test("a furnished, narrower population (the pre-6.7.1 ~30) absorbs the same 3 bu
   ];
 
   await measureBurstAbsorption(page, symbols, "furnished arm (30 symbols)");
+});
+
+test("the same 3 bursts are absorbed with a BAND FILTER active — Task 6.8.2's own regression arm", async ({
+  page,
+}) => {
+  // **Why this arm exists.** Every earlier arm of this spec measures a batch
+  // that updates the band map and redraws. With `?band=high,extreme` in the
+  // address, the same batch ALSO re-resolves the whole drawn set — see
+  // `measureBurstAbsorption`'s `address` parameter for what that costs — so
+  // this is the arm that would catch a filter implementation that did its
+  // narrowing per frame rather than per change.
+  //
+  // **And the population sentence has to stay right across it**, which is the
+  // half a frame-time figure cannot see: the note has two writers, one at
+  // reader cadence and one at feed cadence, and a batch that rewrote it
+  // wrongly would be a correct frame rate over a wrong figure.
+  const symbols = await trackedSymbols(page);
+
+  expect(symbols.length).toBeGreaterThan(500);
+
+  await measureBurstAbsorption(
+    page,
+    symbols,
+    "real population (516), band filter active",
+    "/?band=high,extreme",
+  );
+
+  // The refusal is the correct sentence on this harness (no furnished
+  // `anomalyBands` section, so nothing is scored) and it is still the
+  // sentence after three bursts — never a stale count, never an empty note.
+  await expect(
+    page
+      .getByRole("region", { name: "Market topology" })
+      .locator("[data-topology-filter-line]"),
+  ).toHaveText(
+    "Nothing here has been scored yet, so the graph can't be narrowed by band.",
+  );
 });

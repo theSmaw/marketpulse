@@ -84,6 +84,32 @@ export interface TopologyHoverTarget {
   readonly treatment: TopologyAnomalyTreatment | null;
 }
 
+/**
+ * **What a reader has narrowed the picture to** (Task 6.8.1 for the sector,
+ * widened Task 6.8.2 for the band).
+ *
+ * One object rather than two parameters, and it is the shape
+ * `topology/filter.ts` already reads off the address — so the mount option,
+ * {@link TopologyRenderer.setFilter} and `readTopologyFilter`'s own answer are
+ * three views of one criterion rather than three argument lists to keep in
+ * step. Widening it is how a third axis would arrive, and the renderer's own
+ * no-op guard compares the two fields rather than the object's identity,
+ * because the component re-reads the address on every render.
+ *
+ * **`bands` is a UNION and `sector` is an INTERSECTION with it.** `high` and
+ * `extreme` together draw either; a sector and a band together draw the
+ * securities in that sector that are also in one of those bands. Empty
+ * `bands` is *every band*, which is not the same claim as *every band listed*
+ * — see `TOPOLOGY_BAND_REFUSAL` for what happens when none of them has been
+ * measured.
+ */
+export interface TopologyFilterCriterion {
+  /** The sector drawn, or `null` for every sector. */
+  readonly sector: Sector | null;
+  /** The bands drawn, in canonical order, or empty for every band. */
+  readonly bands: readonly AnomalyBand[];
+}
+
 /** Which implementation drew. Carried on the renderer so a figure can name it. */
 export type TopologyRendererKind = "canvas" | "sigma";
 
@@ -106,8 +132,11 @@ export type TopologyRendererKind = "canvas" | "sigma";
  * its reading is the precedent for carrying this at all.
  *
  * **`"filter"` is a fourth, added at Task 6.8.1, and it is the only one that
- * is always a CLEARING.** A sector filter that excludes the selected node
- * clears it, and the two things a caller does differently for it are both
+ * is always a CLEARING.** A sector **or band** filter the READER changed that
+ * excludes the selected node clears it — never a live `setBands` that moves
+ * the selected security out of the active band, which reports `"band"` and
+ * keeps the node drawn (Task 6.8.2). The two things a caller does differently
+ * for `"filter"` are both
  * reasons it cannot be folded into `"keyboard"`: the announcement names the
  * security that went (*"NVDA is not in this filter, so the selection was
  * cleared"*, never the generic `Escape` wording), and focus is left exactly
@@ -155,8 +184,8 @@ export interface TopologyRendererOptions {
   /** The graph, from `buildTopologyGraph`. */
   readonly graph: TopologyGraph;
   /**
-   * The sector this picture is narrowed to at MOUNT, or `null`/absent for the
-   * whole market (Task 6.8.1).
+   * The criterion this picture is narrowed to at MOUNT, or absent for the
+   * whole market (Task 6.8.1; widened to carry the band at Task 6.8.2).
    *
    * **A mount option as well as {@link TopologyRenderer.setFilter}, and the
    * reason is the first frame.** A cold load of `/?sector=energy` is an
@@ -165,8 +194,15 @@ export interface TopologyRendererOptions {
    * 480 of them go. The two are not two homes for one fact: this is the
    * criterion a renderer is *born* with and that method is how it is *told* of
    * a change, the same division `bands`/`setBands` already has.
+   *
+   * **A band named here narrows nothing at mount, and that is correct rather
+   * than a gap**: a renderer is born with no treatment map at all, so its
+   * scored cohort is zero and the band cut is refused
+   * (`TOPOLOGY_BAND_REFUSAL`) until the first `setBands` call arrives. A cold
+   * `/?band=high` therefore draws the whole market and says why, then narrows
+   * when the first live batch lands — never an empty market in between.
    */
-  readonly sector?: Sector | null | undefined;
+  readonly filter?: TopologyFilterCriterion | undefined;
   /** Where every node sits, from `buildTopologyLayout`. */
   readonly layout: TopologyLayout;
   /** Every colour and type value, read from tokens. See {@link TopologyPalette}. */
@@ -306,9 +342,9 @@ export interface TopologyRenderer {
    */
   setBands(treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>): void;
   /**
-   * Narrow the drawn graph to one sector, or widen it back to the whole
-   * market with `null` — **without re-mounting and without re-laying-out**
-   * (Task 6.8.1).
+   * Narrow the drawn graph to one sector and/or a set of bands, or widen it
+   * back to the whole market — **without re-mounting and without
+   * re-laying-out** (Task 6.8.1; the band at Task 6.8.2).
    *
    * `setBands`' own contract one subject over, and the same three
    * guarantees: a reader's pan, zoom and (where it survives the criterion)
@@ -330,10 +366,25 @@ export interface TopologyRenderer {
    * the new criterion excludes is reported as `onSelect(null, "filter")`,
    * which is the one selection change no input device made.
    *
+   * **The band half is applied against the LIVE treatment map `setBands`
+   * holds, and that is the whole reason this method and that one share one
+   * re-partition** (Task 6.8.2). The criterion changes at **reader** cadence
+   * and the data it is applied against changes at **feed** cadence, so a band
+   * filter is re-resolved by whichever of the two arrived last — and
+   * `MarketTopology` still takes no prop that moves on a batch, which is the
+   * declined `React.memo` boundary three earlier stories rely on by name.
+   *
+   * **This call clears an excluded selection; a `setBands` call never does.**
+   * A reader who presses a band asked for a different picture, so a selection
+   * the new criterion excludes goes, announced by name. A live batch that
+   * moves a selected security out of the active band is not a reader's act at
+   * all, so the node stays drawn, stays selected and stays reachable.
+   *
    * **A no-op after `destroy()` and a no-op for the criterion already in
-   * force**, same contract as every other method here.
+   * force**, same contract as every other method here — compared field by
+   * field, because the component re-reads the address on every render.
    */
-  setFilter(sector: Sector | null): void;
+  setFilter(criterion: TopologyFilterCriterion): void;
   /**
    * Play the graph-level live-update mark, decaying (Task 6.7.2, Open
    * Decision 1) — a brief, whole-surface highlight saying *a live batch just

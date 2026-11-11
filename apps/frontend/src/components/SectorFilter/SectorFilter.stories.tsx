@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { readTopologyFilter } from "../../topology/index.js";
+import { BandFilter } from "../BandFilter/BandFilter.js";
 import { Region } from "../Region/Region.js";
 import { Button } from "../Button/Button.js";
 import { SectorFilter } from "./SectorFilter.js";
@@ -62,21 +63,29 @@ export const AnUnrecognisedSector: Story = {
 };
 
 /**
- * **In the region header it ships in, beside `Reset view`** — the state that
- * cannot be reviewed from the control alone.
+ * **In the region header it ships in, beside the band control and
+ * `Reset view`** — the state that cannot be reviewed from the control alone,
+ * and the one this story exists for since Task 6.8.2 put a third control in
+ * that slot.
  *
- * The two controls are 8 px apart and are both `Button`s, so what this story
- * is for is whether they read as a pair and whether the panel, when pressed,
- * opens over the region's content rather than being clipped by it.
+ * The three controls are 8 px apart and are all `Button`s, so what this story
+ * is for is whether they read as a set, whether each panel opens over the
+ * region's content rather than being clipped by it, and whether the header
+ * still fits — `MARKET-OVERVIEW.md` §1.4's displacement trigger has fired on
+ * this region three times and `pnpm probe` is where the real figures come
+ * from.
  */
 export const InTheTopologyHead: Story = {
-  args: { filter: readTopologyFilter("?sector=energy&sessions=21") },
+  args: {
+    filter: readTopologyFilter("?sector=energy&band=high,extreme&sessions=21"),
+  },
   render: (args) => (
     <Region
       name="Market topology"
       meta={
         <>
           <SectorFilter {...args} />
+          <BandFilter {...args} />
           <Button variant="secondary" icon="refresh">
             Reset view
           </Button>

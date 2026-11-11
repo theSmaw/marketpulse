@@ -22,6 +22,7 @@ import {
   unscoredAnomalyTreatments,
   useTopologyFilter,
 } from "../topology/index.js";
+import { BandFilter } from "../components/BandFilter/BandFilter.js";
 import { SectorFilter } from "../components/SectorFilter/SectorFilter.js";
 import {
   SectorPerformance,
@@ -1006,6 +1007,22 @@ export function MarketOverview({
                * hidden there.
                */}
               <SectorFilter filter={topologyFilter} />
+              {/*
+               * **The band filter** (Task 6.8.2) — five destinations, four of
+               * them toggles, sharing `FilterDisclosure` with the control
+               * above it rather than being a second copy of its four
+               * dismissals.
+               *
+               * **Beside the sector rather than inside it**, which is a
+               * decision rather than a layout: the two axes are different
+               * kinds of criterion (a curated column against a live
+               * measurement) and a reader stacks them, so two controls each
+               * naming their own subject is what says *sector AND band*. One
+               * combined trigger would have to name both values in one
+               * string, which is the `nowrap` width this header has no room
+               * for at 390.
+               */}
+              <BandFilter filter={topologyFilter} />
               {/*
                * **The band key** (Task 6.3.4) — a static, non-interactive
                * glossary of the four band words, gated on `pnpm probe`

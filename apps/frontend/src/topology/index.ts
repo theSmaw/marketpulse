@@ -47,15 +47,24 @@ export { topologySource } from "./graph-source.js";
 export type { TopologySource } from "./graph-source.js";
 
 export {
+  TOPOLOGY_BAND_PARAM,
+  TOPOLOGY_BAND_REFUSAL,
   TOPOLOGY_SECTOR_PARAM,
   UNFILTERED_TOPOLOGY,
+  narrowTopology,
   narrowTopologyGraph,
   readTopologyFilter,
+  topologyBandPath,
+  topologyBandWords,
+  topologyClearPath,
+  topologyCriterion,
   topologyEquityCount,
+  topologyFilterNames,
   topologyFilterWords,
+  topologyScoredCount,
   topologySectorPath,
 } from "./filter.js";
-export type { TopologyFilter } from "./filter.js";
+export type { TopologyFilter, TopologyNarrowing } from "./filter.js";
 export { useTopologyFilter } from "./use-topology-filter.js";
 
 export {
@@ -90,6 +99,7 @@ export type { TopologyWalkKey } from "./walk.js";
 
 export type {
   TopologyAnomalyTreatment,
+  TopologyFilterCriterion,
   TopologyHoverTarget,
   TopologyRenderer,
   TopologyRendererFactory,

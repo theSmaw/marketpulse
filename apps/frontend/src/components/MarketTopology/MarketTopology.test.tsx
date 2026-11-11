@@ -28,15 +28,11 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { toMarketDate, toTicker } from "@marketpulse/shared";
-import type {
-  Bar,
-  SecurityLastClose,
-  Sector,
-  Ticker,
-} from "@marketpulse/shared";
+import type { Bar, SecurityLastClose, Ticker } from "@marketpulse/shared";
 
 import type {
   TopologyAnomalyTreatment,
+  TopologyFilterCriterion,
   TopologyHoverTarget,
   TopologyRenderer,
   TopologySelectionSource,
@@ -2860,9 +2856,9 @@ describe("the sector filter channel — Task 6.8.1", () => {
     return found[0]?.textContent ?? "";
   };
 
-  const mountOptions = (): { sector?: Sector | null } =>
+  const mountOptions = (): { filter?: TopologyFilterCriterion } =>
     (mountCanvasTopology.mock.calls[0]?.[1] ?? {}) as {
-      sector?: Sector | null;
+      filter?: TopologyFilterCriterion;
     };
 
   const selectChannel = (): ((
@@ -2906,7 +2902,10 @@ describe("the sector filter channel — Task 6.8.1", () => {
       />,
     );
 
-    expect(mountOptions().sector).toBe("energy");
+    expect(mountOptions().filter).toStrictEqual({
+      sector: "energy",
+      bands: [],
+    });
   });
 
   it("mounts with no criterion when the address names none", () => {
@@ -2918,7 +2917,7 @@ describe("the sector filter channel — Task 6.8.1", () => {
       />,
     );
 
-    expect(mountOptions().sector ?? null).toBeNull();
+    expect(mountOptions().filter).toStrictEqual({ sector: null, bands: [] });
   });
 
   it("narrows through setFilter rather than re-mounting, and a press does not reset the frame counter", () => {
@@ -2946,7 +2945,10 @@ describe("the sector filter channel — Task 6.8.1", () => {
       />,
     );
 
-    expect(lastSetFilter).toHaveBeenCalledWith("energy");
+    expect(lastSetFilter).toHaveBeenCalledWith({
+      sector: "energy",
+      bands: [],
+    });
     expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
     expect(mountCanvasTopology.mock.results[0]?.value).toBe(renderer);
     expect(lastDestroy).not.toHaveBeenCalled();
@@ -3019,7 +3021,7 @@ describe("the sector filter channel — Task 6.8.1", () => {
       />,
     );
 
-    expect(mountOptions().sector ?? null).toBeNull();
+    expect(mountOptions().filter).toStrictEqual({ sector: null, bands: [] });
     expect(
       document.querySelector("[data-topology-filter-line]")?.textContent,
     ).toBe("Not a sector we track — the whole market is drawn");
@@ -3150,4 +3152,297 @@ describe("the sector filter channel — Task 6.8.1", () => {
     expect(document.querySelector("a[data-ticker]")).toBeNull();
     expect(lastFocus).toHaveBeenCalledTimes(1);
   });
+});
+
+// **The band filter's channel into this component** (Task 6.8.2).
+//
+// A separate block from the sector's because the thing being tested is
+// different in kind: a sector criterion is a pure function of the prop, and a
+// band criterion's own FIGURES are a cut over the live treatment map — so
+// everything here is about the **two writers** of one population note, one at
+// reader cadence and one at feed cadence, and about the live region staying
+// quiet across both.
+//
+// What this level cannot reach is which nodes the renderer DRAWS under a band
+// cut (jsdom has no 2d context) and whether a selection survives one
+// (`renderer-canvas.ts`'s own `renarrow`) — those are
+// `topology/filter.test.ts`' and `overview-market-topology-filter.spec.ts`'.
+describe("the band filter channel — Task 6.8.2", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+  });
+
+  const UNIVERSE = securitiesFixtureView("full");
+  const universe = () => UNIVERSE;
+
+  const sentence = (): HTMLElement =>
+    screen.getByText(/^A graph of every security we track/u);
+
+  const line = (): string =>
+    document.querySelector("[data-topology-filter-line]")?.textContent ?? "";
+
+  const spoken = (): string => {
+    const found = document.querySelectorAll('[role="status"]');
+    expect(found).toHaveLength(1);
+    return found[0]?.textContent ?? "";
+  };
+
+  const selectChannel = (): ((
+    selected: TopologyHoverTarget | null,
+    source: TopologySelectionSource,
+  ) => void) => {
+    const found = (
+      mountCanvasTopology.mock.calls[0]?.[1] as {
+        onSelect?: (
+          selected: TopologyHoverTarget | null,
+          source: TopologySelectionSource,
+        ) => void;
+      }
+    ).onSelect;
+    if (found === undefined)
+      throw new Error("the renderer was mounted with no onSelect channel");
+    return found;
+  };
+
+  const NVDA: TopologyHoverTarget = {
+    node: {
+      symbol: toTicker("NVDA"),
+      label: "NVIDIA Corporation",
+      kind: "equity",
+      cluster: "technology",
+    },
+    treatment: "extreme",
+  };
+
+  /** Two real tickers out of the recorded universe, banded. */
+  const twoHigh = (): ReadonlyMap<Ticker, TopologyAnomalyTreatment> =>
+    new Map([
+      [toTicker("NVDA"), "high"],
+      [toTicker("AAPL"), "extreme"],
+      [toTicker("MSFT"), "normal"],
+    ]);
+
+  it("REFUSES before any batch has arrived, rather than drawing an empty market", () => {
+    // **The state every fresh mount and every gated run is in**: this browser
+    // has been told nothing about scoring, so the cut has no cohort to apply
+    // itself to. What React commits is the band-blind account, and it is
+    // correct rather than a placeholder.
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=high,extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(line()).toBe(
+      "Nothing here has been scored yet, so the graph can't be narrowed by band.",
+    );
+    expect(sentence().textContent).toContain(
+      "Nothing here has been scored yet",
+    );
+    // Never a figure where the refusal belongs.
+    expect(line()).not.toMatch(/\d/u);
+  });
+
+  it("states the band's own population once a batch has been applied — the FEED-cadence writer", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=high,extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(twoHigh());
+    });
+
+    // Two of the three banded securities are in the cut, read off the map
+    // this component was handed rather than from anything typed.
+    expect(line()).toMatch(
+      /^2 of the \d+ companies we track are high or extreme$/u,
+    );
+    expect(sentence().textContent).toContain("Narrowed to high or extreme");
+    // And the note is NOT re-mounted, which is the memo boundary's own claim:
+    // a batch reaches the renderer imperatively and nothing re-renders.
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+  });
+
+  it("rewrites the population on a PRESS, without waiting for the next batch — the reader-cadence writer", () => {
+    // **The defect this writer exists to prevent.** React's committed string
+    // is band-blind, so without a reader-cadence rewrite a press would read
+    // *nothing here has been scored yet* until the next batch arrived — up to
+    // nine seconds at the feed's measured cadence, and for ever out of hours.
+    const ref = createRef<MarketTopologyHandle>();
+
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(twoHigh());
+    });
+
+    rerender(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    // No second `setBands` call anywhere — this is the press alone.
+    expect(line()).toMatch(/^1 of the \d+ companies we track are extreme$/u);
+    expect(sentence().textContent).toContain("Narrowed to extreme");
+  });
+
+  it("puts the band clause INSIDE the sector's population when both are named", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=technology&band=high,extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(twoHigh());
+    });
+
+    // `NVDA` and `AAPL` are both technology in the recorded universe, so the
+    // intersection is the same two.
+    expect(line()).toMatch(
+      /companies we track are in Technology, and 2 of those are high or extreme$/u,
+    );
+  });
+
+  it("says NOTHING in the live region when a live band update moves the population", () => {
+    // **The one claim in this task that is about a LISTENER.** The population
+    // note is a figure a reader can go and read; a `role="status"` write would
+    // interrupt somebody who asked for nothing, 6.8–16.1 times a minute. The
+    // note and the live region are two elements and no writer touches both.
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=high,extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(twoHigh());
+    });
+    expect(line()).toContain("high or extreme");
+    expect(spoken()).toBe("");
+
+    // A second batch with a genuinely different population — the note moves
+    // and the region is still silent.
+    act(() => {
+      ref.current?.setBands(new Map([[toTicker("NVDA"), "high"]]));
+    });
+
+    // The CRITERION has not moved — still `high or extreme` — only the
+    // population inside it has, which is the whole point of this arm.
+    expect(line()).toMatch(
+      /^1 of the \d+ companies we track are high or extreme$/u,
+    );
+    expect(spoken()).toBe("");
+  });
+
+  it("does not re-report a SELECTION when a live band update re-reports the same node", () => {
+    // `renderer-canvas.ts` calls `onSelect` with source `"band"` after every
+    // batch so the plate's word cannot go stale. With a band cut in force
+    // that call also carries *your selection survived the recomputation* —
+    // and it must still not speak, for the reason one test up.
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=extreme")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const select = selectChannel();
+    act(() => {
+      select(NVDA, "pointer");
+    });
+    expect(spoken()).toContain("Selected NVDA");
+
+    const after = spoken();
+    act(() => {
+      select({ ...NVDA, treatment: "normal" }, "band");
+    });
+
+    // **Byte-identical**, which is what *did not speak* means for a live
+    // region: a re-written identical string is still a mutation a screen
+    // reader may announce, so the assertion is on the write not happening
+    // rather than on the text being right.
+    expect(spoken()).toBe(after);
+    // And the selection is still the reader's — the node did not go with its
+    // band.
+    expect(
+      document.querySelector("a[data-ticker]")?.getAttribute("data-ticker"),
+    ).toBe("NVDA");
+  });
+
+  it("clears both cuts from one `Show all`", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy&band=high&sessions=21")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Show all" }).getAttribute("href"),
+    ).toBe("/?sessions=21");
+  });
+
+  it("draws the whole market and names the PARAMETER when the address says a band we do not score", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?band=HIGH")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountOptionsOf()).toStrictEqual({ sector: null, bands: [] });
+    expect(line()).toBe("Not a band we score — the whole market is drawn");
+  });
+
+  /** The mount criterion, read off the one mount call in this block. */
+  function mountOptionsOf(): TopologyFilterCriterion | undefined {
+    return (
+      mountCanvasTopology.mock.calls[0]?.[1] as {
+        filter?: TopologyFilterCriterion;
+      }
+    ).filter;
+  }
 });

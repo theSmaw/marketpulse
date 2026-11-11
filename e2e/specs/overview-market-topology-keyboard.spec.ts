@@ -201,17 +201,18 @@ async function settledDigest(page: Page): Promise<string> {
  * head, so the expected count is small and is **asserted** rather than used,
  * because a surprising number means a stop appeared that nobody designed.
  *
- * **It was 2 until 2026-11-11 and is 3**, and the assertion did exactly what
- * this docblock says it is for: Task 6.8.1 added the `Sector` filter to this
- * region's head and the count moved, loudly, in the one place that was
- * watching. The three are the section, the sector filter and `Reset view`;
- * the filter's own twelve destinations are **not** stops, because its panel
- * is shut until it is pressed.
+ * **It was 2 until 2026-11-11, then 3, and is now 4** — and the assertion did
+ * exactly what this docblock says it is for, twice in two tasks: Task 6.8.1
+ * added the `Sector` filter to this region's head and Task 6.8.2 added `Band`
+ * beside it, and the count moved loudly both times, in the one place that was
+ * watching. The four are the section, the sector filter, the band filter and
+ * `Reset view`; neither filter's own destinations are stops, because both
+ * panels are shut until they are pressed.
  */
 async function tabToCanvas(page: Page): Promise<number> {
   await topologyRegion(page).focus();
 
-  for (let stops = 1; stops <= 4; stops += 1) {
+  for (let stops = 1; stops <= 5; stops += 1) {
     await page.keyboard.press("Tab");
     if ((await focused(page)).tag === "CANVAS") return stops;
   }
@@ -334,7 +335,7 @@ for (const viewport of [
 
     // **1. Tab lands on the canvas**, and the count is asserted so a stop
     // appearing in this region is a failure rather than a silent extra press.
-    expect(await tabToCanvas(page)).toBe(3);
+    expect(await tabToCanvas(page)).toBe(4);
     expect(await plateState(page)).toBe("idle");
 
     // **2. The first key seeds the centre**, whichever key it is — *focus is

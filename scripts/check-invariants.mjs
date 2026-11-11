@@ -11353,6 +11353,108 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-topology-walk-reads-no-band",
+    claim:
+      "`apps/frontend/src/topology/walk.ts` is a function of the graph and " +
+      "the layout alone — it never reads a treatment, a band, an arrival " +
+      "key, or a bar's own instant. WHICH NODE IS NEXT does not depend on " +
+      "anything that changes at feed cadence.",
+    check() {
+      // **`the-topology-view-reads-no-arrival`'s mechanical sibling (Task
+      // 6.8.2, AC 3)** — the same shape, a third module and a third
+      // forbidden read. Those two checks protect a node's POSITION from
+      // correlation strength and from live data; this one protects a
+      // reader's own POSITION IN THE TREE from the same thing.
+      //
+      // ## Why this file and why now
+      //
+      // Task 6.8.2 added a band filter, which means the graph this walk is
+      // handed is now narrowed by a cut over `setBands`' live treatment map
+      // (`topology/filter.ts`'s `narrowTopology`). That is correct and it is
+      // deliberately the GRAPH rather than this module's business: the walk
+      // keeps taking a graph and answering a symbol, so its membership
+      // changes exactly when the object it was handed does, under the
+      // caller's control.
+      //
+      // The defect this refuses is the next author doing it here instead —
+      // keying `groupOf`'s members, `index.ring`, or the sort inside
+      // `indexGraph` on a band, because *walk the unusual ones first* or
+      // *skip the ones that are not drawn* reads like a tidy local repair.
+      // What it would break is Story 6.4's own rule, settled at that story's
+      // Gate 1 and stated in this module's docblock: **the band must never
+      // move a reader's position under their stationary hands.** The band map
+      // is replaced 6.8–16.1 times a minute on a live page, so a group
+      // ordered or filtered by band re-orders between two presses of
+      // `ArrowRight` and lands a reader somewhere they did not choose — with
+      // every individual answer looking plausible, which is why the module
+      // is pure and unit-tested in the first place.
+      //
+      // ## What it deliberately does NOT flag
+      //
+      // `graph.clusters[].members` and `graph.nodes` are read extensively and
+      // correctly — this file's whole job is stepping through them. The ban is
+      // narrow and keyed on the READ rather than on a type name alone, the
+      // way `no-random-in-the-shared-model` covers four shapes of one reach.
+      // `renderer-canvas.ts` is NOT this check's target: it legitimately
+      // holds the band map, partitions by it and draws a ring from it, so a
+      // check covering that file would be red on correct code.
+      //
+      // Comments are stripped before matching, so this module's own docblock
+      // — which explains at length why ticker order rather than band order —
+      // cannot trip the check it documents.
+      const FILE = "apps/frontend/src/topology/walk.ts";
+      const path = resolve(REPO_ROOT, FILE);
+      const text = withoutComments(readAnchored(path));
+
+      const SHAPES = [
+        { as: "`AnomalyBand`", pattern: /\bAnomalyBand\b/u },
+        {
+          as: "`TopologyAnomalyTreatment`",
+          pattern: /\bTopologyAnomalyTreatment\b/u,
+        },
+        { as: "a treatment", pattern: /\btreatments?\b/iu },
+        { as: "a band", pattern: /\bbands?\b/iu },
+        { as: "`setBands`", pattern: /\bsetBands\b/u },
+        { as: "`arrivalKey`", pattern: /\barrivalKey\b/u },
+        { as: "`observationIdentity`", pattern: /\bobservationIdentity\b/u },
+        { as: "`.startsAt`", pattern: /\.startsAt\b/u },
+      ];
+
+      const offenders = [];
+
+      for (const [index, line] of text.split("\n").entries()) {
+        const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+        if (shape === undefined) continue;
+
+        offenders.push(
+          `${FILE}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${FILE}\` read a band, a ` +
+            "treatment, an arrival key, or a bar's own instant:\n      " +
+            offenders.join("\n      ") +
+            "\n    `walk.ts` answers WHICH NODE IS NEXT, and that must not " +
+            "depend on anything the feed moves. Story 6.4's Gate 1 settled " +
+            "it and this module's docblock states it: a group ordered or " +
+            "filtered by band re-orders under a reader's stationary hands " +
+            "(the map is replaced 6.8–16.1 times a minute), so the next " +
+            "`ArrowRight` lands somewhere they did not choose — and the " +
+            "walk is keyed on a ticker rather than an index precisely so " +
+            "that cannot happen. If a band has to change what a reader can " +
+            "walk to, narrow the GRAPH this function is handed " +
+            "(`topology/filter.ts`'s `narrowTopology`, which the renderer " +
+            "calls on every `setFilter` AND every `setBands`) — the " +
+            "membership then changes exactly when the caller says so, the " +
+            "reader's own selection is pinned through it, and this function " +
+            "stays a pure function of the object it was given.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];
