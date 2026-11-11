@@ -10,6 +10,7 @@ import {
 import type {
   Bar,
   SecurityLastClose,
+  Sector,
   Ticker,
   TopologyCorrelation,
   TopologyGraph,
@@ -25,11 +26,15 @@ import type {
 } from "../../use-securities.js";
 import {
   mountCanvasTopology,
+  narrowTopologyGraph,
+  topologyFilterWords,
   topologyPalette,
+  topologySectorPath,
   topologySource,
 } from "../../topology/index.js";
 import type {
   TopologyAnomalyTreatment,
+  TopologyFilter,
   TopologyHoverTarget,
   TopologyRenderer,
 } from "../../topology/index.js";
@@ -185,6 +190,38 @@ export interface MarketTopologyProps {
   readonly bands?: ReadonlyMap<Ticker, TopologyAnomalyTreatment> | undefined;
 
   /**
+   * **Which sector of the market is drawn, as the ADDRESS says it** (Task
+   * 6.8.1) — `useTopologyFilter()` at the one call site that has one.
+   *
+   * ## A prop rather than a method on {@link MarketTopologyHandle}, and the
+   * ## division is the one `setBands`' own docblock draws
+   *
+   * That method exists because applying a live batch is governed by a
+   * *stateful policy the ROUTE owns* (AC 4/AC 5's held-rather-than-blanked
+   * rule), which is not a value this component could re-derive from its own
+   * props. A filter is the opposite in every respect: it is **state a parent
+   * holds and re-passes**, the parent holds it in the URL rather than in a
+   * `useRef`, and there is no policy — the address says one thing and this
+   * region draws it. A handle method here would be a second home for a fact
+   * whose one home is deliberately the address, and it would make a
+   * shared link and a press two code paths.
+   *
+   * **It changes on a reader's press and never at feed cadence**, so the
+   * module docblock's declined `React.memo` boundary is untouched: its
+   * reversal trigger is *the first prop this region takes that changes at
+   * feed cadence*, and `useTopologyFilter` memoises on the query string,
+   * which a live batch does not move. The mount effect's deps are still
+   * exactly `[topology, probe, sentenceId]` — this prop reaches the renderer
+   * through an effect of its own (below) and, at MOUNT, through a ref read
+   * inside the mount effect, which is what keeps a cold load of
+   * `/?sector=energy` from drawing all 516 nodes for one frame.
+   *
+   * Absent is the whole market, which is what every Storybook story and every
+   * test written before this task passes.
+   */
+  readonly filter?: TopologyFilter | undefined;
+
+  /**
    * Ask for the universe again. `useSecurities().retry`, at every call site.
    *
    * **Required rather than optional** (Task 6.1.3), which is `UniverseTable`'s
@@ -298,6 +335,7 @@ export function MarketTopology({
   relationships,
   probe,
   bands,
+  filter,
   onRetry,
   ref,
 }: MarketTopologyProps) {
@@ -479,6 +517,30 @@ export function MarketTopology({
   }, [universe]);
 
   /**
+   * **The criterion the mount effect reads, and the reason it is a ref
+   * declared HERE** (Task 6.8.1).
+   *
+   * {@link MarketTopologyProps.filter} must reach the renderer's **first
+   * frame**: a cold load of `/?sector=energy` is an ordinary shared link, and
+   * an effect that applied the filter after paint would draw all 516 nodes and
+   * then remove 480 of them. Naming the prop in the mount effect's deps is the
+   * one repair that is not available — that list is `[topology, probe,
+   * sentenceId]` and three documents reason about it, and a filter press would
+   * then re-mount the canvas and destroy the reader's pan.
+   *
+   * So the mount effect reads this ref, which adds no dependency, and
+   * **effects run in declaration order within one commit** — this one is
+   * declared above the mount effect, exactly as {@link lastCloses} is and for
+   * a sharper version of its reason, so on the first mount it has already been
+   * written by the time the renderer is constructed. Every later change is the
+   * `setFilter` effect's, below.
+   */
+  const sectorFilter = useRef<Sector | null>(null);
+  useEffect(() => {
+    sectorFilter.current = filter?.sector ?? null;
+  }, [filter]);
+
+  /**
    * **Built once, read by both the mount effect and the drawn sentence
    * below** (Task 6.2.4). `topologySource` is a pure, memoised function —
    * the same `securities` array gives back the same `{ graph, layout }` by
@@ -521,6 +583,50 @@ export function MarketTopology({
   );
 
   /**
+   * **What a reader's own criterion says about the population — one builder,
+   * two renderings, and the second one is why it is computed HERE** (Task
+   * 6.8.1, AC 1 and AC 7).
+   *
+   * `correlationClause`'s exact shape and its exact reason: the accessible
+   * sentence has **two** authors — this component's JSX and
+   * {@link applyAnomalyBands}, which overwrites `textContent` on every live
+   * band update — so a clause only one of them knew about would be deleted by
+   * the other 6.8–16.1 times a minute. That collision is the one Story 6.8's
+   * AC 7 names in advance, and threading the clause through both writers the
+   * way the measured-edge clause already is is the answer.
+   *
+   * It is read off the **narrowed** graph and the full one together, so the
+   * two figures in it are counts of what is drawn and what is tracked rather
+   * than anything typed — `the-population-is-never-a-literal`'s rule.
+   *
+   * `null` for the whole market, which is an **absence of a clause** rather
+   * than a clause about an absence: see `topologyFilterWords`' own note.
+   */
+  const narrowed =
+    topology === null
+      ? null
+      : narrowTopologyGraph(topology.graph, filter?.sector ?? null);
+
+  const filterWords =
+    topology === null || narrowed === null || filter === undefined
+      ? null
+      : topologyFilterWords(topology.graph, narrowed, filter);
+
+  /**
+   * **Every clause the accessible sentence carries beyond its own structure,
+   * as ONE string** (Task 6.8.1).
+   *
+   * Composed here rather than passed as two parameters because the two
+   * writers' problem is about *how many strings each writer knows about*: one
+   * value is one thing either of them can forget, and a third clause is one
+   * line here rather than a third argument down two call paths. The order is
+   * the reading order — what is drawn, then what was measured — so the
+   * narrowing qualifies the structural sentence it follows rather than the
+   * edge population.
+   */
+  const trailingClauses = `${filterWords?.clause ?? ""}${correlationClause}`;
+
+  /**
    * **`[topology]`, not `[]`** — unlike `resetView`, `setBands` needs the
    * CURRENT graph to rebuild the accessible sentence
    * ({@link applyAnomalyBands}), and `topology` is recomputed per render
@@ -541,7 +647,7 @@ export function MarketTopology({
           sentence,
           topology.graph,
           treatments,
-          correlationClause,
+          trailingClauses,
         );
       },
       markBurst: () => renderer.current?.markBurst(),
@@ -565,7 +671,13 @@ export function MarketTopology({
     // this component held when the handle was last made. It is a **string**,
     // so the dependency compares by value and the handle is recreated exactly
     // once — when the measurement settles — rather than on every render.
-    [topology, correlationClause],
+    //
+    // **It is `trailingClauses` since Task 6.8.1**, which folds the filter's
+    // own clause in beside it for the identical reason — a band write that
+    // closed over a stale criterion would silently un-say *narrowed to
+    // Energy* on the next live batch. Still a string, so a filter press
+    // recreates the handle once and a quiet render never does.
+    [topology, trailingClauses],
   );
 
   /**
@@ -630,6 +742,14 @@ export function MarketTopology({
     try {
       mounted = mountCanvasTopology(container, {
         graph: topology.graph,
+        /*
+         * **The criterion the FIRST frame is drawn with** (Task 6.8.1) — read
+         * from a ref rather than from the prop, which is what keeps this
+         * effect's deps at `[topology, probe, sentenceId]`; see
+         * {@link sectorFilter} for why a cold `/?sector=energy` cannot be left
+         * to the filter effect below.
+         */
+        sector: sectorFilter.current,
         layout: topology.layout,
         palette: topologyPalette(),
         probe,
@@ -664,7 +784,34 @@ export function MarketTopology({
          * canvas reaches React state at all** (Task 6.4.2).
          */
         onSelect: (selectedTarget, source) => {
+          /*
+           * **The selection that was, for the one source that has to name it**
+           * (Task 6.8.1). A filter clearance reports `null` — there is nothing
+           * selected afterwards — so the only place the security that went is
+           * still known is here, one assignment before it is overwritten.
+           */
+          const departed = chosen.current;
           chosen.current = selectedTarget;
+
+          /*
+           * **A filter excluded the selection: its own sentence, and no focus
+           * move** (Task 6.8.1).
+           *
+           * Two things differ from every other clearance and both are
+           * deliberate. The sentence **names the security**, because a reader
+           * who pressed `Energy` and heard *Selection cleared.* has been told
+           * that something happened and not what — where `Escape` is the
+           * reader clearing the thing they are looking at and needs no name.
+           * And `keyboardSelection` is left exactly as it was: a filter press
+           * is not the reader changing input device, and the control their
+           * hands are on is in the region's own chrome, where focus belongs
+           * and already is.
+           */
+          if (source === "filter") {
+            writeTopologyFilterClearance(announcement.current, departed);
+            show();
+            return;
+          }
           // **The device, remembered rather than acted on here** (Task
           // 6.4.3). Focus can only be moved once React has rendered the
           // anchor this selection makes openable, which is the effect below;
@@ -879,9 +1026,29 @@ export function MarketTopology({
       sentence,
       topology.graph,
       bands,
-      correlationClause,
+      trailingClauses,
     );
-  }, [bands, topology, correlationClause]);
+  }, [bands, topology, trailingClauses]);
+
+  /**
+   * **The filter's own channel, kept apart from the mount effect for
+   * {@link MarketTopologyProps.bands}' exact reason** (Task 6.8.1).
+   *
+   * Folding this into the mount effect would re-mount the canvas on every
+   * press — destroying the reader's pan, their zoom and their selection, and
+   * resetting the frame counter — which is precisely what Story 6.8's
+   * rewritten AC 3 forbids and what `MarketTopology.test.tsx` asserts on the
+   * producer side.
+   *
+   * **It fires on the first commit too, and that is harmless rather than
+   * wasted**: the renderer was mounted with the same criterion a few
+   * microseconds earlier (through {@link sectorFilter}), and
+   * `TopologyRenderer.setFilter` early-returns on a criterion that has not
+   * moved. A no-op by construction, not by luck.
+   */
+  useEffect(() => {
+    renderer.current?.setFilter(filter?.sector ?? null);
+  }, [filter]);
 
   if (universe.state === "loading") {
     return (
@@ -1003,7 +1170,7 @@ export function MarketTopology({
          * replace rather than two to reconcile. See
          * {@link correlationClause} for why both writers carry the clause.
          */}
-        {`${topologyDrawnSentence(topology.graph)}${correlationClause}`}
+        {`${topologyDrawnSentence(topology.graph)}${trailingClauses}`}
       </p>
       {/*
        * **What the keyboard does, attached to the thing a key press can
@@ -1078,6 +1245,47 @@ export function MarketTopology({
        * `Movers`' held-row lesson — a region that changes height steps the
        * whole lower page — carried from rows to lines.
        */}
+      {/*
+       * **What this region is narrowed to, and the way back** (Task 6.8.1,
+       * AC 1) — drawn only while something IS narrowed, which is
+       * `topologyFilterWords`' own absence rule rather than an empty box.
+       *
+       * ## One string, two renderings
+       *
+       * The line is `topologyFilterWords(...).line` and the accessible
+       * sentence's clause is composed from the same call — ADR 0029's
+       * one-fact-one-home rule satisfied the way `measured-set.ts` satisfies
+       * it, a drawn sentence and its spoken twin built once. The figures are
+       * counted off the two graphs, never typed.
+       *
+       * ## `Show all` is a `<Link>`, like every other control on this surface
+       *
+       * Resolved at render from the address this filter was read out of, so
+       * `one-home-for-imperative-navigation` has nothing to find —
+       * `topologySectorPath`'s own note. It is the no-match state's required
+       * way back (`STORY.md`'s Work item) and it is drawn in every narrowed
+       * state rather than only that one, because a reader who has narrowed to
+       * a sector wants the same control whether it matched or not.
+       *
+       * ## Positioned like the plate, and it inherits the plate's own caveat
+       *
+       * Absolutely positioned inside the frame, so it takes no room in the
+       * region's height — `MARKET-OVERVIEW.md` §1.4's displacement trigger
+       * does not fire. It is translucent for the plate's measured reason and
+       * it covers canvas the same way the plate does; the ring is drawn
+       * centred, so the top-left corner is the emptiest ground available.
+       */}
+      {filterWords !== null && (
+        <p className={styles.filterNote} data-topology-filter="narrowed">
+          <span data-topology-filter-line="">{filterWords.line}</span>{" "}
+          <Link
+            className={styles.filterClear}
+            to={topologySectorPath(filter?.search ?? "", null)}
+          >
+            Show all
+          </Link>
+        </p>
+      )}
       <div className={styles.readout} ref={plate} data-topology-readout="idle">
         <p className={styles.readoutIdle} data-readout="idle">
           {TOPOLOGY_READOUT_IDLE}
@@ -1551,6 +1759,44 @@ function writeTopologyAnnouncement(
 }
 
 /**
+ * **What a reader is told when a filter takes their selection away** (Task
+ * 6.8.1) — and it names the security, which is the whole difference from
+ * {@link topologyAnnouncement}'s own clearance sentence.
+ *
+ * `Escape` and a click on empty canvas are the reader clearing the thing they
+ * are looking at, so *Selection cleared.* is complete. A sector press is a
+ * reader asking for a different **picture**, and the selection going with it
+ * is a consequence they did not ask for — so the sentence says which security
+ * went and why, in the reader's own vocabulary (*this filter*), never in the
+ * product's (*the criterion*, *excluded*).
+ *
+ * **It is a function so the string has one home and a test can read it**, the
+ * same reason `topologyAnnouncement` is exported beside it.
+ */
+export function topologyFilterClearance(departed: TopologyHoverTarget): string {
+  return `${departed.node.symbol} is not in this filter, so the selection was cleared.`;
+}
+
+/**
+ * Write one filter clearance into the announcement region (Task 6.8.1).
+ *
+ * **Nothing is written when there was no selection to lose**, which is the
+ * ordinary case: a reader who narrows the graph having selected nothing has
+ * had nothing taken from them, and a live region speaking about it would be
+ * this surface announcing a non-event. `renderer-canvas.ts` only reports this
+ * source when it actually clears something, so the guard is a type narrowing
+ * rather than a second opinion.
+ */
+function writeTopologyFilterClearance(
+  region: HTMLElement | null,
+  departed: TopologyHoverTarget | null,
+): void {
+  if (region === null || departed === null) return;
+
+  region.textContent = topologyFilterClearance(departed);
+}
+
+/**
  * What this region says to a screen reader once the graph is drawn — a
  * canvas has no accessible content of its own, so this is the ONLY account
  * of it one gets (Task 6.2.4, Story 6.1's acceptance criterion 7).
@@ -1697,18 +1943,23 @@ function applyAnomalyBands(
   sentence: RefObject<HTMLParagraphElement | null>,
   graph: TopologyGraph,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
-  correlationClause: string,
+  /**
+   * Every clause the sentence carries beyond the structure and the bands —
+   * the filter's and the measurement's, composed by the caller (Task 6.8.1,
+   * where this was `correlationClause` alone).
+   */
+  clauses: string,
 ): void {
   renderer.current?.setBands(treatments);
 
   if (sentence.current !== null) {
-    // **The correlation clause is re-appended here**, because this write
-    // replaces the whole string. Without it the measured-edge clause would
-    // survive exactly as long as the next live batch took to arrive — the
-    // two-writers problem `correlationClause`'s own note describes, and the
-    // reason the clause is a parameter rather than something this function
-    // could work out for itself.
-    sentence.current.textContent = `${topologyAnomalySentence(graph, treatments)}${correlationClause}`;
+    // **The trailing clauses are re-appended here**, because this write
+    // replaces the whole string. Without them the measured-edge clause and
+    // the filter's own population clause would survive exactly as long as the
+    // next live batch took to arrive — the two-writers problem
+    // `trailingClauses`' own note describes, and the reason they are a
+    // parameter rather than something this function could work out for itself.
+    sentence.current.textContent = `${topologyAnomalySentence(graph, treatments)}${clauses}`;
   }
 }
 

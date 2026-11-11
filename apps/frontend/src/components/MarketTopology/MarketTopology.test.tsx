@@ -28,7 +28,12 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { toMarketDate, toTicker } from "@marketpulse/shared";
-import type { Bar, SecurityLastClose, Ticker } from "@marketpulse/shared";
+import type {
+  Bar,
+  SecurityLastClose,
+  Sector,
+  Ticker,
+} from "@marketpulse/shared";
 
 import type {
   TopologyAnomalyTreatment,
@@ -36,6 +41,7 @@ import type {
   TopologyRenderer,
   TopologySelectionSource,
 } from "../../topology/index.js";
+import { readTopologyFilter } from "../../topology/index.js";
 import {
   FIXTURE_REQUEST_ID,
   LOADING_UNIVERSE,
@@ -107,17 +113,22 @@ let lastFocus = vi.fn();
 /** Same reason as {@link lastDestroy}, for `markBurst` (Task 6.7.2). */
 let lastMarkBurst = vi.fn();
 
+/** Same reason as {@link lastDestroy}, for `setFilter` (Task 6.8.1). */
+let lastSetFilter = vi.fn();
+
 function createFakeRenderer(): TopologyRenderer {
   const frames = 1;
   lastDestroy = vi.fn();
   lastSetBands = vi.fn();
   lastFocus = vi.fn();
   lastMarkBurst = vi.fn();
+  lastSetFilter = vi.fn();
   return {
     kind: "canvas",
     resize: vi.fn(),
     reset: vi.fn(),
     setBands: lastSetBands,
+    setFilter: lastSetFilter,
     markBurst: lastMarkBurst,
     focus: lastFocus,
     framesDrawn: () => frames,
@@ -2810,5 +2821,333 @@ describe("the accessible sentence's measured-edge clause — Task 6.5.2", () => 
     // Both facts, in one sentence, after the imperative write.
     expect(text).toContain("1 are high");
     expect(text).toContain("1 pair, reaching 2 of the");
+  });
+});
+
+// **The sector filter's channel into this component** (Task 6.8.1).
+//
+// What this level can prove is *which calls this component makes and when*,
+// plus the two strings it writes — which is the half of this behaviour that is
+// a decision. jsdom has no 2d context, so what the renderer DRAWS under a
+// filter is `overview-market-topology-filter.spec.ts`', and what it hides is
+// `topology/filter.test.ts`' (the narrowing is pure) and `walk.test.ts`'
+// (the keyboard agrees with it).
+describe("the sector filter channel — Task 6.8.1", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+    mountCanvasTopology.mockImplementation(() => createFakeRenderer());
+  });
+
+  /**
+   * **One universe, held across every render in this block** — exactly what
+   * `use-securities.ts` gives `/` between batches. A fresh
+   * `securitiesFixtureView("full")` per render is a NEW array, which is a real
+   * reason to re-mount, and a test that built one per render would prove
+   * nothing about a filter press. (Found by writing it the other way first:
+   * the no-remount assertion below failed with two mounts.)
+   */
+  const UNIVERSE = securitiesFixtureView("full");
+  const universe = () => UNIVERSE;
+
+  /** The structural sentence, by its one stable opening. */
+  const sentence = (): HTMLElement =>
+    screen.getByText(/^A graph of every security we track/u);
+
+  /** The `role="status"` region — the one live region in this component. */
+  const spoken = (): string => {
+    const found = document.querySelectorAll('[role="status"]');
+    expect(found).toHaveLength(1);
+    return found[0]?.textContent ?? "";
+  };
+
+  const mountOptions = (): { sector?: Sector | null } =>
+    (mountCanvasTopology.mock.calls[0]?.[1] ?? {}) as {
+      sector?: Sector | null;
+    };
+
+  const selectChannel = (): ((
+    selected: TopologyHoverTarget | null,
+    source: TopologySelectionSource,
+  ) => void) => {
+    const found = (
+      mountCanvasTopology.mock.calls[0]?.[1] as {
+        onSelect?: (
+          selected: TopologyHoverTarget | null,
+          source: TopologySelectionSource,
+        ) => void;
+      }
+    ).onSelect;
+    if (found === undefined)
+      throw new Error("the renderer was mounted with no onSelect channel");
+    return found;
+  };
+
+  const NVDA: TopologyHoverTarget = {
+    node: {
+      symbol: toTicker("NVDA"),
+      label: "NVIDIA Corporation",
+      kind: "equity",
+      cluster: "technology",
+    },
+    treatment: "extreme",
+  };
+
+  it("mounts with the criterion already in hand, so a shared link's first frame is the narrowed one", () => {
+    // **The reason the mount effect reads a ref** — see `sectorFilter`'s own
+    // docblock. Without it a cold `/?sector=energy` paints 516 nodes and then
+    // removes 480 of them, which is a flash no assertion below a browser
+    // would see and every reader of a shared link would.
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountOptions().sector).toBe("energy");
+  });
+
+  it("mounts with no criterion when the address names none", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountOptions().sector ?? null).toBeNull();
+  });
+
+  it("narrows through setFilter rather than re-mounting, and a press does not reset the frame counter", () => {
+    // **Story 6.8's rewritten AC 3, on the producer side.** The wire cannot
+    // see a re-mount that happens to draw the same picture; the mount call
+    // count, the renderer's own identity and `framesDrawn()` can.
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const renderer = mountCanvasTopology.mock.results[0]?.value as
+      TopologyRenderer | undefined;
+    const framesBefore = renderer?.framesDrawn();
+
+    rerender(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(lastSetFilter).toHaveBeenCalledWith("energy");
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+    expect(mountCanvasTopology.mock.results[0]?.value).toBe(renderer);
+    expect(lastDestroy).not.toHaveBeenCalled();
+    expect(renderer?.framesDrawn()).toBe(framesBefore);
+  });
+
+  it("states the population it narrowed to, in the sentence AND on screen, from one builder", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const line =
+      document.querySelector("[data-topology-filter-line]")?.textContent ?? "";
+    expect(line).toContain("Energy");
+    expect(line).toContain("we track");
+
+    // **The two FIGURES are what has one home, not the string.** The drawn
+    // line and the spoken clause are two renderings of one builder's one
+    // answer — the line is the criterion and the count, the clause is that
+    // plus what happened to everything else — so the assertion is that the
+    // counts agree, which is the thing that could drift.
+    const figures = line.match(/\d[\d,]*/gu) ?? [];
+    expect(figures).toHaveLength(2);
+    expect(sentence().textContent).toContain("Narrowed to Energy");
+    for (const figure of figures) {
+      expect(sentence().textContent).toContain(figure);
+    }
+  });
+
+  it("draws no note at all for the whole market", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(document.querySelector("[data-topology-filter]")).toBeNull();
+    expect(sentence().textContent).not.toContain("Narrowed to");
+  });
+
+  it("offers a way back to the whole market, as a link resolved at render", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy&sessions=21")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const back = screen.getByRole("link", { name: "Show all" });
+    // The filter goes and nothing else in the address does.
+    expect(back.getAttribute("href")).toBe("/?sessions=21");
+  });
+
+  it("draws the whole market and says so when the address names something that is not a sector", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=Energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountOptions().sector ?? null).toBeNull();
+    expect(
+      document.querySelector("[data-topology-filter-line]")?.textContent,
+    ).toBe("Not a sector we track — the whole market is drawn");
+    expect(sentence().textContent).toContain("Not a sector we track");
+  });
+
+  it("keeps the filter clause through a live band update — the two-writers collision, a third time", () => {
+    // AC 7's own named risk: the sentence has two authors, and a clause only
+    // the JSX knew about is deleted by the next batch, 6.8–16.1 times a
+    // minute.
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setBands(new Map([[toTicker("NVDA"), "high"]]));
+    });
+
+    const text = sentence().textContent;
+    expect(text).toContain("1 are high");
+    expect(text).toContain("Narrowed to Energy");
+  });
+
+  it("announces a selection the filter excluded by NAME, never the generic clearing", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const select = selectChannel();
+    act(() => {
+      select(NVDA, "pointer");
+    });
+    expect(spoken()).toContain("Selected NVDA");
+
+    act(() => {
+      select(null, "filter");
+    });
+
+    expect(spoken()).toBe(
+      "NVDA is not in this filter, so the selection was cleared.",
+    );
+    expect(spoken()).not.toBe("Selection cleared.");
+  });
+
+  it("says nothing when a filter clears nothing", () => {
+    // A reader who narrows the graph having selected nothing has had nothing
+    // taken from them, and a live region speaking about it would be this
+    // surface announcing a non-event.
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      selectChannel()(null, "filter");
+    });
+
+    expect(spoken()).toBe("");
+  });
+
+  it("does not drop a keyboard reader to the body when the filter takes their anchor away", () => {
+    // **Verified rather than assumed**, which is this task's own Work item:
+    // the dropped-focus recovery (`anchorHeldFocus` + `activeElement ===
+    // document.body`) was written for the pointer crossing a different node,
+    // and a filter clearance is a NEW trigger for the same removal. The
+    // reader's hands are on the filter control in the region's chrome, so the
+    // correct behaviour is that focus is left exactly where they put it — and
+    // the one thing that must not happen is `<body>`.
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const select = selectChannel();
+    act(() => {
+      select(NVDA, "keyboard");
+    });
+
+    // The anchor exists and holds focus, which is the state the recovery is
+    // written against.
+    // Queried by its attribute rather than by role: the anchor's accessible
+    // name is written imperatively (the plate's own standing condition, so
+    // React's diff never touches these nodes), so at this instant it has none
+    // for `getByRole` to match on. `data-ticker` is what the browser specs
+    // read it by, for the same reason.
+    const anchor = document.querySelector("a[data-ticker]");
+    expect(anchor).not.toBeNull();
+    expect(document.activeElement).toBe(anchor);
+
+    act(() => {
+      select(null, "filter");
+    });
+
+    // **The anchor is gone and the existing recovery fired** — which is the
+    // answer this test was written to find out rather than to confirm: both
+    // of its conditions (`anchorHeldFocus`, and nobody holding focus since)
+    // are met by this new trigger, so the reader is put back on the canvas
+    // rather than left on `<body>`.
+    //
+    // **In the real product this path is usually NOT taken, and that is also
+    // correct**: a reader who pressed the filter control has focus on that
+    // control, so the second condition fails and focus stays where they put
+    // it. jsdom has no control here — the press is simulated at the renderer's
+    // own callback — so what this level reaches is the `<body>` branch, which
+    // is the one that would be the defect.
+    //
+    // `lastFocus` is a spy, so `document.activeElement` does not actually
+    // move here; where focus physically lands is
+    // `overview-market-topology-keyboard.spec.ts`'.
+    expect(document.querySelector("a[data-ticker]")).toBeNull();
+    expect(lastFocus).toHaveBeenCalledTimes(1);
   });
 });

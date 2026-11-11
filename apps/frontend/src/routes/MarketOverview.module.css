@@ -395,8 +395,59 @@
  * *the first story that grows this region's header at 390, or narrows the
  * Reset view control enough to leave room beside it*.
  */
-@media (width <= 390px) {
+/*
+ * **Re-measured 2026-11-11 by Task 6.8.1, and the condition the 2026-11-03
+ * note named has FIRED**: *the first story that grows this region's header at
+ * 390*. The sector filter is a third item in a slot that already did not fit
+ * at one of the four widths, so the answer is two rules rather than one.
+ *
+ * `pnpm probe / --within "Market topology"`, with the filter control in the
+ * slot and this file unchanged — the header's own content width, what the meta
+ * needs, and what it had left for the title:
+ *
+ * | width | header content | meta needs | title had | measured
+ * | ----: | -------------: | ---------: | --------: | --------
+ * |  1440 |          998px |      517px |     473px | title 118x22, content 998x413
+ * |  1024 |          570px |      517px |      45px | title 37x44, content 570x403
+ * |   768 |          686px |      517px |     161px | title 118x22, content 686x413
+ * |   390 |          308px |      282px |      18px | title 10x44, content 308x403
+ *
+ * So the legend fits at 1440 and 768 and **does not at 1024**, where this
+ * region sits in a column 570 px wide rather than running the full width as it
+ * does at 768 — the two widths are not ordered the way a reader would assume,
+ * which is why this is a measurement rather than a breakpoint.
+ */
+@media (width <= 1024px) {
   .topologyLegend {
     display: none;
   }
+}
+
+/*
+ * **This region's own meta row, and the one thing it changes is that it
+ * WRAPS** (Task 6.8.1).
+ *
+ * `Panel.meta` is a nowrap flex row shared by eight regions and `.headings`
+ * carries `min-width: 0`, so a meta too wide for its header does not wrap —
+ * it squeezes the region's TITLE, which at 390 measured as `Market topology`
+ * at **10 px wide over two lines** with the header grown 59 -> 69 px and the
+ * canvas losing exactly that 10 px. A clipped title is the same defect Task
+ * 3.1's masthead had at 390 and was fixed the same way: the thing that cannot
+ * fit beside takes a row of its own.
+ *
+ * **It is a wrapper this region passes rather than a change to `Panel`**,
+ * because seven other headers hold one short item each and have no need of
+ * it — and `flex-wrap` on the shared rule would change how every one of them
+ * behaves the first time somebody's meta grew.
+ *
+ * `justify-content: flex-end` so a wrapped row stays against the right-hand
+ * edge the slot already reads from, rather than hanging in the middle of the
+ * header.
+ */
+.topologyMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8);
 }

@@ -460,6 +460,19 @@ const topologyRegion = (page: Page) =>
 /** The plate's ticker, as an anchor — present only when something is openable. */
 const tickerAnchor = (page: Page) => plate(page).getByRole("link");
 
+/**
+ * **The sector filter, as this region's control enumeration sees it** (added
+ * 2026-11-11 by Task 6.8.1).
+ *
+ * The four `toStrictEqual` sets below are deliberately exhaustive — *a surface
+ * whose every affordance has been counted* — and they went red the moment this
+ * region grew a second control, which is the whole reason they are written
+ * that way. It is one entry rather than twelve: the filter's own destinations
+ * are inside a panel that is shut until it is pressed, so a reader who has not
+ * pressed it has exactly one more thing here than they had before.
+ */
+const SECTOR_FILTER_CONTROL = "button · Sector All sectors";
+
 /** Every activatable thing in the region, as `role · name`, sorted. */
 async function regionControls(page: Page): Promise<readonly string[]> {
   const region = topologyRegion(page);
@@ -637,6 +650,7 @@ test("clicking a node selects it — a drawn ground, one anchor, and the address
   await expect(tickerAnchor(page)).toHaveCount(0);
   expect(await regionControls(page)).toStrictEqual([
     "button · Reset view — the market topology",
+    SECTOR_FILTER_CONTROL,
   ]);
 
   const before = await darkPixelsAround(page, at);
@@ -675,6 +689,7 @@ test("clicking a node selects it — a drawn ground, one anchor, and the address
   expect(pathNow(page)).toBe("/");
   expect(await regionControls(page)).toStrictEqual([
     "button · Reset view — the market topology",
+    SECTOR_FILTER_CONTROL,
     `link · ${security.symbol}`,
   ]);
 
@@ -863,6 +878,7 @@ test("a drag that ends over a different node selects neither end", async ({
   await expect(tickerAnchor(page)).toHaveCount(0);
   expect(await regionControls(page)).toStrictEqual([
     "button · Reset view — the market topology",
+    SECTOR_FILTER_CONTROL,
   ]);
   expect(pathNow(page)).toBe("/");
 
@@ -890,6 +906,7 @@ test("activating the one anchor produces exactly one outcome — AC 6's determin
   // spec happened to click.
   expect(await regionControls(page)).toStrictEqual([
     "button · Reset view — the market topology",
+    SECTOR_FILTER_CONTROL,
     `link · ${security.symbol}`,
   ]);
 

@@ -750,3 +750,129 @@ running on the machine, to separate this story's own headed-arm
 contention noise from a genuine cost — named above and in `docs/GAPS.md`,
 owned by the same future rehearsal (Story 6.9) that owns watching the
 deployed correlation edges for the first time.
+
+## 8. A reader can narrow the graph to one sector (Story 6.8, Task 6.8.1, 2026-11-11)
+
+**The topology drew all 516 nodes, always, and `PRODUCT_SPEC.md`'s own
+filtering scope item for this epic had never been built.** It is built now, on
+one axis: a control in the region's chrome, `?sector=<slug>` in the address, a
+population sentence with one builder and two renderings, and a renderer that
+hides what is excluded without re-laying-out anything.
+
+### 8.1 The narrowing is a GRAPH, not a predicate
+
+`apps/frontend/src/topology/filter.ts`'s `narrowTopologyGraph(graph, sector)`
+answers a narrower `TopologyGraph`: the equities outside the sector are gone,
+every edge whose endpoint went is gone with it, and every other cluster keeps
+its row and loses its `members`. **All fifteen landmarks stay** — Gate 1's
+settled Open Decision 2, because they are the keyboard walk's own tree and a
+reader who narrowed to `ENERGY` must be able to walk out of it.
+
+That shape is the whole of why the renderer, the pointer hit-test and the
+keyboard walk agree **by construction**: `walk.ts` is handed the narrowed
+object and needed no change at all; `hit-test.ts` is handed the narrowed
+candidate array; the draw loop walks re-partitioned views of the same
+mount-built arrays. A `visible(symbol)` predicate threaded through the three
+would have been three places for one fact.
+
+**`buildTopologyLayout` keeps running over the whole 516-node universe**, and
+`pnpm invariants`' `the-topology-layout-is-built-from-the-whole-universe`
+refuses the obvious alternative in two directions: a second call site anywhere
+under `topology/`, and a narrowing inside `graph-source.ts` between the
+`securities` array and the build. Two `pnpm break` entries, one per clause.
+A filtered sector therefore draws small inside the full frame — the reader's
+own zoom and `Reset view` are the way in — which is what keeps Epic 7's
+server/browser coordinate agreement intact.
+
+### 8.2 What a filtered-out landmark looks like, and why it is not alpha
+
+A sector ETF whose own sector is excluded draws **the same square, the same
+solid fill, at 0.6× its ink in `--ink-secondary`** (`FILTERED_LANDMARK_INK_SCALE`,
+`TopologyPalette.landmarkMuted`). Two channels, both surviving `grayscale(1)`,
+neither of them transparency — Gate 1's own two constraints. It cannot be
+confused with `unscored`, which is a hollow `--ink-disabled` outline on a
+full-size **circle** belonging to an **equity**: different shape, different
+fill state, different ink, different size, and disjoint populations.
+
+**Only a sector ETF can be muted**, which falls out of the model rather than
+being arranged: `cluster === null` on the four proxies and the hub is a
+complete answer, so a filter over sectors has nothing to say about them.
+
+### 8.3 The population, and the sentence's third clause
+
+`topologyFilterWords` is one builder with two renderings — the visible note
+over the canvas (`21 of the 501 companies we track — Energy`, with a
+`Show all` link) and the clause appended to the accessible sentence. The
+figures are counted off the full and narrowed graphs, never typed.
+
+**The clause is threaded through BOTH sentence writers**, which is Story 6.8's
+AC 7 and a collision this region has now met three times: the sentence has two
+authors — this component's JSX and `applyAnomalyBands`, which overwrites
+`textContent` on every live band update — so a clause only one of them knew
+about would be deleted by the other 6.8–16.1 times a minute. The two trailing
+clauses are composed into one `trailingClauses` string for exactly that reason:
+one value is one thing either writer can forget.
+
+**An unrecognised slug draws the whole market and says so** — never a silent
+snap, never zero nodes — and the note never echoes what the address named.
+
+### 8.4 What it cost the chrome, measured
+
+`pnpm probe / --within "Market topology"` with the control in the slot, before
+any repair. Header content width, what the meta needed, what was left for the
+title:
+
+| width | header content | meta needs | title had | measured                         |
+| ----: | -------------: | ---------: | --------: | -------------------------------- |
+|  1440 |          998px |      517px |     473px | title 118×22, content 998×413    |
+|  1024 |          570px |      517px |      45px | **title 37×44**, content 570×403 |
+|   768 |          686px |      517px |     161px | title 118×22, content 686×413    |
+|   390 |          308px |      282px |      18px | **title 10×44**, content 308×403 |
+
+So the band legend fits at 1440 and 768 and **not at 1024**, where this region
+sits in a 570 px column rather than running the full width as it does at 768 —
+the two widths are not ordered the way a reader would assume. The legend is
+hidden at `width <= 1024px`, which fires the condition Task 6.3.4's own note
+named in advance (_the first story that grows this region's header at 390_).
+
+At 390 two controls and a title do not fit at all, so this region's meta
+**wraps** — a wrapper this region owns rather than `flex-wrap` on the shared
+`Panel.meta`, which seven other headers have no need of. The cost, after the
+repair: 1440/1024/768 are **unchanged to the pixel** (content 998/570/686 ×
+413, header 59, title 118×22), and 390 is **header 59 → 95, canvas 413 → 377**
+with the title intact over two lines. The region's own height is unchanged, so
+**the page does not step** — the canvas absorbs it.
+
+### 8.5 Three defects found by looking, none visible to anything mechanical
+
+1. **`SECTORALL SECTORS`** — the trigger's two spans had a CSS margin between
+   them and no text node, so the gap was a thing a sighted reader saw and a
+   listener did not: the accessible name was one word. Read off the element
+   rather than off the screen; repaired with a literal space.
+2. **The open panel's twelve sector names were right-aligned**, because
+   `Panel.meta` is `text-align: right` and a popup inherits it. A list of names
+   is read down its first letter.
+3. **`Show all` ran straight on from the sentence** — `…we track — Energy Show
+all` — a control indistinguishable from the end of the prose it follows.
+   Separated and always underlined, which is not the plate's hover-only rule
+   because this is a link in a line of prose rather than a column in a table.
+
+### 8.6 What no gated machine will ever see, and what no person has checked
+
+**This is the first topology feature a gated machine can verify end to end**,
+and it is the same exception Story 6.2 found: the filter is a function of the
+universe request and the `sector` column on it, so
+`overview-market-topology-filter.spec.ts` recomputes the drawn population from
+its own `GET /securities` and compares. CI's zero-bar store cannot stop it.
+
+What nobody has seen: **the muted landmark treatment and the narrowed picture
+against a real feed**, and **no person has used this control** — the figures
+above are a headless browser's. A narrowed graph with live bands arriving is
+reachable only on a deployment or a populated laptop store.
+
+**One asymmetry is deliberately unrepaired and is named here rather than
+quietly left**: `setFilter` clears a selection the new criterion excludes, and
+the existing dropped-focus recovery (`anchorHeldFocus` + `activeElement ===
+document.body`) was **verified against this new trigger rather than assumed** —
+it fires, and lands the reader on the canvas. In the real product it usually
+does not need to, because the reader's hands are on the control they pressed.

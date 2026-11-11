@@ -6593,4 +6593,70 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-topology-view-reads-no-arrival",
   },
+  {
+    name: "the-topology-layout-is-built-from-a-filtered-universe",
+    proves:
+      "`the-topology-layout-is-built-from-the-whole-universe`'s second and " +
+      "third clauses go red on the defect Story 6.8's own Open Decision 2 " +
+      "names: narrow the universe in `graph-source.ts`, so a filtered " +
+      "sector is laid out fresh and re-arranges itself to fill the frame " +
+      "(Task 6.8.1).\n\n" +
+      "**The plant is the next author's own temptation rather than an " +
+      "absurdity.** A sector of 21 equities drawn at the full market's " +
+      "scale is a small cluster in a big frame, and the obvious repair " +
+      'to "it looks tiny" is to lay out what is drawn instead of what is ' +
+      "tracked \u2014 one line, in the one file that already holds both the " +
+      "array and the builder.\n\n" +
+      "**Nothing else would catch it, and it LOOKS better.** `tsc` is " +
+      "happy: the filtered array is a `readonly Security[]` like any " +
+      "other. Every structural test over the layout stays green, because a " +
+      "layout over 36 nodes still places each one once, still clears the " +
+      "footprint and still bounds correctly. What breaks is a reader's pan " +
+      "and zoom (every press becomes a jump), the single-picture-under-" +
+      "absence property (CI's filtered graph and production's would differ " +
+      "in SHAPE rather than only in ink), and the server/browser " +
+      "coordinate agreement Epic 7's `highlight_graph_nodes` needs \u2014 " +
+      "none of which any assertion in this repository reads.\n\n" +
+      "**The substitution APPENDS and keeps the found line**, which is " +
+      "`CLAUDE.md`'s own rule added 2026-10-16: a break whose replacement " +
+      "deletes its own `find` goes red twice, from neither the check being " +
+      "proved nor the defect planted.",
+    file: "apps/frontend/src/topology/graph-source.ts",
+    find: "  const universe = buildTopologyGraph(securities);",
+    replace:
+      "  const universe = buildTopologyGraph(securities);\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const drawnUniverse = buildTopologyGraph(\n" +
+      "    securities.filter((security) => security.sector !== null),\n" +
+      "  );\n" +
+      "  void drawnUniverse;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-layout-is-built-from-the-whole-universe",
+  },
+  {
+    name: "a-second-topology-layout-call-site",
+    proves:
+      "`the-topology-layout-is-built-from-the-whole-universe`'s FIRST " +
+      "clause \u2014 the call-site count \u2014 goes red on the same defect " +
+      "arriving at the other end: a fresh `buildTopologyLayout` inside the " +
+      "renderer's own `setFilter`, over the narrowed graph it has just " +
+      "computed (Task 6.8.1).\n\n" +
+      "**A second break for a second clause, because they catch different " +
+      "authors.** The entry above is somebody editing the module that owns " +
+      "the layout; this is somebody editing the module that owns the " +
+      "filter, who has a narrowed graph in hand and a frame that does not " +
+      "re-fit to it. The positive clause " +
+      "(`buildTopologyGraph(securities)` by bare name) cannot see this one " +
+      "at all \u2014 `graph-source.ts` is untouched by it \u2014 which is why " +
+      "the check counts call sites across the whole module as well as " +
+      "reading the one file.",
+    file: "apps/frontend/src/topology/renderer-canvas.ts",
+    find: "      walkGraph = narrowTopologyGraph(graph, sector);",
+    replace:
+      "      walkGraph = narrowTopologyGraph(graph, sector);\n" +
+      "      // pnpm break: reverted automatically\n" +
+      "      void buildTopologyLayout(walkGraph);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-layout-is-built-from-the-whole-universe",
+  },
 ];
