@@ -1122,3 +1122,39 @@ own ink-percentage argument (currently 2.87–4.3% depending on which model
 measures it — `docs/GAPS.md`'s label-collision entry has the discrepancy) is
 untested at this scale and may need its own re-derivation before a frame-rate
 figure means anything.
+
+## Amended 2026-11-12 by Task 6.9.1, at Epic 6's own close — the universe count is stale, and the "unmeasured against your two §28 lines" claim is now half-true rather than wholly true
+
+**The node/edge count above is dated and the epic has moved twice since.**
+`518 nodes / 514 edges` was the universe as it stood before Task 2.3.9
+untracked `PSKY`/`WBD` (516 securities, 2026-10-12) and before Story 6.5
+shipped `return_correlation` edges (2026-11-07). **The real shipped graph is
+516 nodes and ~2,372 edges** — 512 membership edges plus roughly 1,853
+correlation edges on the deployed store's own first scored session — not the
+514-edge figure quoted above, which predates correlation edges entirely.
+
+**And the standing claim — "the shipped renderer's standing against your two
+§28 lines is unmeasured" — is no longer true of the FIRST line.** Story 6.7
+built the `--live` arm this hand-off anticipated (`scripts/
+topology-instrument.mjs`, route-level, driving the real `/` route rather than
+Storybook) and ran it against the real, full 516-node/~2,372-edge graph with
+continuous pan and zoom concurrent with real socket bursts: **16.7 ms median
+frame time — the 60 FPS line exactly — on every arm of every run**, both the
+software-rendered regression floor and a real Apple M3 GPU (clean across the
+great majority of frames on three independent runs, with isolated,
+non-reproducible single-frame anomalies recorded honestly rather than
+smoothed away; `docs/GAPS.md` carries the real-GPU contention caveat this
+hand-off's own machine is subject to). **This is a real-scale measurement of
+§28's first line (500 nodes / 5,000 edges) at the size this product actually
+runs today — not your own 5,000/25,000 synthetic target**, which remains
+exactly as unmeasured and exactly as yours as this hand-off originally said.
+The condition for your own work is unchanged: **the first synthetic-mode
+measurement at scale.**
+
+**One more fact worth carrying into that measurement, from Story 6.8**: the
+sector/band filter shipped as a **hide**, not a re-layout — `ADR 0048`'s
+Decision 3 (closed-form, weight-blind layout) was extended by this same task
+to also be **filter-blind**, so a filtered view costs the renderer nothing
+beyond skipping already-laid-out nodes; your synthetic-mode instrument does
+not need a filtered arm to answer §28's question, because filtering changes
+what is drawn, never what is computed to lay it out.

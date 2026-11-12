@@ -230,3 +230,49 @@ reversal condition is _the first nightly pass that stores a distribution of a
 factor's own quantity_ — and when it fires, the composite's band floors move in
 the same commit, because every quantile behind `32 / 63 / 73` was measured on a
 **two-factor, max-75** scale.
+
+## Handed here by Story 6.9's close — 2026-11-12 (Task 6.9.1), at Epic 6's own close: the topology is a surface a `WorkspaceCommand` can address, and two of its own facts are not addressable at all
+
+**Epic 6 built the market-as-a-graph region on `/` and gave it a selection
+model, a keyboard tree walk and a filter — all of it driven by pointer and
+keyboard today, with no agent in the loop.** `CLAUDE.md`'s invariant 2 says an
+agent manipulates **typed application state**, never markup, through
+schema-validated `WorkspaceCommand` objects executed against trusted,
+pre-existing components — `focusSymbols`, `openPriceChart`, `compareSymbols`,
+`setTimeWindow`, `pinEvidence`, and so on. This is the hand-off naming which
+of this epic's own identifiers are the stable addresses such a command would
+reference, and which of its live facts have no address to reach at all.
+
+**The stable address is `symbol` — a ticker — exactly as it is everywhere
+else in this product.** `TopologyNode.symbol` is the same string
+`focusSymbols` already addresses on every other surface (`Movers`, `Sector
+performance`, the security page). A `focusSymbols(["NVDA"])` command, if
+extended to drive this region, selects the node the same way a pointer click
+does today (`MarketTopologyHandle`'s own imperative surface, Story 6.4) —
+there is **no second identifier to invent**. `Sector` is the second stable
+address: the eleven sector names are a closed, curated enum
+(`packages/shared/src/universe.ts`), not a live computation, so a command
+addressing "the Technology cluster" has a name to hold rather than a
+coordinate — coordinates themselves are never a legitimate command target,
+because `buildTopologyLayout`'s positions are a derived, closed-form output
+Epic 7's own hand-off above already names as something a tool reads rather
+than writes.
+
+**Two live facts this region draws have no stable address at all, and a
+command cannot target what has none.** The sector/band **filter** (Story 6.8)
+lives in the URL query string and component state, never in a typed object a
+command schema could validate against — "filter to Technology" is
+addressable only by constructing the URL, not by a `WorkspaceCommand` shape
+this epic's own protocol would recognise. And the anomaly **band** a node is
+currently drawing (`TopologyAnomalyTreatment`, `apps/frontend/src/topology/
+renderer.ts`) is frontend-only live state, re-partitioned on every batch —
+never a property of `TopologyNode` a command's effect could read back to
+confirm it landed. A command that says "select every `extreme` node" would
+have nothing server-side to validate the claim against; the only source of
+truth for who is currently `extreme` is the same frontend state the renderer
+itself holds, re-read at call time rather than addressed by name.
+
+**Nothing in this epic reads any of this today** — this is a hand-off ahead
+of the need, in the same spirit as Story 6.1's own hand-offs to Epics 7, 13
+and 14: found going to verify sideways coherence at Epic 6's own close,
+rather than by this epic's own decomposition finding it cold.

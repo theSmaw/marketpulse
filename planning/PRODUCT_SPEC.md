@@ -733,6 +733,26 @@ Later:
 
 To avoid an unreadable graph, the system should retain only the strongest N relationships per node.
 
+> **Amended 2026-11-12 by Task 6.9.1 — all five node encodings above are now
+> closed by a named story, and the edge properties are shipped as written.**
+> **Size** is refused outright, in writing, with a reversal trigger (Story
+> 6.6: every candidate quantity either omits securities or inverts the
+> hierarchy it would claim to show). **Intensity** is the signed price
+> direction, read in the selected node's own readout plate rather than as
+> node ink (Story 6.7). **Shape/icon** shipped with the renderer itself — a
+> circle/square/diamond ladder by security kind (Story 6.2) — and was only
+> recorded as answering this spec item at Story 6.6's own close. **Border**
+> is the anomaly-band ring, four treatments in the node's own reserved
+> annulus (Story 6.3). **Cluster** is the sector wedge every equity sits in
+> (Story 6.2). Of the three edge relationships: common industry and ETF/index
+> ship as curated membership edges (Story 6.2); strong historical return
+> correlation ships as a nightly-computed, significance-tested edge kind
+> (Story 6.5), with **the strongest N relationships per node** realised as a
+> measured `N = 5` (Story 6.5.3). Supply chain, ownership and fundamental
+> similarity remain in this section's own "Later" list, untouched.
+> [`TOPOLOGY.md`](epic-06-market-topology/TOPOLOGY.md) carries the fuller
+> account and is where a reader should go for any figure, not here.
+
 ---
 
 # 11. Unusual activity detection
@@ -1658,11 +1678,37 @@ and `STREAM-SEAM.md` §8.9.
 
 **60 FPS during normal interaction on a representative laptop.**
 
+> **Amended 2026-11-12 by Task 6.9.1 — measured for the first time (Story
+> 6.7), against the real shipped graph rather than this line's own figure.**
+> The tracked universe is **516 nodes and ~2,372 edges** (512 membership +
+> up to 1,860 correlation), not 500/5,000 — the 5,000-edge figure is the
+> **synthetic** target below, confirmed never to have been this one. Taken
+> during pan, zoom and a live update firing concurrently, both headless
+> (the CI-reachable regression floor) and `--headed` on a real GPU (the
+> authoritative figure): **16.7 ms median frame time on every arm of both**,
+> at the 60 FPS line exactly. Headless was clean — zero gaps over 50 ms,
+> zero `longtask`/`long-animation-frame` entries over 50 ms — across two
+> full runs. The headed arm held the same median on every arm of three
+> independent runs, with isolated, non-reproducible single-frame anomalies
+> on 6 of 12 arm-runs, attributed to this specific development machine's own
+> measured real contention (a VM, a videoconferencing client and a browser
+> all independently active) rather than a reproducible product cost — a
+> from-rest sitting with nothing else running remains open, named in
+> `docs/GAPS.md`. `TOPOLOGY.md` §7 carries the full figures.
+
 ### Synthetic topology
 
 5,000 nodes / 25,000 edges:
 
 **>45 FPS during pan/zoom.**
+
+> **Amended 2026-11-12 by Task 6.9.1 — confirmed unattempted, by scope,
+> Epic 14's to take.** This epic's own `EPIC.md` names this target as
+> something "no story in this epic builds," and nothing shipped here
+> exercises it: the real tracked universe (516 nodes) is the only graph
+> this epic's renderer, layout or live-update mechanism has ever drawn.
+> Epic 14's own `EPIC.md` carries this epic's hand-off in words it can act
+> on (Task 6.9.1).
 
 ### UI responsiveness
 
