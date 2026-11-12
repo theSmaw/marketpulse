@@ -564,3 +564,54 @@ clause refusing an edge read in `packages/shared/src/topology-layout.ts`
 — keyed on the **read** rather than on a type name, the way
 `no-random-in-the-shared-model` covers four shapes of one reach — plus
 its `pnpm break`, lands with this amendment (Task 6.6.3).
+
+## Amended 2026-11-11 by Task 6.9.1, recording Story 6.8's own close — Decision 3 extends to be filter-blind, the same reasoning as weight-blind
+
+**Owed since Story 6.8's own Gate 1** ("an ADR amendment if Open Decision 2
+resolves to 'hide' — a dated amendment to ADR 0048, not a new ADR") and
+written here rather than left standing as an unmet promise.
+
+Story 6.8 settled hide over dim for its sector/band filter: an excluded
+equity draws no ink and is skipped by the keyboard walk, but
+`buildTopologyLayout` is never re-run over the filtered set, and placements
+are looked up by symbol from the one, unfiltered layout. The reasoning is
+the same shape Decision 3's weight-blind extension (above, Task 6.6.3)
+already established, with the input changed from an edge's weight to a
+reader's own filter criterion:
+
+- **The server/browser coordinate agreement** Epic 7's `highlight_graph_nodes`
+  needs holds only if the server's own `buildTopologyLayout` call — which
+  has no reader's filter to apply — and the browser's agree on where a node
+  sits. A filtered layout would mean the same security sits in a different
+  place depending on who is looking and what they typed into an address bar.
+- **The single-picture-under-absence property** (`graph-source.test.ts`'s
+  own layout-identity anchor) would otherwise fail: CI's filtered graph and
+  a populated deployment's would differ in _shape_, not only in which
+  equities draw ink.
+- **A reader's own pan, zoom and selection** survive a filter press only
+  because nothing about the mount effect's own dependencies — and nothing
+  about where a node is drawn — changes when the filter does.
+
+`apps/frontend/src/topology/filter.ts`'s own module docblock states this
+decision in exactly these terms (Task 6.8.1): _"the filter narrows the
+GRAPH, and that is Gate 1's decision rather than an implementation
+choice... `buildTopologyLayout` is NOT re-run."_ The mechanical half is
+`the-topology-layout-is-built-from-the-whole-universe` (`pnpm invariants`,
+Task 6.8.1) — exactly one call site of `buildTopologyLayout` under
+`apps/frontend/src/topology/`, passed the whole `securities` array by bare
+name, with two `pnpm break` entries (one per authoring mistake a future
+story could make: narrowing before the build, or narrowing inside the
+renderer's own filter handler).
+
+**Decision 3 is now closed-form, weight-blind AND filter-blind**, by the
+same reasoning in all three cases: the layout is a pure function of the
+curated universe alone, and every later kind of "less to draw" — a
+measured edge weight, a reader's own criterion — is the renderer's business
+to express in ink, never the layout's to re-arrange for.
+
+**Reversal trigger, unchanged from Decision 3's own.** The condition above
+("the first consumer that needs two securities' measured relationship
+expressed as distance rather than as ink") already covers this case too: a
+filter that wanted to _re-flow_ the market into the filtered subset's own
+shape would be exactly that consumer, and would reopen Decision 3 as a
+whole rather than only its filter-blind half.

@@ -512,3 +512,50 @@ something to approximate from today's model.
 [ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)'s
 Decision 2 is the full account and its own reversal trigger; `TOPOLOGY.md` is
 where this epic's own subject-document chain continues.
+
+## Amended 2026-11-12 by Task 6.9.1, at Epic 6's own close — the hand-off above is stale on exactly the point it called out as a future arrival, and one more fact is owed that was never yours to read
+
+**"No edge carries a strength today, by design" is now false, and the hand-off
+above named the condition under which it would become so.** Story 6.5 shipped
+`return_correlation` edges, and `packages/shared/src/topology.ts`'s own
+`TopologyEdge` is now a union:
+
+```ts
+export type TopologyEdge = TopologyMembershipEdge | TopologyCorrelationEdge;
+```
+
+`TopologyMembershipEdge` carries no weight, exactly as before — a membership
+still has no strength. `TopologyCorrelationEdge` carries a **required**
+`weight: number` (a signed Pearson `r`, Fisher-z significance-tested before
+being retained) — required rather than optional, because a correlation edge
+that exists at all is one this product has already decided is worth drawing,
+and an optional field would let a caller forget to ask the question rather
+than being handed an answer. **So `highlight_graph_nodes` or
+`set_graph_encoding` reading an edge's own `kind` field can now tell a
+membership from a measurement, and only the second carries a `weight` to
+rank or threshold by** — read `kind` first, never assume every edge in
+`graph.edges` is one shape.
+
+**One thing this epic's own model still does NOT carry, and it is not an
+oversight**: a node's current anomaly band. `TopologyAnomalyTreatment`
+(`AnomalyBand | "unscored"`) lives in `apps/frontend/src/topology/renderer.ts`
+and nowhere in `packages/shared` — it is **live application state**, pushed
+to a running browser on the overview aggregate's own `anomalyBands` wire
+section (Story 6.3), re-partitioned on every batch (Story 6.7's `setBands`),
+never a property `buildTopologyGraph` or `buildTopologyLayout` computes or
+returns. **If `set_graph_encoding` or `highlight_graph_nodes` needs to act
+on a security's current band, that is a read of the same composite-score
+source the frontend already reads — `session_composite_scores` via the
+overview aggregate, or its own backend route — never an addition to the
+graph model.** Treating the model as if it already carried this would be
+inventing a second, server-side copy of a fact the frontend owns live, and
+the two would disagree the moment a batch landed between the two reads.
+
+**A further fact, new since the original hand-off, and purely positional**:
+a reader's own sector/band filter (Story 6.8) lives in the URL and in
+component state, never in the shared model either — `packages/shared`'s own
+graph and layout are, and stay, a function of the curated universe alone
+(`ADR 0048`'s Decision 3, now also **filter-blind**, per this same task's own
+amendment to that ADR). An agent acting on "what the reader currently sees"
+would need the address bar's own query string, not anything this epic's
+model can answer by itself.

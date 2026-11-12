@@ -614,7 +614,13 @@ history) or inverts the hierarchy it would claim to show (`iex` volume
 runs 3.54%–15.19% inversely with liquidity, so a volume-sized graph would
 draw thinly-traded names **larger**) — and a node has exactly one radius,
 so it cannot express "we don't know" the way the anomaly ring's hollow
-`unscored` state can. Six independent shaping roles converged on this
+`unscored` state can. **That inversion is [ADR 0045](../../docs/adr/0045-a-cross-tape-comparison-and-what-a-ratio-is-a-ratio-of.md)'s
+own finding arriving at a second encoding** — volume is a level across
+tapes, not a ratio within one, and the same cross-tape measurement Story
+5.5 took to refuse a volume numerator over a `sip` baseline is exactly
+what disqualifies `iex` volume as a node-size proxy here: the quantity
+is cheap to read and wrong in the direction that matters most. Six
+independent shaping roles converged on this
 recommendation for different reasons (interaction budget, plate line
 count, legend space, greyscale channel collision with the band ring, a
 focus-ring/anomaly-ring clearance arithmetic that was already tighter
