@@ -145,12 +145,12 @@ per the edit above.
 **The sideways hand-offs — four walked, one found missing.**
 
 - **Epic 7** — `planning/epic-07-deterministic-investigation-engine/
-  EPIC.md`. Its existing hand-off (Story 6.1's close, 2026-10-30) claimed
+EPIC.md`. Its existing hand-off (Story 6.1's close, 2026-10-30) claimed
   "no edge carries a strength today, by design... `TopologyEdge` has no
   `weight` field." **Confirmed stale by reading the real current types**
   (`grep -an` on `packages/shared/src/topology.ts`, required for the same
   file(1) misdetection): `TopologyEdge = TopologyMembershipEdge |
-  TopologyCorrelationEdge`, and `TopologyCorrelationEdge` carries a
+TopologyCorrelationEdge`, and `TopologyCorrelationEdge` carries a
   **required** `weight: number`. Wrote a dated amendment: correlation
   edges now exist with real weight and a reader should check `kind` before
   assuming every edge is shaped alike; the anomaly band/treatment
