@@ -1,6 +1,13 @@
 # Story 6.9 — The Rehearsal, the Sweep, & Epic 6's Close
 
-**Status:** Not started
+**Status:** Gate 1 approved 2026-11-12 — decomposed into four tasks.
+
+**Settled at Gate 1**: the real-session rehearsal (AC3) is **waived rather than
+taken now** — the Product Owner's own call, recorded as a dated, owned waiver
+in Task 6.9.3 rather than silently skipped or left to block the close. The
+waiver's own condition and owner are written where the waiver itself is
+recorded, per this repository's own rule that a waiver with no owner fails
+the build.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.8
 **Epic scope covered:** the close
