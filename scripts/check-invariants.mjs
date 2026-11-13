@@ -308,6 +308,22 @@ const REHEARSAL_LEDGER_EPICS = [
       "planning/epic-05-anomaly-detection/" +
       "story-07-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
   },
+  // **Epic 6, added 2026-11-13 by Task 6.9.3's own close.** The epic reached
+  // its close with this entry still missing, which is exactly the gap this
+  // list's own comment names — a story that measured a constraint for its
+  // epic's own close and never wrote it into the mechanism that enforces it.
+  // One row exists (6.7), and it is waived rather than watched: Task 6.9.3
+  // wrote the dated, owned waiver in the same change that adds this entry,
+  // so the first run of `pnpm invariants` against this epic sees a waiver
+  // already in place rather than a row the gate would otherwise refuse.
+  {
+    epic: "6",
+    rowPattern: /^\|\s*6\.\d+\s*\|/u,
+    rowFloor: 1,
+    closeStoryPath:
+      "planning/epic-06-market-topology/" +
+      "story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md",
+  },
 ];
 
 /**
