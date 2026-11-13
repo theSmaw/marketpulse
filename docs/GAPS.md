@@ -6574,3 +6574,30 @@ measured against reaches it — the first mechanical test of this specific
 clause at `count === 1`.
 
 **Not an entry needing a re-measure or an owner** — closed.
+
+## Story 6.8's sector/band filter has never been drawn on the design canvas
+
+**Added 2026-11-12 by Task 6.9.2, found while verdicting every topology-related
+canvas page against what shipped.** `727b5b14-fe78-47c1-9d9c-fb84b6ce5280`'s
+full file listing (33 pages) has `The graph at rest.dc.html` (Story 6.1) and
+`Hover, select, and the way out.dc.html` (Story 6.4) but no page for the
+sector/band filter controls, the hide-vs-de-emphasize treatment, or the
+sector/band query-string surface Story 6.8 shipped — confirming the condition
+this story's own "Design work" section named at Gate 1 ("there was no topology
+page on the canvas when this epic began") is still true for this surface
+specifically, not merely true in general.
+
+**Why it is not mechanisable**: whether a canvas page exists for a shipped
+treatment is a fact about a design-tool project, readable only by a `DesignSync`
+call — no local check can grep the canvas (the same structural blind spot
+`The mark multiplied by five hundred.dc.html` §08 names for stale story
+numbers). A check here would need to run outside `pnpm verify`'s no-network,
+no-credentials contract.
+
+**Re-measure**: `DesignSync.list_files` against the canvas project ID above;
+confirm no page's title or content names the sector/band filter.
+
+**Owner: the first story that next touches the topology's filter UI** — the
+condition is a design change to that surface, at which point the chain
+`canvas → VISUAL-LANGUAGE.md → tokens.css → components` needs a canvas page to
+start from rather than reverse-engineering one from the shipped component.
