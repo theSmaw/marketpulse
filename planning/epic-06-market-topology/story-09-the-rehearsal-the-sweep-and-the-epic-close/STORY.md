@@ -1,6 +1,8 @@
 # Story 6.9 — The Rehearsal, the Sweep, & Epic 6's Close
 
-**Status:** Gate 1 approved 2026-11-12 — decomposed into four tasks.
+**Status:** Complete — 2026-11-13, accepted at Gate 2. All four tasks closed;
+Epic 6 closed in the same gate (this story's exit criterion is also the
+epic's own).
 
 **Settled at Gate 1**: the real-session rehearsal (AC3) is **waived rather than
 taken now** — the Product Owner's own call, recorded as a dated, owned waiver
@@ -8,6 +10,17 @@ in Task 6.9.3 rather than silently skipped or left to block the close. The
 waiver's own condition and owner are written where the waiver itself is
 recorded, per this repository's own rule that a waiver with no owner fails
 the build.
+
+**Settled at Gate 2**: `TOPOLOGY.md` §10.6's carried-over question — whether
+the Sector/Band/Reset view controls staying present and inert over a
+degraded topology reads as consistent or as broken — was put to the Product
+Owner with Task 6.9.4's own recommendation (consistent, for the same
+already-settled reason `Reset view` itself was never hidden under failure)
+and accepted as stated, no change made.
+
+**Task PRs**: 6.9.1 [#683](https://github.com/theSmaw/marketpulse/pull/683),
+6.9.2 [#684](https://github.com/theSmaw/marketpulse/pull/684), 6.9.3
+[#685](https://github.com/theSmaw/marketpulse/pull/685), 6.9.4 — this close.
 **Epic:** [Epic 6 — Market Topology](../EPIC.md)
 **Depends on:** 6.8
 **Epic scope covered:** the close

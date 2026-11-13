@@ -161,8 +161,7 @@ first thing that gate has ever caught; a waived row carries a date, a reason and
 an `Owner:`, **a waiver with no owner fails the build**, and every
 `pnpm invariants` run prints the waiver until somebody clears it.
 
-**Epic 6 (Market Topology): eight of nine stories complete, 2026-11-11, and
-a reader can now narrow the graph and trust it when the data is thin.**
+**Epic 6 (Market Topology): complete, nine stories, closed 2026-11-13.**
 Story 6.1 decided and built the market-as-a-graph
 model (`packages/shared`, 516 nodes, 512 edges, a closed-form deterministic
 layout) and measured two real renderer candidates against each other —
@@ -510,6 +509,35 @@ original finding was watching for. The native context-menu question Story
 third kind of press to the canvas; the real bug beside it (a right-click
 also moving the selection) is fixed. `TOPOLOGY.md` §8–§10 carry the fuller
 account.
+
+**And Story 6.9 closed the epic on 2026-11-13, leaving no new product
+capability and an exit criterion met in half.** `/`'s topology is
+unchanged by this story — it is the record Epic 6 leaves behind: all 63
+acceptance criteria across Stories 6.1–6.8 verdicted in one table (62
+Met, 1 vacuous by correct design — node size, refused rather than
+shipped); both of §28's topology targets published (60 FPS **met**, at
+Story 6.7's own 16.7 ms median figure against the real 516-node/~2,372-
+edge graph; the synthetic 5,000-node target confirmed Epic 14's and
+unattempted); and the exit criterion's own two halves stated separately
+rather than rounded into one verdict — _smoothly_ **met**, _visually
+obvious_ **owed rather than met**, because the one instrument that could
+answer it is a person watching the graph against a real session, and
+that sitting is waived rather than taken, as a dated, Product-Owner-owned
+decision (`LIVE-REHEARSAL.md` row 6.7) naming all seven things it would
+check. Two real, previously-unnoticed `docs/GAPS.md` defects were found
+and fixed in the same sweep: two entries had each named specific later
+stories as the likely fixer of a gap, all of those stories had since
+shipped, and none of them acted — both now point forward to a real
+condition instead of a stale list of names. Epic 6 is now registered in
+`REHEARSAL_LEDGER_EPICS`, closing the gap where the mechanical gate that
+refuses an epic's close over an unwatched rehearsal row did not know
+this epic existed. The one open design question this epic carried into
+its own close — whether the Sector/Band/Reset view controls staying
+present and inert over a degraded topology reads as consistent or as
+broken — was settled at Gate 2 as **consistent**, for the same reason
+`Reset view` was never hidden under failure in the first place, with no
+code change. `TOPOLOGY.md` remains the maintained account of every
+figure this epic produced; this file restates none of them.
 
 ### What a user can see today
 

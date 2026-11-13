@@ -1,6 +1,23 @@
 # Epic 6 — Market Topology
 
-**Status:** **Decomposed into NINE stories on 2026-10-30; Stories 6.1 and 6.2 complete, seven remain.** **The theme question is SETTLED the same day: light theme only**, which is the cheapest moment it could have been answered — this epic's renderer is the first that reads the design tokens from a **canvas**, so a second ground would have doubled the surface of a renderer that did not exist yet. **The renderer question is also settled, by measurement rather than by the spec's own recommendation**: a hand-rolled Canvas2D module, not Sigma.js/WebGL — [ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md) is the decision and [`TOPOLOGY.md`](TOPOLOGY.md) is the subject document, written at Story 6.1's own close rather than deferred to this epic's.
+**Status:** **Complete — closed 2026-11-13 at Story 6.9's own Gate 2.** All
+nine stories shipped. The exit criterion below is met in half and owed in
+half, stated plainly rather than rounded up: _smoothly_ has a number and the
+number is met (§28's 60 FPS, Story 6.7's real 16.7 ms median figure);
+_visually obvious_ has no instrument, only a person's judgement, and the
+rehearsal that would have returned it was waived rather than taken — a
+dated, owned waiver in `LIVE-REHEARSAL.md` row 6.7, naming all seven things
+that sitting would have checked. [`TOPOLOGY.md`](TOPOLOGY.md) is the
+maintained account of what shipped and carries every figure; nothing here
+restates them. **The theme question was settled 2026-10-30: light theme
+only**, which was the cheapest moment it could have been answered — this
+epic's renderer is the first that reads the design tokens from a
+**canvas**, so a second ground would have doubled the surface of a renderer
+that did not exist yet. **The renderer question was also settled, by
+measurement rather than by the spec's own recommendation**: a hand-rolled
+Canvas2D module, not Sigma.js/WebGL — [ADR 0048](../../docs/adr/0048-the-topology-renderer-chosen-by-measurement-where-the-graph-model-lives-and-why-the-layout-is-closed-form.md)
+is the decision and [`TOPOLOGY.md`](TOPOLOGY.md) is the subject document,
+written at Story 6.1's own close rather than deferred to this epic's.
 
 **And since 2026-11-01 it is on the route — Story 6.2's close.** `/`'s second
 region draws the real graph: 516 securities, an elliptical ring
@@ -52,9 +69,27 @@ does not.** _Smoothly_ is `PRODUCT_SPEC.md` §28's **60 FPS at 500 nodes /
 person's judgement with no instrument at all — so it is owed a sitting rather
 than a suite, and Story 6.9 says what a sitting can and cannot claim.
 
+**Verdicted 2026-11-13 at Story 6.9's own close, both halves stated
+separately rather than rounded into one line.** _Smoothly_ is **met**:
+Story 6.7 took the real figure — 16.7 ms median frame time, the 60 FPS line
+exactly, on every arm, both the software-rendered regression floor and a
+real Apple M3 GPU — against the real shipped graph (516 nodes, ~2,372
+edges, not §28's own 500/5,000, but the scale this product actually runs).
+_Visually obvious_ is **owed rather than met**: the one instrument that
+could answer it is a person watching the graph against a real session, and
+that sitting was waived rather than taken, as a dated, owned decision
+(`LIVE-REHEARSAL.md` row 6.7, `**WAIVED 2026-11-13**`) naming all seven
+things it would have checked — not only whether unusual securities are
+visually obvious, but whether the graph reads as the market or as a
+diagram, whether the live mark reads as alive or as a flicker, and three
+further checks no gated machine can ever perform. The synthetic half of
+§28's own target (5,000 nodes / 25,000 edges, >45 FPS) was never this
+epic's to take and remains Epic 14's, confirmed unattempted rather than
+silently dropped.
+
 ## Stories — split 2026-10-30
 
-> 6.1 → **6.2** → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → 6.9
+> 6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6 → 6.7 → 6.8 → **6.9 (closed)**
 
 | #   | Story                                                                                                                                                    | Depends on | Visible?                                                                    |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------- |
@@ -66,7 +101,7 @@ than a suite, and Story 6.9 says what a sitting can and cannot claim.
 | 6.6 | [Node Size, Edge Strength, & the Encodings That Remain](story-06-node-size-edge-strength-and-the-encodings-that-remain/STORY.md)                         | 6.3, 6.5   | **Yes** — the graph gains hierarchy                                         |
 | 6.7 | [Live Updates, & the Graph That Stays at 60 FPS](story-07-live-updates-and-sixty-frames/STORY.md)                                                        | 6.6        | **Yes** — the graph moves on its own; §28's unmeasured target gets a figure |
 | 6.8 | [Filtering, & the Degraded Set](story-08-filtering-and-the-degraded-set/STORY.md)                                                                        | 6.7        | **Yes** — a reader can narrow it, and it is honest when the data is thin    |
-| 6.9 | [The Rehearsal, the Sweep, & Epic 6's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                                               | 6.8        | no                                                                          |
+| 6.9 | [The Rehearsal, the Sweep, & Epic 6's Close](story-09-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                                               | 6.8        | no — the record, not the product                                            |
 
 ### Why this order
 
