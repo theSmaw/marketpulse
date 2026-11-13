@@ -5704,6 +5704,31 @@ while being dragged or zoomed on the real route, at real-universe scale or at
 Epic 14's synthetic one, is still unmeasured. `TOPOLOGY.md` §4 carries the
 same distinction, dated the same day.
 
+**Amended 2026-11-13 by Task 6.9.3: the frame-rate-under-interaction half is
+now measured on the real route, at real scale — only the SYNTHETIC half of
+this entry's own gap remains.** Story 6.7 built exactly the missing
+instrument this entry named: `scripts/topology-instrument.mjs` gained a
+`--live` arm driving the real `/` route through a production pair, with a
+continuous pan+zoom gesture running concurrently with real burst arrivals —
+the thing `pnpm probe`'s scripted path could never reach, because that path
+only ever wired into `MarketTopology.stories.tsx`'s fixed Storybook
+container. **The figure: 16.7 ms median frame time — the 60 FPS line
+exactly — on every arm**, at the real shipped graph's size (516 nodes,
+~2,372 edges, not the fixture's stale 518/514), both the software-rendered
+regression floor (clean across two full runs) and a real Apple M3 GPU (clean
+on the great majority of frames across three runs, with isolated,
+non-reproducible contention attributed to this specific machine rather than
+to the product). `TOPOLOGY.md` §7 carries the fuller account.
+
+**What that still does not establish, and the entry's own `Owner: Epic 14`
+line is unchanged by this amendment**: the shipped renderer's standing at
+§28's own 500-node/5,000-edge figure (516/~2,372 is close in node count but
+under half the edge count) and Epic 14's own 5,000-node/25,000-edge synthetic
+mode remain exactly as unmeasured as before — this amendment narrows which
+half of the gap is closed, it does not close the whole entry. Epic 14's own
+`EPIC.md` carries the matching amendment, written in the same change
+(Task 6.9.1).
+
 ## `a-var-read-resolves-to-a-declared-token` cannot see a canvas, and `TOKEN_NAMES` is the real mechanism for this renderer
 
 **Added 2026-10-30 by Task 6.1.4, closing Story 6.1.**
@@ -6007,6 +6032,20 @@ story that changes what this region's canvas is fitted into** — a node-size
 encoding (Story 6.6), a correlation-edge pass (6.5) or live updates (6.7) each
 touch the fit, and the carve-out belongs with whichever of them moves it first.
 
+**Amended 2026-11-13 by Task 6.9.3: all three named candidates have shipped,
+and none moved the fit.** Confirmed by `git log -- apps/frontend/src/topology/
+fit.ts`: its last touch is Story 6.2's own Task 6.2.3, and Stories 6.5, 6.6,
+6.7 and 6.8 — the remainder of this epic — all shipped without a commit
+touching that file. Node size was refused rather than shipped (6.6), the
+correlation pass added a drawing layer rather than a fit change (6.5), live
+updates added mark/plate content rather than fit geometry (6.7), and
+filtering is a draw-time mask over the unchanged fit (6.8, per this epic's
+own `the-topology-layout-is-built-from-the-whole-universe` invariant). **The
+gap is fully open with no remaining Epic 6 story to carry it.** Owner moved
+to: the first story in any epic that next changes `fit.ts`, `fitView` or
+what the canvas's viewport is computed against — a condition rather than a
+story number, since none is currently named or scheduled.
+
 ## A canvas node now carries a second, unauthored affordance: the browser's own context menu
 
 **Added 2026-11-06 by Task 6.4.5, closing Story 6.4 — flagged at Task 6.4.2's
@@ -6232,6 +6271,20 @@ again** — Story 6.6 (node-size encoding touches the same renderer) or
 Story 6.7 (live updates, which would make the re-mount recur rather than
 fire once) are the likely next candidates, and either should take this
 figure rather than add to an unmeasured baseline.
+
+**Amended 2026-11-13 by Task 6.9.3: both named candidates shipped, neither
+took it, and Story 6.8 shipped past it too.** Confirmed by grep across
+Stories 6.6, 6.7 and 6.8's own task files for "cold load" — zero hits in
+any of the three. Story 6.6 refused node size rather than touching the
+renderer's mount path; Story 6.7's own cold-load-adjacent work was the
+burst-absorption and live-update costs, a different measurement than this
+entry's cold-start parse-and-remount; Story 6.8's filter is a draw-time
+mask that adds no new request and no new mount. **This is now the same
+stale-candidate shape as the readout-plate entry above, and the gap is
+fully open with no remaining Epic 6 story to carry it.** Owner moved to:
+the first story in any epic that next changes `/`'s cold-load request set
+or the topology renderer's mount/re-mount path — a condition rather than a
+story number, since none is currently named or scheduled.
 
 ## A specific e2e test has now failed across a SEVENTH session, and for the first time the established one-worker control did not clear it on the first attempt
 
