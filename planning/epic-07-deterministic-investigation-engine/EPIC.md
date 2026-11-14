@@ -1,6 +1,6 @@
 # Epic 7 — Deterministic Investigation Engine
 
-**Status:** Not started
+**Status:** Decomposed into seven stories on 2026-11-14; none started.
 **Sequence:** 7 of 15 — follows Epic 6 (Market Topology)
 **Spec references:** PRODUCT_SPEC.md §13 (investigation model), §14 (investigation steps), §17 (agent toolset), §33 (agent event protocol), §41 Phase 2
 
@@ -14,20 +14,57 @@ Users can launch a structured investigation into an anomalous security and see d
 
 ## Scope
 
-- Investigation domain model
-- Investigation lifecycle
-- Investigation steps
-- Analytical tool interfaces
-- Security snapshot tool
-- Return-percentile tool
-- Volume-anomaly tool
-- Peer-comparison tool
-- Market-breadth tool
-- Correlation tool
-- Investigation orchestration
-- Streaming investigation events
+- Investigation domain model (`Investigation`, `Step`, `Finding`, `Evidence`)
+- Investigation lifecycle (`running` / `awaiting user` / `completed` /
+  `failed` / `cancelled`)
+- Investigation steps, streamed via `PRODUCT_SPEC.md` §33's full ten-event
+  protocol
+- Analytical tool interfaces — one shared contract every tool below
+  implements
+- Security snapshot tool (`get_security_snapshot`)
+- Return-percentile tool (`calculate_return_percentile` — wraps the
+  already-shipped `returnPercentileOf`)
+- Volume-anomaly tool (`calculate_volume_ratio` — ships as a structural
+  refusal; `0015_volume_baselines.sql` stores no distribution to rank
+  against on any store, so this tool always answers "not enough evidence"
+  until a later nightly pass stores one)
+- Peer-comparison tool (`compare_securities` — wraps `excessMoveReference`)
+- Market-breadth tool (`get_market_breadth` — wraps the already-shipped
+  `marketBreadth`)
+- Correlation tool (`calculate_rolling_correlation` — an on-demand
+  calculation between two named securities, distinct from Story 6.5's own
+  nightly, fixed-universe batch; confirmed against the real code at this
+  tool's own shaping, not assumed here)
+- Three graph-interaction tools §17 names with no further description,
+  handed to this epic explicitly by Epic 6's own close rather than listed
+  in this epic's original scope: `get_related_securities`,
+  `highlight_graph_nodes`, `set_graph_encoding`
+- Investigation orchestration — a deterministic, scripted implementation of
+  §32's `AgentProvider` interface (`runInvestigation` / `streamEvents` /
+  `cancel`), with no model behind it, so Epic 10 can later swap in a real
+  one against the same contract (invariant 7)
 - Cancellation
-- Partial failure handling
+- Partial failure handling, following Story 3.10's own established
+  pattern (an honest, specific sentence per failure, degrading
+  incrementally rather than collapsing the whole investigation)
+
+**Explicitly not this epic's, named so the gap is a decision rather than an
+oversight.** §17's remaining tools belong elsewhere by name:
+`get_recent_filings`, `get_filing_metadata`, `search_filing` and
+`extract_filing_fact` are Epic 9's (Corporate Filing Evidence);
+`focus_symbols`, `open_chart`, `compare_on_chart`, `set_time_window` and
+`pin_evidence` are `WorkspaceCommand`-shaped and need a model deciding when
+to fire them, so they are Epic 10/11's; `get_macro_series`,
+`find_similar_historical_events` and `compare_historical_events` are §17's
+own "later tools," deferred past this product's first release of
+investigations. The full evidence-panel and finding-card workspace UI
+(§15, §16, §8.2) is Epic 8's, confirmed by that epic's own citation of
+those sections — this epic's UI is the step checklist on the security page
+and the landing page's own reserved region, not the dedicated
+`/investigations` route, which stays Epic 8's placeholder. And investigation
+state lives in backend memory for the process's lifetime, the same shape
+`currentMarketState` already established — persistence across a restart,
+and branching, are Epic 12's by name.
 
 ## Exit criteria
 
@@ -47,7 +84,68 @@ and streams the results into the UI.
 
 No LLM is involved yet.
 
-## Handed here by Story 3.5's close — 2026-09-21: the object this epic reads instead of opening a socket
+## Stories — split 2026-11-14
+
+> 7.1 → 7.2 → 7.3 → 7.4 → 7.5 → 7.6 → 7.7
+
+| #   | Story                                                                                                                               | Depends on                   | Visible?                                                                           |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| 7.1 | [The Investigation Shell, & One Tool Running End to End](story-01-the-investigation-shell-and-one-tool-running-end-to-end/STORY.md) | nothing                      | **Yes** — a real `Investigate` control runs one real tool, shown live              |
+| 7.2 | [The Five-Step Pipeline](story-02-the-five-step-pipeline/STORY.md)                                                                  | 7.1                          | **Yes** — the full checklist from this epic's own exit criterion, running for real |
+| 7.3 | [Findings, Evidence, & Confidence](story-03-findings-evidence-and-confidence/STORY.md)                                              | 7.2                          | **Yes** — each step shows a one-line finding with a confidence chip                |
+| 7.4 | [The Graph Lights Up](story-04-the-graph-lights-up/STORY.md)                                                                        | 7.2                          | **Yes** — peer comparison highlights real nodes on Epic 6's topology               |
+| 7.5 | [Cancellation & Partial Failure](story-05-cancellation-and-partial-failure/STORY.md)                                                | 7.2                          | **Yes** — `Stop` actually works; a failed tool degrades rather than aborting       |
+| 7.6 | [The Landing Page's Last Reserved Region](story-06-the-landing-pages-last-reserved-region/STORY.md)                                 | 7.3, 7.5                     | **Yes** — `Current investigations` fills in                                        |
+| 7.7 | [The Rehearsal, the Sweep, & Epic 7's Close](story-07-the-rehearsal-the-sweep-and-the-epic-close/STORY.md)                          | 7.1, 7.2, 7.3, 7.4, 7.5, 7.6 | no — the record, not the product                                                   |
+
+### Why this order
+
+**7.1 proves the whole pipe end to end at the smallest possible scope,
+before any breadth is added.** The domain model, the lifecycle, the
+`AgentProvider` stub, the event protocol and a security-page UI all have to
+exist before a second tool is worth adding — and proving all of them at
+once, on one tool, is cheaper than building any of them twice. This is the
+same reasoning Story 6.1 used to justify a workshop-only first story: a
+foundation that has never carried real traffic is a guess, and the
+cheapest real traffic is one tool.
+
+**7.2 is next because it is this epic's own exit criterion, verbatim.** The
+five-step pipeline this story ships is not an example of what the epic can
+do — it is the literal sentence the epic is accepted against. Everything
+after 7.2 adds a capability on top of a pipeline that already satisfies the
+exit criterion's letter, which means the epic is demonstrably "done enough"
+after 7.2 and every later story is a stated improvement rather than a
+missing piece.
+
+**7.3 before 7.4 because a tool's result is not a finding until a reader
+can see one.** Every step 7.2 ships already produces a value; 7.3 is what
+turns that value into the domain object `PRODUCT_SPEC.md` §15 names and
+gives it a minimal, correctly-scoped rendering — careful not to collide
+with the anomaly-band chip, per the explicit warning this epic inherited at
+its own decomposition.
+
+**7.4 and 7.5 are independent of each other and both depend only on 7.2**,
+so they could ship in either order; graph integration is sequenced first
+because it is the more visible, cross-epic moment, and stakeholders seeing
+two epics' work connect is worth more than risk-reduction work landing a
+day earlier.
+
+**7.6 is last among the "real" stories because it needs 7.3's findings and
+7.5's failure handling to have something honest to show** — a reserved
+region that fills in with investigations that have no findings to display
+or no way to fail would be a regression dressed as progress.
+
+**7.7 closes the epic**, in the same shape Epic 5 and Epic 6 each closed:
+an epic-wide acceptance-criterion verdict table, the subject document this
+epic has been writing from Story 7.1 rather than deferring (see the note
+below), sideways hand-offs to every epic this one hands constraints to,
+and the exit criterion verdicted against a real measurement rather than a
+demonstration.
+
+**One discipline carried forward from Epic 6's own close, rather than
+rediscovered**: write `INVESTIGATIONS.md` starting at Story 7.1, amended by
+each later story, so this is not the third consecutive epic caught writing
+its subject document only at the close.
 
 **Story 3.5 built `currentMarketState` for the three epics outside Epic 3 that
 want the latest observation per security** — this one among them — **and none of
