@@ -1,0 +1,321 @@
+import { describe, expect, expectTypeOf, it } from "vitest";
+
+import type {
+  CancelledStep,
+  CompletedStep,
+  FailedStep,
+  Investigation,
+  InvestigationEventType,
+  QueuedStep,
+  RunningStep,
+  Step,
+  ToolOutcome,
+} from "./investigation.js";
+import {
+  INVESTIGATION_EVENT_TYPES,
+  INVESTIGATION_STATUSES,
+  INVESTIGATION_STATUS_LABEL,
+  STEP_STATUSES,
+  STEP_STATUS_LABEL,
+  TERMINAL_EVENT_TYPES,
+  TOOL_NAMES,
+  TOOL_REFUSALS,
+  isTerminalEventType,
+  toInvestigationId,
+  toStepId,
+  toWireInvestigation,
+  toWireStep,
+} from "./investigation.js";
+import type { Ticker } from "./ticker.js";
+
+describe("InvestigationStatus and StepStatus", () => {
+  it("are two separate vocabularies, not one shared union", () => {
+    // Story 7.1's own Gate 1 found a draft that shared one union — `queued`
+    // leaking onto an Investigation and `awaiting_user` onto a Step. This is
+    // the regression test for that specific defect.
+    expect(INVESTIGATION_STATUSES).not.toContain("queued");
+    expect(STEP_STATUSES).not.toContain("awaiting_user");
+  });
+
+  it("totality-checked labels exist for every member of both vocabularies", () => {
+    // The `satisfies Record<keyof T, …>` idiom — removing a status from
+    // either vocabulary without also removing its label fails the build
+    // here, naming the member, rather than leaving a presenter with a
+    // runtime gap.
+    for (const status of INVESTIGATION_STATUSES) {
+      expect(INVESTIGATION_STATUS_LABEL[status]).toBeTypeOf("string");
+    }
+    for (const status of STEP_STATUSES) {
+      expect(STEP_STATUS_LABEL[status]).toBeTypeOf("string");
+    }
+  });
+
+  it("Investigation has five members, Step has five, and they differ", () => {
+    expect(INVESTIGATION_STATUSES).toStrictEqual([
+      "running",
+      "awaiting_user",
+      "completed",
+      "failed",
+      "cancelled",
+    ]);
+    expect(STEP_STATUSES).toStrictEqual([
+      "queued",
+      "running",
+      "completed",
+      "failed",
+      "cancelled",
+    ]);
+  });
+});
+
+describe("Step", () => {
+  const queued: QueuedStep = {
+    id: toStepId("step-1"),
+    description: "Measure move",
+    tool: "get_security_snapshot",
+    status: "queued",
+  };
+
+  const running: RunningStep = {
+    ...queued,
+    status: "running",
+    startedAt: new Date("2026-11-16T14:00:00Z"),
+  };
+
+  const completed: CompletedStep = {
+    ...running,
+    status: "completed",
+    completedAt: new Date("2026-11-16T14:00:00.012Z"),
+    durationMs: 12,
+  };
+
+  const failed: FailedStep = {
+    ...running,
+    status: "failed",
+    completedAt: new Date("2026-11-16T14:00:00.012Z"),
+    durationMs: 12,
+    reason: "tool threw",
+  };
+
+  const cancelled: CancelledStep = {
+    ...running,
+    status: "cancelled",
+    completedAt: new Date("2026-11-16T14:00:00.012Z"),
+  };
+
+  it("is a discriminated union — a queued step has no timing fields", () => {
+    // Asserted with `in`, not `toBeUndefined()` — `exactOptionalPropertyTypes`
+    // means "absent" and "present as undefined" are different states, and
+    // `toBeUndefined()` on a genuinely absent property and on one set to
+    // `undefined` both pass, which hides exactly the thing this test exists
+    // to catch.
+    expect("startedAt" in queued).toBe(false);
+    expect("completedAt" in queued).toBe(false);
+    expect("durationMs" in queued).toBe(false);
+  });
+
+  it("a completed step cannot omit any of its timing fields", () => {
+    expect("startedAt" in completed).toBe(true);
+    expect("completedAt" in completed).toBe(true);
+    expect("durationMs" in completed).toBe(true);
+  });
+
+  it("totals over all five statuses — removing a case is a compile error", () => {
+    // The exhaustive switch in `toWireStep` is the real guard; this table
+    // proves every member actually produces a distinct, well-formed wire
+    // object rather than merely compiling.
+    const steps: Step[] = [queued, running, completed, failed, cancelled];
+    const wireShapes = steps.map((step) =>
+      Object.keys(toWireStep(step)).sort(),
+    );
+
+    expect(wireShapes).toStrictEqual([
+      ["description", "id", "status", "tool"],
+      ["description", "id", "startedAt", "status", "tool"],
+      [
+        "completedAt",
+        "description",
+        "durationMs",
+        "id",
+        "startedAt",
+        "status",
+        "tool",
+      ],
+      [
+        "completedAt",
+        "description",
+        "durationMs",
+        "id",
+        "reason",
+        "startedAt",
+        "status",
+        "tool",
+      ],
+      ["completedAt", "description", "id", "startedAt", "status", "tool"],
+    ]);
+  });
+
+  it("serialises every Date field as an ISO 8601 string on the wire", () => {
+    const wire = toWireStep(completed);
+    expect(wire.startedAt).toBe("2026-11-16T14:00:00.000Z");
+    expect(wire.completedAt).toBe("2026-11-16T14:00:00.012Z");
+  });
+
+  it("accepts a zero duration as legitimate, never padding it", () => {
+    const instant = new Date("2026-11-16T14:00:00Z");
+    const instantStep: CompletedStep = {
+      ...queued,
+      status: "completed",
+      startedAt: instant,
+      completedAt: instant,
+      durationMs: 0,
+    };
+    expect(toWireStep(instantStep).durationMs).toBe(0);
+  });
+});
+
+describe("ToolOutcome", () => {
+  it("has exactly two members, never a thrown third path", () => {
+    const ok: ToolOutcome<number> = { kind: "ok", value: 1 };
+    const refused: ToolOutcome<number> = {
+      kind: "refused",
+      reason: "nothing-observed",
+    };
+
+    function present(outcome: ToolOutcome<number>): string {
+      switch (outcome.kind) {
+        case "ok":
+          return "ok";
+        case "refused":
+          return "refused";
+        default: {
+          // Exhaustive: a third ToolOutcome member fails the build here.
+          const unhandled: never = outcome;
+          return unhandled;
+        }
+      }
+    }
+
+    expect(present(ok)).toBe("ok");
+    expect(present(refused)).toBe("refused");
+  });
+
+  it("TOOL_REFUSALS distinguishes an unobserved security from an untracked one", () => {
+    // The two are genuinely different checks (a map lookup vs. a
+    // universe-membership check) and must not share one reason.
+    expect(TOOL_REFUSALS).toStrictEqual(["nothing-observed", "not-tracked"]);
+  });
+
+  it("TOOL_NAMES has exactly one member for this story", () => {
+    expect(TOOL_NAMES).toStrictEqual(["get_security_snapshot"]);
+  });
+});
+
+describe("INVESTIGATION_EVENT_TYPES", () => {
+  it("lists all ten names from PRODUCT_SPEC.md §33", () => {
+    expect(INVESTIGATION_EVENT_TYPES).toHaveLength(10);
+    expect(INVESTIGATION_EVENT_TYPES).toStrictEqual([
+      "INVESTIGATION_STARTED",
+      "STEP_STARTED",
+      "TOOL_CALL_STARTED",
+      "TOOL_CALL_COMPLETED",
+      "FINDING_CREATED",
+      "EVIDENCE_ADDED",
+      "WORKSPACE_COMMAND",
+      "STEP_COMPLETED",
+      "INVESTIGATION_COMPLETED",
+      "INVESTIGATION_FAILED",
+    ]);
+  });
+
+  it("names the type as a union of all ten, not only the six this story emits", () => {
+    expectTypeOf<InvestigationEventType>().toEqualTypeOf<
+      | "INVESTIGATION_STARTED"
+      | "STEP_STARTED"
+      | "TOOL_CALL_STARTED"
+      | "TOOL_CALL_COMPLETED"
+      | "FINDING_CREATED"
+      | "EVIDENCE_ADDED"
+      | "WORKSPACE_COMMAND"
+      | "STEP_COMPLETED"
+      | "INVESTIGATION_COMPLETED"
+      | "INVESTIGATION_FAILED"
+    >();
+  });
+});
+
+describe("isTerminalEventType", () => {
+  it("is true only for INVESTIGATION_COMPLETED in this story", () => {
+    // INVESTIGATION_FAILED is not yet a member of TERMINAL_EVENT_TYPES —
+    // Story 7.5's to add, when a run can fail outright.
+    expect(isTerminalEventType("INVESTIGATION_COMPLETED")).toBe(true);
+    expect(isTerminalEventType("INVESTIGATION_FAILED")).toBe(false);
+    expect(isTerminalEventType("STEP_STARTED")).toBe(false);
+  });
+
+  it("TERMINAL_EVENT_TYPES has exactly one member today", () => {
+    expect(TERMINAL_EVENT_TYPES).toStrictEqual(["INVESTIGATION_COMPLETED"]);
+  });
+});
+
+describe("Investigation", () => {
+  it("omits findings/evidence/workspaceState/messages entirely", () => {
+    // ADR 0029: a fully-formed record about nothing is a false impression.
+    // These four are Story 7.3's and Epic 10/11's to add — not shipped here
+    // as empty arrays.
+    expectTypeOf<Investigation>().not.toHaveProperty("findings");
+    expectTypeOf<Investigation>().not.toHaveProperty("evidence");
+    expectTypeOf<Investigation>().not.toHaveProperty("workspaceState");
+    expectTypeOf<Investigation>().not.toHaveProperty("messages");
+  });
+
+  it("carries subjectSymbols as a list, never a single symbol", () => {
+    // A future tool (Story 7.4's peer comparison) can have more than one
+    // subject — an id or a field keyed on "the symbol" would already be
+    // wrong the day that lands.
+    expectTypeOf<Investigation["subjectSymbols"]>().toEqualTypeOf<
+      readonly Ticker[]
+    >();
+  });
+
+  it("serialises to a wire object with ISO instants and nested wire steps", () => {
+    const investigation: Investigation = {
+      id: toInvestigationId("inv-1"),
+      title: "Investigate NVDA",
+      createdAt: new Date("2026-11-16T14:00:00Z"),
+      mode: "live",
+      status: "running",
+      subjectSymbols: ["NVDA" as Ticker],
+      currentTime: new Date("2026-11-16T14:00:00Z"),
+      steps: [
+        {
+          id: toStepId("step-1"),
+          description: "Measure move",
+          tool: "get_security_snapshot",
+          status: "queued",
+        },
+      ],
+    };
+
+    const wire = toWireInvestigation(investigation);
+
+    expect(wire.createdAt).toBe("2026-11-16T14:00:00.000Z");
+    expect(wire.currentTime).toBe("2026-11-16T14:00:00.000Z");
+    expect(wire.steps).toStrictEqual([
+      {
+        id: "step-1",
+        description: "Measure move",
+        tool: "get_security_snapshot",
+        status: "queued",
+      },
+    ]);
+  });
+});
+
+describe("InvestigationId and StepId", () => {
+  it("are branded strings, not interchangeable with a bare string by type", () => {
+    const id = toInvestigationId("inv-1");
+    expectTypeOf(id).not.toEqualTypeOf<string>();
+    expect(id).toBe("inv-1");
+  });
+});

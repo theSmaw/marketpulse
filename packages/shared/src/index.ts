@@ -719,3 +719,43 @@ export type {
   TopologyLayoutOptions,
   TopologyPlacement,
 } from "./topology-layout.js";
+
+// Epic 7's own domain model (Task 7.1.1): the investigation/step lifecycle
+// as two SEPARATE status vocabularies, the analytical-tool outcome union,
+// and the event protocol's own ten names — a subset of six fully typed
+// here, the rest reserved as names for the stories that ship them.
+export {
+  INVESTIGATION_EVENT_TYPES,
+  INVESTIGATION_STATUSES,
+  INVESTIGATION_STATUS_LABEL,
+  STEP_STATUSES,
+  STEP_STATUS_LABEL,
+  TERMINAL_EVENT_TYPES,
+  TOOL_NAMES,
+  TOOL_REFUSALS,
+  isTerminalEventType,
+  toInvestigationId,
+  toStepId,
+  toWireInvestigation,
+  toWireStep,
+} from "./investigation.js";
+export type {
+  CancelledStep,
+  CompletedStep,
+  FailedStep,
+  Investigation,
+  InvestigationEvent,
+  InvestigationEventType,
+  InvestigationId,
+  InvestigationMode,
+  InvestigationStatus,
+  QueuedStep,
+  RunningStep,
+  Step,
+  StepId,
+  StepStatus,
+  ToolName,
+  ToolOutcome,
+  ToolRefusal,
+  WireToolOutcome,
+} from "./investigation.js";
