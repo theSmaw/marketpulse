@@ -132,7 +132,7 @@ Four new `apps/backend/src` files:
   poll — not named in the task's own Work list, but required for
   `streamEvents` to do anything beyond replay a finished run.
 - **`scripted-agent-provider.ts`**: `createScriptedAgentProvider({store,
-  now})` — `now` is a REQUIRED dependency rather than a default reading
+now})` — `now` is a REQUIRED dependency rather than a default reading
   `Date.now()` internally, which is the one way this file measures a
   step's own `durationMs` without itself violating Done-when 6.
   `runInvestigation` mints each `StepId` via `node:crypto`'s
