@@ -106,10 +106,18 @@ import type {
 import { createRelationshipsCache } from "./relationships-cache.js";
 import { createReturnCorrelationStore } from "./return-correlation-store.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createInvestigationRoutes } from "./routes/investigations.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
 import { createSecuritiesRepository } from "./securities.js";
 import { buildServer } from "./server.js";
+import { createInvestigationStore } from "./investigation-store.js";
+import { createScriptedAgentProvider } from "./scripted-agent-provider.js";
+import { toRunnableTool } from "./analytical-tool.js";
+import {
+  createSecuritySnapshotTool,
+  toWireSecuritySnapshot,
+} from "./tool-security-snapshot.js";
 
 // Declared before the try rather than assigned inside it, because everything
 // below the catch needs it and the catch never returns. TypeScript follows
@@ -158,6 +166,27 @@ const app = buildServer({
 // cannot delay startup, which is why reachability needs the explicit probe
 // after listen() below rather than a `try` around this line.
 const database = createDatabasePool(config.database, app.log);
+
+// ---------------------------------------------- what this backend knows now
+//
+// **Constructed whether or not a stream exists**, for the gateway's own reason
+// (Task 3.3.2): a deployment with `MARKET_DATA_PROVIDER=none` must be able to
+// answer *nothing observed* honestly rather than not answer at all. An empty
+// current state is the TRUE answer after a restart (§11.1), not a degraded one.
+//
+// **Moved here from beside the gateway/stream (Task 7.1.3), ahead of
+// `app.listen()` rather than after it.** Every other reader of this object —
+// the gateway, the trailing window, the five-minute return — is wired up
+// after `listen()` because none of them is a Fastify plugin: the gateway
+// attaches to `app.server`'s own `upgrade` event directly, which Fastify's
+// "already booted" rule does not cover. The security-snapshot tool is read
+// by a genuine `app.register()`ed route (`routes/investigations.ts`), and
+// that family of registrations must complete before `listen()` — the same
+// constraint `/diagnostics` and `/securities` are already under. Moving the
+// object itself, rather than threading a mutable binding through a closure
+// the way `marketStream` below does, is safe only because construction here
+// has no runtime dependency of its own to wait for.
+const currentMarketState = createCurrentMarketState();
 
 // The diagnostic surface, and the answer to Story 2.1's fourth open decision
 // (Task 2.1.7). `/health` is untouched; see routes/diagnostics.ts for the whole
@@ -303,6 +332,63 @@ app.register(
   }),
 );
 
+// Story 7.1's engine, behind its own route pair (Task 7.1.3). Registered
+// here — needing `currentMarketState`, the same reason `/securities` is
+// registered here rather than in `buildServer()` — and `createInvestigation
+// Routes` returns `{ plugin, closeStreams }` rather than a plain
+// `FastifyPluginCallback`, because an open SSE connection is a resource this
+// process has to be able to end on its own at shutdown; see
+// `registerInvestigationStreamCloser` and `shutdown()` below.
+//
+// The investigation store and the scripted provider are both long-lived for
+// the process, not per-request — `investigation-store.ts`'s own 200-entry cap
+// is a process-lifetime bound. `now: () => new Date()` is the one place that
+// reads the real clock: `scripted-agent-provider.ts` takes it as a required
+// dependency rather than reading `Date.now()` itself, precisely so this is
+// the only line that can.
+//
+// The one tool this story has, wired through `toRunnableTool` so the
+// provider never learns `SecuritySnapshot`'s own shape — `buildInput` takes
+// the investigation's first (and, this story, only) subject symbol, and
+// `toWireSecuritySnapshot` is what a `TOOL_CALL_COMPLETED` event's `outcome`
+// carries onto the wire.
+const investigationStore = createInvestigationStore();
+const investigationProvider = createScriptedAgentProvider({
+  store: investigationStore,
+  now: () => new Date(),
+});
+const investigationTools = [
+  toRunnableTool(
+    createSecuritySnapshotTool(currentMarketState),
+    (subjectSymbols) => {
+      const [symbol] = subjectSymbols;
+      if (symbol === undefined) {
+        // A programmer error reaching this route rather than a market
+        // condition: every investigation this story creates is minted with
+        // exactly one subject. Thrown rather than refused, because a tool
+        // refusal is this product's vocabulary for an HONEST absence and
+        // this is neither honest nor an absence a user caused.
+        throw new Error(
+          "an investigation's subjectSymbols must carry at least one symbol",
+        );
+      }
+      return { symbol };
+    },
+    toWireSecuritySnapshot,
+  ),
+];
+const investigationRoutes = createInvestigationRoutes({
+  store: investigationStore,
+  provider: investigationProvider,
+  tools: investigationTools,
+});
+app.register(investigationRoutes.plugin);
+// `registerInvestigationStreamCloser` itself is declared further down,
+// beside `closeInvestigationStreams` — calling it here would be a
+// reference to a `let` binding before its own declaration runs. The call
+// is placed immediately after that declaration instead, a few hundred
+// lines below; `investigationRoutes` is already in scope by then.
+
 // Signal handling lives here rather than in buildServer(), because it is a
 // property of this process, not of the application. A factory that installs
 // process-wide handlers is a surprise for anything building two instances,
@@ -371,6 +457,34 @@ export function registerMarketStreamCloser(close: () => void): void {
   closeMarketStream = close;
 }
 
+/**
+ * How every open investigation SSE stream is ended (Task 7.1.3).
+ *
+ * A third closer rather than a widening of either above, because it closes a
+ * **different kind of thing**: the gateway and the stream are each one
+ * long-lived upstream connection with its own closer called once; this one
+ * ends however many open, hijacked HTTP responses `routes/investigations.ts`
+ * is currently holding, which is zero most of the time and unbounded in
+ * principle. `reply.hijack()` takes a response out of Fastify's own
+ * connection bookkeeping (`http-compression.ts` records the same mechanism
+ * from the compression plugin's side), so nothing else here would ever end
+ * one — `app.close()`'s drain would otherwise wait on it for as long as the
+ * client stays attached, which for a stream with no keepalive in this story
+ * is indefinite.
+ */
+let closeInvestigationStreams: (() => void) | undefined;
+
+export function registerInvestigationStreamCloser(close: () => void): void {
+  closeInvestigationStreams = close;
+}
+
+// The call itself, deferred to here from beside `app.register
+// (investigationRoutes.plugin)` far above — this is the first point after
+// this function's own declaration where a `let` reference is valid rather
+// than a `ReferenceError` thrown at module load. `investigationRoutes`
+// stays in scope from its own `const`.
+registerInvestigationStreamCloser(investigationRoutes.closeStreams);
+
 async function shutdown(signal: NodeJS.Signals): Promise<never> {
   // A second signal means "I meant it" — the conventional Ctrl-C behaviour.
   // Exit immediately and non-zero, because work in flight was dropped and a
@@ -420,6 +534,20 @@ async function shutdown(signal: NodeJS.Signals): Promise<never> {
     app.log.debug("market gateway closed");
   } catch (error) {
     app.log.warn({ err: error }, "error while closing the market gateway");
+  }
+
+  // **Ahead of `app.close()`, for the reason stated beside the registrar
+  // above**: a hijacked SSE response is invisible to Fastify's own close,
+  // so an open stream has to be ended here or `app.close()`'s drain waits
+  // on it for as long as the client stays attached. Synchronous — ending a
+  // handful of local responses costs nothing worth awaiting — and inside a
+  // `try` for the same reason every closer here is: a stream that throws on
+  // end is already gone.
+  try {
+    closeInvestigationStreams?.();
+    app.log.debug("investigation streams closed");
+  } catch (error) {
+    app.log.warn({ err: error }, "error while closing investigation streams");
   }
 
   try {
@@ -741,14 +869,6 @@ try {
   }
   throw error;
 }
-
-// ---------------------------------------------- what this backend knows now
-//
-// **Constructed whether or not a stream exists**, for the gateway's own reason
-// (Task 3.3.2): a deployment with `MARKET_DATA_PROVIDER=none` must be able to
-// answer *nothing observed* honestly rather than not answer at all. An empty
-// current state is the TRUE answer after a restart (§11.1), not a degraded one.
-const currentMarketState = createCurrentMarketState();
 
 // ------------------------------------------------------ the recent past, too
 //

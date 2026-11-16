@@ -1024,3 +1024,56 @@ describe("the database pool", () => {
     expect(messages).not.toContain("market stream started");
   });
 });
+
+describe("the investigation SSE stream (Task 7.1.3)", () => {
+  it("does not hold the shutdown ceiling open while a stream is attached", async () => {
+    // **The closer this test exists to prove is registered and runs.**
+    // `reply.hijack()` takes a response out of Fastify's own bookkeeping —
+    // `app.close()`'s drain would otherwise wait on this connection for as
+    // long as the client stays attached, which here is forever: `?from=`
+    // a seq number past the six events this story's single-tool run ever
+    // produces, so the stream never has a historical frame to replay and
+    // goes straight to live-follow with nothing left to send.
+    const port = await probeFreePort();
+    const databasePort = await probeFreePort();
+    const server = startServer(port, {
+      DATABASE_PORT: String(databasePort),
+      LOG_LEVEL: "debug",
+    });
+
+    await waitForReady(server);
+
+    const created = (await (
+      await fetch(`http://127.0.0.1:${String(port)}/investigations`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ symbol: "NVDA" }),
+      })
+    ).json()) as { id: string };
+
+    // Resolves once the hijacked response's headers arrive — this server
+    // has already written `text/event-stream` and is now blocked in
+    // live-follow, with the connection genuinely open. The body is never
+    // read, by design: there is nothing left to send.
+    const attached = await fetch(
+      `http://127.0.0.1:${String(port)}/investigations/${created.id}/events?from=999`,
+    );
+    expect(attached.headers.get("content-type")).toBe("text/event-stream");
+
+    server.child.kill("SIGTERM");
+    const exit = await waitForExit(server);
+    expect(exit.code).toBe(0);
+
+    const messages = server.records().map((record) => record.msg);
+    const drained = messages.indexOf("http drained");
+    const streams = messages.indexOf("investigation streams closed");
+
+    // Ahead of the drain, for `registerInvestigationStreamCloser`'s own
+    // stated reason: ending the stream is what lets `app.close()` resolve
+    // at all against a connection with no keepalive and no end in sight.
+    expect(streams).toBeGreaterThanOrEqual(0);
+    expect(drained).toBeGreaterThan(streams);
+
+    await attached.body?.cancel().catch(() => undefined);
+  });
+});

@@ -383,3 +383,118 @@ export const toWireInvestigation = (
   investigation: Investigation,
 ): Readonly<Record<string, JsonValue>> =>
   toWire(investigationFields, investigation);
+
+// ------------------------------------------------------------ event wire shape
+
+/**
+ * One map per member of {@link InvestigationEvent}, for the reason the five
+ * {@link Step} maps above exist: `keyof` a union is the members' own
+ * **intersection** (`seq`/`investigationId`/`type` here), so one map over
+ * the whole union would wave every event-specific field through unexamined —
+ * the exact leak this idiom exists to close. This is Task 7.1.3's own reason
+ * for existing at all: SSE bypasses `fast-json-stringify`'s stripping
+ * entirely, so a frame built any other way (a bare `JSON.stringify`, a
+ * spread) has no mechanical protection against carrying something the wire
+ * contract does not name.
+ */
+const investigationStartedFields: WireFields<
+  Extract<InvestigationEvent, { type: "INVESTIGATION_STARTED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  investigation: toWireInvestigation,
+};
+
+const stepStartedFields: WireFields<
+  Extract<InvestigationEvent, { type: "STEP_STARTED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  stepId: asIs,
+  description: asIs,
+  tool: asIs,
+  startedAt: asInstant,
+};
+
+const toolCallStartedFields: WireFields<
+  Extract<InvestigationEvent, { type: "TOOL_CALL_STARTED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  stepId: asIs,
+  tool: asIs,
+};
+
+const toolCallCompletedFields: WireFields<
+  Extract<InvestigationEvent, { type: "TOOL_CALL_COMPLETED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  stepId: asIs,
+  tool: asIs,
+  durationMs: asIs,
+  // Already the JSON shape {@link WireToolOutcome} names — minted once, in
+  // `tool-security-snapshot.ts`'s own `toWireSecuritySnapshot` (or each
+  // later tool's equivalent), never recomposed here.
+  outcome: asIs,
+};
+
+const stepCompletedFields: WireFields<
+  Extract<InvestigationEvent, { type: "STEP_COMPLETED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  stepId: asIs,
+  status: asIs,
+  durationMs: asIs,
+};
+
+const investigationCompletedFields: WireFields<
+  Extract<InvestigationEvent, { type: "INVESTIGATION_COMPLETED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  status: asIs,
+  completedAt: asInstant,
+  stepCount: asIs,
+};
+
+/**
+ * One `InvestigationEvent`'s own wire projection — switches on `type` to the
+ * matching member's own map, exactly `toWireStep`'s own shape. The SSE
+ * route's one rule (Task 7.1.3): every frame is built by calling this,
+ * never a bare `JSON.stringify` of an orchestration value.
+ */
+export const toWireInvestigationEvent = (
+  event: InvestigationEvent,
+): Readonly<Record<string, JsonValue>> => {
+  switch (event.type) {
+    case "INVESTIGATION_STARTED":
+      return toWire(investigationStartedFields, event);
+    case "STEP_STARTED":
+      return toWire(stepStartedFields, event);
+    case "TOOL_CALL_STARTED":
+      return toWire(toolCallStartedFields, event);
+    case "TOOL_CALL_COMPLETED":
+      return toWire(toolCallCompletedFields, event);
+    case "STEP_COMPLETED":
+      return toWire(stepCompletedFields, event);
+    case "INVESTIGATION_COMPLETED":
+      return toWire(investigationCompletedFields, event);
+    default: {
+      // Exhaustive over the six members this story emits. A seventh
+      // (`FINDING_CREATED`, `EVIDENCE_ADDED`, `WORKSPACE_COMMAND`,
+      // `INVESTIGATION_FAILED`) fails the build here the day its own
+      // story gives it a payload, naming the member rather than leaving
+      // it silently unserialisable.
+      const unhandled: never = event;
+      return unhandled;
+    }
+  }
+};

@@ -50,6 +50,13 @@ export interface InvestigationStore {
     id: InvestigationId,
     listener: (event: InvestigationEvent) => void,
   ) => () => void;
+  /** Every held investigation, oldest first — Task 7.1.3's own reason: the
+   * second-press idempotency rule (`POST /investigations` for a symbol
+   * with an already-running investigation returns the existing one) has
+   * to search by subject rather than by id, and there is no id to key a
+   * narrower read on. Bounded by `capacity`, so a linear scan here is the
+   * same order of work as every other read this object does. */
+  list: () => readonly Investigation[];
   size: () => number;
 }
 
@@ -118,6 +125,8 @@ export function createInvestigationStore(
       emitter.on("event", listener);
       return () => emitter.off("event", listener);
     },
+
+    list: () => [...investigations.values()],
 
     size: () => investigations.size,
   };

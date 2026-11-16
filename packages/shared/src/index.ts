@@ -737,6 +737,7 @@ export {
   toInvestigationId,
   toStepId,
   toWireInvestigation,
+  toWireInvestigationEvent,
   toWireStep,
 } from "./investigation.js";
 export type {
