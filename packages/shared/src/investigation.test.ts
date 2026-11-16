@@ -5,6 +5,7 @@ import type {
   CompletedStep,
   FailedStep,
   Investigation,
+  InvestigationEvent,
   InvestigationEventType,
   QueuedStep,
   RunningStep,
@@ -24,6 +25,7 @@ import {
   toInvestigationId,
   toStepId,
   toWireInvestigation,
+  toWireInvestigationEvent,
   toWireStep,
 } from "./investigation.js";
 import type { Ticker } from "./ticker.js";
@@ -317,5 +319,144 @@ describe("InvestigationId and StepId", () => {
     const id = toInvestigationId("inv-1");
     expectTypeOf(id).not.toEqualTypeOf<string>();
     expect(id).toBe("inv-1");
+  });
+});
+
+describe("toWireInvestigationEvent", () => {
+  const investigation: Investigation = {
+    id: toInvestigationId("inv-1"),
+    title: "Investigate NVDA",
+    createdAt: new Date("2026-11-16T14:00:00Z"),
+    mode: "live",
+    status: "running",
+    subjectSymbols: ["NVDA" as Ticker],
+    currentTime: new Date("2026-11-16T14:00:00Z"),
+    steps: [],
+  };
+
+  it("totals over all six events this story emits — removing a case is a compile error", () => {
+    // The exhaustive switch in `toWireInvestigationEvent` is the real
+    // guard; this table proves every member actually produces a
+    // distinct, well-formed wire object rather than merely compiling —
+    // `toWireStep`'s own test, one union over.
+    const events: InvestigationEvent[] = [
+      {
+        type: "INVESTIGATION_STARTED",
+        seq: 1,
+        investigationId: investigation.id,
+        investigation,
+      },
+      {
+        type: "STEP_STARTED",
+        seq: 2,
+        investigationId: investigation.id,
+        stepId: toStepId("step-1"),
+        description: "Measure move",
+        tool: "get_security_snapshot",
+        startedAt: new Date("2026-11-16T14:00:00Z"),
+      },
+      {
+        type: "TOOL_CALL_STARTED",
+        seq: 3,
+        investigationId: investigation.id,
+        stepId: toStepId("step-1"),
+        tool: "get_security_snapshot",
+      },
+      {
+        type: "TOOL_CALL_COMPLETED",
+        seq: 4,
+        investigationId: investigation.id,
+        stepId: toStepId("step-1"),
+        tool: "get_security_snapshot",
+        durationMs: 12,
+        outcome: { kind: "refused", reason: "nothing-observed" },
+      },
+      {
+        type: "STEP_COMPLETED",
+        seq: 5,
+        investigationId: investigation.id,
+        stepId: toStepId("step-1"),
+        status: "completed",
+        durationMs: 12,
+      },
+      {
+        type: "INVESTIGATION_COMPLETED",
+        seq: 6,
+        investigationId: investigation.id,
+        status: "completed",
+        completedAt: new Date("2026-11-16T14:00:00.012Z"),
+        stepCount: 1,
+      },
+    ];
+
+    const wireShapes = events.map((event) =>
+      Object.keys(toWireInvestigationEvent(event)).sort(),
+    );
+
+    expect(wireShapes).toStrictEqual([
+      ["investigation", "investigationId", "seq", "type"],
+      [
+        "description",
+        "investigationId",
+        "seq",
+        "startedAt",
+        "stepId",
+        "tool",
+        "type",
+      ],
+      ["investigationId", "seq", "stepId", "tool", "type"],
+      [
+        "durationMs",
+        "investigationId",
+        "outcome",
+        "seq",
+        "stepId",
+        "tool",
+        "type",
+      ],
+      ["durationMs", "investigationId", "seq", "status", "stepId", "type"],
+      ["completedAt", "investigationId", "seq", "status", "stepCount", "type"],
+    ]);
+  });
+
+  it("serialises every Date field as an ISO 8601 string on the wire", () => {
+    const wire = toWireInvestigationEvent({
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: investigation.id,
+      stepId: toStepId("step-1"),
+      description: "Measure move",
+      tool: "get_security_snapshot",
+      startedAt: new Date("2026-11-16T14:00:00Z"),
+    });
+    expect(wire.startedAt).toBe("2026-11-16T14:00:00.000Z");
+  });
+
+  it("projects the nested Investigation through toWireInvestigation, never a second copy", () => {
+    const wire = toWireInvestigationEvent({
+      type: "INVESTIGATION_STARTED",
+      seq: 1,
+      investigationId: investigation.id,
+      investigation,
+    });
+    expect(wire.investigation).toStrictEqual(
+      toWireInvestigation(investigation),
+    );
+  });
+
+  it("carries a tool outcome unchanged — it is already the wire shape", () => {
+    const wire = toWireInvestigationEvent({
+      type: "TOOL_CALL_COMPLETED",
+      seq: 1,
+      investigationId: investigation.id,
+      stepId: toStepId("step-1"),
+      tool: "get_security_snapshot",
+      durationMs: 5,
+      outcome: { kind: "ok", value: { symbol: "NVDA" } },
+    });
+    expect(wire.outcome).toStrictEqual({
+      kind: "ok",
+      value: { symbol: "NVDA" },
+    });
   });
 });

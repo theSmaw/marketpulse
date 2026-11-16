@@ -22,9 +22,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { apiErrorSchema } from "./errors.js";
 import { createDiagnosticsRoutes } from "./routes/diagnostics.js";
+import { createInvestigationRoutes } from "./routes/investigations.js";
 import { createMarketDataRoutes } from "./routes/market-data.js";
 import { createSecuritiesRoutes } from "./routes/securities.js";
 
+import { createInvestigationStore } from "./investigation-store.js";
+import { createScriptedAgentProvider } from "./scripted-agent-provider.js";
 import { buildServer } from "./server.js";
 import { unmeasuredVolumeShare } from "./volume-share.js";
 
@@ -535,6 +538,23 @@ describe("the response-schema declaration", () => {
           },
         }),
       );
+
+      // Task 7.1.3's route pair, registered the same way as the four
+      // above: `index.ts` needs `currentMarketState` for this one too, for
+      // the ordering reason `routes/securities.ts`'s own header carries. A
+      // stub store and a real (but tool-less) scripted provider are
+      // enough to prove the route TABLE, which is this test's whole
+      // subject.
+      app.register(
+        createInvestigationRoutes({
+          store: createInvestigationStore(),
+          provider: createScriptedAgentProvider({
+            store: createInvestigationStore(),
+            now: () => new Date("2026-11-16T00:00:00.000Z"),
+          }),
+          tools: [],
+        }).plugin,
+      );
     });
 
     // A guard on the guard: if the hook ever stops seeing routes, this test
@@ -556,6 +576,11 @@ describe("the response-schema declaration", () => {
         // Task 6.5.2. The third route in that namespace, and the one whose
         // subject is a PAIR of securities.
         "/market-data/relationships",
+        // Task 7.1.3. The investigation engine's own two routes — the
+        // second is the SSE one, whose 200 is never schema'd (hijacking
+        // means nothing would ever read it) but whose 404/500 still are.
+        "/investigations",
+        "/investigations/:id/events",
       ]),
     );
 

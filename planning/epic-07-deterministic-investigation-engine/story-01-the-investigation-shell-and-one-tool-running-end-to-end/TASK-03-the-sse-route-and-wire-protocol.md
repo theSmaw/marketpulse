@@ -1,6 +1,10 @@
 # Task 7.1.3 — The SSE route & wire protocol
 
-**Status:** Not started
+**Status:** Complete — 2026-11-16. Both routes ship; a real Node bug was
+found and fixed along the way — `writeHead()` alone never puts headers on
+the wire, so a client attaching to a caught-up stream (the common case
+for a reconnect) received nothing at all until `flushHeaders()` was
+added.
 **Story:** [7.1 The Investigation Shell, & One Tool Running End to End](STORY.md)
 **Depends on:** 7.1.2
 
@@ -89,3 +93,94 @@ route is reachable with `curl` and streams real frames.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
+
+---
+
+## What was done — 2026-11-16
+
+- **`apps/backend/src/routes/investigations.ts`** (new): `POST
+/investigations` (idempotent per running symbol, via a linear scan of
+  `InvestigationStore.list()`; returns the real, already-running
+  `Investigation` from `runInvestigation`'s own synchronous prefix,
+  never awaited) and `GET /investigations/:id/events` (`reply.hijack()`,
+  a hand-written status line and correlation-id header, `?from=`/
+  `Last-Event-ID` replay via `AgentProvider.streamEvents`, a terminal-
+  event-ends-the-response rule, `request.raw.on("close")` detaching the
+  subscriber only). Both declare `500: apiErrorSchema`; the POST route
+  also declares a real 201/400 schema built from `toWireInvestigation`'s
+  own field set; the GET route declares no 200 at all, since hijacking
+  means nothing would ever read it.
+- **`packages/shared/src/investigation.ts`**: `toWireInvestigationEvent`,
+  one `WireFields` map per event member (six today), mirroring
+  `toWireStep`'s own per-member pattern — the mechanism this task's own
+  Work section named as owing a `pnpm invariants` entry at the story's
+  close.
+- **`apps/backend/src/investigation-store.ts`**: `list()` added — not
+  named in the task's own Work list, but required for the second-press
+  idempotency rule, which has to search by subject rather than by id.
+- **`apps/backend/src/index.ts`**: `currentMarketState`'s own
+  construction moved earlier in the file, ahead of `app.listen()` —
+  every existing reader of it is wired up _after_ `listen()` because
+  none of them is a genuine Fastify plugin (the gateway attaches to
+  `app.server`'s own `upgrade` event directly), and this route is the
+  first one that is. The investigation store, the scripted provider and
+  the one configured tool are constructed alongside the diagnostics/
+  securities/market-data routes, for the same ordering reason those are
+  registered there. A third shutdown closer
+  (`registerInvestigationStreamCloser`) ends every open SSE stream
+  ahead of `app.close()`'s own drain.
+
+### Two real defects found and fixed, neither in this task's own first draft
+
+1. **A genuine `ReferenceError` at module load.** The investigation
+   stream closer's own registration call was first written right beside
+   the route registration — which runs _before_ the `let
+closeInvestigationStreams` declaration a few hundred lines later in the
+   file, a textbook temporal-dead-zone violation. Caught immediately by
+   `pnpm test:process`, which spawns the real built `dist/index.js` and
+   crashed on startup; `app.inject()`-based tests cannot see this class
+   of bug at all, because they never import `index.ts`. Fixed by moving
+   the call to immediately after the declaration.
+2. **Node's `ServerResponse.writeHead()` does not flush.** A client
+   attaching to an investigation that has already finished — the
+   _common_ case for a real reconnect, not a corner one — has nothing
+   left to replay and nothing new coming, so the handler never called
+   `write()`. Measured directly: without `flushHeaders()`, such a client
+   receives **no response at all**, not even a status line, because
+   Node buffers headers until the first `write()`/`end()`. A process-
+   level test (`index.process.test.ts`) attaching to a caught-up stream
+   and then sending `SIGTERM` hung for the full 30 s test timeout before
+   this was found and fixed.
+
+### Gates
+
+`pnpm --filter @marketpulse/backend typecheck` clean (clean rebuild).
+`pnpm --filter @marketpulse/backend lint` clean. `pnpm --filter
+@marketpulse/shared lint` clean. `pnpm --filter @marketpulse/backend
+test` — **1412 passed** (9 new in `routes/investigations.test.ts`).
+`pnpm --filter @marketpulse/backend test:process` — **63 passed** (3
+new: the real-socket transport/disconnect tests in
+`routes/investigations.process.test.ts`, and the shutdown-ceiling test
+in `index.process.test.ts`). Full `pnpm verify` — green: 86 invariants
+hold, `packages/shared` 734 tests, `apps/backend` 1,412, `apps/frontend`
+1,956, `scripts/*.test.mjs` 21, `test:process` 63.
+
+A real dev server was also driven by hand with `curl --no-buffer`
+(Done-when 1 and the hand-audit for Done-when 7): a real
+`text/event-stream` response with no `content-encoding` header, every
+one of the six real frames, and a `TOOL_CALL_COMPLETED` outcome
+(`{"kind":"refused","reason":"nothing-observed"}`) carrying no internal
+detail — a stack trace, an internal id or a thrown message would have
+shown up here, since this path has no `fast-json-stringify` backstop at
+all.
+
+## For a stakeholder — a status report, 2026-11-16
+
+Still nothing on screen — Task 7.1.4 is the frontend. What exists now is
+a real, reachable transport: `curl` (or any HTTP client) can start an
+investigation and watch it run, live, over a real streaming connection.
+Two real bugs were found and fixed before anyone else could hit them: a
+startup crash that only a test spawning the actual built server could
+see, and a genuine Node behaviour (headers are not sent until the first
+byte of body) that would otherwise have made a reconnect to a finished
+investigation hang forever on a real deployment.
