@@ -5,6 +5,7 @@ import type { LiveFeedView } from "../market/index.js";
 
 import { AbnormalMove } from "../components/AbnormalMove/AbnormalMove.js";
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
+import { InvestigationChecklist } from "../components/InvestigationChecklist/InvestigationChecklist.js";
 import { ChartAxis } from "../components/PriceChart/ChartAxis.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
@@ -23,6 +24,7 @@ import {
   useBarSeries,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
+import { useInvestigation } from "../investigations/index.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
@@ -137,6 +139,13 @@ export function SecurityExplorer({
   // the hook keeps the distinction because it is a true fact about the address
   // rather than because this route wants it.
   const { symbol } = useSecuritySymbol();
+
+  // Story 7.1's own engine, started by the `Investigate` control in
+  // `Abnormal-move indicators`'s own header and rendered as that region's
+  // sibling, directly above it — subject-pinned to `symbol`: a checklist
+  // for a different security than the one on screen renders as nothing at
+  // all, which is `useInvestigation`'s own contract.
+  const investigation = useInvestigation(symbol);
 
   // The request is a fresh object literal on every render **and that is the
   // intended call shape**: `useBarSeries` keys on `barSeriesQuery(request)`
@@ -557,6 +566,12 @@ export function SecurityExplorer({
            * for a figure that is not built.
            */}
           <Region name="Abnormal-move indicators">
+            <InvestigationChecklist
+              checklist={investigation.checklist}
+              announcement={investigation.announcement}
+              pastCoverThreshold={investigation.pastCoverThreshold}
+              onInvestigate={investigation.start}
+            />
             <AbnormalMove
               symbol={symbol}
               /*

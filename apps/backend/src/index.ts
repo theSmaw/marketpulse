@@ -381,6 +381,11 @@ const investigationRoutes = createInvestigationRoutes({
   store: investigationStore,
   provider: investigationProvider,
   tools: investigationTools,
+  // The SSE route hijacks its reply, which bypasses `registerCors`'s own
+  // hook exactly as it bypasses the `onRequest` hook that sets the
+  // correlation-id header — see `routes/investigations.ts`'s own comment
+  // beside where this is written back onto the hijacked response by hand.
+  corsOrigin: config.corsOrigin,
 });
 app.register(investigationRoutes.plugin);
 // `registerInvestigationStreamCloser` itself is declared further down,

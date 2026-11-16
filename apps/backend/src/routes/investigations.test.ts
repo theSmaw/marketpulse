@@ -9,7 +9,7 @@
 // stream open. Both are `investigations.process.test.ts`'s and
 // `index.process.test.ts`'s.
 
-import { toTicker } from "@marketpulse/shared";
+import { REQUEST_ID_HEADER, toTicker } from "@marketpulse/shared";
 import type { Investigation, InvestigationEvent } from "@marketpulse/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
@@ -88,7 +88,12 @@ function serverWith(options?: {
     ),
   ];
 
-  const routes = createInvestigationRoutes({ store, provider, tools });
+  const routes = createInvestigationRoutes({
+    store,
+    provider,
+    tools,
+    corsOrigin: "http://localhost:5173",
+  });
   instance.register(routes.plugin);
 
   app = instance;
@@ -225,6 +230,21 @@ describe("GET /investigations/:id/events", () => {
 
     expect(response.headers["content-type"]).toBe("text/event-stream");
     expect(response.headers["content-encoding"]).toBeUndefined();
+    // `@fastify/cors`'s own hook never runs on a hijacked reply, which is
+    // the same mechanism that makes the correlation-id header need
+    // writing by hand two lines up in `routes/investigations.ts` — so
+    // both halves of the CORS contract are written there too. Without
+    // this, a real browser's `fetch()` to this route fails outright
+    // (`TypeError: Failed to fetch`) while this very assertion, run
+    // through `app.inject()`, would stay green regardless — `inject()`
+    // never enforces the policy a header merely states, which is `curl`'s
+    // own blind spot restated.
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5173",
+    );
+    expect(response.headers["access-control-expose-headers"]).toBe(
+      REQUEST_ID_HEADER,
+    );
   });
 
   it("404s for an unknown investigation id", async () => {

@@ -18,14 +18,23 @@ import styles from "./Icon.module.css";
 // another symbol. An interface that grows icons without that moment ends up
 // with three arrows that mean different things.
 //
-// That moment has happened exactly once. The set was closed at **five** from
-// the 2026 refresh until 2026-09-11, when Task 2.11.1 argued for a sixth —
-// `magnifier`, for the product's first input field — on the ground that a
-// search affordance has to be recognisable at a glance on a dense screen, and
-// that the micro-label above a field reads as a section heading rather than as
-// "you can type here". `SEARCH-AND-SELECTION.md` §5 carries the argument. **The
-// set is now six, and the seventh needs its own argument in its own task rather
-// than citing that one.**
+// That moment happened once at **five**, from the 2026 refresh until
+// 2026-09-11, when Task 2.11.1 argued for a sixth — `magnifier`, for the
+// product's first input field — on the ground that a search affordance has
+// to be recognisable at a glance on a dense screen, and that the
+// micro-label above a field reads as a section heading rather than as "you
+// can type here". `SEARCH-AND-SELECTION.md` §5 carries the argument.
+//
+// **And a second time at 2026-11-16, Task 7.1.4: the set is now seven.**
+// `check` is the investigation checklist's own `complete` glyph
+// (`PRODUCT_SPEC.md` §14's example shape, `✓ Measure move 120 ms`) — argued
+// rather than defaulted to, because the obvious alternative is `Marker`'s
+// own `disc`, and that shape is already spent by the security-identity
+// arrival mark two hundred pixels up the same page. A disc there means *a
+// bar arrived*; a second disc here meaning *a step finished* would be a
+// fourth meaning for one silhouette, which this product has already
+// refused once (`Marker.tsx`'s own header). The eighth needs its own
+// argument in its own task rather than citing either of these.
 //
 // ## Every icon is decorative, and that is not configurable
 //
@@ -66,6 +75,7 @@ export const ICON_NAMES = [
   "refresh",
   "alert",
   "magnifier",
+  "check",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -90,6 +100,7 @@ const PATHS: Readonly<Record<IconName, string>> = {
   refresh: "M20 11a8 8 0 10-2.3 5.7M20 5v6h-6",
   alert: "M12 8v5m0 3.5v.5M12 3L2 20h20L12 3z",
   magnifier: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+  check: "M5 13l4 4L19 7",
 };
 
 export function Icon({ name }: IconProps) {

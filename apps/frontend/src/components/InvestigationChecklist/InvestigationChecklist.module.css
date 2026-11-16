@@ -1,0 +1,143 @@
+/*
+ * The checklist `Investigate` paints beneath itself, inside `Abnormal-move
+ * indicators` — one row per step, today always one (Task 7.1.4).
+ *
+ * No new geometry invented: the row's own rhythm is `AbnormalMove.module.css`'s
+ * — `--space-8` between a label and its figure, `--font-size-micro` for
+ * anything that is not the headline — because this checklist sits directly
+ * above that region's own bands and a different rhythm there would read as a
+ * second component rather than one region.
+ */
+
+/*
+ * **The control's own row — Gate 1's stated fallback, taken** (Task 7.1.4).
+ * `Panel`'s `meta` slot was probed first and measured the region's own
+ * header growing 47 → 53 px at every width (the button's own line-height
+ * against the heading's), which is the exact condition that fallback names.
+ * So the control sits here, as the first row of the region's own body,
+ * right-aligned to read as a qualifier on the region rather than as its
+ * own content.
+ */
+.controlRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-12);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  /*
+   * The separator between this and `ScoreBand` beneath it — `.region`'s own
+   * `gap` in `AbnormalMove.module.css` already spaces siblings apart, but this
+   * sits one level up (`SecurityExplorer.tsx` renders it as `AbnormalMove`'s
+   * sibling, not its child), so the gap has to be restated here rather than
+   * inherited.
+   */
+  margin-bottom: var(--space-12);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  /*
+   * **The breathing ground**, applied to the whole row rather than only the
+   * glyph: `ChartPending`'s own cover is the size of the plot it replaces,
+   * and the row is this component's equivalent surface. It is declared here,
+   * unconditionally, and only switched on by `.running` below — past 160 ms,
+   * per `use-investigation.ts`'s own citation of `use-pending-panel.ts`'s
+   * threshold.
+   */
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-8);
+  margin: calc(var(--space-4) * -1) calc(var(--space-8) * -1);
+}
+
+/*
+ * **The surface moves, not the opacity** — `ChartPending.module.css`'s own
+ * correction, carried over rather than relearned: fading would fade whatever
+ * sits beneath this row too, and a block that is always fully opaque is the
+ * only shape that reads as texture rather than as flicker.
+ *
+ * **A different token pair from `ChartPending`'s own** (`--chart-uncovered`/
+ * `--chart-grid`), deliberately: those two are the chart's ground, and this
+ * row sits on the panel's ground instead. Reusing the chart's pair here would
+ * put a visibly chart-coloured wash inside a text region, which is a second,
+ * accidental meaning for a token named for one surface. `--surface-raised`/
+ * `--surface-sunken` are this panel's own two tones, already 1.1-ish apart in
+ * the same quiet range `ChartPending`'s pair is — texture, not a value
+ * changing.
+ *
+ * The SAME `--motion-duration-pulse` as `ChartPending`'s own loop (never a new
+ * number, per this story's own settled decision) — the two breathing
+ * surfaces therefore share a period. Done-when 9's own browser check is
+ * whether that reads as one page breathing in two places or as the same
+ * element flickering twice; this rule is what that check is taken against.
+ */
+.running {
+  animation: investigation-breathe var(--motion-duration-pulse) ease-in-out
+    infinite;
+}
+
+@keyframes investigation-breathe {
+  0%,
+  100% {
+    background: var(--surface-raised);
+  }
+
+  50% {
+    background: var(--surface-sunken);
+  }
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  /* `Icon`'s own `1em` sizing rule: the glyph sits at the description's own
+     type size rather than at a size this file invents. */
+  font-size: var(--font-size-body);
+  flex: none;
+}
+
+/*
+ * **Queued and running share one colour** (`--ink-secondary`), told apart
+ * entirely by `Marker`'s own shape — `dashed` against `ring` — which is the
+ * same rule `FeedIndicator.module.css` states for its own two achromatic
+ * states. Colour carries no part of this encoding at all: the `complete`
+ * glyph is `Icon`, which draws in `currentColor`, and nothing here sets a
+ * colour for it either.
+ */
+.glyphQueued {
+  --marker-color: var(--ink-secondary);
+}
+
+.glyphRunning {
+  --marker-color: var(--ink-primary);
+}
+
+.description {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: var(--font-size-body);
+  color: var(--ink-primary);
+}
+
+.dropped {
+  color: var(--ink-secondary);
+}
+
+.duration {
+  margin: 0;
+  flex: none;
+  /* Reserved from first paint — `AbnormalMove`'s own `.sample`/`.tape` rows
+     reserve room the same way, with held ` ` rather than a width that
+     steps the row the moment a real figure lands. `8ch` covers this story's
+     own longest duration comfortably (`"999 ms"` is 6) with room for a
+     fourth digit before it would ever need revisiting. */
+  min-width: 8ch;
+  text-align: right;
+  font-size: var(--font-size-micro);
+  color: var(--ink-secondary);
+}

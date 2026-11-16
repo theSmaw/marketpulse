@@ -41,6 +41,14 @@ export const Alert: Story = { args: { name: "alert" } };
 // question its addition has to answer.
 export const Magnifier: Story = { args: { name: "magnifier" } };
 
+// The seventh, added 2026-11-16 for `InvestigationChecklist`'s own
+// `complete` glyph — `Icon.tsx`'s own header has the argument against the
+// obvious alternative (`Marker`'s `disc`, already spent by the
+// security-identity arrival mark). Its own story for the same reason
+// `Magnifier`'s has one: a stroke drawn at the wrong weight is visible next
+// to its siblings and invisible alone.
+export const Check: Story = { args: { name: "check" } };
+
 export const AllPermutations: Story = {
   parameters: { controls: { disable: true } },
   render: () => (

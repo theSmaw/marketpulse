@@ -63,7 +63,12 @@ async function listening(
     now: () => new Date("2026-11-16T14:00:00.000Z"),
   });
   instance.register(
-    createInvestigationRoutes({ store, provider, tools }).plugin,
+    createInvestigationRoutes({
+      store,
+      provider,
+      tools,
+      corsOrigin: "http://localhost:5173",
+    }).plugin,
   );
 
   await instance.listen({ port: 0, host: "127.0.0.1" });
