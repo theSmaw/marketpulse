@@ -21,13 +21,25 @@ import { barSeriesQuery, type BarSeriesRequest } from "./bar-series-query.js";
 // deadline, the abort signal, the `ApiError` shape and the correlation id
 // (Task 1.12.2).
 //
-// **This is the only file in `apps/frontend/src/` that calls `fetch`.** That is
-// the property the module exists for rather than a tidiness claim: everything
-// below — the deadline, the two failure vocabularies, the header read — is
-// invisible in its absence and has to be remembered at every call site instead.
-// `health-probe.ts` beside it used to call `fetch` directly and now calls this;
-// it is Task 1.12.3's to delete, when the polling hook replaces the call it
-// makes.
+// ~~**This is the only file in `apps/frontend/src/` that calls `fetch`.**~~ —
+// **false since 2026-11-16, Task 7.1.4, and the reasoning below is why the
+// second call site is a deliberate exception rather than a regression.**
+// `investigations/investigation-stream.ts` calls `fetch` a second time, on
+// purpose: that module answers one JSON request with one JSON response the
+// way this one does, but it also opens a Server-Sent Events stream — an open
+// body a reader consumes incrementally, with its own framing to parse, which
+// is not a shape this client's single method signature can express without
+// becoming a lie for every other caller. The property this file exists for —
+// the deadline, the two failure vocabularies, the header read — is still true
+// of every ordinary JSON request; the exception is scoped to the one
+// transport that is not one.
+//
+// That was the property the module existed for rather than a tidiness claim:
+// everything below — the deadline, the two failure vocabularies, the header
+// read — is invisible in its absence and has to be remembered at every call
+// site instead. `health-probe.ts` beside it used to call `fetch` directly and
+// now calls this; it is Task 1.12.3's to delete, when the polling hook
+// replaces the call it makes.
 //
 // There is still **no React here**: no state, no effect, no component. A
 // request is a promise of a result, and the result never throws.

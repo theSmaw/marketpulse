@@ -139,6 +139,20 @@ export interface InvestigationRoutesOptions {
    * later story's own provider wiring adds to this list; the route never
    * decides what it contains. */
   readonly tools: readonly RunnableTool[];
+  /**
+   * The one allowed browser origin — `config.corsOrigin`, the same value
+   * `registerCors` takes. **Required because hijacking bypasses
+   * `@fastify/cors` entirely**, the same mechanism that makes the
+   * correlation-id header need writing by hand below: `cors.ts` attaches
+   * its own `access-control-allow-origin` through the normal hook
+   * pipeline, which a hijacked reply never runs. Measured directly before
+   * this was added: a real browser's `fetch()` to this route failed with
+   * `TypeError: Failed to fetch` while `curl` against the identical
+   * request got a clean `200` — `cors.ts`'s own header's exact opening
+   * story, reproduced on this route for not having read it closely enough
+   * the first time.
+   */
+  readonly corsOrigin: string;
 }
 
 export interface InvestigationRoutes {
@@ -168,7 +182,7 @@ export interface InvestigationRoutes {
 export function createInvestigationRoutes(
   options: InvestigationRoutesOptions,
 ): InvestigationRoutes {
-  const { store, provider, tools } = options;
+  const { store, provider, tools, corsOrigin } = options;
 
   // Every hijacked response currently open. `reply.hijack()` takes a reply
   // out of Fastify's own bookkeeping (`http-compression.ts` records the
@@ -289,15 +303,23 @@ export function createInvestigationRoutes(
         const raw = reply.raw;
         openStreams.add(raw);
 
-        // The correlation-id header, written by hand: hijacking discards
-        // the `onRequest` hook in `server.ts` that puts it on a *managed*
-        // reply, because a hijacked reply is never flushed through
-        // Fastify's own send path at all.
+        // The correlation-id header AND the CORS headers, both written by
+        // hand: hijacking discards the `onRequest` hook in `server.ts` that
+        // puts the first on a *managed* reply, and `@fastify/cors`'s own
+        // hook that would otherwise put the second two on, for the same
+        // reason — a hijacked reply is never flushed through Fastify's own
+        // send path at all. Without the CORS pair a real browser's `fetch()`
+        // to this route fails outright (`TypeError: Failed to fetch`, no
+        // status a page can read), which only a browser can see — `curl`
+        // answers 200 against the identical request regardless, because it
+        // never enforces the policy the server merely states.
         raw.writeHead(200, {
           "content-type": "text/event-stream",
           "cache-control": "no-cache",
           connection: "keep-alive",
           [REQUEST_ID_HEADER]: request.id,
+          "access-control-allow-origin": corsOrigin,
+          "access-control-expose-headers": REQUEST_ID_HEADER,
         });
         // `writeHead()` alone does not put the headers on the wire — Node
         // buffers them until the first `write()`/`end()`, which a client

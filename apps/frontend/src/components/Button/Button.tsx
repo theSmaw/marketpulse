@@ -45,6 +45,28 @@ import styles from "./Button.module.css";
 // a second, smaller answer to "is something happening?" competing with the real
 // one. The reversal trigger is the first action whose result does not replace
 // the thing that triggered it.
+//
+// **That trigger fired on 2026-11-16 (Task 7.1.4), and the verdict is still
+// no.** `Investigate` is the first button whose result genuinely does not
+// replace what triggered it: the checklist mounts BESIDE the control, which
+// stays on screen unchanged throughout. Read narrowly the trigger's own
+// condition is met.
+//
+// **It is declined anyway, on the clause the trigger's own wording left
+// unstated**: *compared to what?* A spinner inside this button would be
+// answering "is something happening?" a second time, immediately beside a
+// checklist built for exactly that question — `PRODUCT_SPEC.md` §14's own
+// shape, `✓ Measure move 120 ms`, which states not only THAT work is
+// happening but WHICH step and for how long. A button-level spinner carries
+// strictly less information than the thing already sitting next to it, so
+// adding one would not be a second, smaller answer competing with the real
+// one — the condition the original paragraph warns against — it would be a
+// second, SMALLER answer with nothing to compete over, because the real one
+// already won on content. The reversal trigger is therefore sharpened
+// rather than withdrawn: the first action whose result does not replace the
+// thing that triggered it **and has no richer answer sitting beside it
+// already**. `Investigate` fails the second clause; the first action that
+// meets both is this component's own loading state to build.
 
 export const BUTTON_VARIANTS = ["primary", "secondary", "quiet"] as const;
 

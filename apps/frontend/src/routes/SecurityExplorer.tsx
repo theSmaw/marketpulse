@@ -5,6 +5,8 @@ import type { LiveFeedView } from "../market/index.js";
 
 import { AbnormalMove } from "../components/AbnormalMove/AbnormalMove.js";
 import { BarSeriesPanel } from "../components/BarSeriesPanel/BarSeriesPanel.js";
+import { Button } from "../components/Button/Button.js";
+import { InvestigationChecklist } from "../components/InvestigationChecklist/InvestigationChecklist.js";
 import { ChartAxis } from "../components/PriceChart/ChartAxis.js";
 import { PageHeader } from "../components/PageHeader/PageHeader.js";
 import { Region } from "../components/Region/Region.js";
@@ -23,6 +25,7 @@ import {
   useBarSeries,
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
+import { useInvestigation } from "../investigations/index.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
@@ -137,6 +140,13 @@ export function SecurityExplorer({
   // the hook keeps the distinction because it is a true fact about the address
   // rather than because this route wants it.
   const { symbol } = useSecuritySymbol();
+
+  // Story 7.1's own engine, started by the `Investigate` control in
+  // `Abnormal-move indicators`'s own header and rendered as that region's
+  // sibling, directly above it — subject-pinned to `symbol`: a checklist
+  // for a different security than the one on screen renders as nothing at
+  // all, which is `useInvestigation`'s own contract.
+  const investigation = useInvestigation(symbol);
 
   // The request is a fresh object literal on every render **and that is the
   // intended call shape**: `useBarSeries` keys on `barSeriesQuery(request)`
@@ -556,7 +566,39 @@ export function SecurityExplorer({
            * their own bands here, each paying its own step; nothing is reserved
            * for a figure that is not built.
            */}
-          <Region name="Abnormal-move indicators">
+          <Region
+            name="Abnormal-move indicators"
+            /*
+             * **Re-sited into `meta` by Task 7.1.4's own close, reversing its
+             * first placement.** The body-row fallback this file's own
+             * `InvestigationChecklist.tsx` comment once argued for costs this
+             * region's whole panel 40px (the button's own row plus the gap
+             * above the score band) against `meta`'s 6px (47 → 53, the
+             * header-only growth Gate 1 had already measured and declined) —
+             * and the 40px version pushes the panel to 637px at 390 width,
+             * which exceeds the 605px available between the sticky masthead
+             * and the sticky status bar at 390×780. A reader tabbing to this
+             * region's own landmark then lands with its top edge behind the
+             * header — found by `search-keyboard.spec.ts`'s own "no tab stop
+             * lands under the chrome" walk, not by anything this task had
+             * written. `meta`'s 601px total clears that budget; the body-row
+             * alternative cannot.
+             */
+            meta={
+              <Button
+                size="small"
+                variant="secondary"
+                onClick={investigation.start}
+              >
+                Investigate
+              </Button>
+            }
+          >
+            <InvestigationChecklist
+              checklist={investigation.checklist}
+              announcement={investigation.announcement}
+              pastCoverThreshold={investigation.pastCoverThreshold}
+            />
             <AbnormalMove
               symbol={symbol}
               /*

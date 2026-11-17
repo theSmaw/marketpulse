@@ -2200,11 +2200,14 @@ apps/backend/                  Fastify server
   src/alpaca-*.ts              the vendor client: mapping (pure) split from transport
   src/fixtures/alpaca/         RAW recorded vendor bodies. Excluded from Prettier and from
                                line-ending normalisation ON PURPOSE — both would rewrite evidence.
-  src/routes/                  health, securities, market-data, diagnostics
+  src/routes/                  health, securities, market-data, diagnostics, investigations
 apps/frontend/                 React + Vite
   .storybook/                  reuses vite.config.ts; both files sit outside every tsconfig
   public/staticwebapp.config.json   the DEPLOYED host's configuration — part of the artefact
-  src/api-client.ts            the ONLY file in the application that calls fetch
+  src/api-client.ts            the only file calling fetch for an ordinary JSON request —
+                               `src/investigations/investigation-stream.ts` is a second, deliberate
+                               call site since 2026-11-16 (Task 7.1.4), for the one transport that
+                               is not one: an open SSE body a reader consumes incrementally
   src/use-*.ts                 four hooks; three make network requests, one reads the clock
   src/market/                  the FIRST feature module (§26); its index.ts is its API, and a
                                lint rule forbids importing anything else under it

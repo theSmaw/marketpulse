@@ -301,6 +301,16 @@ export default tseslint.config(
               message:
                 "Import the topology module through its index (PRODUCT_SPEC.md \u00a726): a feature module exposes a domain-level API, and a deep import is a dependency on an internal that has no reason not to move.",
             },
+
+            // The THIRD feature module, added 2026-11-16 by Task 7.1.4 \u2014
+            // the same rule a third time, for the same reason the second
+            // entry's own comment states: the generalised form would also
+            // catch `src/fixtures/*` and `src/styles/*`.
+            {
+              group: ["**/investigations/*", "!**/investigations/index.js"],
+              message:
+                "Import the investigations module through its index (PRODUCT_SPEC.md \u00a726): a feature module exposes a domain-level API, and a deep import is a dependency on an internal that has no reason not to move.",
+            },
           ],
         },
       ],

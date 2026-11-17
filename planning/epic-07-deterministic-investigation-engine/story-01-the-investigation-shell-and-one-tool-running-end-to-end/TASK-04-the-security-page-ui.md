@@ -1,6 +1,14 @@
 # Task 7.1.4 — The security-page UI
 
-**Status:** Not started
+**Status:** Complete — 2026-11-17. A real `Investigate` control and
+checklist ship on `/securities/NVDA`, in `Panel`'s own `meta` slot —
+reversed from the body-row fallback this file first shipped with, after
+PR #691's own CI found that the body-row's 40px cost pushed this
+panel's keyboard tab stop behind the sticky masthead at 390×780.
+A real CORS gap in Task 7.1.3's route (a hijacked reply bypasses
+`@fastify/cors` too, not only the correlation-id hook) was found and
+fixed in the same change, since nothing short of a real browser could
+have found it.
 **Story:** [7.1 The Investigation Shell, & One Tool Running End to End](STORY.md)
 **Depends on:** 7.1.3
 
@@ -114,3 +122,179 @@ state unknown` in the same row the last known step occupied, and the
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
+
+---
+
+## What was done — 2026-11-16
+
+- **Design work**: `pnpm probe /securities/NVDA --within "Abnormal-move
+indicators"` measured the region's header at **47px at all four
+  widths**, with its content line (`--line-height-subheading`, 22px)
+  shorter than `Button size="small"`'s own height
+  (`--control-height-sm`, 28px). Adding the control to `Panel`'s `meta`
+  slot would grow the header to ~53px — exactly the condition Gate 1's
+  own fallback names — so the control ships as a row at the top of the
+  region's own body instead, owned by the new component rather than by
+  `Panel`'s header. A new canvas page, `The investigation checklist
+.dc.html`, records this measurement and the three glyph states.
+- **`apps/frontend/src/investigations/`** (new module): `investigation
+-event.ts` (`readInvestigationEvent`, a frontend-local `WireInvestigation
+Event` type — deliberately not shared with the backend's own domain
+  type, which carries `Date`s rather than wire strings — and the
+  `event`/`unreadable`/`unsupported` three-member decode result
+  `market-stream-protocol.ts`'s `DecodedMessage` already established);
+  `investigation-stream.ts` (`fetch` + `ReadableStream`, a real second
+  `fetch` call site beside `api-client.ts`, for the one transport that
+  is not an ordinary JSON request); `investigation-checklist-state.ts`
+  (the pure reducer, `optimisticChecklist`/`applyInvestigationEvent`/
+  `withConnectionLost`); `use-investigation.ts` (the hook: the
+  client-optimistic paint, the second-press guard, subject-pinning, and
+  the 160ms cover-threshold timer that gates both the live region's
+  "started" announcement and the checklist's breathing ground); `index
+.ts` (the barrel, `market/index.ts`'s own pattern).
+- **`apps/frontend/src/components/InvestigationChecklist/`** (new):
+  `queued` = `Marker shape="dashed"`, `running` = `Marker shape="ring"`
+  (+ a breathing row-ground past 160ms, `--motion-duration-pulse`, no
+  new token), `completed` = the new `Icon name="check"`. The control
+  (`Button size="small" variant="secondary"`) is always visible; only
+  the checklist beneath it is conditional on a press. A persistent
+  `role="status"`, scoped to this component, never unmounted.
+- **`Icon.tsx`**: a seventh member, `check` — argued in writing against
+  `Marker`'s own `disc` (already spent by the security-identity arrival
+  mark) rather than defaulted to.
+- **`Button.tsx`**: the loading-state reversal trigger evaluated and
+  declined, in writing — it technically fires (the checklist's result
+  does not replace what triggered it), and is declined on the clause
+  the original paragraph left unstated: a spinner here would carry
+  strictly less information than the checklist already does.
+- **`SecurityExplorer.tsx`**: wires `useInvestigation(symbol)` into the
+  new control/checklist, rendered as `Abnormal-move indicators`'s
+  sibling (inside the same `Region`, above it) — `AbnormalMove.tsx`
+  itself is untouched.
+- **`e2e/specs/security-investigate.spec.ts`** (new): three tests
+  against the REAL route (not a furnished frame, unlike the region's
+  neighbours) — a press reaches a real, measured duration; a second
+  press while one is showing adds no second row; the region stays a tab
+  stop with the checklist present.
+
+### A real backend defect found and fixed, that only a browser could find
+
+`reply.hijack()` (Task 7.1.3) takes the SSE reply out of Fastify's whole
+hook pipeline, which Task 7.1.3's own record already knew for the
+correlation-id header and for `@fastify/compress` — and had NOT
+connected to `@fastify/cors`, which attaches through the identical
+mechanism. A real browser's `fetch()` to the events route failed with
+`TypeError: Failed to fetch` while `curl` against the identical request
+got a clean `200` — `cors.ts`'s own opening measurement, reproduced on
+this route. Fixed by writing both CORS headers onto the hijacked
+response by hand, the same way the correlation id already is; a test
+now asserts them directly (`routes/investigations.test.ts`), since
+`app.inject()` — which never enforces the policy a header only states —
+could not have caught this and did not, across two tasks.
+
+### A real keyboard-focus defect found by this PR's own CI, and the placement decision reversed to fix it
+
+PR #691's `e2e` check came back with two failures in files this task
+never touched: `security-price-chart.spec.ts`'s plot-gap ceiling and
+`search-keyboard.spec.ts`'s "no tab stop lands under the chrome at
+390px" walk. Per `CLAUDE.md`'s own flake-verification rule, both were
+re-run locally at `--workers=1` and reproduced identically rather than
+clearing up (gap `265` against a `235` ceiling, three runs in a row;
+"Abnormal-move indicatorsInvestigateHow u" obscured, two runs in a
+row) — a signal that these were real, deterministic consequences of
+this task's own change rather than an unrelated flake.
+
+They were the same cause. The body-row placement this task shipped
+with grew `Abnormal-move indicators`' whole panel from **595 → 637 px**
+at 390 width (measured via `pnpm probe`) — the control's own row plus
+the gap above the score band, 40px neither of which the rejected
+`meta`-slot alternative would have cost. At 390×780 the space between
+the sticky masthead and the sticky status bar is **605px**
+(`headerBottom 94 + ring 4` to `footerTop 707 - ring 4`), measured
+directly by driving a Playwright session through the same 26-stop walk
+`search-keyboard.spec.ts` runs and logging each focused element's own
+box against the chrome's. A 637px panel cannot fit inside a 605px gap
+whatever `scroll-padding-top`/`-bottom` are set to, so `Region`'s own
+ADR-0039 tab stop (the panel's `<section>`) landed with its top edge
+12px behind the header — real, and exactly the kind of thing a person
+tabbing through the page on a phone would meet. The same 40px growth is
+also what pushed the Price panel's own column taller at 1440, widening
+the two-plot gap past `security-price-chart.spec.ts`'s existing,
+already-once-re-measured ceiling.
+
+**The control is now `Panel`'s `meta` slot after all** — the
+first-choice placement this task's own research had already measured
+and set aside, because the header-only growth it costs (47→53px, +6px)
+turned out to be far cheaper than the body-row's +40px once a real
+keyboard walk, not an aesthetic judgement about line-heights, was what
+decided between them. `InvestigationChecklist.tsx` no longer renders
+the button or a `controlRow` at all; `SecurityExplorer.tsx` renders it
+directly as `<Region meta={<Button .../>}>`. Re-measured after the
+change: panel height **601px** at 390 (within the 605px budget), both
+previously-failing specs pass, and the full `pnpm e2e` suite was
+re-run clean. `InvestigationChecklist`'s own props, tests and stories
+were updated to match — `onInvestigate` is gone from this component's
+contract entirely.
+
+### Two sweep corrections taken in the same change
+
+Per `CLAUDE.md`'s own rule that a falsified claim is corrected the same
+day: `api-client.ts`'s docblock ("the only file... that calls fetch")
+and `CLAUDE.md`'s own repo map line are both amended to name
+`investigation-stream.ts` as a second, deliberate call site, with the
+reasoning carried rather than just the correction.
+
+### One invariant violation found and fixed before it ever reached `main`
+
+`no-imputed-zero-in-a-figure` failed on `step.durationMs ?? 0` in the
+live region's completion sentence. A completed step always carries a
+real duration by construction, so the `?? 0` was exactly the false
+impression the invariant exists to catch; replaced with a thrown guard
+naming the actual invariant this module depends on (`STEP_COMPLETED`
+always sets one).
+
+### Gates
+
+`pnpm --filter @marketpulse/backend typecheck`/`lint` clean.
+`pnpm --filter @marketpulse/frontend typecheck`/`lint` clean.
+`pnpm --filter @marketpulse/backend test` — 1,412 passed.
+`pnpm --filter @marketpulse/frontend test` — **2,001 passed** (73 new,
+across `investigation-event.test.ts`, `investigation-stream.test.ts`,
+`investigation-checklist-state.test.ts`, `use-investigation.test.ts`,
+`InvestigationChecklist.test.tsx`, plus the `SecurityExplorer.test.tsx`
+fix for the page's now-four `role="status"` regions). `pnpm stories` —
+49 components, 49 stories files. Full `pnpm verify` — green: **86
+invariants hold**, `packages/shared` 734, `apps/backend` 1,412,
+`apps/frontend` 2,001, `scripts/*.test.mjs` 21, `test:process` 63.
+`pnpm e2e overview-degraded-grid.spec.ts security-abnormal-move.spec.ts
+security-explorer-shell.spec.ts security-investigate.spec.ts` — **18
+passed**, confirming no regression against the existing nine-state ×
+four-width degraded grid and the new route working end to end in a
+real browser. Hand-verified in a real Chrome tab: pressing `Investigate`
+against the real dev backend produced a check glyph, "Measure move" and
+a real measured duration (`1 ms`), with the control unchanged in place.
+
+### What is NOT separately verified
+
+Done-when 9's contrast/legibility check between the breathing ground
+and `ChartPending`'s own identical-period loop was not taken side by
+side with both actually looping at once — the two states are hard to
+produce simultaneously on one screen without a slow network throttle.
+Both read the same `--motion-duration-pulse` token, which is what makes
+them synchronised rather than a coincidence; a dedicated visual check is
+left as the honest gap rather than claimed.
+
+## For a stakeholder — a status report, 2026-11-16
+
+Story 7.1's one visible change: the security page now has a real
+`Investigate` control, and pressing it runs a real, deterministic
+investigation against this product's own live-data store — the whole
+pipe Epic 7 exists to prove, end to end, on screen. A reader presses
+the button, sees a row appear immediately, watches it complete with a
+real measured duration, and can press it again for a fresh run.
+Everything underneath — the domain model, the tool, the orchestrator,
+the HTTP transport — was built and verified in the three tasks before
+this one; this task is where it became something a person can actually
+see and use. A real cross-origin bug was found and fixed before any
+real user could hit it, which is exactly what building the frontend
+against the real backend (rather than a mock) is for.

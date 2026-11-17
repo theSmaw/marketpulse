@@ -553,6 +553,7 @@ describe("the response-schema declaration", () => {
             now: () => new Date("2026-11-16T00:00:00.000Z"),
           }),
           tools: [],
+          corsOrigin: "http://localhost:5173",
         }).plugin,
       );
     });

@@ -774,14 +774,25 @@ describe("the Security Explorer shell", () => {
     // to fill without speaking. Nothing else in the tree refuses a fourth
     // `role="status"`, so this is where that decision is held.
     //
-    // **Three is what jsdom can see, and the browser sees four** (Task
-    // 2.12.6). The chart's reading has a region of its own, and it renders only
-    // where there are bars to read — which needs a measured plot, which needs a
-    // layout, which this level does not have. The fourth is deliberate and its
-    // argument is in `ChartReading.tsx`: it is the one region on this page that
-    // speaks when a **key** is pressed, and therefore never in the same moment
-    // as any of the three below, which speak when a request lands.
-    expect(screen.getAllByRole("status")).toHaveLength(3);
+    // **Three is what jsdom can see, and the browser sees five** (Task
+    // 2.12.6, amended 2026-11-16 by Task 7.1.4). The chart's reading has a
+    // region of its own, and it renders only where there are bars to read —
+    // which needs a measured plot, which needs a layout, which this level
+    // does not have. That fourth one is deliberate and its argument is in
+    // `ChartReading.tsx`: it is the one region on this page that speaks when
+    // a **key** is pressed, and therefore never in the same moment as any of
+    // the three below, which speak when a request lands.
+    //
+    // **And a genuine fourth now exists at THIS level too** —
+    // `InvestigationChecklist`'s own `role="status"`, present from first
+    // paint beside `Abnormal-move indicators` for `BarSeriesPanel`/
+    // `ChartReading`'s own reason: a region added at the same moment as its
+    // first announcement is not reliably read by every screen reader, so it
+    // mounts empty and stays mounted. It speaks only on a reader-initiated
+    // press (`Investigate`) or a run's own completion — never on a request
+    // this test's own stub answers unprompted — so it does not change why
+    // the identity block itself stays silent; it only changes the count.
+    expect(screen.getAllByRole("status")).toHaveLength(4);
   });
 });
 
