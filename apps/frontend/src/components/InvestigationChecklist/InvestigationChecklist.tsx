@@ -5,13 +5,12 @@ import type {
 import { CONNECTION_LOST_SENTENCE } from "../../investigations/index.js";
 import { cx } from "../../cx.js";
 import a11y from "../../styles/a11y.module.css";
-import { Button } from "../Button/Button.js";
 import { Icon } from "../Icon/Icon.js";
 import { Marker } from "../Marker/Marker.js";
 import styles from "./InvestigationChecklist.module.css";
 
-// The one-line checklist `Investigate` paints beneath itself — `PRODUCT_SPEC.md`
-// §14's own example shape, `✓ Measure move 120 ms` (Task 7.1.4).
+// The one-line checklist beneath `Investigate` — `PRODUCT_SPEC.md` §14's own
+// example shape, `✓ Measure move 120 ms` (Task 7.1.4).
 //
 // ## Invisible before any press
 //
@@ -21,15 +20,23 @@ import styles from "./InvestigationChecklist.module.css";
 // this region out of the "a reserved region nobody has built" pattern Story 4.7
 // already routed as a defect once.
 //
-// ## Where the control sits
+// ## Where the control sits — and why it moved
 //
-// `Abnormal-move indicators`'s own header carries `Panel`'s `meta` slot, and
-// that was this task's own first-choice placement — probed before anything
-// else, per Gate 1's own stated order. A control added there measured
-// **47 → 53 px**, at all four widths, because the button's own line-height
-// is taller than the heading's: Gate 1's own stated fallback fires on that
-// exact measurement, so the control sits here instead, as the first row of
-// the region's own body, owned by this component rather than by the header.
+// The `Investigate` button itself is NOT rendered by this component: it is
+// `SecurityExplorer.tsx`'s own `<Region meta={...}>`, `Panel`'s `meta` slot.
+// This was the task's first-choice placement, measured at **47 → 53 px**
+// against a body-row alternative measured at **595 → 635 px** — a control
+// added to the header costs this panel 6px; one added as a body row costs it
+// 40px, because the row's own height and the gap above the score band are
+// both new. The 6px version was shelved at first on a narrower question (does
+// a 28px button sit awkwardly in a 22px heading line?) and the 40px version
+// shipped instead — until `search-keyboard.spec.ts`'s own "no tab stop lands
+// under the chrome" walk found that the 635px panel exceeds the 605px
+// available between the sticky masthead and the sticky status bar at
+// 390×780, landing this region's own ADR-0039 tab stop with its top edge
+// behind the header. Re-sited into `meta` at this task's own close: 601px
+// clears that budget, and the header-height question turned out to be the
+// smaller cost by a wide margin once a real keyboard walk measured both.
 //
 // `queued` = `Marker shape="dashed"` (its own existing meaning, "not yet"),
 // `running` = `Marker shape="ring"`, `completed` = `Icon name="check"`. The
@@ -65,9 +72,10 @@ import styles from "./InvestigationChecklist.module.css";
 // anything to say.
 
 export interface InvestigationChecklistProps {
-  /** `undefined` means nothing to show yet — see the header. The control
-   * itself is never hidden: `onInvestigate` is always offered, whatever
-   * this is. */
+  /** `undefined` means nothing to show yet — see the header. The
+   * `Investigate` control itself lives outside this component entirely
+   * (`SecurityExplorer.tsx`'s own `<Region meta={...}>`) and is never
+   * hidden, whatever this is. */
   readonly checklist: ChecklistState | undefined;
   /** What the live region should currently hold. Owned by
    * `use-investigation.ts`, which is the only thing with a clock. */
@@ -80,33 +88,15 @@ export interface InvestigationChecklistProps {
    * milliseconds must be told, not timed, that it never crossed the
    * floor. */
   readonly pastCoverThreshold: boolean;
-  /** Starts (or re-presses) the investigation for the page's current
-   * security. The second-press guard lives in `use-investigation.ts`, not
-   * here — this control is never disabled. */
-  readonly onInvestigate: () => void;
 }
 
 export function InvestigationChecklist({
   checklist,
   announcement,
   pastCoverThreshold,
-  onInvestigate,
 }: InvestigationChecklistProps) {
   return (
     <>
-      <div className={cx(styles.controlRow)}>
-        {/*
-         * `secondary`, never `primary` — zero other consumers of that
-         * variant in this product, and spending the one crimson accent on
-         * a control this unremarkable is disproportionate. The same label
-         * in every state (idle/running/done): `Button.tsx`'s own header
-         * records the loading-state trigger evaluated and declined for
-         * exactly this control.
-         */}
-        <Button size="small" variant="secondary" onClick={onInvestigate}>
-          Investigate
-        </Button>
-      </div>
       {/*
        * First in the tree and rendered whenever this component is, which is
        * the mechanism `BarSeriesPanel.tsx` argues for at length: a live

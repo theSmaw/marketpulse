@@ -89,16 +89,11 @@ const dropped: ChecklistState = {
   connectionLost: true,
 };
 
-const noop = (): void => {
-  // Stories do not start a real investigation.
-};
-
 export const Queued: Story = {
   args: {
     checklist: queued,
     announcement: "",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
 };
 // Running, UNDER the 160 ms cover threshold — a static ring, no breathing.
@@ -108,7 +103,6 @@ export const Running: Story = {
     checklist: running,
     announcement: "",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
 };
 // Running, PAST the threshold — the same static ring, plus the breathing
@@ -119,7 +113,6 @@ export const RunningBreathing: Story = {
     checklist: running,
     announcement: "Measure move running",
     pastCoverThreshold: true,
-    onInvestigate: noop,
   },
 };
 export const Completed: Story = {
@@ -127,7 +120,6 @@ export const Completed: Story = {
     checklist: completed,
     announcement: "Measure move complete, 120 ms",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
 };
 export const Dropped: Story = {
@@ -135,18 +127,17 @@ export const Dropped: Story = {
     checklist: dropped,
     announcement: CONNECTION_LOST_SENTENCE,
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
 };
 
-// The control itself, with nothing pressed yet — Done-when 2. The button
-// is never hidden; only the checklist beneath it is.
+// Nothing pressed yet — Done-when 2. This component renders nothing at all
+// here; the `Investigate` button lives in `Region`'s own `meta` slot
+// (`SecurityExplorer.tsx`) and is never hidden regardless of this state.
 export const Invisible: Story = {
   args: {
     checklist: undefined,
     announcement: "",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
 };
 
@@ -155,7 +146,6 @@ export const AllPermutations: Story = {
     checklist: queued,
     announcement: "",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
   parameters: { controls: { disable: true } },
   render: () => (
@@ -165,35 +155,30 @@ export const AllPermutations: Story = {
         checklist={queued}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>running, under 160ms</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>running, breathing</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>completed</span>
       <InvestigationChecklist
         checklist={completed}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>connection lost</span>
       <InvestigationChecklist
         checklist={dropped}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
     </div>
   ),
@@ -211,7 +196,6 @@ export const InGreyscale: Story = {
     checklist: queued,
     announcement: "",
     pastCoverThreshold: false,
-    onInvestigate: noop,
   },
   render: () => (
     <div style={{ filter: "grayscale(1)" }} className={gridStyles.grid}>
@@ -220,21 +204,18 @@ export const InGreyscale: Story = {
         checklist={queued}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>running, breathing</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold
-        onInvestigate={noop}
       />
       <span className={gridStyles.label}>completed</span>
       <InvestigationChecklist
         checklist={completed}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />
     </div>
   ),

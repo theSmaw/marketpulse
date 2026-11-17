@@ -1,13 +1,14 @@
 # Task 7.1.4 — The security-page UI
 
-**Status:** Complete — 2026-11-16. A real `Investigate` control and
-checklist ship on `/securities/NVDA`. The `pnpm probe` reading measured
-the `Panel` `meta` slot growing 47→53 px with a control added, firing
-Gate 1's own stated fallback — the control sits as a row in the
-region's own body instead. A real CORS gap in Task 7.1.3's route (a
-hijacked reply bypasses `@fastify/cors` too, not only the
-correlation-id hook) was found and fixed in the same change, since
-nothing short of a real browser could have found it.
+**Status:** Complete — 2026-11-17. A real `Investigate` control and
+checklist ship on `/securities/NVDA`, in `Panel`'s own `meta` slot —
+reversed from the body-row fallback this file first shipped with, after
+PR #691's own CI found that the body-row's 40px cost pushed this
+panel's keyboard tab stop behind the sticky masthead at 390×780.
+A real CORS gap in Task 7.1.3's route (a hijacked reply bypasses
+`@fastify/cors` too, not only the correlation-id hook) was found and
+fixed in the same change, since nothing short of a real browser could
+have found it.
 **Story:** [7.1 The Investigation Shell, & One Tool Running End to End](STORY.md)
 **Depends on:** 7.1.3
 
@@ -190,6 +191,50 @@ response by hand, the same way the correlation id already is; a test
 now asserts them directly (`routes/investigations.test.ts`), since
 `app.inject()` — which never enforces the policy a header only states —
 could not have caught this and did not, across two tasks.
+
+### A real keyboard-focus defect found by this PR's own CI, and the placement decision reversed to fix it
+
+PR #691's `e2e` check came back with two failures in files this task
+never touched: `security-price-chart.spec.ts`'s plot-gap ceiling and
+`search-keyboard.spec.ts`'s "no tab stop lands under the chrome at
+390px" walk. Per `CLAUDE.md`'s own flake-verification rule, both were
+re-run locally at `--workers=1` and reproduced identically rather than
+clearing up (gap `265` against a `235` ceiling, three runs in a row;
+"Abnormal-move indicatorsInvestigateHow u" obscured, two runs in a
+row) — a signal that these were real, deterministic consequences of
+this task's own change rather than an unrelated flake.
+
+They were the same cause. The body-row placement this task shipped
+with grew `Abnormal-move indicators`' whole panel from **595 → 637 px**
+at 390 width (measured via `pnpm probe`) — the control's own row plus
+the gap above the score band, 40px neither of which the rejected
+`meta`-slot alternative would have cost. At 390×780 the space between
+the sticky masthead and the sticky status bar is **605px**
+(`headerBottom 94 + ring 4` to `footerTop 707 - ring 4`), measured
+directly by driving a Playwright session through the same 26-stop walk
+`search-keyboard.spec.ts` runs and logging each focused element's own
+box against the chrome's. A 637px panel cannot fit inside a 605px gap
+whatever `scroll-padding-top`/`-bottom` are set to, so `Region`'s own
+ADR-0039 tab stop (the panel's `<section>`) landed with its top edge
+12px behind the header — real, and exactly the kind of thing a person
+tabbing through the page on a phone would meet. The same 40px growth is
+also what pushed the Price panel's own column taller at 1440, widening
+the two-plot gap past `security-price-chart.spec.ts`'s existing,
+already-once-re-measured ceiling.
+
+**The control is now `Panel`'s `meta` slot after all** — the
+first-choice placement this task's own research had already measured
+and set aside, because the header-only growth it costs (47→53px, +6px)
+turned out to be far cheaper than the body-row's +40px once a real
+keyboard walk, not an aesthetic judgement about line-heights, was what
+decided between them. `InvestigationChecklist.tsx` no longer renders
+the button or a `controlRow` at all; `SecurityExplorer.tsx` renders it
+directly as `<Region meta={<Button .../>}>`. Re-measured after the
+change: panel height **601px** at 390 (within the 605px budget), both
+previously-failing specs pass, and the full `pnpm e2e` suite was
+re-run clean. `InvestigationChecklist`'s own props, tests and stories
+were updated to match — `onInvestigate` is gone from this component's
+contract entirely.
 
 ### Two sweep corrections taken in the same change
 

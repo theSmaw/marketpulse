@@ -13,8 +13,6 @@ import { CONNECTION_LOST_SENTENCE } from "../../investigations/index.js";
 import { InvestigationChecklist } from "./InvestigationChecklist.js";
 import styles from "./InvestigationChecklist.module.css";
 
-const noop = (): void => undefined;
-
 const QUEUED: ChecklistState = {
   symbol: "NVDA",
   investigationId: undefined,
@@ -72,17 +70,20 @@ const DROPPED: ChecklistState = {
 };
 
 describe("InvestigationChecklist", () => {
-  it("is invisible before any press — Done-when 2", () => {
+  it("renders nothing visible before any press — Done-when 2", () => {
+    // The `Investigate` button itself is NOT this component's: it lives in
+    // `Region`'s own `meta` slot (`SecurityExplorer.tsx`), so a reader who
+    // has never pressed it sees the live region's empty text node and
+    // nothing else here.
     const { container } = render(
       <InvestigationChecklist
         checklist={undefined}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Investigate" })).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
     expect(container.querySelector(`.${String(styles.checklist)}`)).toBeNull();
   });
 
@@ -92,7 +93,6 @@ describe("InvestigationChecklist", () => {
         checklist={QUEUED}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -108,7 +108,6 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -130,7 +129,6 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement="Measure move running"
         pastCoverThreshold
-        onInvestigate={noop}
       />,
     );
 
@@ -145,7 +143,6 @@ describe("InvestigationChecklist", () => {
           checklist={checklist}
           announcement=""
           pastCoverThreshold
-          onInvestigate={noop}
         />,
       );
       const row = container.querySelector(`.${String(styles.row)}`);
@@ -160,7 +157,6 @@ describe("InvestigationChecklist", () => {
         checklist={COMPLETED}
         announcement="Measure move complete, 120 ms"
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -175,7 +171,6 @@ describe("InvestigationChecklist", () => {
         checklist={DROPPED}
         announcement={CONNECTION_LOST_SENTENCE}
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -192,7 +187,6 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -204,7 +198,6 @@ describe("InvestigationChecklist", () => {
         checklist={COMPLETED}
         announcement="Measure move complete, 120 ms"
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 
@@ -221,7 +214,6 @@ describe("InvestigationChecklist", () => {
         checklist={undefined}
         announcement=""
         pastCoverThreshold={false}
-        onInvestigate={noop}
       />,
     );
 

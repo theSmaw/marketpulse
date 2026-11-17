@@ -9,21 +9,6 @@
  * second component rather than one region.
  */
 
-/*
- * **The control's own row — Gate 1's stated fallback, taken** (Task 7.1.4).
- * `Panel`'s `meta` slot was probed first and measured the region's own
- * header growing 47 → 53 px at every width (the button's own line-height
- * against the heading's), which is the exact condition that fallback names.
- * So the control sits here, as the first row of the region's own body,
- * right-aligned to read as a qualifier on the region rather than as its
- * own content.
- */
-.controlRow {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-12);
-}
-
 .checklist {
   display: flex;
   flex-direction: column;
