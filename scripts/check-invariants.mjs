@@ -11471,6 +11471,193 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "one-home-for-the-investigation-stream",
+    claim:
+      "One module in the frontend opens the investigation SSE stream and " +
+      "knows its path; nothing else in the application does either.",
+    check() {
+      // **`one-home-for-the-socket`'s own reasoning (Task 3.3.4), for this
+      // product's SECOND transport** (Story 7.1): a second place that knows
+      // an endpoint's address is a second place that can be pointed at the
+      // wrong one, and a second place that opens a stream is a connection
+      // nothing above it holds state for. `investigation-stream.ts`'s own
+      // docblock already calls itself out as "a second, deliberate `fetch`
+      // call site" beside `api-client.ts` — this check is what makes THAT
+      // site stay singular rather than becoming a third.
+      //
+      // Two literals, because there are two ways to break it — spelling the
+      // route's own query suffix, and reading the body as a stream.
+      // `/investigations/` alone is NOT used as an anchor: it is also a
+      // substring of every `from "../../investigations/index.js"` import,
+      // which would make this check fail on the files that merely USE the
+      // hook rather than the one that opens the connection.
+      const TRANSPORT =
+        "apps/frontend/src/investigations/investigation-stream.ts";
+
+      const LITERALS = ["/events?from=", ".getReader()"];
+
+      const shipped = sourceFilesUnder(resolve(REPO_ROOT, "apps/frontend/src"))
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path, text: withoutComments(text) }));
+
+      for (const literal of LITERALS) {
+        const homes = shipped
+          .filter(({ text }) => text.includes(literal))
+          .map(({ path }) => relative(REPO_ROOT, path));
+
+        if (homes.length === 0) {
+          throw new InvariantFailure(
+            `No shipped frontend file contains ${JSON.stringify(literal)}. ` +
+              `The investigation stream's transport is ${TRANSPORT}; if it ` +
+              "moved, move this check with it — a grep that matches " +
+              "nothing looks exactly like a grep that passes.",
+          );
+        }
+
+        if (homes.length !== 1 || homes[0] !== TRANSPORT) {
+          throw new InvariantFailure(
+            `${JSON.stringify(literal)} should appear only in ${TRANSPORT}, ` +
+              "and is in:\n      " +
+              homes.join("\n      ") +
+              "\n      A second place that knows the stream's address is a " +
+              "second place that can be pointed at the wrong one, and a " +
+              "second place that opens one is a connection nothing above it " +
+              "holds state for.",
+          );
+        }
+      }
+    },
+  },
+  {
+    id: "an-investigation-event-is-minted-by-its-serialiser",
+    claim:
+      "Every event written onto the investigation SSE wire in " +
+      "`apps/backend/src/routes/investigations.ts` is the return value of " +
+      "`toWireInvestigationEvent`, and nothing else is ever " +
+      "`JSON.stringify`'d onto a `data:` line.",
+    check() {
+      // This route bypasses `fast-json-stringify` entirely — `reply.hijack()`
+      // (Task 7.1.3) takes the reply out of Fastify's own pipeline, and
+      // there is no declared response schema for its 200 at all, because
+      // nothing would ever read one. `toWireInvestigationEvent`
+      // (`packages/shared/src/investigation.ts`) is what this route's own
+      // docblock names as standing in `fast-json-stringify`'s place — this
+      // check is the structural half of that sentence rather than a second
+      // copy of it.
+      const FILE = "apps/backend/src/routes/investigations.ts";
+      const text = withoutComments(readAnchored(resolve(REPO_ROOT, FILE)));
+
+      const stringifyCalls = text.match(/JSON\.stringify\([^)]*\)/gu) ?? [];
+
+      if (stringifyCalls.length === 0) {
+        throw new InvariantFailure(
+          `No \`JSON.stringify(\` call found in \`${FILE}\`. If the SSE ` +
+            "frame writer was rewritten, repoint this check with it — a " +
+            "grep that matches nothing looks exactly like a grep that " +
+            "passes.",
+        );
+      }
+
+      const offenders = stringifyCalls.filter(
+        (call) => !/^JSON\.stringify\(\s*payload\s*\)$/u.test(call),
+      );
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} call(s) to \`JSON.stringify\` in ` +
+            `\`${FILE}\` do not stringify the serialiser's own \`payload\`:` +
+            `\n      ${offenders.join("\n      ")}` +
+            "\n    This route declares no response schema (SSE bypasses " +
+            "`fast-json-stringify` too), so `toWireInvestigationEvent` is " +
+            "the only thing standing between an orchestration value and " +
+            "the wire — a second `JSON.stringify` of anything else is a " +
+            "second, unguarded path for internal detail to leak onto it.",
+        );
+      }
+
+      if (!/const payload = toWireInvestigationEvent\(event\);/u.test(text)) {
+        throw new InvariantFailure(
+          `\`${FILE}\` no longer assigns \`payload\` from ` +
+            "`toWireInvestigationEvent(event)` by name. Either the " +
+            "serialiser call was removed — which is the defect this check " +
+            "exists to refuse — or it was restructured, in which case " +
+            "repoint this check in the same change.",
+        );
+      }
+    },
+  },
+  {
+    id: "a-tool-reads-no-clock",
+    claim:
+      "No analytical tool implementation under `apps/backend/src` reads " +
+      "the process clock directly — `Date.now()` or a zero-argument " +
+      '`new Date()` — because a tool that wants "now" takes it from its ' +
+      "own `ToolContext.asOf` (`analytical-tool.ts`'s own docblock), which " +
+      "is what makes Epic 13's replay isolated by construction rather " +
+      "than by a convention a later tool can quietly break.",
+    check() {
+      // **The anchor is the function's own RETURN-TYPE annotation**
+      // (`): AnalyticalTool<`), not the interface's name alone —
+      // `analytical-tool.ts` itself mentions `AnalyticalTool<` as a
+      // generic parameter's type (`toRunnableTool`'s `tool: AnalyticalTool<
+      // Input, Output>`), which is the contract file describing the shape
+      // rather than a file BUILDING one. The clause a re-implementer
+      // cannot avoid is the one every tool so far has written identically:
+      // `export function createXTool(...): AnalyticalTool<Input, Output> {`.
+      const directory = resolve(REPO_ROOT, "apps/backend/src");
+
+      const tools = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.test\.ts$/u.test(path))
+        .map(({ path, text }) => ({
+          path: relative(REPO_ROOT, path),
+          text: withoutComments(text),
+        }))
+        .filter(({ text }) => text.includes("): AnalyticalTool<"));
+
+      if (tools.length === 0) {
+        throw new InvariantFailure(
+          "No file under `apps/backend/src` contains `): AnalyticalTool<` " +
+            "— this product's own first tool, `tool-security-snapshot.ts`, " +
+            "no longer does either. If the convention for building a tool " +
+            "changed, repoint this check with it — a grep that matches " +
+            "nothing looks exactly like a grep that passes.",
+        );
+      }
+
+      const SHAPES = [
+        { as: "`Date.now()`", pattern: /\bDate\.now\(\)/u },
+        { as: "a zero-argument `new Date()`", pattern: /\bnew Date\(\)/u },
+      ];
+
+      const offenders = [];
+
+      for (const { path, text } of tools) {
+        for (const [index, line] of text.split("\n").entries()) {
+          const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+          if (shape === undefined) continue;
+
+          offenders.push(
+            `${path}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in a tool implementation ` +
+            "read the process clock directly:\n      " +
+            offenders.join("\n      ") +
+            "\n    Every tool receives its own `asOf` on `ToolContext` — a " +
+            "replay (Epic 13) sets that to a past instant, and a tool " +
+            "that reads `Date.now()` instead answers with TODAY's clock " +
+            "for a session being replayed, which is exactly the leak " +
+            "invariant 4 exists to refuse structurally rather than by " +
+            "convention.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

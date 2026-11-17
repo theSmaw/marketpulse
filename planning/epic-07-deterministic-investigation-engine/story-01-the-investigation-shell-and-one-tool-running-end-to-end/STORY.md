@@ -1,6 +1,9 @@
 # Story 7.1 — The Investigation Shell, & One Tool Running End to End
 
-**Status:** Gate 1 approved 2026-11-16 — decomposed into four tasks.
+**Status:** All four tasks complete, Phase 3 sweep done 2026-11-17 —
+awaiting Gate 2. `INVESTIGATIONS.md` written; ADR 0050; `pnpm invariants`
+at 89 (three new); `PRODUCT_SPEC.md` §28 and §32, and `HOSTING.md`'s SSE
+line, each carry a dated amendment.
 
 **Settled at Gate 1, from six parallel shaping passes (business-analyst,
 technical-analyst, ux-architect, technical-architect, tester, designer) —

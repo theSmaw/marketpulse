@@ -6654,3 +6654,33 @@ confirm no page's title or content names the sector/band filter.
 condition is a design change to that surface, at which point the chain
 `canvas → VISUAL-LANGUAGE.md → tokens.css → components` needs a canvas page to
 start from rather than reverse-engineering one from the shipped component.
+
+## Story 7.1's two <500 ms figures are loopback-only, and no person has watched the investigation engine against a deployed backend
+
+**Added 2026-11-17 by Story 7.1's own Phase 3 sweep.** `PRODUCT_SPEC.md` §28's
+investigation target has a real figure for the first time — a paint-anchored
+instrument measured press→first-paint (p50 8.6 ms, p95 21.5 ms, n=20) and
+press→stream-confirmed (p50 52.8 ms, p95 57.5 ms, n=20) against the real dev
+backend — and both sit roughly an order of magnitude under the 250 ms midpoint
+of the target. But server and browser were one machine with no network between
+them, the same caveat §28's own market-updates figure already carries, and
+`get_security_snapshot` has only ever run against one developer's own
+populated store: **CI's store has zero bars**, so the `ok` outcome this figure
+measures — a completed step with a real duration — has never been drawn by any
+gated machine, and no person has opened the deployed product, pressed
+`Investigate`, and watched any of it happen against the real network a browser
+and a deployed backend actually sit across.
+
+**Why it is not yet mechanisable**: a real-network figure needs a deployed
+backend reachable from outside its own host, and a person watching needs a
+person — neither is a check `pnpm verify` or `pnpm e2e` can produce.
+
+**Re-measure**: re-run the same paint-anchored instrument against
+`pnpm e2e:deployed`'s two addresses once a deployed backend carries bars for a
+tracked security; watch a real sitting the same way `LIVE-REHEARSAL.md`'s
+existing rows for Epics 3/4/5/6 were taken.
+
+**Owner: Story 7.7 (the rehearsal, the sweep and the epic close)** — the
+condition is that story's own opening of `LIVE-REHEARSAL.md`'s first row for
+this epic, which Epic 3's and Epic 4's own close stories each did for
+themselves rather than deferring to a later epic.

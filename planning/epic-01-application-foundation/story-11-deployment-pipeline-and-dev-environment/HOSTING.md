@@ -104,7 +104,7 @@ Every candidate serves a `/health` route perfectly, so that comparison decides n
 
 **The Alpaca WebSocket is outbound, so no ingress limit applies to it.** This is the correction worth carrying: the reflex is to read a platform's request-timeout number and conclude the market feed will be cut every N minutes, and it is wrong, because our server _dials_ Alpaca — the connection never traverses the ingress proxy in the inbound direction the timeout governs. What actually threatens it is the **replica not existing**, and that is a scaling setting rather than a timeout.
 
-**Epic 10's agent stream is inbound, so the ingress limit is exactly what applies to it.** PRODUCT_SPEC's intended stack puts agent investigation events on SSE/streaming HTTP, which is an inbound request held open — squarely inside the timeout.
+**The agent stream is inbound, so the ingress limit is exactly what applies to it.** PRODUCT_SPEC's intended stack puts agent investigation events on SSE/streaming HTTP, which is an inbound request held open — squarely inside the timeout. **Amended 2026-11-17 by Story 7.1: the stream is real since Task 7.1.3, built in Epic 7 rather than Epic 10** — `GET /investigations/:id/events` is this product's first SSE route — and the constraint below is a live one for the first time, even though nothing in Story 7.1 has yet exercised it (see below).
 
 ### The documented numbers
 
@@ -149,7 +149,20 @@ Two things follow, and the second is the useful one. WebSocket and gRPC are supp
 > | Termination grace period | The amount of time (in seconds) for the container app to finish processing requests before they're canceled during shutdown. | 0       | 3,600   | 500     |
 > | Idle request timeout     | Idle request timeouts in minutes.                                                                                            | 4       | 30      | 4       |
 
-The premium minimum of 4 minutes **is** the default's 240 seconds, named as idle. **Epic 10's constraint, stated now rather than discovered then: an SSE stream must emit something at least every four minutes or the ingress will close it.** That is a keep-alive comment on the stream — a line of code — and it is a cheap constraint precisely because it was written down before the stream existed. The expensive alternative is on record too: premium ingress raises the idle timeout to 30 minutes, but requires a **dedicated workload profile** (D4–D32, "The minimum number of node instances is two", billed at the profile rate), which is a large bill for a development environment. Not taken; recorded so nobody re-derives it.
+The premium minimum of 4 minutes **is** the default's 240 seconds, named as idle. **An SSE stream must emit something at least every four minutes or the ingress will close it.** That is a keep-alive comment on the stream — a line of code — and it is a cheap constraint precisely because it was written down before the stream existed. The expensive alternative is on record too: premium ingress raises the idle timeout to 30 minutes, but requires a **dedicated workload profile** (D4–D32, "The minimum number of node instances is two", billed at the profile rate), which is a large bill for a development environment. Not taken; recorded so nobody re-derives it.
+
+**Amended 2026-11-17 by Story 7.1 (Task 7.1.3) — the stream this constraint
+was written against now exists, and the keep-alive is a documented,
+DEFERRED decision rather than an unwritten one.** `GET /investigations/:id/
+events` terminates the HTTP response immediately after its own terminal
+event (`isTerminalEventType`, `routes/investigations.ts`) rather than
+holding the connection open across a multi-step run, because a single-step
+investigation against this story's one tool completes in milliseconds — it
+never goes quiet long enough for this four-minute ceiling to matter. No
+keepalive line has been written. The constraint becomes live, and owed, the
+first time a run is held open across more than one step (Story 7.5 or
+later); [ADR 0050](../../../docs/adr/0050-the-agent-provider-is-keyed-by-investigation-id-the-sse-transport-decisions-and-the-domain-type-split.md)
+carries the fuller account of this story's own SSE transport decisions.
 
 **The shutdown ceiling fits, and the number is quoted rather than asserted.** Story 1.2 chose a 5-second `SHUTDOWN_TIMEOUT_MS` to sit inside Docker's 10 s stop grace and Kubernetes' 30 s `terminationGracePeriodSeconds`, and this story owed the comparison against the orchestrator actually chosen. From [Application lifecycle management in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/application-lifecycle-management):
 
