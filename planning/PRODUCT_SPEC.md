@@ -1807,6 +1807,25 @@ Results stream incrementally.
 
 The UI must never wait for the complete agent answer before becoming useful.
 
+**Amended 2026-11-17 by Story 7.1 (AC 8) — measured for the first time, two
+ways, and the target is met with very wide headroom.** A paint-anchored
+browser instrument (`requestAnimationFrame`-polled, never this repository's
+own frame-cost method, which answers a different question) drove 20 presses
+of `Investigate` against the real dev backend on `/securities/NVDA`:
+**press → first paint of the queued row, p50 8.6 ms, p95 21.5 ms, max
+26.3 ms**; **press → the stream's first confirmed event rendered
+("Measure move" replacing the placeholder), p50 52.8 ms, p95 57.5 ms, max
+59.6 ms**. Both distributions sit roughly an order of magnitude under the
+250 ms midpoint of the target, let alone its 500 ms ceiling. **It is a
+loopback figure** — server and browser on one machine, no network — the
+same caveat §28's market-updates figure already carries, and it is real
+rather than furnished: the security snapshot tool's own `run` against this
+story's real `current-market-state.ts`, not a fixture. No deployed or
+real-network re-take exists yet, and `n=20` is this instrument's own sample
+rather than the `n≥24` `CLAUDE.md`'s flake-rate rule asks of a RATE — a
+reasonable sample for a latency distribution this far under its own
+ceiling, not a claim that a rarer tail was searched for.
+
 ---
 
 # 29. Backend architecture
@@ -1930,6 +1949,22 @@ cancel()
 This prevents the application's domain model from depending directly on a particular LLM vendor.
 
 The most important design work is therefore the tool and event protocol, not the model SDK.
+
+**Amended 2026-11-17 by Story 7.1 (Task 7.1.2) — built as ONE long-lived
+provider, addressed by investigation id, not one instance per run.** The
+pseudocode above is parameterless and presumes a fresh provider stood up to
+run a single investigation and then discarded; the shipped shape is
+`streamEvents(id, fromSeq)` / `cancel(id)`. This was confirmed necessary
+rather than assumed, by looking at what this spec already commits to
+elsewhere: §8.3's `Current investigations` region is a **list**, which means
+more than one investigation exists in this process's memory at once, and a
+caller asking about progress has to be able to name _which_ one — a shape
+with no second investigation to ask about is only coherent if the product
+claimed at most one in flight, which nothing here does.
+[ADR 0050](../docs/adr/0050-the-agent-provider-is-keyed-by-investigation-id-the-sse-transport-decisions-and-the-domain-type-split.md)
+is the decision; it carries two further ones from the same story (the SSE
+transport, and the domain-type split between `packages/shared`'s wire
+shapes and this interface's own backend-only contract).
 
 ---
 

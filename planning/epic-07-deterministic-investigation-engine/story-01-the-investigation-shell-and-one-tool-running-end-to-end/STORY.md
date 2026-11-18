@@ -1,6 +1,11 @@
 # Story 7.1 — The Investigation Shell, & One Tool Running End to End
 
-**Status:** Gate 1 approved 2026-11-16 — decomposed into four tasks.
+**Status:** Complete — accepted at Gate 2, 2026-11-18. All four tasks
+plus the Phase 3 sweep shipped (PR #691, #692). `INVESTIGATIONS.md`
+written; ADR 0050; `pnpm invariants` at 89 (three new); `PRODUCT_SPEC.md`
+§28 and §32, and `HOSTING.md`'s SSE line, each carry a dated amendment.
+AC 8 measured for the first time: press→first-paint p50 8.6 ms,
+press→stream-confirmed p50 52.8 ms (n=20, loopback).
 
 **Settled at Gate 1, from six parallel shaping passes (business-analyst,
 technical-analyst, ux-architect, technical-architect, tester, designer) —

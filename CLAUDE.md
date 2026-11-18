@@ -539,6 +539,33 @@ broken — was settled at Gate 2 as **consistent**, for the same reason
 code change. `TOPOLOGY.md` remains the maintained account of every
 figure this epic produced; this file restates none of them.
 
+**Epic 7 (Deterministic Investigation Engine): decomposed into seven
+stories on 2026-11-14, Story 7.1 shipped 2026-11-17.** A real `Investigate`
+control on `/securities/NVDA` runs a real, deterministic investigation —
+one tool (`get_security_snapshot`), a scripted `AgentProvider`, six typed
+SSE event kinds, a client-optimistic checklist — against this product's
+own live-data store, proving the whole pipe end to end before any of the
+next six tools exist. `PRODUCT_SPEC.md` §28's investigation target
+(<500 ms visible feedback) has a real figure for the first time: a
+paint-anchored instrument measured press→first-paint at **p50 8.6 ms** and
+press→stream-confirmed at **p50 52.8 ms** over 20 presses, a loopback
+figure with the same caveat §28's market-updates figure already carries.
+`ADR 0050` is the decision (the provider addressed by investigation id
+rather than one-per-run, the SSE transport, the domain-type split); a real
+browser CORS gap in the SSE route — `reply.hijack()` bypasses
+`@fastify/cors` exactly as it bypasses the correlation-id hook — was found
+and fixed in the same story, and a real keyboard-focus defect the
+control's own first placement caused (growing its panel past the 390px
+tab-stop budget between the sticky masthead and the sticky status bar) was
+found by this story's own open PR's CI and fixed by moving the control
+into `Panel`'s `meta` slot. `pnpm invariants` now holds **89**.
+[`INVESTIGATIONS.md`](planning/epic-07-deterministic-investigation-engine/INVESTIGATIONS.md)
+is the subject document. **What no gated machine and no person has ever
+seen**: CI's store has zero bars, so the tool answers `nothing-observed`
+there for ever, and no person has watched this feature against a deployed
+backend — `LIVE-REHEARSAL.md` carries no row for this epic yet, owed by
+Story 7.7.
+
 ### What a user can see today
 
 Five routes, a **one-row masthead** carrying the navigation and the market

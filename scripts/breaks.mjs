@@ -6721,4 +6721,71 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-topology-walk-reads-no-band",
   },
+
+  {
+    name: "a-second-reader-for-the-investigation-stream",
+    proves:
+      "A second place in the frontend that opens the investigation SSE " +
+      "stream is a connection nothing above it holds state for, and a " +
+      "second place that knows the events route's own query suffix is a " +
+      "second place that can be pointed at the wrong one — " +
+      "`one-home-for-the-socket`'s own reasoning, for this product's " +
+      "second transport. The plant is the plausible one: the hook that " +
+      "consumes the stream reaching for a raw reader of its own instead " +
+      "of going through `streamInvestigationEvents`.",
+    file: "apps/frontend/src/investigations/use-investigation.ts",
+    find: "export function useInvestigation(symbol: string): UseInvestigationResult {",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const peekAtBody = (body: ReadableStream<Uint8Array>) =>\n" +
+      "  body.getReader();\n" +
+      "void peekAtBody;\n" +
+      "\n" +
+      "export function useInvestigation(symbol: string): UseInvestigationResult {",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-home-for-the-investigation-stream",
+  },
+
+  {
+    name: "a-hand-assembled-investigation-event",
+    proves:
+      "This route declares no response schema for its SSE 200 — " +
+      "`reply.hijack()` (Task 7.1.3) takes it out of Fastify's pipeline " +
+      "entirely, so `fast-json-stringify` never sees it either — and " +
+      "`toWireInvestigationEvent` is what stands in that backstop's place. " +
+      "The plant is the realistic one: a second, hand-assembled frame " +
+      "beside the real one, the shape a future author reaches for to add " +
+      "a slimmer debug line without routing it through the serialiser.",
+    file: "apps/backend/src/routes/investigations.ts",
+    find: "            raw.write(`data: ${JSON.stringify(payload)}\\n\\n`);",
+    replace:
+      "            raw.write(`data: ${JSON.stringify(payload)}\\n\\n`);\n" +
+      "            // pnpm break: reverted automatically\n" +
+      "            raw.write(\n" +
+      "              `data: ${JSON.stringify({ seq: event.seq, type: event.type })}\\n\\n`,\n" +
+      "            );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "an-investigation-event-is-minted-by-its-serialiser",
+  },
+
+  {
+    name: "a-tool-reads-the-process-clock",
+    proves:
+      "A tool that reads `Date.now()` instead of its own `ToolContext.asOf` " +
+      "answers with TODAY's clock for a session Epic 13 is replaying in " +
+      "the past — `analytical-tool.ts`'s own docblock states the rule " +
+      "and this check is what makes it structural. The plant is the " +
+      "realistic one: a staleness figure computed inline, the kind of " +
+      "thing a tool author reaches for without routing it through the " +
+      "context it was already handed.",
+    file: "apps/backend/src/tool-security-snapshot.ts",
+    find: "    run({ symbol }): Promise<ToolOutcome<SecuritySnapshot>> {",
+    replace:
+      "    run({ symbol }): Promise<ToolOutcome<SecuritySnapshot>> {\n" +
+      "      // pnpm break: reverted automatically\n" +
+      "      const staleAfter = Date.now() + 5 * 60 * 1000;\n" +
+      "      void staleAfter;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-tool-reads-no-clock",
+  },
 ];
