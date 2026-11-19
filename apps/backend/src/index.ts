@@ -29,6 +29,7 @@ import {
   excessMoveReference,
   isTicker,
   marketDateAt,
+  toTicker,
   toWireAnomalyScore,
 } from "@marketpulse/shared";
 import type { ExcessMoveReference, Ticker } from "@marketpulse/shared";
@@ -133,6 +134,10 @@ import {
   createMarketBreadthTool,
   toWireMarketBreadthReading,
 } from "./tool-market-breadth.js";
+import {
+  createRollingCorrelationTool,
+  toWireRollingCorrelation,
+} from "./tool-rolling-correlation.js";
 import { readPriceAnomaly } from "./price-anomaly.js";
 import { readPeerComparison } from "./peer-comparison.js";
 
@@ -418,6 +423,19 @@ const theSubjectSymbol = (subjectSymbols: readonly Ticker[]): Ticker => {
   return symbol;
 };
 
+/**
+ * **The fund this product means by *the market*, with one home** (Task
+ * 7.2.6).
+ *
+ * Story 7.2's Gate 1 resolved the epic's *compare market* step as a
+ * correlation against the broad-market proxy, and `SPY` is the first of
+ * `PRODUCT_SPEC.md` §6's four. It is written once, here, because
+ * `calculate_rolling_correlation` is a general pair tool by design — a
+ * second spelling of this would be a second answer to *compared against
+ * what*, on a figure whose whole meaning is which pair it was taken over.
+ */
+const BROAD_MARKET_SYMBOL = toTicker("SPY");
+
 const investigationTools = [
   toRunnableTool(
     createSecuritySnapshotTool(currentMarketState),
@@ -486,6 +504,26 @@ const investigationTools = [
     createMarketBreadthTool(latestOverviewPass.read),
     () => ({}),
     toWireMarketBreadthReading,
+  ),
+  // **Story 7.2's fifth of five — the compare-market step** (Task 7.2.6), and
+  // the only tool in the pipeline that reads a database.
+  //
+  // `buildInput` is where `SPY` is resolved, and that is the decision rather
+  // than a convenience: the tool is a general **pair** function so Epic 10's
+  // `get_related_securities`-driven comparisons reuse it unchanged, and
+  // *which fund this product calls the broad market* is a product decision
+  // with exactly one home — here, beside the wiring, rather than inside a
+  // tool where a reader asking "compared against what?" would have to go
+  // looking. It is `indexProxyTickers()`' own first entry by
+  // `PRODUCT_SPEC.md` §6's order, spelled out because a positional read of
+  // that list would move the market reference the day somebody reorders §6.
+  toRunnableTool(
+    createRollingCorrelationTool(createReturnBaselineStore(database)),
+    (subjectSymbols) => ({
+      symbol: theSubjectSymbol(subjectSymbols),
+      against: BROAD_MARKET_SYMBOL,
+    }),
+    toWireRollingCorrelation,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({

@@ -17,6 +17,7 @@ import {
   EXCESS_MOVE_INAPPLICABILITIES,
 } from "./excess-move.js";
 import { PERCENTILE_REFUSALS } from "./return-baseline.js";
+import { CORRELATION_REFUSALS } from "./return-correlation.js";
 import {
   INVESTIGATION_EVENT_TYPES,
   INVESTIGATION_STATUSES,
@@ -299,6 +300,12 @@ describe("ToolOutcome", () => {
       "no-subject-move",
       "no-reference-move",
       "no-aggregate-yet",
+      // Task 7.2.6 adds `CORRELATION_REFUSALS`' own two, and they are the
+      // only pair here that are facts about a PAIR rather than about a
+      // security. `too-few-overlapping-samples` is also the word a store
+      // with no bars at all answers with, at an overlap of zero.
+      "too-few-overlapping-samples",
+      "zero-variance",
     ]);
     for (const refusal of PERCENTILE_REFUSALS) {
       expect(TOOL_REFUSALS).toContain(refusal);
@@ -306,9 +313,12 @@ describe("ToolOutcome", () => {
     for (const refusal of EXCESS_FACTOR_REFUSALS) {
       expect(TOOL_REFUSALS).toContain(refusal);
     }
+    for (const refusal of CORRELATION_REFUSALS) {
+      expect(TOOL_REFUSALS).toContain(refusal);
+    }
   });
 
-  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first four steps", () => {
+  it("TOOL_NAMES carries the snapshot tool and Story 7.2's five steps", () => {
     expect(TOOL_NAMES).toStrictEqual([
       "get_security_snapshot",
       "calculate_return_percentile",
@@ -323,6 +333,10 @@ describe("ToolOutcome", () => {
       // `calculate_`, because it reads the one producer's retained answer
       // rather than computing one of its own.
       "get_market_breadth",
+      // Task 7.2.6 — the compare-market correlation, fifth and last.
+      // `calculate_` rather than `get_`, because this one does compute, from
+      // two window reads of its own.
+      "calculate_rolling_correlation",
     ]);
   });
 });
