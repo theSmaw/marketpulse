@@ -733,6 +733,7 @@ export {
   TERMINAL_EVENT_TYPES,
   TOOL_NAMES,
   TOOL_REFUSALS,
+  TOOL_REFUSALS_COVER_THE_PERCENTILE_ONES,
   isTerminalEventType,
   toInvestigationId,
   toStepId,

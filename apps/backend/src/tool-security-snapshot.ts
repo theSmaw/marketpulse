@@ -9,9 +9,15 @@
 // check with two labels: `not-tracked` is a universe-membership question,
 // decided before `current-market-state.ts` is consulted at all; `nothing-
 // observed` is what that object itself says about a security it does know.
+//
+// **The membership half moved to `tool-universe.ts` in Task 7.2.2**, where
+// Story 7.2's other four tools read it. The check is unchanged; what changed
+// is that the word is spelled once for the whole pipeline rather than once
+// per tool.
 
 import { asInstant } from "@marketpulse/shared";
 
+import { untrackedRefusal } from "./tool-universe.js";
 import { trackedSymbols } from "./universe.js";
 
 import type { AnalyticalTool } from "./analytical-tool.js";
@@ -73,9 +79,8 @@ export function createSecuritySnapshotTool(
     // look like one. `ToolContext` is still part of this signature (every
     // tool receives `asOf`), simply unused by this particular tool.
     run({ symbol }): Promise<ToolOutcome<SecuritySnapshot>> {
-      if (!universe.has(symbol)) {
-        return Promise.resolve({ kind: "refused", reason: "not-tracked" });
-      }
+      const untracked = untrackedRefusal(symbol, universe);
+      if (untracked !== undefined) return Promise.resolve(untracked);
 
       const observation = state.read(symbol);
       if (observation === undefined) {

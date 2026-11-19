@@ -31,7 +31,7 @@ import {
   marketDateAt,
   toWireAnomalyScore,
 } from "@marketpulse/shared";
-import type { ExcessMoveReference } from "@marketpulse/shared";
+import type { ExcessMoveReference, Ticker } from "@marketpulse/shared";
 
 import { registerMarketGateway } from "./market-gateway.js";
 
@@ -96,7 +96,6 @@ import { createSessionCompositeStore } from "./session-composite-store.js";
 import { createSessionPercentileCache } from "./session-percentile-cache.js";
 import { createSessionPercentileStore } from "./session-percentile-store.js";
 import { SAMPLE_SPAN_MINUTES } from "./return-baseline.js";
-import { comparableBaseline, returnPercentileOf } from "./return-percentile.js";
 
 import type {
   BaselineComparison,
@@ -118,6 +117,13 @@ import {
   createSecuritySnapshotTool,
   toWireSecuritySnapshot,
 } from "./tool-security-snapshot.js";
+import {
+  createReturnPercentileTool,
+  toWireReturnPercentile,
+} from "./tool-return-percentile.js";
+import { readPriceAnomaly } from "./price-anomaly.js";
+
+import type { PriceAnomalySources } from "./price-anomaly.js";
 
 // Declared before the try rather than assigned inside it, because everything
 // below the catch needs it and the catch never returns. TypeScript follows
@@ -347,34 +353,61 @@ app.register(
 // dependency rather than reading `Date.now()` itself, precisely so this is
 // the only line that can.
 //
-// The one tool this story has, wired through `toRunnableTool` so the
-// provider never learns `SecuritySnapshot`'s own shape — `buildInput` takes
-// the investigation's first (and, this story, only) subject symbol, and
-// `toWireSecuritySnapshot` is what a `TOOL_CALL_COMPLETED` event's `outcome`
-// carries onto the wire.
+// Each tool is wired through `toRunnableTool` so the provider never learns
+// any tool's own `Input`/`Output` shape — `buildInput` takes the
+// investigation's first (and, today, only) subject symbol, and each tool's
+// own `toWire…` is what a `TOOL_CALL_COMPLETED` event's `outcome` carries.
 const investigationStore = createInvestigationStore();
 const investigationProvider = createScriptedAgentProvider({
   store: investigationStore,
   now: () => new Date(),
 });
+
+/**
+ * **The investigation's own subject, as every tool's `buildInput` needs it.**
+ *
+ * One home since Task 7.2.2, because the pipeline has more than one tool and
+ * a copy of this per tool is a second place to decide what an empty subject
+ * list means.
+ *
+ * Thrown rather than refused: every investigation this route creates is
+ * minted with exactly one subject, so reaching this is a programmer error
+ * rather than a market condition — and a tool refusal is this product's
+ * vocabulary for an HONEST absence, which this is neither. Task 7.2.1's
+ * `finally` is what keeps a throw from stranding the run.
+ */
+const theSubjectSymbol = (subjectSymbols: readonly Ticker[]): Ticker => {
+  const [symbol] = subjectSymbols;
+  if (symbol === undefined) {
+    throw new Error(
+      "an investigation's subjectSymbols must carry at least one symbol",
+    );
+  }
+  return symbol;
+};
+
 const investigationTools = [
   toRunnableTool(
     createSecuritySnapshotTool(currentMarketState),
-    (subjectSymbols) => {
-      const [symbol] = subjectSymbols;
-      if (symbol === undefined) {
-        // A programmer error reaching this route rather than a market
-        // condition: every investigation this story creates is minted with
-        // exactly one subject. Thrown rather than refused, because a tool
-        // refusal is this product's vocabulary for an HONEST absence and
-        // this is neither honest nor an absence a user caused.
-        throw new Error(
-          "an investigation's subjectSymbols must carry at least one symbol",
-        );
-      }
-      return { symbol };
-    },
+    (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireSecuritySnapshot,
+  ),
+  // **Story 7.2's first of five — the price-anomaly step** (Task 7.2.2). The
+  // sources are the same two reads `symbolReturn` makes a few hundred lines
+  // below, through the one shared producer, so the investigation and the
+  // market-stream frame cannot disagree about this security's percentile.
+  // The lambdas are what let this sit here, above `trailingWindows` and
+  // `baselines`' own declarations: nothing is read until a tool actually
+  // runs, which is long after this module finished evaluating.
+  toRunnableTool(
+    createReturnPercentileTool({
+      windowOf: (symbol) => trailingWindows.read(symbol),
+      baselineOf: (symbol, asOf) =>
+        baselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+      grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+    }),
+    (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
+    toWireReturnPercentile,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({
@@ -1420,6 +1453,27 @@ const percentileAnswerFor = (
 };
 
 /**
+ * **Where the price-anomaly reading's two halves come from** (Task 7.2.2).
+ *
+ * The same object `calculate_return_percentile` is built with a few hundred
+ * lines above, so the investigation step and the market-stream `return` frame
+ * read one window and one baseline generation rather than two.
+ *
+ * **Both grid values are read from the producers rather than spelled**: the
+ * stride belongs to the sampler and the tape to the store's own `where`, so
+ * the sentence a reader sees cannot drift from what was counted. And the
+ * baseline read takes `asOf` rather than closing over a clock —
+ * `baselineAsOf` is also the cache's own refresh trigger, which the 15-minute
+ * floor bounds, and under Epic 13's replay the instant is a past one.
+ */
+const priceAnomalySources: PriceAnomalySources = {
+  windowOf: (symbol) => trailingWindows.read(symbol),
+  baselineOf: (symbol, asOf) =>
+    baselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+  grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+};
+
+/**
  * **One security's 5-minute return, for the browser whose screen is about it**
  * (Task 5.2.3).
  *
@@ -1473,7 +1527,19 @@ const symbolReturn = (symbol: string): SymbolFigures => {
   if (referenceOf === undefined) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
 
   const asOf = new Date();
-  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });
+
+  // **The move and its ranking, from the ONE shared producer** (Task 7.2.2).
+  // `price-anomaly.ts` holds the four calls this site used to make inline —
+  // the window read, `fiveMinuteReturn`, the baseline read and its narrowing,
+  // and `returnPercentileOf` — because `calculate_return_percentile` needs
+  // the identical assembly and a second copy of it is two homes for one
+  // figure. Every judgement in it is still the owning module's; what moved is
+  // the ORDER of the calls, and nothing else.
+  const { figure, comparison, percentile } = readPriceAnomaly(
+    priceAnomalySources,
+    symbol,
+    asOf,
+  );
 
   // **The benchmark's own five-minute return, read at the SAME `asOf`** (the
   // 2026-10-26 repair). `STREAM_SYMBOLS` is `trackedTickers()`, so every
@@ -1503,38 +1569,6 @@ const symbolReturn = (symbol: string): SymbolFigures => {
     figure,
     volumeBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
   );
-
-  // **The narrowing is ONE CALL and the type is what carries it** (Task
-  // 5.3.4). `comparableBaseline` answers *may this move be ranked at all* —
-  // no generation loaded (a cold replica, and CI for ever), no row for this
-  // security, a row the pass **refused** for a price break, or a row whose
-  // counted `n` is below `BASELINE_MINIMUM_SAMPLE` — and the refused arm it
-  // returns has **no distribution member**, so this site cannot reach the
-  // arithmetic without having answered the question. The three `?? null`
-  // readings this replaced were the narrowing done by hand, which is the
-  // version the next reader has to repeat.
-  //
-  // Both grid values are read from the producers rather than spelled: the
-  // stride belongs to the sampler and the tape to the store's own `where`, so
-  // the sentence a reader sees cannot drift from what was counted.
-  //
-  // **Asked unconditionally since Task 5.6.4**, where it used to sit behind a
-  // measured figure: the composite's price clause states *how much history we
-  // hold* beside its refusal, and *we have no move* and *we have no baseline*
-  // are two facts a reader is owed both of. Asking is also the cache's own
-  // refresh trigger, which the 15-minute floor bounds.
-  const comparison = comparableBaseline(
-    baselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
-    { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
-  );
-
-  // A distribution that is not 101 points is refused by the arithmetic rather
-  // than by a word — the database forbids it, so there is no honest sentence
-  // for it and the frame carries no comparison at all.
-  const percentile =
-    figure.measured && comparison.ranked
-      ? returnPercentileOf(figure.percent, comparison.distribution)
-      : undefined;
 
   // **The relative-move factor, and the two returns it differences are over
   // the SAME FIVE MINUTES** (repaired 2026-10-26). It shipped differencing two
