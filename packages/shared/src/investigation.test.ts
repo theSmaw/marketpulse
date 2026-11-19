@@ -218,6 +218,12 @@ describe("ToolOutcome", () => {
     // (`PERCENTILE_REFUSALS`), and the two must not collapse — a silent
     // security and an under-sampled one are different facts. Every member
     // below is spelled by the module that owns it; none is new here.
+    //
+    // Task 7.2.3 adds the last one — `FACTOR_ANSWER_STATES`' own
+    // `no-distribution`, which the volume-anomaly tool answers for every
+    // security on every store that exists. A third kind of claim rather
+    // than a synonym: the figure exists and the history to rank it against
+    // does not.
     expect(TOOL_REFUSALS).toStrictEqual([
       "nothing-observed",
       "not-tracked",
@@ -225,16 +231,20 @@ describe("ToolOutcome", () => {
       "no-basis",
       "too-few-samples",
       "split-discontinuity",
+      "no-distribution",
     ]);
     for (const refusal of PERCENTILE_REFUSALS) {
       expect(TOOL_REFUSALS).toContain(refusal);
     }
   });
 
-  it("TOOL_NAMES carries the snapshot tool and Story 7.2's price-anomaly step", () => {
+  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first two steps", () => {
     expect(TOOL_NAMES).toStrictEqual([
       "get_security_snapshot",
       "calculate_return_percentile",
+      // Task 7.2.3, and `EPIC.md`'s own order: price anomaly, then volume
+      // anomaly.
+      "calculate_volume_ratio",
     ]);
   });
 });

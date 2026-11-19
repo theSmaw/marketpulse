@@ -26,6 +26,13 @@ import {
 // memory fed by a live socket and there is no provider. What this spec can
 // still assert is that the step RAN and completed with a real duration,
 // which is a fact about the pipeline rather than about the store.
+//
+// **And `calculate_volume_ratio`** (Task 7.2.3) is the one step whose
+// answer is the same here as everywhere: it refuses `no-distribution` on CI,
+// on a laptop and on the deployment alike, because no store this product has
+// holds a distribution of that quantity to rank against. So its row is not
+// an environment-dependent assertion at all — which makes it the only tool
+// in this pipeline whose interesting case a gated machine actually reaches.
 
 const EXPLORER = "/securities/NVDA";
 
@@ -54,15 +61,18 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // description text is identical before and after, so the duration is
   // the one signal that distinguishes "still running" from "complete".
   //
-  // **Two rows since Task 7.2.2**, which added `calculate_return_percentile`
-  // to the pipeline — so the count is the assertion rather than a
-  // `.first()`: a dropped step would otherwise pass unseen.
-  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(2, {
+  // **Three rows since Task 7.2.3**, which added `calculate_volume_ratio`
+  // beside `calculate_return_percentile` — so the count is the assertion
+  // rather than a `.first()`: a dropped step would otherwise pass unseen.
+  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(3, {
     timeout: 10_000,
   });
   await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
   await expect(
     region.getByText("Measure price anomaly", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    region.getByText("Measure volume anomaly", { exact: true }),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
