@@ -186,6 +186,72 @@ diagnostics route, a replay client, an agent. A replay is the likely one: its
 clock is the scrub position, and _the last thing broadcast_ is a statement about
 wall-clock history rather than about the replay's now.
 
+**Amended 2026-11-19 (Task 7.2.5): _the last broadcast pass_ becomes _the
+latest pass the producer computed_, and it no longer lives in the gateway.**
+This ADR's own narrower reversal trigger — stated at the foot of this file as
+_the first consumer of the overview aggregate that is not a browser_, and
+naming Epic 7's deterministic investigation tools by name — **fired, exactly as
+worded**. Story 7.2's market-breadth step is that consumer: `get_market_breadth`
+wraps `marketBreadth`, which needs `eligibleMoves`, which needs the join's
+entries, and a tool cannot attach a WebSocket to get one.
+
+**What was taken: a holder beside the producer, not a per-request recompute.**
+`apps/backend/src/latest-overview-pass.ts` is one `let`, a `recordPass` that
+returns the pass it was handed, and a `read`. `index.ts`'s `marketOverview()`
+— still the one call site of `buildMarketOverview` — records by **returning**,
+so the producer cannot compute a pass this process then does not hold.
+
+Three things about that choice are decisions rather than detail:
+
+- **`one-producer-of-the-overview-aggregate` stays literally true and was
+  deliberately NOT reworded.** The trigger's own text anticipated it going
+  _"red on the desired state"_ and being re-scoped to _one producer per
+  transport_. It did not, because the consumer added is a **reader** and not a
+  producer: the count of call sites is still one. Re-scoping a guard that is
+  still correct would have cost the claim it holds, so the guard is untouched
+  and a **new** one stands beside it — `one-writer-of-the-latest-overview-pass`,
+  counting write sites rather than files, with
+  `pnpm break a-second-writer-of-the-retained-pass` behind it.
+- **A recompute was refused on correctness, not only on the guard.** A second
+  join is a second answer at a second instant, so the figure an investigation
+  reports and the figure `/`'s own `Market breadth` region draws could differ
+  with both individually correct — decision 1's amendment above, met a sixth
+  time. And it is the one call shape Epic 13's replay has to refuse: a join
+  filters on `status = 'active'`, the market we track **now**, which is
+  invariant 4's own named gap.
+- **The gateway owns _when_, never _what_.** The value could have stayed where
+  `lastBroadcastPass` was and been exported; it did not, because a tool
+  reaching into `market-gateway.ts` for a market fact makes that file the home
+  of one, against its own stated rule. The gateway now takes a
+  `latestOverviewPass: () => OverviewPass | undefined` and holds no copy.
+
+**One behavioural widening travels with it, and it is strictly more of what
+Task 4.7.3 bought.** The holder records **every** pass the producer computes
+rather than only broadcast ones — so a second browser connecting before any
+batch has been broadcast is served the pass the first one's connect computed,
+where both used to pay their own join. Every case the old memo held a value for
+is byte-identical. The one test that measured the old boundary
+(_"re-dates the arithmetic on every connect"_) was corrected to the real,
+current one — the arithmetic is re-dated on every applied **batch**, and the
+observation is not — rather than the widening being held back to keep an
+outdated assertion green.
+
+**What the breadth step answers where there is no pass: its own word.**
+`no-aggregate-yet`, a new member of `TOOL_REFUSALS`, never `nothing-observed` —
+_we have no aggregate_ and _we have an aggregate and it says the market was
+quiet_ are different claims with different repairs, and the second is a real
+measurement CI draws for ever.
+
+**Reversal trigger, as a condition:** _the first non-browser consumer of the
+aggregate that cannot accept the retained answer._ The named candidate is
+**Epic 13's replay**, where _the latest pass this process computed_ is a
+statement about wall-clock history and therefore meaningless: a replayed
+aggregate must be computed **at the replay clock**, over the universe as it
+stood then. At that point the holder stops being the right shape and the
+producer wants an `asOf` argument rather than a memory — and the
+point-in-time membership consequence at the foot of this file becomes the
+binding constraint rather than a note.
+
 ## Decision 2 — the arithmetic moves to `packages/shared`, and AC 2 got STRONGER
 
 Acceptance criterion 2 required `changeFromClose`; the story's own amendment
@@ -578,6 +644,15 @@ gateway becomes one of several callers — at which point
 `one-producer-of-the-overview-aggregate` goes red **on the desired state** and must
 be re-scoped to _one producer per transport_ rather than widened silently. **That
 the check fires there is intended; it is the trigger's own alarm.**
+
+> **Fired 2026-11-19 by Task 7.2.5 — and the prediction in its last two
+> sentences did NOT come true, which is the useful half.** Story 7.2's
+> `get_market_breadth` is the non-browser consumer, and it is a **reader of the
+> join's answer** rather than a second caller of the join: the guard stayed
+> green, nothing was re-scoped, and the resolution was a holder beside the
+> producer. See decision 1's 2026-11-19 amendment for the shape and for the new
+> trigger that replaces the clause above — _the first non-browser consumer that
+> cannot accept the retained answer_, whose named candidate is Epic 13's replay.
 
 **Amended 2026-10-12 by Task 4.9.3, on the POPULATION and not on the decision.**
 Task 2.3.9 untracked `PSKY` and `WBD` — two tickers `pnpm universe:check` found

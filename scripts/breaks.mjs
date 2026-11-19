@@ -4275,10 +4275,15 @@ export const BREAKS = [
     // `frame`. The defect is unchanged — a browser joining during an outage is
     // served a recomputed aggregate — and so is the shape of the edit: the
     // `??` is what is deleted.
-    find: "        const pass = lastBroadcastPass ?? overview();",
+    // **Repointed again 2026-11-19 (Task 7.2.5)**: the retained value moved
+    // out of this file and into the producer's own holder, so the `??` lives
+    // in `passForAJoin` rather than at the send. The defect is unchanged and
+    // the edit is the same omission — the retained arm goes and the call
+    // keeps computing.
+    find: "  const passForAJoin = (): OverviewPass => latestOverviewPass() ?? overview();",
     replace:
-      "        // pnpm break: reverted automatically\n" +
-      "        const pass = overview();",
+      "  // pnpm break: reverted automatically\n" +
+      "  const passForAJoin = (): OverviewPass => overview();",
     command: [
       "pnpm",
       "--filter",
@@ -4288,6 +4293,98 @@ export const BREAKS = [
       "src/market-gateway.process.test.ts",
     ],
     expect: "serves a NEW browser what was last broadcast",
+  },
+
+  // **A second writer of the retained pass — Task 7.2.5.**
+  //
+  // The substitution is the one somebody adds rather than an inversion: a
+  // second `recordPass(` **beside** the producer's own, in the place it is
+  // most tempting — the gateway's broadcast path, which is where this value
+  // lived until this task and which still holds the pass in a local. It
+  // compiles, it typechecks, every test passes, and on a healthy feed nothing
+  // looks wrong, because the two writes record the same pass.
+  //
+  // What it costs is only visible from a reader that is not a browser: the
+  // breadth tool and `/`'s own region would be reading a value with two
+  // authors, and the day one of them records a pass the other did not — a
+  // diagnostics route, a scheduled job, a replay — *the latest pass* means
+  // two things and the two surfaces report two counts for one market with
+  // both individually correct.
+  //
+  // **Note WHICH way the check must fail**: a write COUNT, not a file count.
+  // The plant below is in a file that already contains no write at all, so a
+  // check that counted files would be green on it — which is
+  // `one-subscriber-on-the-upstream-socket`'s own recorded lesson, and the
+  // reason this entry plants beside rather than instead.
+  {
+    name: "a-second-writer-of-the-retained-pass",
+    proves:
+      "The retained overview pass has exactly one writer. A second one is " +
+      "a second answer to *what did this process last compute*, and the two " +
+      "disagree the moment anything records a pass the other did not — " +
+      "at which point `get_market_breadth`'s figure and `/`'s own " +
+      "`Market breadth` region are two counts about one market, both " +
+      "individually correct. The count is of write SITES rather than of " +
+      "files, so a second write added BESIDE the first is what goes red.",
+    file: "apps/backend/src/index.ts",
+    // The substitution KEEPS the found line and appends the second write
+    // beside it, which is `CLAUDE.md`'s own rule — and is also exactly the
+    // shape of the real regression.
+    find: "      gateway.publishObservations(observed.applied);",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      latestOverviewPass.recordPass(marketOverview());\n" +
+      "      gateway.publishObservations(observed.applied);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "site(s) write the retained overview pass, expected exactly 1",
+  },
+
+  // **A breadth count outside the one producer — Task 7.2.5, and it is the
+  // defect the next tool author writes rather than one this task invented.**
+  //
+  // `get_market_breadth` needs `marketBreadth`, which needs `eligibleMoves`,
+  // which needs the join's entries. The obvious implementation computes them,
+  // and until this task **every clause of
+  // `breadth-is-counted-over-the-equities-alone` read `index.ts` alone** — so
+  // a count in a tool file satisfied all four of them by never being looked
+  // at. The plant below is that implementation, in the tool's own file.
+  //
+  // It typechecks, it runs, it produces three plausible counts, and the
+  // figure an investigation reports can then differ from the one `/` draws at
+  // the same instant with both individually correct. It is also the one call
+  // shape Epic 13's replay has to refuse, because a join filters on
+  // `status = 'active'` — the market we track NOW.
+  {
+    name: "a-breadth-count-in-a-tool-file",
+    proves:
+      "`eligibleMoves` and `marketBreadth` are called in exactly one place " +
+      "in shipped backend code. The four clauses above this one read " +
+      "`index.ts` and say nothing whatever about a second counter in " +
+      "another file — which is precisely where Story 7.2's own breadth " +
+      "tool would have put one.",
+    file: "apps/backend/src/tool-market-breadth.ts",
+    // The substitution KEEPS the found line and appends beside it, which is
+    // `CLAUDE.md`'s own rule after a 2026-10-16 break deleted its anchor and
+    // went red twice from neither the check nor the plant.
+    //
+    // **The plant's `asOf` is a spelled instant rather than `new Date()`,
+    // and that is this entry's own small finding.** The first draft used a
+    // zero-argument `new Date()` and `a-tool-reads-no-clock` fired on it
+    // too — a second red, from a guard this break is not about, which is
+    // exactly the *red for the wrong reason* this repository has recorded
+    // twice. One plant, one clause.
+    find: "      const counts = pass.frame.breadth;",
+    replace:
+      "      // pnpm break: reverted automatically\n" +
+      "      const counts = pass.frame.breadth;\n" +
+      "      void marketBreadth(\n" +
+      "        eligibleMoves([], {\n" +
+      '          asOf: new Date("2026-11-19T14:02:00.000Z"),\n' +
+      "          marketOpen: true,\n" +
+      "        }),\n" +
+      "      );",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "site(s) outside the producer count the market's breadth",
   },
 
   // **Two entries for one invariant, like `the-send-instant-is-not-a-clock`'s

@@ -50,6 +50,7 @@ import { STREAM_SYMBOLS, createMarketStream } from "./market-stream.js";
 import { buildMarketOverview, overviewPassOf } from "./market-overview.js";
 
 import type { OverviewPass } from "./market-overview.js";
+import { createLatestOverviewPass } from "./latest-overview-pass.js";
 // The composite's one producer (Task 5.6.4) — three factors' own answers in,
 // one scored outcome out. Nothing is computed there and nothing is computed
 // here: `scoreAnomaly` holds the arithmetic, in `packages/shared`, where the
@@ -128,6 +129,10 @@ import {
   createCompareSecuritiesTool,
   toWireCompareSecurities,
 } from "./tool-compare-securities.js";
+import {
+  createMarketBreadthTool,
+  toWireMarketBreadthReading,
+} from "./tool-market-breadth.js";
 import { readPriceAnomaly } from "./price-anomaly.js";
 import { readPeerComparison } from "./peer-comparison.js";
 
@@ -202,6 +207,24 @@ const database = createDatabasePool(config.database, app.log);
 // the way `marketStream` below does, is safe only because construction here
 // has no runtime dependency of its own to wait for.
 const currentMarketState = createCurrentMarketState();
+
+// **The latest pass the one producer computed, beside the state it was
+// computed from** (Task 7.2.5, ADR 0038's 2026-11-19 amendment).
+//
+// Here for `currentMarketState`'s own reason, both halves of it: it is a
+// sibling of the state rather than a possession of the gateway — which
+// decides *when* a browser is told something and must not decide *what* is
+// true — and it is constructed ahead of `app.listen()` because
+// `get_market_breadth` is read by an `app.register()`ed route and that family
+// of registrations must complete first.
+//
+// It is **not** a cache and **not** a second producer: the join still runs
+// exactly where it always did, and this holds its answer so a consumer that
+// cannot attach a WebSocket can read one rather than recomputing. A second
+// `buildMarketOverview` call site is refused by
+// `one-producer-of-the-overview-aggregate`, and recomputing is also the one
+// call shape Epic 13's replay has to refuse.
+const latestOverviewPass = createLatestOverviewPass();
 
 // The diagnostic surface, and the answer to Story 2.1's fourth open decision
 // (Task 2.1.7). `/health` is untouched; see routes/diagnostics.ts for the whole
@@ -447,6 +470,22 @@ const investigationTools = [
     }),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireCompareSecurities,
+  ),
+  // **Story 7.2's fourth of five — the market-breadth step** (Task 7.2.5),
+  // and the only tool in the pipeline whose subject is not the investigated
+  // security at all. `buildInput` is `() => ({})` rather than a symbol:
+  // breadth is a group fact over the whole tracked universe, and the input
+  // type carrying no ticker is what makes AC 5's *never a verdict on the
+  // investigated security* structural rather than a convention.
+  //
+  // The source is the holder two hundred lines above — the latest pass the
+  // one producer computed — so this step's figure and `/`'s own
+  // `Market breadth` region are the same number from the same pass at the
+  // same instant, never two homes for one fact.
+  toRunnableTool(
+    createMarketBreadthTool(latestOverviewPass.read),
+    () => ({}),
+    toWireMarketBreadthReading,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({
@@ -1161,70 +1200,77 @@ const marketOverview = (): OverviewPass => {
   // composite reads.
   const excessGeneration = excessBaselines.baselineAsOf(marketDateAt(asOf));
 
-  return overviewPassOf({
-    proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
-    sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
-    breadth: marketBreadth(eligible),
-    movers: eligible,
-    // **A SECOND PASS PLUS AN INTERSECTION, downstream of the one above**
-    // (Task 5.4.2) — never a split of it. `Unusual activity`'s predicate is
-    // narrower than breadth's, not different: heard from inside the same
-    // cutoff, **and** holding two bars exactly the span apart, **and** holding
-    // a comparable baseline. So it is handed the pass's answer and reads it;
-    // the array `marketBreadth` tallies and `topMovers` ranks is
-    // byte-identical whether this section is here or not, which
-    // `market-unusual.test.ts` asserts on the **producer** because the wire
-    // cannot see a defect in one.
-    //
-    // **Written here rather than bound above, because a section that is passed
-    // by shorthand is a section `each-overview-section-names-its-own-set`
-    // cannot read at all** — there is no value beside the name. That check
-    // walks this property's whole object since Task 5.4.2 and requires it to
-    // name the one pass.
-    unusual: unusualActivity({
-      moves: eligible,
-      windowOf: trailingWindows.read,
-      baselineOf: (symbol) => generation.get(symbol),
-      // Both read from the producers that own them rather than spelled, which
-      // is `symbolReturn`'s own pairing one screen over: the stride belongs to
-      // the sampler and the tape to the store's own `where`.
-      grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+  // **Recorded by being returned** (Task 7.2.5) — the producer's own `return`
+  // IS the write, so there is no way to compute a pass this process then does
+  // not hold. `one-writer-of-the-latest-overview-pass` counts write sites
+  // rather than files: the regression it guards is a second `recordPass(` added
+  // beside this one, which would make *the latest pass* mean two things.
+  return latestOverviewPass.recordPass(
+    overviewPassOf({
+      proxies: entries.filter((entry) => isProxySymbol.has(entry.symbol)),
+      sectors: entries.filter((entry) => isSectorSymbol.has(entry.symbol)),
+      breadth: marketBreadth(eligible),
+      movers: eligible,
+      // **A SECOND PASS PLUS AN INTERSECTION, downstream of the one above**
+      // (Task 5.4.2) — never a split of it. `Unusual activity`'s predicate is
+      // narrower than breadth's, not different: heard from inside the same
+      // cutoff, **and** holding two bars exactly the span apart, **and** holding
+      // a comparable baseline. So it is handed the pass's answer and reads it;
+      // the array `marketBreadth` tallies and `topMovers` ranks is
+      // byte-identical whether this section is here or not, which
+      // `market-unusual.test.ts` asserts on the **producer** because the wire
+      // cannot see a defect in one.
+      //
+      // **Written here rather than bound above, because a section that is passed
+      // by shorthand is a section `each-overview-section-names-its-own-set`
+      // cannot read at all** — there is no value beside the name. That check
+      // walks this property's whole object since Task 5.4.2 and requires it to
+      // name the one pass.
+      unusual: unusualActivity({
+        moves: eligible,
+        windowOf: trailingWindows.read,
+        baselineOf: (symbol) => generation.get(symbol),
+        // Both read from the producers that own them rather than spelled, which
+        // is `symbolReturn`'s own pairing one screen over: the stride belongs to
+        // the sampler and the tape to the store's own `where`.
+        grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+        asOf,
+        // **Which fund each security's excess move is differenced against**, from
+        // the one shared resolver `symbolReturn` reads — so the ranked region and
+        // the security page cannot disagree about a benchmark.
+        referenceOf: (symbol) => excessReferenceOf.get(symbol),
+        // **The excess factor's own generation, resolved once** — `generation`'s
+        // shape and its reason: `baselineAsOf` is also the cache's refresh
+        // trigger, and 501 evaluations of a refresh condition per applied batch
+        // is a cost nothing asked for.
+        excessBaselineOf: (symbol) => excessGeneration.get(symbol),
+        // **The out-of-hours answer, and it is READ rather than held** (Task
+        // 5.4.5): one row per security per session written by `pnpm baselines`,
+        // so a restarted replica — which is every merge — draws the last
+        // session's ranking instead of an empty region. `undefined` is a store
+        // with no session written, which is CI's permanent state.
+        ...(lastSession === undefined ? {} : { sessionRanking: lastSession }),
+        // **The stored COMPOSITE, beside the stored percentile and never instead
+        // of it** (Task 5.6.7). The composite rows carry the score and the
+        // factor answers; the percentile rows carry the signed closing move the
+        // direction glyph needs and the `eligible` count the footer states.
+        // `0017` §2 keys both tables on the same session's close for exactly
+        // this, and the producer refuses to mix two sessions' halves.
+        ...(lastComposite === undefined
+          ? {}
+          : { compositeRanking: lastComposite }),
+      }),
+      // **The join's whole answer, beside the three selections taken out of
+      // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
+      // not from the sections, because breadth and the movers are computed over
+      // 503 equities whose own instants never travel. A fold over `figures`
+      // would date the screen by its four proxies and would be **silent** on a
+      // frame whose proxies are stored while five hundred equities are live.
+      entries,
+      sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
       asOf,
-      // **Which fund each security's excess move is differenced against**, from
-      // the one shared resolver `symbolReturn` reads — so the ranked region and
-      // the security page cannot disagree about a benchmark.
-      referenceOf: (symbol) => excessReferenceOf.get(symbol),
-      // **The excess factor's own generation, resolved once** — `generation`'s
-      // shape and its reason: `baselineAsOf` is also the cache's refresh
-      // trigger, and 501 evaluations of a refresh condition per applied batch
-      // is a cost nothing asked for.
-      excessBaselineOf: (symbol) => excessGeneration.get(symbol),
-      // **The out-of-hours answer, and it is READ rather than held** (Task
-      // 5.4.5): one row per security per session written by `pnpm baselines`,
-      // so a restarted replica — which is every merge — draws the last
-      // session's ranking instead of an empty region. `undefined` is a store
-      // with no session written, which is CI's permanent state.
-      ...(lastSession === undefined ? {} : { sessionRanking: lastSession }),
-      // **The stored COMPOSITE, beside the stored percentile and never instead
-      // of it** (Task 5.6.7). The composite rows carry the score and the
-      // factor answers; the percentile rows carry the signed closing move the
-      // direction glyph needs and the `eligible` count the footer states.
-      // `0017` §2 keys both tables on the same session's close for exactly
-      // this, and the producer refuses to mix two sessions' halves.
-      ...(lastComposite === undefined
-        ? {}
-        : { compositeRanking: lastComposite }),
     }),
-    // **The join's whole answer, beside the three selections taken out of
-    // it** (Task 4.8.12) — the frame's `observedAt` is folded from this and
-    // not from the sections, because breadth and the movers are computed over
-    // 503 equities whose own instants never travel. A fold over `figures`
-    // would date the screen by its four proxies and would be **silent** on a
-    // frame whose proxies are stored while five hundred equities are live.
-    entries,
-    sectorLadderStep: (ranked) => sectorLadder.stepFor(ranked, asOf),
-    asOf,
-  });
+  );
 };
 
 // **Loaded at startup, and it does not block the server** (Task 4.2.4). A
@@ -1662,6 +1708,11 @@ const symbolReturn = (symbol: string): SymbolFigures => {
 const gateway = registerMarketGateway(app, {
   snapshot: () => snapshotOf(currentMarketState),
   overview: marketOverview,
+  // **The holder's READ, never its `record`** (Task 7.2.5). The gateway kept
+  // its own `lastBroadcastPass` until this task; it now reads the one the
+  // producer writes, so there is one answer to *what was last computed* and
+  // the gateway is back to deciding only *when* a browser is told it.
+  latestOverviewPass: latestOverviewPass.read,
   symbolReturn,
   feedState: () => {
     const state = readFeedState(config, new Date(), marketStream);

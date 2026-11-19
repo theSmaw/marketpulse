@@ -281,6 +281,11 @@ describe("ToolOutcome", () => {
     // SUBJECT's price break and `reference-split-discontinuity` is the
     // BENCHMARK's, which refuse different securities and are repaired in
     // different places.
+    //
+    // Task 7.2.5 adds the only member in this list minted FOR a tool:
+    // `no-aggregate-yet` is `get_market_breadth`'s own, and it must never be
+    // `nothing-observed`, which claims a count of zero over a stated
+    // denominator rather than the absence of any count at all.
     expect(TOOL_REFUSALS).toStrictEqual([
       "nothing-observed",
       "not-tracked",
@@ -293,6 +298,7 @@ describe("ToolOutcome", () => {
       "mixed-basis",
       "no-subject-move",
       "no-reference-move",
+      "no-aggregate-yet",
     ]);
     for (const refusal of PERCENTILE_REFUSALS) {
       expect(TOOL_REFUSALS).toContain(refusal);
@@ -302,7 +308,7 @@ describe("ToolOutcome", () => {
     }
   });
 
-  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first three steps", () => {
+  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first four steps", () => {
     expect(TOOL_NAMES).toStrictEqual([
       "get_security_snapshot",
       "calculate_return_percentile",
@@ -313,6 +319,10 @@ describe("ToolOutcome", () => {
       // arithmetic, not for the `Compare against sector benchmark` sentence
       // the checklist draws.
       "compare_securities",
+      // Task 7.2.5 — market breadth, fourth of five. `get_` rather than
+      // `calculate_`, because it reads the one producer's retained answer
+      // rather than computing one of its own.
+      "get_market_breadth",
     ]);
   });
 });

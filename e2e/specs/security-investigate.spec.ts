@@ -61,11 +61,11 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // description text is identical before and after, so the duration is
   // the one signal that distinguishes "still running" from "complete".
   //
-  // **Four rows since Task 7.2.4**, which added `compare_securities` beside
-  // `calculate_volume_ratio` and `calculate_return_percentile` — so the
-  // count is the assertion rather than a `.first()`: a dropped step would
-  // otherwise pass unseen.
-  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(4, {
+  // **Five rows since Task 7.2.5**, which added `get_market_breadth` beside
+  // `compare_securities`, `calculate_volume_ratio` and
+  // `calculate_return_percentile` — so the count is the assertion rather than
+  // a `.first()`: a dropped step would otherwise pass unseen.
+  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(5, {
     timeout: 10_000,
   });
   await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
@@ -81,6 +81,15 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // peer median this product does not compute.
   await expect(
     region.getByText("Compare against sector benchmark", { exact: true }),
+  ).toBeVisible();
+  // **The one step whose subject is the whole market rather than this
+  // security** (Task 7.2.5) — and the one step a gated machine can see reach
+  // its `ok` arm, because breadth over a store with zero bars is an honest
+  // count of zero over a stated denominator rather than a refusal. The row's
+  // own duration is what this spec asserts; nothing on the checklist renders
+  // a tool's payload yet (Story 7.3's scope).
+  await expect(
+    region.getByText("Calculate market breadth", { exact: true }),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);

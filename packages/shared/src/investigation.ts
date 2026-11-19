@@ -137,6 +137,15 @@ export const TOOL_NAMES = [
   // weighted sector SPDR, and *peers* promises an unweighted peer median
   // this product does not compute (Story 5.6's own Gate 1 rejected it).
   "compare_securities",
+  // Story 7.2's market-breadth step (Task 7.2.5) — `marketBreadth` read
+  // through the tool contract, from the one retained overview pass rather
+  // than from a join of its own. `get_` rather than `calculate_` for the
+  // reason `EPIC.md` spells it that way: this tool computes nothing, it reads
+  // the answer the one producer already computed over the whole tracked
+  // universe. It is also the only tool in this list whose `Input` carries no
+  // ticker at all — breadth is a group fact, and AC 5's *never a verdict on
+  // the investigated security* is held by that absence.
+  "get_market_breadth",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -197,7 +206,27 @@ export type ToolName = (typeof TOOL_NAMES)[number];
  *   benchmark that printed nothing has **not** been flat.
  *
  * {@link ExcessFactorRefusalIsAToolRefusal} is the structural half, exactly
- * as `PercentileRefusalIsAToolRefusal` is for the price factor's. */
+ * as `PercentileRefusalIsAToolRefusal` is for the price factor's.
+ *
+ * **Widened again by Task 7.2.5 with one word this product did not already
+ * own, which is why it is the only member here minted for a tool.**
+ * `no-aggregate-yet` is `get_market_breadth`'s own: *no overview aggregate
+ * has been computed in this process yet*. It is deliberately **not**
+ * `nothing-observed`, and the two are a pair that must never merge:
+ *
+ * - `nothing-observed` is *we have an aggregate and it says the market was
+ *   quiet* — a count of zero over a stated denominator, which is a real
+ *   measurement and the one `/`'s own `Market breadth` region draws on CI.
+ * - `no-aggregate-yet` is *we have no aggregate*, with no count and no
+ *   denominator to state. It is the permanent condition of a process nobody
+ *   has attached to (since Task 4.8.11 the join genuinely does not run then)
+ *   and the first seconds of every deployment.
+ *
+ * A tool that answered the first for the second would be inventing a
+ * measurement, which is invariant 1's subject; `refused` rather than
+ * `inapplicable` because the aggregate arrives on the next applied batch — a
+ * refusal promises something may one day produce a figure, and here something
+ * will. */
 export const TOOL_REFUSALS = [
   "nothing-observed",
   "not-tracked",
@@ -210,6 +239,7 @@ export const TOOL_REFUSALS = [
   "mixed-basis",
   "no-subject-move",
   "no-reference-move",
+  "no-aggregate-yet",
 ] as const;
 
 export type ToolRefusal = (typeof TOOL_REFUSALS)[number];

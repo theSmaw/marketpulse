@@ -3709,6 +3709,118 @@ const INVARIANTS = [
   },
 
   {
+    id: "one-writer-of-the-latest-overview-pass",
+    claim:
+      "The retained overview pass has exactly ONE writer in shipped backend " +
+      "code — the producer's own `return`, through " +
+      "`latestOverviewPass.recordPass(`. A second write site is a second answer " +
+      "to *what did this process last compute*, and the two disagree the " +
+      "moment anything reads both.",
+    check() {
+      // **Task 7.2.5, and the shape of the regression it guards is written
+      // down twice already in this file.** `one-subscriber-on-the-upstream-
+      // socket` counted FILES in its first version and `pnpm break
+      // a-second-subscriber-on-the-upstream-socket` caught it immediately: a
+      // second subscription added BESIDE the first left the count at 1 and
+      // the check green. `one-producer-of-the-overview-aggregate` records the
+      // same lesson. So this counts write SITES.
+      //
+      // ## What a second writer actually costs
+      //
+      // `get_market_breadth` reads this holder, and `/`'s own `Market
+      // breadth` region reads the frame the same pass carries. A second
+      // `record(` — a diagnostics route recording a pass of its own, a
+      // scheduled job, a test helper promoted into shipped code — makes *the
+      // latest pass* mean two things, and the investigation step and the
+      // landing page then report two counts for one market with both
+      // individually correct. That is Task 4.7.3's *two true halves, one
+      // contradiction* with the halves one process apart.
+      //
+      // ## No match is a FAILURE
+      //
+      // A grep whose anchor has moved returns nothing and reads exactly like
+      // a pass, so the DEFINITION is asserted to exist too: if the holder is
+      // renamed or its method is, this check fails rather than passing on an
+      // absence.
+      const sources = [];
+
+      const walk = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const path = resolve(dir, child);
+          if (statSync(path).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules") walk(path);
+            continue;
+          }
+          if (!child.endsWith(".ts")) continue;
+          // All three suffixes, for `one-producer-of-the-overview-aggregate`'s
+          // recorded reason: the naming is a convention nothing enforces, so
+          // a `latest-overview-pass.database.ts` must not quietly add a
+          // counted write site.
+          if (/\.(?:test|process|database)\.ts$/u.test(child)) continue;
+          sources.push({
+            path: relative(REPO_ROOT, path),
+            text: withoutTrailingComments(readFileSync(path, "utf8")),
+          });
+        }
+      };
+
+      walk(resolve(REPO_ROOT, "apps/backend/src"));
+
+      // The anchor: the holder's own declaration of the method, in the one
+      // module that owns it.
+      const declarations = sources.filter((source) =>
+        /readonly recordPass: \(pass: OverviewPass\) => OverviewPass;/u.test(
+          source.text,
+        ),
+      );
+
+      if (declarations.length !== 1) {
+        throw new InvariantFailure(
+          `${String(declarations.length)} module(s) declare the retained ` +
+            "pass's `recordPass`, expected exactly 1. This check refuses a " +
+            "second write site, so it must be able to find the thing being " +
+            "written: a grep that matches nothing looks exactly like a pass. " +
+            "If `latest-overview-pass.ts` was renamed or its method was, " +
+            "repoint this check in the same change.",
+        );
+      }
+
+      // **The write sites, by the call rather than by the identifier.** A
+      // re-implementer cannot avoid writing `.recordPass(` — they can rename
+      // the binding freely, which is why the clause keys on the method and
+      // not on `latestOverviewPass`.
+      //
+      // **And the method is named `recordPass` BECAUSE of this clause**,
+      // which is the one finding this check produced while being written. Its
+      // first draft counted `.record(` and reported **two** write sites: the
+      // second is `trailingWindows.record(`, a different structure with a
+      // different subject, twenty lines of `index.ts` away. A guard that
+      // keyed on a method name this repository already spends elsewhere would
+      // be red on the desired state and would be "fixed" by exempting a file
+      // — so the method was renamed instead, and the clause now matches
+      // exactly what it is about.
+      const writes = sources.flatMap((source) =>
+        [...source.text.matchAll(/\.recordPass\(/gu)].map(
+          (match) => `${source.path} offset ${String(match.index)}`,
+        ),
+      );
+
+      if (writes.length !== 1) {
+        throw new InvariantFailure(
+          `${String(writes.length)} site(s) write the retained overview ` +
+            "pass, expected exactly 1:\n      " +
+            writes.join("\n      ") +
+            "\n    The producer records by RETURNING (`index.ts`'s " +
+            "`marketOverview`), so there is no way to compute a pass this " +
+            "process then does not hold — and exactly one answer to what it " +
+            "last computed. A second write beside the first is the " +
+            "regression this counts, not a second file.",
+        );
+      }
+    },
+  },
+
+  {
     id: "the-aggregate-has-three-producer-paths",
     claim:
       "`overviewMessage(…)` is reached by at most THREE paths in " +
@@ -4507,6 +4619,83 @@ const INVARIANTS = [
             "screen's worth of sentences about them. A pass over `entries` " +
             "rather than `equities` ranks the fifteen funds beside their own " +
             "constituents and still satisfies every clause above.",
+        );
+      }
+
+      // ## And the CORPUS, because every clause above reads one file (Task
+      // 7.2.5)
+      //
+      // Until this task the whole check was `index.ts`, which was right while
+      // `index.ts` was the only place that could count. Story 7.2 adds a
+      // **tool** that reports breadth to an investigation, and the obvious
+      // implementation of it — the one the task file had to argue against —
+      // is `marketBreadth(eligibleMoves(entries, …))` inside
+      // `tool-market-breadth.ts`. That typechecks, runs, produces three
+      // plausible counts, satisfies all four clauses above (they never look
+      // at this file), and reports a figure that can differ from the one `/`
+      // draws with both individually correct.
+      //
+      // **The clause a re-implementer cannot avoid is the CALL**, not the
+      // name of a binding: a tool that wants a count has to reach one of
+      // these two functions. So both are counted across every shipped backend
+      // file, and the only places permitted to name them are the module that
+      // DEFINES them and the one producer that calls them.
+      //
+      // `market-overview.ts` is deliberately NOT exempt — it declares the
+      // entry type the count is taken over and must not acquire a count of
+      // its own.
+      const HOMES = new Set([
+        // The definitions.
+        "apps/backend/src/market-breadth.ts",
+        // The one producer, whose clauses are asserted above.
+        "apps/backend/src/index.ts",
+      ]);
+
+      const elsewhere = [];
+
+      const walkBackend = (dir) => {
+        for (const child of readdirSync(dir)) {
+          const childPath = resolve(dir, child);
+          if (statSync(childPath).isDirectory()) {
+            if (child !== "fixtures" && child !== "node_modules")
+              walkBackend(childPath);
+            continue;
+          }
+          if (!child.endsWith(".ts")) continue;
+          // All three suffixes, for `one-producer-of-the-overview-aggregate`'s
+          // recorded reason — the naming is a convention nothing enforces.
+          if (/\.(?:test|process|database)\.ts$/u.test(child)) continue;
+
+          const where = relative(REPO_ROOT, childPath);
+          if (HOMES.has(where)) continue;
+
+          const body = withoutTrailingComments(readFileSync(childPath, "utf8"));
+          for (const call of body.matchAll(
+            /\b(?:eligibleMoves|marketBreadth)\s*\(/gu,
+          )) {
+            elsewhere.push(`${where} offset ${String(call.index)}`);
+          }
+        }
+      };
+
+      walkBackend(resolve(REPO_ROOT, "apps/backend/src"));
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} site(s) outside the producer count ` +
+            "the market's breadth:\n      " +
+            elsewhere.join("\n      ") +
+            "\n    `eligibleMoves` and `marketBreadth` are called in exactly " +
+            "one place — `index.ts`'s one pass over the equities, whose own " +
+            "set and population are asserted by the clauses above. A second " +
+            "count anywhere else (an investigation tool, a diagnostics " +
+            "route, a scheduled job) is a second answer to one question at a " +
+            "second instant, so the figure it reports and the figure `/` " +
+            "draws can differ with both individually correct. Read the " +
+            "retained pass instead (`latest-overview-pass.ts`) — and note " +
+            "that a recomputed join is also the one call shape Epic 13's " +
+            "replay has to refuse, because it filters on `status = " +
+            "'active'`, the market we track NOW.",
         );
       }
     },

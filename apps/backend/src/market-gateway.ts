@@ -222,12 +222,46 @@ export interface MarketGatewayOptions {
    * differences **two** of those figures — a security's and its sector
    * benchmark's — which must come from one pass over one market state. This
    * gateway already memoised the frame for exactly that kind of consistency
-   * (see `lastBroadcastPass`); what changed is that the value it keeps is now
+   * (see `passForAJoin`); what changed is that the value it keeps is now
    * the one both frames are served from. It is **not** a second producer and
    * **not** a second join: `one-producer-of-the-overview-aggregate` still
    * counts exactly one call site of the builder.
    */
   readonly overview: () => OverviewPass;
+  /**
+   * **The latest pass the producer computed, or `undefined` where it has
+   * computed none** — what a connecting or subscribing browser is served
+   * instead of a fresh join (Task 4.7.3's rule, Task 7.2.5's home for it).
+   *
+   * ## This used to be a `let` in this file
+   *
+   * `lastBroadcastPass` lived here from Task 4.7.3 until 2026-11-19, written
+   * on the broadcast path and read by `sendSnapshot`. The whole argument for
+   * WHY a join is not what a new listener is served is unchanged and is on
+   * the read site below; what moved is **where the value lives**, and it moved
+   * because Story 7.2's breadth tool is the first consumer of this aggregate
+   * that is not a browser (ADR 0038's own narrower reversal trigger, fired as
+   * worded). A tool reaching into this gateway for a market fact would make
+   * the gateway the owner of one, and this gateway's rule — stated on
+   * `overview` directly above — is that it decides *when* a browser is told
+   * something and must not decide *what* is true.
+   *
+   * ## Required, and a READ rather than the holder
+   *
+   * Required for `overview`'s reason: an optional one makes a wiring mistake
+   * silent — a gateway that recomputes on every connect, on a deployment
+   * where nothing else would say so. And it is a read function rather than
+   * the holder itself so that this file structurally cannot write one: the
+   * single writer is the producer (`one-writer-of-the-latest-overview-pass`).
+   *
+   * **It now sees every pass, not only broadcast ones**, because the producer
+   * records its own answer. Every case the old `let` had a value for is
+   * unchanged; where it had none — a cold start, or a process nobody is
+   * attached to — the second browser to connect is now served the pass the
+   * first one's connect computed, which is more of exactly the consistency
+   * Task 4.7.3 bought rather than a new behaviour.
+   */
+  readonly latestOverviewPass: () => OverviewPass | undefined;
   /**
    * **One security's 5-minute return, built when a browser is owed one** (Task
    * 5.2.3).
@@ -347,6 +381,7 @@ export function registerMarketGateway(
     snapshot,
     feedState,
     overview,
+    latestOverviewPass,
     symbolReturn,
     setTimer = (fn, ms) => setInterval(fn, ms),
     clearTimer = (timer) => {
@@ -563,7 +598,7 @@ export function registerMarketGateway(
    *
    * **Amended 2026-10-10 by Task 4.7.3: the aggregate is now an ARGUMENT, and
    * two of the three paths no longer compute one.** See
-   * `lastBroadcastPass` below. The encode site is still exactly one, which
+   * `passForAJoin` below. The encode site is still exactly one, which
    * is what `the-overview-frame-is-not-a-heartbeat` holds; what moved is where
    * the *value* comes from.
    */
@@ -608,9 +643,21 @@ export function registerMarketGateway(
     });
 
   /**
-   * **The last aggregate BROADCAST to attached browsers** — and what a
-   * reconnecting or subscribing browser is served instead of a fresh join
-   * (Task 4.7.3).
+   * **What a connecting or subscribing browser is served instead of a fresh
+   * join** — the latest pass the producer computed, and a join only where it
+   * has computed none (Task 4.7.3).
+   *
+   * **Amended 2026-11-19 (Task 7.2.5): this was a `let lastBroadcastPass`
+   * written by this file, and the VALUE now lives beside the producer.** The
+   * argument below is unchanged in every particular and is kept here, where a
+   * reader of this gateway meets it; what moved is the ownership, because the
+   * breadth tool is the first consumer of this aggregate that is not a
+   * browser and a gateway must not be the home of a market fact (see
+   * `MarketGatewayOptions.latestOverviewPass`). One behavioural widening
+   * travels with it: the holder records **every** pass the producer computes
+   * rather than only broadcast ones, so a second browser connecting before
+   * any batch has been broadcast is served the pass the first one's connect
+   * computed. Every case the old `let` held a value for is byte-identical.
    *
    * ## The defect, which a reader reaches with a reload
    *
@@ -643,7 +690,7 @@ export function registerMarketGateway(
    * which Story 3.10 decided against); and photographing it as honest
    * (defensible per region, indefensible as a set).
    *
-   * ## What a process with no last broadcast serves, and why that is not it
+   * ## What a process with no pass at all serves, and why that is not it
    *
    * **A freshly computed aggregate — today's behaviour, unchanged.** A process
    * that has never broadcast has no reader whose figures it could contradict,
@@ -663,11 +710,10 @@ export function registerMarketGateway(
    *
    * ## Nothing here may throw
    *
-   * The write below is on the socket callback's path, where an unhandled
-   * rejection is a crashed process. It is a single assignment of a value
-   * `overview()` has already returned, and the read is a `??`.
+   * This is reached from the socket callback's path, where an unhandled
+   * rejection is a crashed process. It is one field read and a `??`.
    */
-  let lastBroadcastPass: OverviewPass | undefined;
+  const passForAJoin = (): OverviewPass => latestOverviewPass() ?? overview();
 
   app.server.on("upgrade", (request, socket, head) => {
     // Path-matched here rather than by the library, so an upgrade to any other
@@ -732,8 +778,9 @@ export function registerMarketGateway(
         // removes is the same wait. It rides this call rather than a call of
         // its own so that *on connect* and *on subscribe* cannot come apart.
         //
-        // **The LAST BROADCAST one, not a fresh join** (Task 4.7.3) — the
-        // whole argument is on `lastBroadcastPass`. A browser that joins
+        // **The LATEST COMPUTED one, not a fresh join** (Task 4.7.3; the
+        // value moved beside the producer in Task 7.2.5) — the whole argument
+        // is on `passForAJoin`. A browser that joins
         // after a broadcast is served exactly what every tab already open is
         // looking at, which is a second property worth having: two tabs of `/`
         // no longer disagree about the market by however long apart they were
@@ -745,7 +792,7 @@ export function registerMarketGateway(
         // state. Serving the frame from a memo and the score from a fresh
         // join would be exactly the contradiction the memo exists to remove,
         // one surface along.
-        const pass = lastBroadcastPass ?? overview();
+        const pass = passForAJoin();
         send(client, overviewMessage(pass.frame));
 
         // **And this browser's own figure, if its screen is about one.**
@@ -872,7 +919,8 @@ export function registerMarketGateway(
       //
       // **Why it is here rather than around the broadcast** (Task 4.8.11).
       // `overviewMessage()` was evaluated as an ARGUMENT to `broadcast` — a
-      // `lastBroadcastPass = overview()` statement since Task 4.7.3, which
+      // `lastBroadcastPass = overview()` statement from Task 4.7.3 until
+      // Task 7.2.5 moved the value beside the producer, which
       // changes the shape and not the ordering — so until this line the
       // 518-join ran before the client map was read —
       // re-measured 2026-10-10 at **1.521 ms p50 a batch with zero clients**
@@ -902,7 +950,7 @@ export function registerMarketGateway(
       // because memoising that is a different decision with more surface and
       // was not the one taken. Those joins have a reader by construction: the
       // browser that asked.~~ — **taken 2026-10-10 by Task 4.7.3, and not for
-      // the cost.** The snapshot path now serves `lastBroadcastPass`,
+      // the cost.** The snapshot path now serves the latest computed pass,
       // because a recomputed aggregate during an outage contradicts itself
       // region by region; two of the three joins per cold load going away is a
       // consequence rather than the reason.
@@ -931,8 +979,13 @@ export function registerMarketGateway(
       // this, so the write is not bookkeeping: it is the thing a reconnect
       // reads. It stays **below** the guard above, which is why
       // `the-join-runs-with-nobody-attached` still goes red.
+      //
+      // **And the write is no longer here** (Task 7.2.5): the producer
+      // records its own answer, so this is one statement rather than two and
+      // this file holds no copy of what was last computed. The `const` is
+      // kept because the frame and the figures below must come from **one**
+      // pass — calling the producer twice would be two joins at two instants.
       const pass = overview();
-      lastBroadcastPass = pass;
       broadcast(overviewMessage(pass.frame));
 
       // **One message per client rather than one for everybody** (Task 3.5.6).
