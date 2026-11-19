@@ -138,6 +138,149 @@ describe("the scripted agent provider", () => {
     ).toStrictEqual({ kind: "refused", reason: "nothing-observed" });
   });
 
+  // ----------------------------------------------- the thrown-tool net
+  //
+  // `AnalyticalTool.run`'s own docblock says a tool never throws, and
+  // that is a contract rather than a mechanism — Story 7.2's tools read a
+  // database and a trading calendar where Story 7.1's read a `Map`. These
+  // three assert the guarantee Task 7.2.1 added: whatever a tool does,
+  // the run reaches a terminal event and a non-`running` status.
+
+  /** A tool that throws rather than refusing — the shape the contract
+   * forbids and nothing enforces. */
+  function throwingTool(): AnalyticalTool<
+    undefined,
+    { readonly answer: number }
+  > {
+    return {
+      name: "get_security_snapshot",
+      description: "Measure move",
+      run: () => {
+        throw new Error("the store was unreachable");
+      },
+    };
+  }
+
+  it("a thrown tool still reaches a terminal event, and the run rejects", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-16T14:01:00.000Z"),
+    });
+    const runnable = toRunnableTool(
+      throwingTool(),
+      () => undefined,
+      (value) => value,
+    );
+
+    await expect(
+      provider.runInvestigation(CONTEXT("inv-throw-1"), [runnable]),
+    ).rejects.toThrow("the store was unreachable");
+
+    const events = [...store.eventsFrom(toInvestigationId("inv-throw-1"), 0)];
+    const terminal = events.at(-1);
+    expect(terminal?.type).toBe("INVESTIGATION_FAILED");
+    // No tool completed, so the count is 0 — and the event carries no
+    // step id, no reason and no thrown message. Story 7.5 owns all three.
+    expect(terminal).toStrictEqual({
+      type: "INVESTIGATION_FAILED",
+      seq: 4,
+      investigationId: toInvestigationId("inv-throw-1"),
+      status: "failed",
+      failedAt: new Date("2026-11-16T14:01:00.024Z"),
+      stepCount: 0,
+    });
+    // `seq` is unbroken across the failure — the three events before it
+    // are the started/step-started/tool-call-started trio.
+    expect(events.map((event) => event.seq)).toStrictEqual([1, 2, 3, 4]);
+  });
+
+  it("leaves the investigation `failed` rather than `running`, which is what unsticks a second press", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-16T14:01:00.000Z"),
+    });
+    const runnable = toRunnableTool(
+      throwingTool(),
+      () => undefined,
+      (value) => value,
+    );
+
+    await provider
+      .runInvestigation(CONTEXT("inv-throw-2"), [runnable])
+      .catch(() => undefined);
+
+    // The whole point: `POST /investigations`' idempotency guard looks for
+    // a `running` investigation for this symbol, so anything but
+    // `running` here is what lets the next press start a fresh one.
+    expect(store.get(toInvestigationId("inv-throw-2"))?.status).toBe("failed");
+  });
+
+  it("counts the steps that DID complete before the throw", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-16T14:01:00.000Z"),
+    });
+    const ok = toRunnableTool(
+      spyTool({ kind: "ok", value: { answer: 1 } }).tool,
+      () => undefined,
+      (value) => value,
+    );
+    const bad = toRunnableTool(
+      throwingTool(),
+      () => undefined,
+      (value) => value,
+    );
+
+    await provider
+      .runInvestigation(CONTEXT("inv-throw-3"), [ok, bad])
+      .catch(() => undefined);
+
+    const events = [...store.eventsFrom(toInvestigationId("inv-throw-3"), 0)];
+    const terminal = events.at(-1);
+    expect(
+      terminal?.type === "INVESTIGATION_FAILED" && terminal.stepCount,
+    ).toBe(1);
+    // And the step that completed stays `completed` — a failed run is not
+    // a run whose own history is rewritten.
+    const steps = store.get(toInvestigationId("inv-throw-3"))?.steps ?? [];
+    expect(steps.map((step) => step.status)).toStrictEqual([
+      "completed",
+      "running",
+    ]);
+  });
+
+  it("stops the stream: streamEvents returns on INVESTIGATION_FAILED", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-16T14:01:00.000Z"),
+    });
+    const runnable = toRunnableTool(
+      throwingTool(),
+      () => undefined,
+      (value) => value,
+    );
+
+    await provider
+      .runInvestigation(CONTEXT("inv-throw-4"), [runnable])
+      .catch(() => undefined);
+
+    // Without `INVESTIGATION_FAILED` in `TERMINAL_EVENT_TYPES` this
+    // generator never returns and the SSE response never ends — the
+    // stuck state is as much a property of the stream as of the status.
+    const seen = [];
+    for await (const event of provider.streamEvents(
+      toInvestigationId("inv-throw-4"),
+      0,
+    )) {
+      seen.push(event.type);
+    }
+    expect(seen.at(-1)).toBe("INVESTIGATION_FAILED");
+  });
+
   it("cancel() is callable and does not change the investigation's status", async () => {
     const store = createInvestigationStore();
     const provider = createScriptedAgentProvider({

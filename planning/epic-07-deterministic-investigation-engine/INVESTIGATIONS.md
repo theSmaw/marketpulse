@@ -34,6 +34,15 @@ produce, no landing-page region, and no persistence past a backend
 restart. Every one of those is a later story's own, named below rather than
 assumed.
 
+**Amended 2026-11-18 (Task 7.2.1), on two sentences above rather than on
+the paragraph's shape.** _No failure a tool can produce_ is now narrower
+than it reads: a thrown tool still has no reader-facing sentence anywhere
+(Story 7.5's), but the orchestrator now **always** reaches a terminal event
+and a non-`running` status after one — `INVESTIGATION_FAILED`, carrying no
+reason and drawn by nothing. And the SSE stream carries a **keepalive
+comment** on an 80-second interval, which §9 records in full. Everything
+else in this section is unchanged: still one tool, one path, one surface.
+
 ## 1. The domain model, and what is reachable from this story alone
 
 `Investigation` and `Step` are **two separate status vocabularies**
@@ -43,12 +52,19 @@ exactly:
 
 ```text
 Investigation:  running → completed
+                running → failed       (since 2026-11-18, Task 7.2.1)
 Step:           queued → running → completed
 ```
 
 `failed` and `cancelled` (both vocabularies) have no producer anywhere in
 this epic yet — Story 7.5 is where a tool can fail and a run can be
-cancelled for real. `awaiting user` has no producer in this epic **at
+cancelled for real. **Corrected 2026-11-18 (Task 7.2.1): an
+`Investigation`'s own `failed` now has one producer** — the orchestrator's
+thrown-tool net, which is why the diagram above gains
+`running → failed`. A **`Step`**'s `failed` still has none: the step the
+throw happened in is left `running`, deliberately, because naming it is
+Story 7.5's along with the sentence beside it. `cancelled` has no producer
+in either vocabulary. `awaiting user` has no producer in this epic **at
 all** and may never gain one here: nothing in a deterministic pipeline asks
 a reader a mid-run question, and that is Epic 10/11's territory. `Finding`
 and `Evidence` are real, typed domain objects already (invariant 5:
@@ -100,8 +116,10 @@ this product to more than one concurrent investigation.
 [ADR 0050](../../docs/adr/0050-the-agent-provider-is-keyed-by-investigation-id-the-sse-transport-decisions-and-the-domain-type-split.md)
 carries this decision in full, plus the SSE transport decisions (`fetch` +
 `ReadableStream`, never `EventSource`; monotonic `seq` with replay from
-`fromSeq`; no keepalive yet, because nothing in this story holds a stream
-open long enough to need one) and the domain-type split (wire shapes in
+`fromSeq`; ~~no keepalive yet, because nothing in this story holds a stream
+open long enough to need one~~ — **false since 2026-11-18: that decision's
+own trigger fired at Story 7.2 and the keepalive shipped, §9**) and the
+domain-type split (wire shapes in
 `packages/shared`; the provider/tool contracts backend-only, never leaking
 to the frontend's type graph — invariant 7).
 
@@ -111,8 +129,14 @@ pipeline runs long enough to need cancelling mid-flight. Story 7.5 is
 where it does something.
 
 **The in-memory investigation map is bounded at 200 entries**, evicting
-the oldest **completed** investigation first, never one still running —
+the oldest **settled** investigation first, never one still running —
 the same bound every other in-memory structure in this product states.
+**Corrected 2026-11-18 (Task 7.2.1): this said _completed_, and so did the
+predicate.** The rule was always "never evict a running one"; spelling the
+positive case was the same set only while `completed` was the only status a
+run could reach, and a `failed` entry the cap could never reclaim is
+exactly the stuck state the thrown-tool net exists to close, one layer
+down.
 Nothing is written to a database; a backend restart loses every
 investigation. Epic 12 is the named owner of real persistence.
 
@@ -225,10 +249,38 @@ story and carried forward.
 
 ## 9. What is open, with a named owner rather than a story number
 
-- **The keepalive.** No SSE keepalive has been written. The first
+- ~~**The keepalive.** No SSE keepalive has been written. The first
   investigation run held open across more than one step is the condition
   under which it becomes owed — ADR 0050's own reversal trigger,
-  `HOSTING.md`'s dated amendment.
+  `HOSTING.md`'s dated amendment.~~ — **closed 2026-11-18 by Story 7.2
+  (Task 7.2.1), and its condition fired one story after it was written
+  rather than at the Story 7.5 the two documents beside it guessed.**
+  `scripted-agent-provider.ts` mints every `QueuedStep` before its loop
+  starts, so "a run held open across more than one step" is true on the
+  very first press of a five-tool pipeline, on every machine, however fast
+  the tools are. What ships is an SSE comment line written on an interval
+  and cleared in the same `finally` that ends the stream, at
+  `SSE_KEEPALIVE_INTERVAL_MS = 240_000 / 3` (**80 s**, **3× inside** the
+  ingress ceiling), spelled as the division and **injectable** so a test
+  uses a 5 ms period rather than waiting 80 seconds. `app.inject()`'s own
+  whole-sequence assertion is unaffected, because the response still ends
+  on a terminal event. **What replaces this entry rather than closing with
+  it**: the 240 s ceiling is Microsoft's documentation, not a measurement
+  of this deployment, and **no stream of ours has been held open for four
+  minutes against the real ingress** — so the keepalive is written against
+  a figure nobody here has produced. Owner: the same deployed sitting the
+  two entries below are owed to.
+- **A thrown tool has a terminal event, and nothing more than that.**
+  Task 7.2.1 added `INVESTIGATION_FAILED` to `TERMINAL_EVENT_TYPES` and a
+  `catch` around the orchestrator's loop, so a throw can no longer leave an
+  investigation `running` for ever — which, through `POST
+/investigations`' second-press idempotency, permanently disabled
+  `Investigate` for that symbol until a backend restart. The event carries
+  **no step id, no reason and no thrown message**, and no surface draws
+  anything for it: the frontend's decoder answers `unsupported` for the
+  type, by construction and by its own existing design. Owner: **Story
+  7.5**, which owns the reader-facing sentence and already has
+  `FailedStep.reason` typed and waiting for it.
 - **A real-network, non-loopback re-take of §7's two figures.** Owner: the
   first story in this epic that reaches a deployed backend, or Story 7.7's
   own sweep if none does first.

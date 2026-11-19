@@ -11658,6 +11658,97 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "a-tool-takes-no-channel-to-another-step",
+    claim:
+      "The analytical-tool contract's own `run` signatures " +
+      "(`apps/backend/src/analytical-tool.ts`) carry only a tool's own " +
+      "input and its `ToolContext` — never a prior step's outcome, never " +
+      "the investigation's own step list, and never an " +
+      "`AbortSignal`-shaped channel from one step to another — so Story " +
+      "7.2's AC4 independence is structural rather than a property of " +
+      "dispatch order.",
+    check() {
+      // **Story 7.2's Gate 1 asked for exactly this check, and it holds the
+      // claim that survives a rewrite.** All three technical shaping passes
+      // kept the orchestrator SEQUENTIAL and reworded AC4 instead, on the
+      // grounds that `RunnableTool.run`'s own SIGNATURE is what makes tool
+      // independence true: there is no channel through which one tool could
+      // read another's output, so the guarantee does not depend on the
+      // order `scripted-agent-provider.ts` happens to dispatch in, and it
+      // survives Epic 10's model-backed provider unchanged.
+      //
+      // **The corpus is the contract file, not the tools.** A tool cannot
+      // widen its own `run` past what `AnalyticalTool<Input, Output>` and
+      // `RunnableTool` declare — a third parameter on one implementation is
+      // a compile error. So the one place the defect can actually land is
+      // the contract itself, which is the clause a re-implementer cannot
+      // avoid writing: to pass a prior outcome to a tool, you must first
+      // give `run` somewhere to receive it.
+      const FILE = "apps/backend/src/analytical-tool.ts";
+      const text = withoutComments(readAnchored(resolve(REPO_ROOT, FILE)));
+
+      // Every `run` signature declared in the contract, as the parameter
+      // list between its own parentheses. Anchored on `readonly run:` /
+      // `run(` so a helper function in the same file is not swept in.
+      const signatures = [
+        ...text.matchAll(/readonly run:\s*\(([^)]*)\)\s*=>/gu),
+        ...text.matchAll(/\basync run\(([^)]*)\)\s*\{/gu),
+      ].map((match) => (match[1] ?? "").replace(/\s+/gu, " ").trim());
+
+      if (signatures.length === 0) {
+        throw new InvariantFailure(
+          `No \`run\` signature found in \`${FILE}\`. That file declares ` +
+            "both `AnalyticalTool.run` and `RunnableTool.run`; if the " +
+            "contract moved or was restructured, repoint this check in the " +
+            "same change — a grep that matches nothing looks exactly like " +
+            "a grep that passes.",
+        );
+      }
+
+      // What a step may NOT be handed. Each is somebody's plausible next
+      // move rather than a shape nobody would write: a previous outcome
+      // threaded through so a later tool can "reuse" a figure (which is
+      // also how the LLM-never-calculates boundary gets crossed, because
+      // the second tool then derives rather than measures), the
+      // investigation's own steps so a tool can inspect what ran, and an
+      // abort/cancellation channel wired BETWEEN steps rather than held by
+      // the orchestrator.
+      const FORBIDDEN = [
+        { as: "a prior step's outcome", pattern: /ToolOutcome|\boutcome\b/iu },
+        { as: "the investigation's own steps", pattern: /\bsteps?\b/iu },
+        { as: "a prior step itself", pattern: /\bStep\b|previous/iu },
+        {
+          as: "an abort/cancellation channel",
+          pattern: /AbortSignal|\babort/iu,
+        },
+        { as: "the event log", pattern: /InvestigationEvent|\bevents\b/iu },
+      ];
+
+      const offenders = [];
+
+      for (const signature of signatures) {
+        for (const { as, pattern } of FORBIDDEN) {
+          if (!pattern.test(signature)) continue;
+          offenders.push(`${as}:\n        run(${signature})`);
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} parameter(s) on a \`run\` signature ` +
+            `in \`${FILE}\` carry a channel to another step:\n      ` +
+            offenders.join("\n      ") +
+            "\n    A tool receives its own input and its `ToolContext`, " +
+            "and nothing else. Give `run` somewhere to receive a prior " +
+            "step's answer and tool independence stops being structural — " +
+            "it becomes a property of the order the orchestrator happens " +
+            "to dispatch in, which is the weaker guarantee Story 7.2's " +
+            "Gate 1 rejected concurrent dispatch in favour of keeping.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

@@ -6788,4 +6788,40 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "a-tool-reads-no-clock",
   },
+
+  {
+    name: "a-tool-takes-a-prior-steps-outcome",
+    proves:
+      "Story 7.2's AC4 independence is a property of the tool contract's " +
+      "own `run` SIGNATURE, not of the order the orchestrator dispatches " +
+      "in — all three of that story's technical shaping passes kept " +
+      "sequential execution on exactly that ground. The plant is the one a " +
+      "tool author actually writes: an optional `previousOutcomes` " +
+      "parameter, added so a later tool can 'reuse' a figure an earlier " +
+      "one already measured, which is also how the " +
+      "LLM-never-calculates boundary gets crossed — the second tool then " +
+      "derives rather than measures. Staged BESIDE the real contract " +
+      "rather than edited into it, which is both how a widening like this " +
+      "actually lands (add the new shape, migrate the call sites, delete " +
+      "the old) and what keeps this entry's own `find` text alive through " +
+      "its own break — a substitution that deletes its anchor goes red " +
+      "twice, from neither the check nor the plant.",
+    file: "apps/backend/src/analytical-tool.ts",
+    find: "export interface RunnableTool {",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export interface ChainedRunnableTool {\n" +
+      "  readonly name: ToolName;\n" +
+      "  readonly description: string;\n" +
+      "  readonly run: (\n" +
+      "    subjectSymbols: readonly Ticker[],\n" +
+      "    context: ToolContext,\n" +
+      "    previousOutcomes: readonly ToolOutcome<unknown>[],\n" +
+      "  ) => Promise<ToolOutcome<Readonly<Record<string, JsonValue>>>>;\n" +
+      "}\n" +
+      "\n" +
+      "export interface RunnableTool {",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-tool-takes-no-channel-to-another-step",
+  },
 ];

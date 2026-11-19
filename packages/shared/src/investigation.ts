@@ -210,7 +210,10 @@ export interface Investigation {
  * later stories add a payload for one of the remaining four, never a
  * second list. Story 7.1 ships six; `FINDING_CREATED`/`EVIDENCE_ADDED`
  * wait for Story 7.3's domain types, `WORKSPACE_COMMAND` for a tool that
- * produces one (Story 7.4), `INVESTIGATION_FAILED` for Story 7.5. */
+ * produces one (Story 7.4). **Corrected 2026-11-18 (Task 7.2.1): this
+ * used to say `INVESTIGATION_FAILED` waits for Story 7.5 — it ships here,
+ * as the terminal event alone, and Story 7.5 still owns what a reader is
+ * told about a failed run.** */
 export const INVESTIGATION_EVENT_TYPES = [
   "INVESTIGATION_STARTED",
   "STEP_STARTED",
@@ -226,10 +229,24 @@ export const INVESTIGATION_EVENT_TYPES = [
 
 export type InvestigationEventType = (typeof INVESTIGATION_EVENT_TYPES)[number];
 
-/** The event types that end a stream. `INVESTIGATION_FAILED` is not a
- * member yet — Story 7.5's to add, when a run can fail outright rather
- * than merely refuse one step. */
-export const TERMINAL_EVENT_TYPES = ["INVESTIGATION_COMPLETED"] as const;
+/** The event types that end a stream.
+ *
+ * **Amended 2026-11-18 (Task 7.2.1): `INVESTIGATION_FAILED` is a member.**
+ * The sentence above used to read "not a member yet — Story 7.5's to add,
+ * when a run can fail outright rather than merely refuse one step", and
+ * its own condition fired one story early: Story 7.2 gives the
+ * orchestrator four more tools with real throw paths (a database read, a
+ * calendar edge) that Story 7.1's single in-memory `Map` lookup never
+ * had, so a run CAN now fail outright. What stays Story 7.5's is the
+ * reader-facing half — the honest sentence a checklist draws for a failed
+ * run, and the per-step degradation around it. This is the terminal event
+ * alone, so a thrown tool cannot leave an investigation `running` for
+ * ever (which, through `POST /investigations`' second-press idempotency,
+ * permanently disables `Investigate` for that symbol until a restart). */
+export const TERMINAL_EVENT_TYPES = [
+  "INVESTIGATION_COMPLETED",
+  "INVESTIGATION_FAILED",
+] as const;
 
 export const isTerminalEventType = (type: InvestigationEventType): boolean =>
   (TERMINAL_EVENT_TYPES as readonly string[]).includes(type);
@@ -280,6 +297,23 @@ export type InvestigationEvent =
       readonly type: "INVESTIGATION_COMPLETED";
       readonly status: "completed";
       readonly completedAt: Date;
+      readonly stepCount: number;
+    })
+  /**
+   * **Added 2026-11-18 (Task 7.2.1).** The terminal event for a run whose
+   * tool threw. It carries **no reason, no message and no step id** — a
+   * thrown message is internal detail for the same reason "a 5xx never
+   * carries the thrown message", and WHICH step failed and what a reader
+   * is told about it are Story 7.5's, with `FailedStep.reason` already
+   * typed and waiting for it. What this member exists for is narrower and
+   * structural: `isTerminalEventType` has to answer `true` for something
+   * after a throw, or the SSE response never ends and the investigation
+   * sits `running` for ever.
+   */
+  | (InvestigationEventBase & {
+      readonly type: "INVESTIGATION_FAILED";
+      readonly status: "failed";
+      readonly failedAt: Date;
       readonly stepCount: number;
     });
 
@@ -465,6 +499,17 @@ const investigationCompletedFields: WireFields<
   stepCount: asIs,
 };
 
+const investigationFailedFields: WireFields<
+  Extract<InvestigationEvent, { type: "INVESTIGATION_FAILED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  status: asIs,
+  failedAt: asInstant,
+  stepCount: asIs,
+};
+
 /**
  * One `InvestigationEvent`'s own wire projection — switches on `type` to the
  * matching member's own map, exactly `toWireStep`'s own shape. The SSE
@@ -487,10 +532,13 @@ export const toWireInvestigationEvent = (
       return toWire(stepCompletedFields, event);
     case "INVESTIGATION_COMPLETED":
       return toWire(investigationCompletedFields, event);
+    case "INVESTIGATION_FAILED":
+      return toWire(investigationFailedFields, event);
     default: {
-      // Exhaustive over the six members this story emits. A seventh
-      // (`FINDING_CREATED`, `EVIDENCE_ADDED`, `WORKSPACE_COMMAND`,
-      // `INVESTIGATION_FAILED`) fails the build here the day its own
+      // Exhaustive over the seven members this product emits —
+      // `INVESTIGATION_FAILED` became the seventh on 2026-11-18 (Task
+      // 7.2.1). An eighth (`FINDING_CREATED`, `EVIDENCE_ADDED`,
+      // `WORKSPACE_COMMAND`) fails the build here the day its own
       // story gives it a payload, naming the member rather than leaving
       // it silently unserialisable.
       const unhandled: never = event;

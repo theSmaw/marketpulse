@@ -61,6 +61,9 @@ function serverWith(options?: {
   readonly universe?: ReadonlySet<string>;
   readonly observe?: boolean;
   readonly tools?: readonly RunnableTool[];
+  /** Short enough that a test observes a keepalive instead of waiting 80
+   * seconds for one — the whole reason the option exists (Task 7.2.1). */
+  readonly keepaliveIntervalMs?: number;
 }): { instance: FastifyInstance; store: InvestigationStore } {
   const instance = buildServer({
     logLevel: "silent",
@@ -93,6 +96,9 @@ function serverWith(options?: {
     provider,
     tools,
     corsOrigin: "http://localhost:5173",
+    ...(options?.keepaliveIntervalMs === undefined
+      ? {}
+      : { keepaliveIntervalMs: options.keepaliveIntervalMs }),
   });
   instance.register(routes.plugin);
 
@@ -389,16 +395,144 @@ describe("GET /investigations/:id/events", () => {
       (toolCallCompleted?.data as { outcome: unknown }).outcome,
     ).toStrictEqual({ kind: "refused", reason: "not-tracked" });
   });
+
+  // -------------------------------------------------------- the keepalive
+  //
+  // Azure Container Apps' ingress has a 240 s IDLE timeout (`HOSTING.md`),
+  // so a five-step run held open with nothing to say would be cut by the
+  // platform. The interval is injectable for exactly this: a test that
+  // had to wait 80 s for the real one is a test nobody runs.
+
+  it("writes an SSE keepalive comment on an open stream, on the injected interval", async () => {
+    const { tool, resolve } = stuckTool();
+    const { instance } = serverWith({ tools: [tool], keepaliveIntervalMs: 5 });
+    const created = (
+      await instance.inject({
+        method: "POST",
+        url: "/investigations",
+        payload: { symbol: "NVDA" },
+      })
+    ).json<Investigation>();
+
+    // The stream stays open while the tool is gated, so the interval
+    // fires several times before anything terminal arrives.
+    const pending = instance.inject({
+      method: "GET",
+      url: `/investigations/${created.id}/events?from=0`,
+    });
+    await new Promise((done) => setTimeout(done, 60));
+    resolve();
+    const response = await pending;
+
+    const comments = response.body
+      .split("\n\n")
+      .filter((chunk) => chunk.startsWith(": keepalive"));
+    expect(comments.length).toBeGreaterThan(0);
+    // And it never becomes an event: `seq` still counts real events only,
+    // and the keepalive carries no `id:`, `event:` or `data:` line.
+    expect(comments.every((chunk) => chunk === ": keepalive")).toBe(true);
+    expect(
+      parseSseFrames(response.body).map(
+        (frame) => (frame.data as { seq: number }).seq,
+      ),
+    ).toStrictEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("writes NO keepalive on a stream that closes immediately", async () => {
+    // The already-complete replay case, which is the common one — the
+    // interval is cleared in the same `finally` that ends the response,
+    // so a stream that never waits never writes a comment. Asserted
+    // against the SAME short interval, so this is the clearing being
+    // observed rather than 80 seconds not having elapsed.
+    const { instance } = serverWith({ keepaliveIntervalMs: 5 });
+    const created = (
+      await instance.inject({
+        method: "POST",
+        url: "/investigations",
+        payload: { symbol: "NVDA" },
+      })
+    ).json<Investigation>();
+    await settle();
+
+    const response = await instance.inject({
+      method: "GET",
+      url: `/investigations/${created.id}/events?from=0`,
+    });
+
+    expect(response.body).not.toContain(": keepalive");
+  });
+
+  // ------------------------------------------------- the thrown-tool net
+
+  it("a thrown tool ends the stream and leaves Investigate pressable again", async () => {
+    const throwing: RunnableTool = {
+      name: "get_security_snapshot",
+      description: "Measure move",
+      run: () => {
+        throw new Error("the store was unreachable");
+      },
+    };
+    const { instance } = serverWith({ tools: [throwing] });
+
+    const first = (
+      await instance.inject({
+        method: "POST",
+        url: "/investigations",
+        payload: { symbol: "NVDA" },
+      })
+    ).json<Investigation>();
+    await settle();
+
+    // The stream terminates rather than hanging — without
+    // `INVESTIGATION_FAILED` being terminal this `inject()` never
+    // resolves at all, which is the failure mode this asserts away.
+    const response = await instance.inject({
+      method: "GET",
+      url: `/investigations/${first.id}/events?from=0`,
+    });
+    const frames = parseSseFrames(response.body);
+    expect(frames.at(-1)?.event).toBe("INVESTIGATION_FAILED");
+    // The reader-facing sentence is Story 7.5's; what is on the wire
+    // today carries no reason and no thrown message.
+    expect(frames.at(-1)?.data).toStrictEqual({
+      type: "INVESTIGATION_FAILED",
+      seq: 4,
+      investigationId: first.id,
+      status: "failed",
+      failedAt: expect.any(String) as unknown,
+      stepCount: 0,
+    });
+
+    // And the second press is a NEW investigation — the whole reason this
+    // net exists, because the idempotency guard looks for a `running` one.
+    const second = (
+      await instance.inject({
+        method: "POST",
+        url: "/investigations",
+        payload: { symbol: "NVDA" },
+      })
+    ).json<Investigation>();
+    expect(second.id).not.toBe(first.id);
+  });
 });
 
 /** A minimal SSE frame reader for this test's own fixtures — no event this
- * route ever sends spans a blank line, so splitting on `\n\n` is enough. */
+ * route ever sends spans a blank line, so splitting on `\n\n` is enough.
+ *
+ * **Comment frames are dropped here rather than thrown on** (Task 7.2.1):
+ * the keepalive is a bare `: keepalive`, which carries no `data:` line and
+ * is a no-op by the SSE specification. Left throwing, this helper would
+ * have turned every keepalive into a `malformed SSE frame` failure in
+ * tests that are about something else entirely. */
 function parseSseFrames(
   body: string,
 ): { event: string; id: string; data: unknown }[] {
   return body
     .split("\n\n")
     .filter((chunk) => chunk.trim().length > 0)
+    .filter((chunk) =>
+      chunk.split("\n").some((line) => line.startsWith("data: ")),
+    )
     .map((chunk) => {
       const lines = chunk.split("\n");
       const idLine = lines.find((line) => line.startsWith("id: "));

@@ -78,13 +78,22 @@ export async function startInvestigation(
  * stream and decodes its payload.
  *
  * **Why this exists rather than a library.** The whole of the SSE framing
- * this route ever sends is three known lines and a blank one (this product's
- * server writes nothing else — see `routes/investigations.ts`), so a general
+ * this route ever sends is three known lines and a blank one, plus — since
+ * 2026-11-18 (Task 7.2.1) — a bare `: keepalive` comment frame, so a general
  * parser would be weight spent on cases this stream cannot produce. What it
  * does buy, and does correctly, is a chunk boundary landing mid-frame: `fetch`
  * delivers bytes in whatever pieces the network gave it, not one per frame,
  * so this buffers until a blank line closes a frame rather than assuming one
  * `read()` is one event.
+ *
+ * **Comment frames are dropped by construction, and that was confirmed
+ * rather than assumed** (Task 7.2.1, before the backend relied on it):
+ * {@link decodeFrame} looks for a `data: ` line and a comment frame has
+ * none, so it answers `undefined` and this generator yields nothing for it.
+ * It is a drop rather than an `unreadable`, which is the correct reading of
+ * the SSE specification's own no-op frame — and it is asserted, because a
+ * parser that happened to treat a keepalive as a malformed event would put
+ * the checklist into a failure state every 80 seconds.
  */
 export async function* streamInvestigationEvents(
   investigationId: string,
@@ -136,6 +145,11 @@ export async function* streamInvestigationEvents(
 
 function decodeFrame(frame: string): DecodedInvestigationEvent | undefined {
   const dataLine = frame.split("\n").find((line) => line.startsWith("data: "));
+  // `undefined` for a frame with no `data: ` line, which is what the
+  // backend's `: keepalive` comment frame is — see this module's own
+  // docblock. Deliberately NOT an `unreadable`: a no-op frame is not a
+  // malformed event, and reporting one as a defect would fail the
+  // checklist on a healthy stream every keepalive period.
   if (dataLine === undefined) return undefined;
 
   try {

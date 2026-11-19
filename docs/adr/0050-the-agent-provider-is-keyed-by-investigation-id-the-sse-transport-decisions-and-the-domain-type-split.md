@@ -105,6 +105,78 @@ this one's, and `HOSTING.md` carries a dated correction recording that the
 stream this constraint was written against now exists, in Epic 7 rather
 than Epic 10.
 
+> **Amended 2026-11-18 (Story 7.2, Task 7.2.1): this decision's own
+> reversal trigger has FIRED, and it fired three stories earlier than the
+> guess beside it.**
+>
+> The trigger as worded — _the first tool call to complete while a second
+> one is still queued_ — is met by Story 7.2 **literally and on every
+> machine**, not as a consequence of slow tools:
+> `scripted-agent-provider.ts` mints all five `QueuedStep`s before its loop
+> starts, so the second tool is queued while the first is still running, on
+> the very first press, however fast the tools are. The paragraph above is
+> left standing as the record of what was decided and why; the guess
+> "Story 7.5's or later" is simply wrong, which is what a trigger written
+> as a **condition** rather than a story number is for — the condition
+> fired correctly and the story number in the prose did not.
+>
+> **What shipped is the keepalive alone.** An SSE comment line
+> (`: keepalive\n\n`) written on an interval and cleared in the same
+> `finally` that already ended the stream, at
+> `SSE_KEEPALIVE_INTERVAL_MS = 240_000 / 3` — **80 s**, one third of the
+> ingress ceiling, which is `market-gateway.ts`'s own derivation
+> (`KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3`) applied to this
+> transport's own ceiling rather than a number picked for looking safe, and
+> spelled as the division so the relation cannot decay. The interval is
+> **injectable** on `createInvestigationRoutes` for the same reason
+> `market-gateway.ts` seams its own `setTimer`/`clearTimer`: a timing
+> guarantee whose only assertion takes 80 seconds to make is one nobody
+> runs.
+>
+> **Two consequences this decision's text did not anticipate.** The
+> `app.inject()` property it gave as a reason for terminating the response
+> — _which is also what lets `app.inject()` assert the whole six-event
+> sequence in one call_ — is **unaffected**: the response still ends on a
+> terminal event, so the keepalive is additive and no existing assertion
+> moved. And a comment frame is a **no-op frame by the SSE specification**,
+> so nothing downstream had to learn a new event type and `seq` still
+> counts real events only; that `investigation-stream.ts`'s hand-rolled
+> parser drops one was **confirmed by assertion before the backend relied
+> on it**, rather than assumed, because a parser that read a keepalive as a
+> malformed event would have put the checklist into a failure state every
+> 80 seconds on a healthy stream.
+>
+> **A second amendment in the same change, on a different sentence of this
+> ADR.** Story 7.2's own Gate 1 considered concurrent tool dispatch and
+> rejected it, keeping the orchestrator sequential — unanimously across
+> three technical shaping passes — on the ground that `RunnableTool.run`'s
+> own **signature** is what makes tool independence true: there is no
+> channel through which one tool could read another's output, so the
+> guarantee does not depend on dispatch order and survives Epic 10's
+> model-backed provider unchanged. Nothing in this ADR became false;
+> this extends it with an alternative it had no cause to consider when
+> there was one tool. `pnpm invariants` now holds the structural half —
+> `a-tool-takes-no-channel-to-another-step`, over the contract file rather
+> than over the tools, because a tool cannot widen its own `run` past what
+> the contract declares.
+>
+> **And the terminal-event vocabulary gained a member.**
+> `TERMINAL_EVENT_TYPES` was `["INVESTIGATION_COMPLETED"]` alone, with
+> `INVESTIGATION_FAILED` deferred to Story 7.5 in both
+> `packages/shared/src/investigation.ts` and its own test. That deferral's
+> condition — a run that can fail outright — also fired at Story 7.2,
+> whose tools read a database and a trading calendar where Story 7.1's
+> read an in-memory `Map`: before Task 7.2.1, a thrown tool left
+> `runInvestigation`'s loop with **no terminal event at all**, so the
+> investigation sat `running` for ever, the SSE response never ended, the
+> store never evicted the entry, and `POST /investigations`' second-press
+> idempotency handed the stuck run back — `Investigate` was permanently
+> dead for that symbol until a backend restart. `INVESTIGATION_FAILED`
+> ships as the **terminal event alone**: it carries a `failedAt`, a count
+> of the steps that completed, and **no step id, no reason and no thrown
+> message**. Which step failed and what a reader is told about it remain
+> Story 7.5's, which already has `FailedStep.reason` typed and waiting.
+
 **`reply.hijack()` is the first use of that mechanism in this codebase, and
 it cost two real defects — both found by driving the route with something
 other than `app.inject()`, and both fixed in this story.** Hijacking takes
