@@ -4974,9 +4974,26 @@ export const BREAKS = [
     // dates itself with, and the plant is an early return **beside** it. The
     // found line is kept and the defect appended, so the `find` survives its
     // own break.
-    find: "  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });",
+    //
+    // **Repointed 2026-11-19 (Task 7.2.2)**: the four calls this site made
+    // inline — the window read, `fiveMinuteReturn`, the baseline read and its
+    // narrowing, and `returnPercentileOf` — moved into one shared producer
+    // (`price-anomaly.ts`), because `calculate_return_percentile` reads the
+    // identical assembly and a second copy would be two homes for one figure.
+    // The join is still this site and the plant is unchanged; only the anchor
+    // moved, to the statement that now produces `figure`.
+    find:
+      "  const { figure, comparison, percentile } = readPriceAnomaly(\n" +
+      "    priceAnomalySources,\n" +
+      "    symbol,\n" +
+      "    asOf,\n" +
+      "  );",
     replace:
-      "  const figure = fiveMinuteReturn(trailingWindows.read(symbol), { asOf });\n" +
+      "  const { figure, comparison, percentile } = readPriceAnomaly(\n" +
+      "    priceAnomalySources,\n" +
+      "    symbol,\n" +
+      "    asOf,\n" +
+      "  );\n" +
       "  // pnpm break: reverted automatically\n" +
       "  if (!figure.measured) {\n" +
       "    const invented = {\n" +
@@ -5714,6 +5731,32 @@ export const BREAKS = [
       "    : undefined;\n" +
       "  void onItsOwnClock;\n" +
       "  const referenceFigure = referenceOf.applies",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "one-instant-for-a-subject-and-its-benchmark",
+  },
+  {
+    name: "a-second-instant-for-the-subject",
+    proves:
+      "`one-instant-for-a-subject-and-its-benchmark`'s 2026-11-19 arm goes " +
+      "red on a SUBJECT leg read through the shared producer against its own " +
+      "clock. It is the sibling of `a-second-instant-for-the-benchmark` with " +
+      "the legs swapped, and it exists because Task 7.2.2 moved the " +
+      "subject's own read behind `readPriceAnomaly` — so the shape the " +
+      "next author reaches for is a second producer call, with its own " +
+      "`new Date()`, rather than a second `fiveMinuteReturn`.\n\n" +
+      "**The naive widening would have passed wrongly on the correct code " +
+      "instead**, which is the other direction and is what actually " +
+      "happened: with the producer invisible to the check, the shipped, " +
+      "correct `symbolReturn` was reported as reading only ONE leg. The " +
+      "keys are therefore compared on the `asOf` expression — so " +
+      "`{ asOf }` and `asOf` are one interval — and this break is what " +
+      "proves the normalisation did not also flatten `new Date()` into it.",
+    file: "apps/backend/src/index.ts",
+    find: "  const { figure, comparison, percentile } = readPriceAnomaly(",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  void readPriceAnomaly(priceAnomalySources, symbol, new Date());\n" +
+      "  const { figure, comparison, percentile } = readPriceAnomaly(",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-instant-for-a-subject-and-its-benchmark",
   },

@@ -8871,8 +8871,29 @@ const INVARIANTS = [
       // stricter clause than the original and is the one this widening owes: a
       // live figure differenced against a stored one is two intervals wearing
       // one expression, and that is the 2026-10-26 defect one layer up.
+      // ## WIDENED 2026-11-19 (Task 7.2.2): the subject's leg moved behind a
+      // ## shared producer, and a check that knew only the raw call reported a
+      // ## correct pass as a defect
+      //
+      // `calculate_return_percentile` reads the identical assembly
+      // `symbolReturn` reads — window, `fiveMinuteReturn`, baseline,
+      // narrowing, `returnPercentileOf` — so that assembly moved into
+      // `price-anomaly.ts`' `readPriceAnomaly` and `symbolReturn` now calls
+      // THAT for the subject's leg while still calling `fiveMinuteReturn`
+      // directly for the benchmark's. One interval, two reads, exactly as
+      // before; one of the two reads simply has a different name.
+      //
+      // So `readPriceAnomaly` is a third read shape of the SAME producer, and
+      // the expression that fixes its interval is its `asOf` **argument**
+      // rather than an options object. Which means the keys have to be
+      // compared on the `asOf` EXPRESSION rather than on the argument text:
+      // `{ asOf }` and `asOf` are one interval and `{ asOf: new Date() }` is
+      // not, which is what `asOfInterval` below normalises. Without that, the
+      // two legs of a correct producer read as two intervals — and the first
+      // run after the extraction reported exactly that.
       const CALL = /\bexcessMoveFactor\s*\(/gu;
       const READ = /\bfiveMinuteReturn\s*\(/gu;
+      const PRODUCER_READ = /\breadPriceAnomaly\s*\(/gu;
       const SESSION_READ = /\bsessionClosingReturn\s*\(/gu;
 
       /** The argument list at `from`, by balanced parentheses. */
@@ -8915,6 +8936,26 @@ const INVARIANTS = [
           }
         }
         return after.replace(/\s+/gu, " ").trim();
+      };
+
+      /**
+       * The `asOf` expression itself, out of whichever shape carried it —
+       * `{ asOf }`, `{ asOf: something }`, or a bare positional argument. See
+       * the 2026-11-19 widening above: what has to be one is the INSTANT, and
+       * two reads of one instant must not read as two intervals because one
+       * of them spelled it inside an options object.
+       */
+      const asOfInterval = (text) => {
+        const inner = text
+          .trim()
+          .replace(/^\{/u, "")
+          .replace(/\}$/u, "")
+          .trim();
+        const labelled = /^asOf\s*:\s*([\S\s]+)$/u.exec(inner);
+        return (labelled === null ? inner : (labelled[1] ?? ""))
+          .trim()
+          .replace(/,$/u, "")
+          .trim();
       };
 
       /** Everything after the first top-level comma, whitespace-collapsed. */
@@ -8981,7 +9022,15 @@ const INVARIANTS = [
           }
         };
 
-        record(READ, "fiveMinuteReturn", secondArgument);
+        // Both live reads key on the `asOf` EXPRESSION — the options object
+        // for a direct read, the third positional argument for the shared
+        // producer's — so one instant read two ways is one interval.
+        record(READ, "fiveMinuteReturn", (list) =>
+          asOfInterval(secondArgument(list)),
+        );
+        record(PRODUCER_READ, "fiveMinuteReturn", (list) =>
+          asOfInterval(secondArgument(secondArgument(list))),
+        );
         record(SESSION_READ, "sessionClosingReturn", sessionArgument);
 
         const reads = [...intervals.values()].reduce(

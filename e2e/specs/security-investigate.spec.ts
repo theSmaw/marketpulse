@@ -20,6 +20,12 @@ import {
 // status and duration (`InvestigationChecklist.tsx`'s own contract), so
 // this spec needs no ok/refused branching at all: the glyph sequence and
 // the duration are identical whichever the real backend answers.
+//
+// **The same is true of `calculate_return_percentile`** (Task 7.2.2), which
+// on CI refuses `nothing-observed` for ever — the trailing window is process
+// memory fed by a live socket and there is no provider. What this spec can
+// still assert is that the step RAN and completed with a real duration,
+// which is a fact about the pipeline rather than about the store.
 
 const EXPLORER = "/securities/NVDA";
 
@@ -47,8 +53,17 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // is what proves the checklist painted a row at all: the step's own
   // description text is identical before and after, so the duration is
   // the one signal that distinguishes "still running" from "complete".
-  await expect(region.getByText(/^\d+ ms$/)).toBeVisible({ timeout: 10_000 });
+  //
+  // **Two rows since Task 7.2.2**, which added `calculate_return_percentile`
+  // to the pipeline — so the count is the assertion rather than a
+  // `.first()`: a dropped step would otherwise pass unseen.
+  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(2, {
+    timeout: 10_000,
+  });
   await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
+  await expect(
+    region.getByText("Measure price anomaly", { exact: true }),
+  ).toBeVisible();
 
   await expectNothingFailedToRender(page);
 });
@@ -65,7 +80,9 @@ test("a second press while one is already showing does nothing — no second row
   await button.click();
   await button.click();
 
-  await expect(region.getByText(/^\d+ ms$/)).toBeVisible({ timeout: 10_000 });
+  await expect(region.getByText(/^\d+ ms$/).first()).toBeVisible({
+    timeout: 10_000,
+  });
 
   // Exactly one row, however many times the control was pressed while it
   // was still showing — the client-side mirror of the backend's own
@@ -82,7 +99,9 @@ test("the region stays a tab stop with the checklist showing", async ({
 
   const region = page.getByRole("region", { name: "Abnormal-move indicators" });
   await region.getByRole("button", { name: "Investigate" }).click();
-  await expect(region.getByText(/^\d+ ms$/)).toBeVisible({ timeout: 10_000 });
+  await expect(region.getByText(/^\d+ ms$/).first()).toBeVisible({
+    timeout: 10_000,
+  });
 
   await expectEveryRegionIsATabStop(page, { atLeast: 8 });
 });

@@ -1,5 +1,6 @@
 import { asInstant, asIs, toWire } from "./wire-serialiser.js";
 import type { JsonValue, WireFields } from "./wire-serialiser.js";
+import type { PercentileRefusal } from "./return-baseline.js";
 import type { Ticker } from "./ticker.js";
 
 /**
@@ -102,7 +103,14 @@ export const toStepId = (value: string): StepId => value as StepId;
 /** The tool vocabulary, closed and shared so the frontend can render a
  * step's own tool name without inventing a second list. Extended by each
  * later tool story, never re-spelled. */
-export const TOOL_NAMES = ["get_security_snapshot"] as const;
+export const TOOL_NAMES = [
+  "get_security_snapshot",
+  // Story 7.2's price-anomaly step (Task 7.2.2) — `returnPercentileOf` read
+  // through the tool contract. Named for the arithmetic it wraps rather than
+  // for the checklist sentence it draws (`Measure price anomaly`), which is a
+  // separate field for a separate reader.
+  "calculate_return_percentile",
+] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
 
@@ -112,10 +120,50 @@ export type ToolName = (typeof TOOL_NAMES)[number];
  * observation (property 3 of `current-market-state.ts`'s own hand-off —
  * CI's permanent state). `not-tracked`: the security is not a member of
  * the curated universe at all (e.g. `PSKY`/`WBD`) — a genuinely different
- * check from the first, and the two must not share one answer. */
-export const TOOL_REFUSALS = ["nothing-observed", "not-tracked"] as const;
+ * check from the first, and the two must not share one answer.
+ *
+ * **Widened by Task 7.2.2 with words this product already owns, never with
+ * synonyms for them.** `calculate_return_percentile` has two halves that
+ * refuse for unrelated reasons — a NUMERATOR (is there a 5-minute move to
+ * rank: `five-minute-return.ts`'s `ReturnRefusal`) and a DENOMINATOR (is
+ * there a baseline to rank it against: `PERCENTILE_REFUSALS`) — and
+ * collapsing them would say one sentence for a silent security and an
+ * under-sampled one, which are different facts with different repairs. So
+ * this list is the union of the vocabularies the owning modules export, each
+ * spelled exactly as they spell it:
+ *
+ * - `no-earlier-endpoint` / `no-basis` — `ReturnRefusal`'s other two members
+ *   (`nothing-observed` it already shared with this list).
+ * - `too-few-samples` / `split-discontinuity` — `PERCENTILE_REFUSALS`, whole.
+ *
+ * {@link PercentileRefusalIsAToolRefusal} is the structural half on the one
+ * vocabulary that lives in this package: a third member of
+ * `PERCENTILE_REFUSALS` is a compile error here rather than a refusal a tool
+ * cannot name. `ReturnRefusal` lives in the backend, so its own assertion
+ * lives beside the tool that reads it (`tool-return-percentile.ts`). */
+export const TOOL_REFUSALS = [
+  "nothing-observed",
+  "not-tracked",
+  "no-earlier-endpoint",
+  "no-basis",
+  "too-few-samples",
+  "split-discontinuity",
+] as const;
 
 export type ToolRefusal = (typeof TOOL_REFUSALS)[number];
+
+/**
+ * Every percentile refusal is a tool refusal. **A type-level assertion rather
+ * than a test** — `PercentileRefusalIsASuperset`'s own mechanism, one layer
+ * further out: widening `PERCENTILE_REFUSALS` without widening
+ * {@link TOOL_REFUSALS} fails `tsc -b`, which is the only thing that cannot
+ * be forgotten.
+ */
+export type PercentileRefusalIsAToolRefusal =
+  PercentileRefusal extends ToolRefusal ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const TOOL_REFUSALS_COVER_THE_PERCENTILE_ONES: PercentileRefusalIsAToolRefusal = true;
 
 /** A tool's result. **Two members, and no third "thrown" path exists in
  * the type** — the shape every later tool's own story is checked

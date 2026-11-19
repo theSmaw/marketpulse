@@ -12,6 +12,7 @@ import type {
   Step,
   ToolOutcome,
 } from "./investigation.js";
+import { PERCENTILE_REFUSALS } from "./return-baseline.js";
 import {
   INVESTIGATION_EVENT_TYPES,
   INVESTIGATION_STATUSES,
@@ -205,11 +206,36 @@ describe("ToolOutcome", () => {
   it("TOOL_REFUSALS distinguishes an unobserved security from an untracked one", () => {
     // The two are genuinely different checks (a map lookup vs. a
     // universe-membership check) and must not share one reason.
-    expect(TOOL_REFUSALS).toStrictEqual(["nothing-observed", "not-tracked"]);
+    expect(TOOL_REFUSALS.slice(0, 2)).toStrictEqual([
+      "nothing-observed",
+      "not-tracked",
+    ]);
   });
 
-  it("TOOL_NAMES has exactly one member for this story", () => {
-    expect(TOOL_NAMES).toStrictEqual(["get_security_snapshot"]);
+  it("TOOL_REFUSALS reuses the two halves' own words rather than a synonym", () => {
+    // Task 7.2.2: the price-anomaly tool refuses for a NUMERATOR reason
+    // (`five-minute-return.ts`'s `ReturnRefusal`) or a DENOMINATOR one
+    // (`PERCENTILE_REFUSALS`), and the two must not collapse — a silent
+    // security and an under-sampled one are different facts. Every member
+    // below is spelled by the module that owns it; none is new here.
+    expect(TOOL_REFUSALS).toStrictEqual([
+      "nothing-observed",
+      "not-tracked",
+      "no-earlier-endpoint",
+      "no-basis",
+      "too-few-samples",
+      "split-discontinuity",
+    ]);
+    for (const refusal of PERCENTILE_REFUSALS) {
+      expect(TOOL_REFUSALS).toContain(refusal);
+    }
+  });
+
+  it("TOOL_NAMES carries the snapshot tool and Story 7.2's price-anomaly step", () => {
+    expect(TOOL_NAMES).toStrictEqual([
+      "get_security_snapshot",
+      "calculate_return_percentile",
+    ]);
   });
 });
 
