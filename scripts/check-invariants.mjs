@@ -11798,6 +11798,145 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-tool-outcome-decoder-branches-on-every-kind",
+    claim:
+      "The frontend's `readToolOutcome` " +
+      "(`apps/frontend/src/investigations/investigation-event.ts`) branches " +
+      "on every member of `ToolOutcome`'s own `kind` set " +
+      "(`packages/shared/src/investigation.ts`) — a kind the decoder does " +
+      "not handle makes the WHOLE `TOOL_CALL_COMPLETED` event " +
+      "`unreadable`, which `use-investigation.ts` then silently ignores.",
+    check() {
+      // **Task 7.2.4, and the gap is a consequence of a deliberate
+      // duplication.** `investigation-event.ts` describes the wire itself
+      // rather than importing a domain type — a decision with its own stated
+      // reason (a `startedAt` is a `string` there, not a `Date`) — so
+      // `tsc -b` cannot see that the two have drifted. And the drift is
+      // silent in the worst direction: `readToolOutcome` answers `undefined`
+      // for a kind it does not know, `readInvestigationEvent` turns that into
+      // `unreadable` for the ENTIRE event, and `use-investigation.ts` drops
+      // an unreadable frame without a word. So the first outcome of a new
+      // kind this product produced would vanish with every test green —
+      // which is exactly what would have happened to `inapplicable` on
+      // 2026-11-19 had this check not been written in the same change.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **A member of the shared union.** Any new tool answer has to be one,
+      // whatever it is called and whatever it carries, so reading the union's
+      // own `kind` literals is the one list that cannot be side-stepped —
+      // rather than, say, a count, or the names of the three that exist
+      // today.
+      const SHARED = "packages/shared/src/investigation.ts";
+      const DECODER = "apps/frontend/src/investigations/investigation-event.ts";
+
+      const shared = withoutComments(readAnchored(resolve(REPO_ROOT, SHARED)));
+      const decoder = withoutComments(
+        readAnchored(resolve(REPO_ROOT, DECODER)),
+      );
+
+      /**
+       * The text of a declaration starting at `from`, up to the first `;` that
+       * is not inside a brace — a union's own members each carry `;` between
+       * their properties, so a plain split on `;` ends after the first arm.
+       */
+      const declarationAt = (text, from) => {
+        let depth = 0;
+        for (let index = from; index < text.length; index += 1) {
+          const character = text[index];
+          if (character === "{") depth += 1;
+          else if (character === "}") depth -= 1;
+          else if (character === ";" && depth === 0) {
+            return text.slice(from, index);
+          }
+        }
+        return text.slice(from);
+      };
+
+      /** A function's body at `from`, by balanced braces. */
+      const bodyAt = (text, from) => {
+        const opens = text.indexOf("{", from);
+        if (opens < 0) return "";
+        let depth = 0;
+        for (let index = opens; index < text.length; index += 1) {
+          const character = text[index];
+          if (character === "{") depth += 1;
+          else if (character === "}") {
+            depth -= 1;
+            if (depth === 0) return text.slice(opens, index + 1);
+          }
+        }
+        return text.slice(opens);
+      };
+
+      const UNION = /export type ToolOutcome<\s*T\s*>\s*=/u.exec(shared);
+      if (UNION === null) {
+        throw new InvariantFailure(
+          `No \`export type ToolOutcome<T> =\` in \`${SHARED}\`. That union ` +
+            "is the whole subject of this check; if it moved or was renamed, " +
+            "repoint this in the same change — a grep that matches nothing " +
+            "looks exactly like a grep that passes.",
+        );
+      }
+
+      const kinds = [
+        ...declarationAt(shared, UNION.index).matchAll(/kind:\s*"([a-z-]+)"/gu),
+      ].map((match) => match[1]);
+
+      if (kinds.length === 0) {
+        throw new InvariantFailure(
+          `\`ToolOutcome\` in \`${SHARED}\` declares no \`kind: "…"\` ` +
+            "literal at all — the union's own discriminant is how this check " +
+            "enumerates the members a decoder owes a branch to.",
+        );
+      }
+
+      const READER = /function readToolOutcome\s*\(/u.exec(decoder);
+      if (READER === null) {
+        throw new InvariantFailure(
+          `No \`readToolOutcome\` in \`${DECODER}\`. The whitelist this ` +
+            "check reads is that function's own; if the decode moved, " +
+            "repoint this in the same change.",
+        );
+      }
+
+      const body = bodyAt(decoder, READER.index);
+      const handled = new Set(
+        [...body.matchAll(/kind === "([a-z-]+)"/gu)].map((match) => match[1]),
+      );
+
+      if (handled.size === 0) {
+        throw new InvariantFailure(
+          `\`readToolOutcome\` in \`${DECODER}\` tests no \`kind === "…"\` ` +
+            "at all. Either it stopped being a whitelist — in which case " +
+            "this check wants repointing at whatever replaced it — or the " +
+            "whole decode is gone.",
+        );
+      }
+
+      const unhandled = kinds.filter((kind) => !handled.has(kind));
+
+      if (unhandled.length > 0) {
+        throw new InvariantFailure(
+          `${String(unhandled.length)} \`ToolOutcome\` kind(s) have no ` +
+            `branch in \`readToolOutcome\`: ` +
+            unhandled.map((kind) => `\`${kind}\``).join(", ") +
+            `\n    The decoder handles ` +
+            [...handled].map((kind) => `\`${kind}\``).join(", ") +
+            ".\n    An unhandled kind is not rendered wrongly — it is not " +
+            "rendered AT ALL: `readToolOutcome` answers `undefined`, " +
+            "`readInvestigationEvent` reports the whole " +
+            "`TOOL_CALL_COMPLETED` event as `unreadable`, and " +
+            "`use-investigation.ts` ignores an unreadable frame without a " +
+            "word. So the step completes on screen with its outcome dropped " +
+            "on the floor and every test green. Add the branch in the same " +
+            "change as the arm, reading the field that arm actually carries " +
+            "— `because` is not `reason`, deliberately.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

@@ -275,6 +275,19 @@ breadth` region already states it. The population is never the subject
   own read path's docblock states it was budgeted for a GitHub runner, not
   a 0.25 vCPU container) — recorded as a condition-owned `docs/GAPS.md`
   entry rather than answered by building an unmeasured cache pre-emptively.
+- **`ToolOutcome<T>` gains a real third member, `inapplicable` — resolved
+  2026-11-19, before Task 7.2.4, by a technical-architect consult.**
+  Additive for every existing tool (`kind: "ok" | "refused"` call sites
+  stay correct); the new arm is `{ kind: "inapplicable", because:
+ToolInapplicability }`, field named `because` rather than `reason`
+  deliberately (mirroring `excess-move.ts`'s own vocabulary, not its
+  record shape — no second `applies: false` discriminant). The frontend's
+  `investigation-event.ts` duplicates the wire shape by decision and has
+  a closed `kind` whitelist that silently drops an unhandled member as
+  `unreadable` — Task 7.2.4 adds the branch and a new `pnpm invariants`
+  guard so this can't rot. See `TASK-04-the-peer-comparison-step.md` for
+  the full shape and reasoning; `TASK-06` reuses it unchanged. No new ADR
+  (ADR 0050 never stated `ToolOutcome`'s arity).
 - **Untracked securities (`PSKY`, `WBD`) run the full five-row checklist**,
   each tool answering the same `not-tracked` refusal independently,
   decided once before the pipeline runs rather than re-derived per tool —

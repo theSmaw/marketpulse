@@ -61,10 +61,11 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // description text is identical before and after, so the duration is
   // the one signal that distinguishes "still running" from "complete".
   //
-  // **Three rows since Task 7.2.3**, which added `calculate_volume_ratio`
-  // beside `calculate_return_percentile` — so the count is the assertion
-  // rather than a `.first()`: a dropped step would otherwise pass unseen.
-  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(3, {
+  // **Four rows since Task 7.2.4**, which added `compare_securities` beside
+  // `calculate_volume_ratio` and `calculate_return_percentile` — so the
+  // count is the assertion rather than a `.first()`: a dropped step would
+  // otherwise pass unseen.
+  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(4, {
     timeout: 10_000,
   });
   await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
@@ -73,6 +74,13 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   ).toBeVisible();
   await expect(
     region.getByText("Measure volume anomaly", { exact: true }),
+  ).toBeVisible();
+  // **Gate 1's own sentence for this step, not `EPIC.md`'s "compare
+  // peers"** — the shipped arithmetic is a comparison against the
+  // capitalisation-weighted sector SPDR, and *peers* promises an unweighted
+  // peer median this product does not compute.
+  await expect(
+    region.getByText("Compare against sector benchmark", { exact: true }),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);

@@ -6684,3 +6684,42 @@ existing rows for Epics 3/4/5/6 were taken.
 condition is that story's own opening of `LIVE-REHEARSAL.md`'s first row for
 this epic, which Epic 3's and Epic 4's own close stories each did for
 themselves rather than deferring to a later epic.
+
+## No reader has ever seen a step's own outcome — an inapplicable or a refused step draws the same checkmark as a figure
+
+**Added 2026-11-19 by Task 7.2.4**, which is the first task to produce an
+outcome kind that is neither a figure nor a wait. `compare_securities` answers
+`{ kind: "inapplicable", because: "is-benchmark" }` for all eleven sector SPDRs
+and `because: "no-sector"` for the four market proxies — _the question does not
+arise_, a claim no backfill will ever turn into a figure — and it answers
+`{ kind: "refused", reason: … }` for an equity whose window or baseline is thin,
+which is a wait. **The checklist draws neither.**
+`investigation-checklist-state.ts` takes `TOOL_CALL_COMPLETED` and returns its
+state unchanged (Task 7.1.4's own decision: `STEP_COMPLETED` is what the
+checklist draws, and a step's own outcome is Story 7.3's reader), so all three
+kinds render as the same completed row with the same duration. A reader
+investigating `XLK` sees five ticks and has no way to know that one of them
+means _we will never answer this_ while another means _ask again after
+tonight's generation_.
+
+**It is the full stack minus the last centimetre, and the rest is proved.** The
+third kind reaches the SSE wire with the right word — asserted in
+`routes/investigations.test.ts` for a sector ETF and a market proxy, against
+the real curated universe — and the browser's decoder reads it rather than
+dropping the whole event (`the-tool-outcome-decoder-branches-on-every-kind`,
+with a `pnpm break`). What is missing is a surface that spends it.
+
+**Why it is not mechanisable**: nothing can check that a distinction a reader
+needs is _legible_. A check can prove the word is on the wire and that the
+decoder keeps it — both now exist — but whether a person meets five ticks and
+understands that one of them is permanent is a question only a person looking
+at the screen answers, and the screen does not draw it at all yet.
+
+**Re-measure**: open an investigation for `XLK` (a sector ETF) and one for an
+equity with a thin window, and read the two checklists side by side. They are
+byte-identical today.
+
+**Owner: the first surface that draws a step's own outcome** — Story 7.3 by
+intent (findings), though the condition is deliberately the surface rather than
+the story number, because a step's outcome word could equally arrive on the
+checklist row itself before a finding exists.
