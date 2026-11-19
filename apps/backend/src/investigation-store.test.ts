@@ -54,6 +54,24 @@ describe("the investigation store", () => {
     expect(store.get(toInvestigationId("inv-0"))).toBeDefined();
   });
 
+  it("evicts a FAILED investigation, not only a completed one", () => {
+    // Widened 2026-11-18 (Task 7.2.1). The rule was always "never evict a
+    // running one"; the predicate spelled the positive case
+    // (`status === "completed"`), which was the same set only while
+    // `completed` was the only status a run could reach. Story 7.2's
+    // thrown-tool net mints `failed` runs, and a `failed` entry the cap
+    // could never reclaim is that same stuck state one layer down.
+    const store = createInvestigationStore(2);
+    store.create(investigationAt("inv-0", "failed"));
+    store.create(investigationAt("inv-1", "running"));
+
+    store.create(investigationAt("inv-2", "running"));
+
+    expect(store.size()).toBe(2);
+    expect(store.get(toInvestigationId("inv-0"))).toBeUndefined();
+    expect(store.get(toInvestigationId("inv-1"))).toBeDefined();
+  });
+
   it("appends events and replays them from a given seq", () => {
     const store = createInvestigationStore();
     const investigation = investigationAt("inv-1", "running");

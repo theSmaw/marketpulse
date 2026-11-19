@@ -64,32 +64,40 @@ export function createInvestigationStore(
   capacity: number = INVESTIGATION_STORE_CAPACITY,
 ): InvestigationStore {
   // Map iteration order is insertion order, which is what makes "the
-  // oldest completed investigation" a plain forward scan rather than a
+  // oldest settled investigation" a plain forward scan rather than a
   // second structure tracking age.
   const investigations = new Map<InvestigationId, Investigation>();
   const logs = new Map<InvestigationId, InvestigationEvent[]>();
   const emitters = new Map<InvestigationId, EventEmitter>();
 
-  function evictOldestCompleted(): void {
+  /**
+   * **Widened 2026-11-18 (Task 7.2.1) from "the oldest completed" to "the
+   * oldest SETTLED".** The rule this enforces was always "never evict a
+   * running one"; the predicate spelled the positive case (`completed`)
+   * instead, which was the same set while `completed` was the only
+   * non-running status any run could reach. Story 7.2's own thrown-tool
+   * safety net mints `failed` runs, and a `failed` entry the cap could
+   * never reclaim is the stuck state that net exists to close, arriving
+   * one layer down.
+   */
+  function evictOldestSettled(): void {
     for (const [id, investigation] of investigations) {
-      if (investigation.status !== "completed") continue;
+      if (investigation.status === "running") continue;
       investigations.delete(id);
       logs.delete(id);
       emitters.get(id)?.removeAllListeners();
       emitters.delete(id);
       return;
     }
-    // No completed investigation exists to evict — every entry is
-    // running (or, once Story 7.5 ships, failed/cancelled). The task's
-    // own rule is "never evict a running one", so the store holds more
-    // than `capacity` rather than breaking that guarantee. This is a
-    // real state and not an oversight: it is exactly as safe as the cap
-    // was meant to prevent, until a run actually completes.
+    // Every entry is running. "Never evict a running one" is the rule, so
+    // the store holds more than `capacity` rather than breaking that
+    // guarantee. This is a real state and not an oversight: it is exactly
+    // as safe as the cap was meant to prevent, until a run settles.
   }
 
   return {
     create(investigation) {
-      if (investigations.size >= capacity) evictOldestCompleted();
+      if (investigations.size >= capacity) evictOldestSettled();
       investigations.set(investigation.id, investigation);
       logs.set(investigation.id, []);
     },

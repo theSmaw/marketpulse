@@ -247,16 +247,24 @@ describe("INVESTIGATION_EVENT_TYPES", () => {
 });
 
 describe("isTerminalEventType", () => {
-  it("is true only for INVESTIGATION_COMPLETED in this story", () => {
-    // INVESTIGATION_FAILED is not yet a member of TERMINAL_EVENT_TYPES —
-    // Story 7.5's to add, when a run can fail outright.
+  it("is true for both events that END a run", () => {
+    // **Amended 2026-11-18 (Task 7.2.1).** This read "true only for
+    // INVESTIGATION_COMPLETED in this story", with
+    // `isTerminalEventType("INVESTIGATION_FAILED")` asserted `false` and
+    // a comment deferring it to Story 7.5. Its own condition — a run
+    // that can fail outright — fired at Story 7.2, whose tools read a
+    // database and a calendar where Story 7.1's read a `Map`.
     expect(isTerminalEventType("INVESTIGATION_COMPLETED")).toBe(true);
-    expect(isTerminalEventType("INVESTIGATION_FAILED")).toBe(false);
+    expect(isTerminalEventType("INVESTIGATION_FAILED")).toBe(true);
     expect(isTerminalEventType("STEP_STARTED")).toBe(false);
+    expect(isTerminalEventType("STEP_COMPLETED")).toBe(false);
   });
 
-  it("TERMINAL_EVENT_TYPES has exactly one member today", () => {
-    expect(TERMINAL_EVENT_TYPES).toStrictEqual(["INVESTIGATION_COMPLETED"]);
+  it("TERMINAL_EVENT_TYPES has exactly two members", () => {
+    expect(TERMINAL_EVENT_TYPES).toStrictEqual([
+      "INVESTIGATION_COMPLETED",
+      "INVESTIGATION_FAILED",
+    ]);
   });
 });
 
@@ -334,7 +342,7 @@ describe("toWireInvestigationEvent", () => {
     steps: [],
   };
 
-  it("totals over all six events this story emits — removing a case is a compile error", () => {
+  it("totals over all seven events this product emits — removing a case is a compile error", () => {
     // The exhaustive switch in `toWireInvestigationEvent` is the real
     // guard; this table proves every member actually produces a
     // distinct, well-formed wire object rather than merely compiling —
@@ -387,6 +395,18 @@ describe("toWireInvestigationEvent", () => {
         completedAt: new Date("2026-11-16T14:00:00.012Z"),
         stepCount: 1,
       },
+      // The seventh, added 2026-11-18 (Task 7.2.1). It carries no
+      // `stepId` and no `reason` by design — which step threw and what a
+      // reader is told about it are Story 7.5's, and a thrown message is
+      // internal detail for the same reason a 5xx never carries one.
+      {
+        type: "INVESTIGATION_FAILED",
+        seq: 7,
+        investigationId: investigation.id,
+        status: "failed",
+        failedAt: new Date("2026-11-16T14:00:00.012Z"),
+        stepCount: 0,
+      },
     ];
 
     const wireShapes = events.map((event) =>
@@ -416,6 +436,7 @@ describe("toWireInvestigationEvent", () => {
       ],
       ["durationMs", "investigationId", "seq", "status", "stepId", "type"],
       ["completedAt", "investigationId", "seq", "status", "stepCount", "type"],
+      ["failedAt", "investigationId", "seq", "status", "stepCount", "type"],
     ]);
   });
 

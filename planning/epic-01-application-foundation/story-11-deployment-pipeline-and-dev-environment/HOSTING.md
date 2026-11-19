@@ -164,6 +164,26 @@ first time a run is held open across more than one step (Story 7.5 or
 later); [ADR 0050](../../../docs/adr/0050-the-agent-provider-is-keyed-by-investigation-id-the-sse-transport-decisions-and-the-domain-type-split.md)
 carries the fuller account of this story's own SSE transport decisions.
 
+**Corrected 2026-11-18 by Story 7.2 (Task 7.2.1) — the keepalive is
+written, and the "(Story 7.5 or later)" guess above was wrong by three
+stories.** The deferral's own condition fired at **Story 7.2**, which wires
+five tools into one orchestrator:
+`scripted-agent-provider.ts` mints every `QueuedStep` before its loop
+starts, so "a run held open across more than one step" is true on the very
+first press, on every machine, however fast the tools themselves run. The
+line is an SSE comment — `: keepalive\n\n` — written on an interval and
+cleared in the same `finally` that ends the stream, at
+`SSE_KEEPALIVE_INTERVAL_MS = 240_000 / 3` (**80 s**, **3× inside** the
+ceiling quoted above), spelled as the division for the same reason
+`market-gateway.ts`'s `KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3`
+is: a relation cannot decay the way a literal can. The interval is
+**injectable** on `createInvestigationRoutes`, because a timing guarantee
+whose only assertion takes 80 seconds to make is a guarantee nobody checks.
+**What is still unverified is the ceiling itself**: every figure here is
+Microsoft's documentation rather than a measurement of this deployment, and
+no stream of ours has ever been held open for four minutes against the real
+ingress.
+
 **The shutdown ceiling fits, and the number is quoted rather than asserted.** Story 1.2 chose a 5-second `SHUTDOWN_TIMEOUT_MS` to sit inside Docker's 10 s stop grace and Kubernetes' 30 s `terminationGracePeriodSeconds`, and this story owed the comparison against the orchestrator actually chosen. From [Application lifecycle management in Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/application-lifecycle-management):
 
 > When a shutdown starts, the container host sends a SIGTERM message to your container. The code in the container can respond to this operating system-level message to handle termination.

@@ -120,74 +120,49 @@ export function createScriptedAgentProvider(
       investigation,
     });
 
-    for (const [index, tool] of tools.entries()) {
-      const queuedStep = queuedSteps[index];
-      // `queuedSteps` was built by mapping over this same `tools` array,
-      // so the two are always the same length.
-      if (queuedStep === undefined) continue;
+    // **The thrown-tool safety net (Task 7.2.1), and why it wraps the whole
+    // loop rather than one tool call.**
+    //
+    // `AnalyticalTool.run`'s own docblock says a tool never throws —
+    // invariant 5's "not enough evidence" is a first-class `ToolOutcome`
+    // and the type has no third, thrown member. That is a contract, and a
+    // contract nothing enforces expires quietly: Story 7.2's four new
+    // tools read a database and a trading calendar where Story 7.1's one
+    // tool read an in-memory `Map`. Before this, a throw left the loop
+    // with **no terminal event at all** — the investigation sat `running`
+    // for ever, the SSE response never ended (its reader waits on
+    // `isTerminalEventType`), the store never evicted the entry, and
+    // `POST /investigations`' second-press idempotency handed the stuck
+    // run back, so `Investigate` was permanently dead for that symbol
+    // until a backend restart.
+    //
+    // `completedSteps` is declared OUT here rather than inside the loop
+    // because the failure path reports it, and a count read after the
+    // `catch` has to have survived the throw.
+    let completedSteps = 0;
 
-      const startedAt = now();
-      const runningStep: RunningStep = {
-        ...queuedStep,
-        status: "running",
-        startedAt,
-      };
-      investigation = withStep(investigation, runningStep);
+    try {
+      await runSteps();
+    } catch (error) {
+      const failedAt = now();
+      investigation = { ...investigation, status: "failed" };
       store.update(id, investigation);
       store.appendEvent(id, {
-        type: "STEP_STARTED",
+        type: "INVESTIGATION_FAILED",
         seq: nextSeq(),
         investigationId: id,
-        stepId: queuedStep.id,
-        description: queuedStep.description,
-        tool: queuedStep.tool,
-        startedAt,
+        status: "failed",
+        failedAt,
+        // How many steps completed before the throw — never WHICH one and
+        // never the thrown message. Both are Story 7.5's, which already
+        // has `FailedStep.reason` typed and waiting.
+        stepCount: completedSteps,
       });
-
-      store.appendEvent(id, {
-        type: "TOOL_CALL_STARTED",
-        seq: nextSeq(),
-        investigationId: id,
-        stepId: queuedStep.id,
-        tool: queuedStep.tool,
-      });
-
-      const toolContext: ToolContext = {
-        investigationId: id,
-        asOf,
-        mode,
-      };
-      const outcome = await tool.run(subjectSymbols, toolContext);
-
-      const completedAt = now();
-      const durationMs = completedAt.getTime() - startedAt.getTime();
-
-      store.appendEvent(id, {
-        type: "TOOL_CALL_COMPLETED",
-        seq: nextSeq(),
-        investigationId: id,
-        stepId: queuedStep.id,
-        tool: queuedStep.tool,
-        durationMs,
-        outcome,
-      });
-
-      const completedStep: CompletedStep = {
-        ...runningStep,
-        status: "completed",
-        completedAt,
-        durationMs,
-      };
-      investigation = withStep(investigation, completedStep);
-      store.update(id, investigation);
-      store.appendEvent(id, {
-        type: "STEP_COMPLETED",
-        seq: nextSeq(),
-        investigationId: id,
-        stepId: queuedStep.id,
-        status: "completed",
-        durationMs,
-      });
+      // **Re-thrown, not swallowed.** The route's own `run.catch(...)`
+      // logs it; a provider that answered a resolved `Investigation`
+      // after a failure would be a second, quieter lie than the stuck
+      // state this replaces.
+      throw error;
     }
 
     const completedAt = now();
@@ -203,6 +178,83 @@ export function createScriptedAgentProvider(
     });
 
     return investigation;
+
+    /** The per-tool loop, named only so the guarantee above can be written
+     * once around all of it rather than per tool call. Reads and writes
+     * `investigation`, `seq` and `completedSteps` from the enclosing run. */
+    async function runSteps(): Promise<void> {
+      for (const [index, tool] of tools.entries()) {
+        const queuedStep = queuedSteps[index];
+        // `queuedSteps` was built by mapping over this same `tools` array,
+        // so the two are always the same length.
+        if (queuedStep === undefined) continue;
+
+        const startedAt = now();
+        const runningStep: RunningStep = {
+          ...queuedStep,
+          status: "running",
+          startedAt,
+        };
+        investigation = withStep(investigation, runningStep);
+        store.update(id, investigation);
+        store.appendEvent(id, {
+          type: "STEP_STARTED",
+          seq: nextSeq(),
+          investigationId: id,
+          stepId: queuedStep.id,
+          description: queuedStep.description,
+          tool: queuedStep.tool,
+          startedAt,
+        });
+
+        store.appendEvent(id, {
+          type: "TOOL_CALL_STARTED",
+          seq: nextSeq(),
+          investigationId: id,
+          stepId: queuedStep.id,
+          tool: queuedStep.tool,
+        });
+
+        const toolContext: ToolContext = {
+          investigationId: id,
+          asOf,
+          mode,
+        };
+        const outcome = await tool.run(subjectSymbols, toolContext);
+
+        const completedAt = now();
+        const durationMs = completedAt.getTime() - startedAt.getTime();
+
+        store.appendEvent(id, {
+          type: "TOOL_CALL_COMPLETED",
+          seq: nextSeq(),
+          investigationId: id,
+          stepId: queuedStep.id,
+          tool: queuedStep.tool,
+          durationMs,
+          outcome,
+        });
+
+        const completedStep: CompletedStep = {
+          ...runningStep,
+          status: "completed",
+          completedAt,
+          durationMs,
+        };
+        investigation = withStep(investigation, completedStep);
+        store.update(id, investigation);
+        store.appendEvent(id, {
+          type: "STEP_COMPLETED",
+          seq: nextSeq(),
+          investigationId: id,
+          stepId: queuedStep.id,
+          status: "completed",
+          durationMs,
+        });
+
+        completedSteps += 1;
+      }
+    }
   }
 
   function streamEvents(

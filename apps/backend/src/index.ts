@@ -474,8 +474,12 @@ export function registerMarketStreamCloser(close: () => void): void {
  * connection bookkeeping (`http-compression.ts` records the same mechanism
  * from the compression plugin's side), so nothing else here would ever end
  * one — `app.close()`'s drain would otherwise wait on it for as long as the
- * client stays attached, which for a stream with no keepalive in this story
- * is indefinite.
+ * client stays attached, which is indefinite. **Corrected 2026-11-18 (Task
+ * 7.2.1): this used to read "for a stream with no keepalive in this story"
+ * — the stream now has one, and the conclusion is unchanged and if anything
+ * stronger, because a keepalive is a reason a client stays attached rather
+ * than a reason it stops.** The keepalive's own timer is `unref`'d, so it
+ * is never itself the thing holding the drain open.
  */
 let closeInvestigationStreams: (() => void) | undefined;
 

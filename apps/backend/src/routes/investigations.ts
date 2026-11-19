@@ -129,6 +129,46 @@ const eventsRouteSchema = {
   },
 };
 
+/**
+ * **Azure Container Apps' ingress IDLE request timeout**, as
+ * `HOSTING.md`'s own premium-settings table measured it — a ceiling on
+ * *silence* rather than on connection age, which is why a long
+ * investigation is bound by it and a long-lived quiet one is the only
+ * shape that trips it. Restated here rather than imported because
+ * `market-gateway.ts`'s own copy is a comment beside its own keepalive;
+ * this is the second consumer of the same platform fact.
+ */
+const INGRESS_IDLE_TIMEOUT_MS = 240_000;
+
+/**
+ * At most this long between writes on an open investigation stream — **one
+ * third of the ingress ceiling**, which is `market-gateway.ts`'s own
+ * derivation (`KEEPALIVE_INTERVAL_MS = DISCONNECTED_AFTER_MS / 3`) applied
+ * to this transport's own ceiling rather than a number picked for looking
+ * safe. Written as the division so the relation cannot decay if the
+ * platform's own figure is ever re-measured.
+ *
+ * **Why a keepalive exists here now (Task 7.2.1).** Story 7.1 settled
+ * explicitly against one: its single tool was a `Map` lookup, so a run
+ * never held the response open long enough to matter, and ADR 0050 gave
+ * the decision a reversal trigger — *the first tool call to complete while
+ * a second one is still queued*. Story 7.2 fires it literally and on every
+ * machine: `scripted-agent-provider.ts` mints all five `QueuedStep`s
+ * before the loop starts, so that condition is met on the very first
+ * press, however fast the tools actually run.
+ *
+ * 80 s is **3× inside** the ceiling, so one delayed timer (GC in a process
+ * also running a 516-security join 6.8–16.1 times a minute, an ingress
+ * hiccup) does not cut a healthy stream.
+ *
+ * **A comment line, not an event.** `: keepalive\n\n` is a no-op frame by
+ * the SSE specification itself, so nothing downstream has to learn a
+ * seventh event type and `seq` stays a count of real events —
+ * `investigation-stream.ts`'s own parser drops it by construction,
+ * because it looks for a `data: ` line and a comment frame has none.
+ */
+export const SSE_KEEPALIVE_INTERVAL_MS = INGRESS_IDLE_TIMEOUT_MS / 3;
+
 const SYMBOL_FORMAT_MESSAGE =
   "symbol must be one to five uppercase letters, with an optional share-class suffix.";
 
@@ -153,6 +193,17 @@ export interface InvestigationRoutesOptions {
    * the first time.
    */
   readonly corsOrigin: string;
+  /**
+   * How long an open stream may go without a write before it sends a
+   * keepalive comment. Defaults to {@link SSE_KEEPALIVE_INTERVAL_MS}.
+   *
+   * **Injectable so a test can use a short period rather than waiting 80
+   * seconds**, which is the same reason `market-gateway.ts` seams its own
+   * `setTimer`/`clearTimer`: a timing guarantee nothing asserts is a
+   * guarantee that expires quietly, and an assertion that takes a real
+   * interval to make is one nobody runs.
+   */
+  readonly keepaliveIntervalMs?: number;
 }
 
 export interface InvestigationRoutes {
@@ -182,7 +233,13 @@ export interface InvestigationRoutes {
 export function createInvestigationRoutes(
   options: InvestigationRoutesOptions,
 ): InvestigationRoutes {
-  const { store, provider, tools, corsOrigin } = options;
+  const {
+    store,
+    provider,
+    tools,
+    corsOrigin,
+    keepaliveIntervalMs = SSE_KEEPALIVE_INTERVAL_MS,
+  } = options;
 
   // Every hijacked response currently open. `reply.hijack()` takes a reply
   // out of Fastify's own bookkeeping (`http-compression.ts` records the
@@ -345,6 +402,19 @@ export function createInvestigationRoutes(
         };
         request.raw.on("close", onClientClose);
 
+        // **The keepalive (Task 7.2.1).** An SSE comment line, written on
+        // an interval for as long as this response is open, so Azure
+        // Container Apps' 240 s *idle* ingress timeout never sees a
+        // five-step run as a silent connection. Cleared in the same
+        // `finally` that ends the stream, and `unref`'d so a pending
+        // timer can never be the thing holding `app.close()`'s drain
+        // open past the measured shutdown ceiling — `closeStreams()`
+        // ends the response, and this must not outlive it.
+        const keepalive = setInterval(() => {
+          raw.write(": keepalive\n\n");
+        }, keepaliveIntervalMs);
+        keepalive.unref();
+
         try {
           for (;;) {
             const next = await iterator.next();
@@ -355,13 +425,16 @@ export function createInvestigationRoutes(
             raw.write(`event: ${event.type}\n`);
             raw.write(`data: ${JSON.stringify(payload)}\n\n`);
             // The stream terminates the HTTP response after its terminal
-            // event, by this story's own settled decision — no keepalive
-            // until a run can be held open across steps (Story 7.5 or
-            // later), so `app.inject()` can assert the whole sequence in
-            // one call.
+            // event, which is what lets `app.inject()` assert a whole
+            // sequence in one call. **Corrected 2026-11-18 (Task 7.2.1):
+            // this used to add "no keepalive until a run can be held open
+            // across steps (Story 7.5 or later)" — that condition fired
+            // one story early, at Story 7.2, and the keepalive is twenty
+            // lines above.**
             if (isTerminalEventType(event.type)) break;
           }
         } finally {
+          clearInterval(keepalive);
           request.raw.off("close", onClientClose);
           openStreams.delete(raw);
           raw.end();

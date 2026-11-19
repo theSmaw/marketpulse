@@ -144,6 +144,78 @@ describe("streamInvestigationEvents", () => {
     });
   });
 
+  it("drops the backend's keepalive comment frames without disturbing the events around them", async () => {
+    // **Confirmed rather than assumed (Task 7.2.1), before the backend
+    // started sending these.** `: keepalive\n\n` is a no-op frame by the
+    // SSE specification; this parser answers `undefined` for it because
+    // it looks for a `data: ` line and a comment frame has none. The
+    // failure this refuses is the quiet one: a parser that treated a
+    // keepalive as a malformed event would put the checklist into a
+    // failure state every 80 seconds on a perfectly healthy stream.
+    const KEEPALIVE = ": keepalive\n\n";
+    stubFetch(() =>
+      Promise.resolve(
+        new Response(
+          sseBody([
+            KEEPALIVE,
+            STARTED_FRAME,
+            KEEPALIVE,
+            KEEPALIVE,
+            COMPLETED_FRAME,
+            KEEPALIVE,
+          ]),
+          { status: 200, headers: { "content-type": "text/event-stream" } },
+        ),
+      ),
+    );
+
+    const decoded = [];
+    for await (const event of streamInvestigationEvents(
+      "inv-1",
+      0,
+      new AbortController().signal,
+    )) {
+      decoded.push(event);
+    }
+
+    // Two events and nothing else — not two events and four
+    // `unreadable`s, which is the version that breaks the UI.
+    expect(decoded).toHaveLength(2);
+    expect(decoded.map((event) => event.kind)).toStrictEqual([
+      "event",
+      "event",
+    ]);
+  });
+
+  it("drops a keepalive split across two chunks, beside a real frame", async () => {
+    // The comment frame meets the chunk-boundary case the generator
+    // already handles: a keepalive torn in half must not take the event
+    // that follows it with it.
+    stubFetch(() =>
+      Promise.resolve(
+        new Response(
+          sseBody([": keep", `alive\n\n${STARTED_FRAME}`, COMPLETED_FRAME]),
+          { status: 200, headers: { "content-type": "text/event-stream" } },
+        ),
+      ),
+    );
+
+    const decoded = [];
+    for await (const event of streamInvestigationEvents(
+      "inv-1",
+      0,
+      new AbortController().signal,
+    )) {
+      decoded.push(event);
+    }
+
+    expect(decoded).toHaveLength(2);
+    expect(decoded[0]).toMatchObject({
+      kind: "event",
+      event: { type: "INVESTIGATION_STARTED" },
+    });
+  });
+
   it("yields unreadable rather than throwing when the response is not ok", async () => {
     stubFetch(() => Promise.resolve(new Response("", { status: 503 })));
 
