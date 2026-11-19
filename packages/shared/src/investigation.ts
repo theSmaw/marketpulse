@@ -1,5 +1,9 @@
 import { asInstant, asIs, toWire } from "./wire-serialiser.js";
 import type { JsonValue, WireFields } from "./wire-serialiser.js";
+import type {
+  ExcessFactorRefusal,
+  ExcessMoveInapplicability,
+} from "./excess-move.js";
 import type { PercentileRefusal } from "./return-baseline.js";
 import type { Ticker } from "./ticker.js";
 
@@ -20,6 +24,16 @@ import type { Ticker } from "./ticker.js";
  * — invariant 5's "not enough evidence" is a first-class outcome, and a
  * thrown error is not a value a `TOOL_CALL_COMPLETED` event can carry
  * honestly.
+ *
+ * **Amended 2026-11-19 (Task 7.2.4): the union has THREE members, and the
+ * sentence above is otherwise unchanged.** The *no-thrown-path* half is the
+ * load-bearing half and it is still true — nothing was added that a tool can
+ * throw. What changed is the count: `inapplicable` joined `ok` and `refused`
+ * because *the question does not arise* is a third claim this product had
+ * already decided differs in shape (`packages/shared/src/excess-move.ts`
+ * chose the word, over four others, in Story 5.6). The arity is corrected
+ * here rather than the paragraph rewritten, because the paragraph's own
+ * subject is the absence of a throw and not the number of arms.
  */
 
 // --------------------------------------------------------------- lifecycle
@@ -115,6 +129,14 @@ export const TOOL_NAMES = [
   // rather than for the refusal it always answers: the name is the question
   // asked, and the answer is `no-distribution` on every store that exists.
   "calculate_volume_ratio",
+  // Story 7.2's peer-comparison step (Task 7.2.4) — `excessMoveFactor` read
+  // through the tool contract. Named for the comparison it performs rather
+  // than for the checklist sentence it draws (`Compare against sector
+  // benchmark`), which is deliberately NOT the epic's own "compare peers":
+  // the shipped arithmetic is a comparison against the capitalisation-
+  // weighted sector SPDR, and *peers* promises an unweighted peer median
+  // this product does not compute (Story 5.6's own Gate 1 rejected it).
+  "compare_securities",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -157,7 +179,25 @@ export type ToolName = (typeof TOOL_NAMES)[number];
  * (`0015_volume_baselines.sql` holds a median and a dispersion, never a
  * distribution) rather than about any one security's coverage. The day a
  * distribution is stored, the word leaves this list with the arm that
- * produces it. */
+ * produces it.
+ *
+ * **Widened again by Task 7.2.4 with `EXCESS_FACTOR_REFUSALS`' own four
+ * remaining words, each spelled exactly as `excess-move.ts` spells it** —
+ * `compare_securities` reads that vocabulary verbatim rather than collapsing
+ * it, and two of the four are the pair that must never merge:
+ *
+ * - `reference-split-discontinuity` — **the benchmark's** history crosses a
+ *   price break. A separate word from `split-discontinuity` (**the
+ *   subject's**) because the two refuse different securities and are
+ *   repaired in different places: one is about the thing on screen, the
+ *   other refuses every constituent of that sector at once.
+ * - `mixed-basis` — the two legs were measured over different five minutes.
+ * - `no-subject-move` / `no-reference-move` — one leg had no five-minute
+ *   return at all, and the second is the one the whole numerator rests on: a
+ *   benchmark that printed nothing has **not** been flat.
+ *
+ * {@link ExcessFactorRefusalIsAToolRefusal} is the structural half, exactly
+ * as `PercentileRefusalIsAToolRefusal` is for the price factor's. */
 export const TOOL_REFUSALS = [
   "nothing-observed",
   "not-tracked",
@@ -166,9 +206,45 @@ export const TOOL_REFUSALS = [
   "too-few-samples",
   "split-discontinuity",
   "no-distribution",
+  "reference-split-discontinuity",
+  "mixed-basis",
+  "no-subject-move",
+  "no-reference-move",
 ] as const;
 
 export type ToolRefusal = (typeof TOOL_REFUSALS)[number];
+
+/**
+ * **Why a tool's question does not arise at all — a closed vocabulary beside
+ * {@link TOOL_REFUSALS} rather than three more members of it** (Task 7.2.4).
+ *
+ * A refusal promises that something might one day produce a figure: a
+ * backfill, a nightly generation, a repair. These do not. No amount of
+ * waiting gives a broad-market fund a sector, and no pass will ever compute
+ * `XLK`'s move against its own sector's benchmark, because that benchmark is
+ * `XLK`. `packages/shared/src/excess-move.ts` chose the word `inapplicable`
+ * over four others (*not applicable*, *unavailable*, *exempt*, *undefined*)
+ * and the whole argument is there; what is here is the same vocabulary
+ * reaching the tool contract.
+ *
+ * - `no-sector` — an `index_etf` has `sector: null`. **4 of 516** today.
+ * - `is-benchmark` — a `sector_etf` **is** the fund its own sector is
+ *   measured against. **11 of 516** today.
+ * - `is-the-market-proxy` — the subject **is** the proxy a correlation would
+ *   be measured against, so `r = 1` is vacuous. Story 7.2's Gate 1 settled
+ *   that this is `SPY` **only**: `QQQ`/`DIA`/`IWM` against `SPY` is a real,
+ *   if unsurprising, measurement. Minted here rather than in
+ *   `excess-move.ts`, because it is not an excess-move word — it belongs to
+ *   `calculate_rolling_correlation` (Task 7.2.6), which reuses this union
+ *   unchanged rather than deriving its own shape.
+ */
+export const TOOL_INAPPLICABILITIES = [
+  "no-sector",
+  "is-benchmark",
+  "is-the-market-proxy",
+] as const;
+
+export type ToolInapplicability = (typeof TOOL_INAPPLICABILITIES)[number];
 
 /**
  * Every percentile refusal is a tool refusal. **A type-level assertion rather
@@ -183,12 +259,77 @@ export type PercentileRefusalIsAToolRefusal =
 /** Satisfied only while the assertion above holds. */
 export const TOOL_REFUSALS_COVER_THE_PERCENTILE_ONES: PercentileRefusalIsAToolRefusal = true;
 
-/** A tool's result. **Two members, and no third "thrown" path exists in
- * the type** — the shape every later tool's own story is checked
- * against. */
+/**
+ * Every excess-move factor refusal is a tool refusal — the same mechanism
+ * one vocabulary over (Task 7.2.4). A seventh member of
+ * `EXCESS_FACTOR_REFUSALS` fails `tsc -b` here rather than reaching
+ * `compare_securities`' `run` as a word the outcome union cannot carry.
+ */
+export type ExcessFactorRefusalIsAToolRefusal =
+  ExcessFactorRefusal extends ToolRefusal ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const TOOL_REFUSALS_COVER_THE_EXCESS_ONES: ExcessFactorRefusalIsAToolRefusal = true;
+
+/**
+ * Every excess-move inapplicability is a tool inapplicability. **The free
+ * half of Task 7.2.4's decision**: a fourth word in
+ * `EXCESS_MOVE_INAPPLICABILITIES` is a compile error here rather than a word
+ * a tool cannot name — which is the same failure mode, one union over, as
+ * the refusal assertions above.
+ */
+export type ExcessMoveInapplicabilityIsAToolInapplicability =
+  ExcessMoveInapplicability extends ToolInapplicability ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const TOOL_INAPPLICABILITIES_COVER_THE_EXCESS_ONES: ExcessMoveInapplicabilityIsAToolInapplicability = true;
+
+/**
+ * **The two vocabularies can never share a word**, which is the assertion
+ * that makes the distinction below worth having at all: *we will not answer
+ * yet* and *the question does not arise* are different claims, and a word
+ * carried by both would let a surface print either sentence for it with
+ * nothing saying which is right. The tuple wrapping is deliberate — a naked
+ * conditional over a union distributes, and `[X] extends [never]` is the one
+ * form that asks the question about the whole intersection.
+ */
+export type ToolRefusalsAndInapplicabilitiesAreDisjoint = [
+  Extract<ToolRefusal, ToolInapplicability>,
+] extends [never]
+  ? true
+  : never;
+
+/** Satisfied only while the assertion above holds. */
+export const THE_TWO_TOOL_VOCABULARIES_ARE_DISJOINT: ToolRefusalsAndInapplicabilitiesAreDisjoint = true;
+
+/**
+ * A tool's result. **Three members, and no fourth "thrown" path exists in
+ * the type** — the shape every later tool's own story is checked against.
+ *
+ * **`inapplicable` arrived 2026-11-19 (Task 7.2.4), additively**: every
+ * existing `kind: "ok" | "refused"` call site stays correct, because nothing
+ * was removed and nothing changed shape. Two details of it are decisions
+ * rather than style:
+ *
+ * - **The field is `because`, never `reason`.** It mirrors
+ *   `excess-move.ts`'s own `because: ExcessMoveInapplicability` and makes
+ *   the distinction type-level rather than a naming convention: a handler
+ *   that reads `.reason` off a collapsed outcome does not compile.
+ * - **There is no `applies: false` flag.** This union already discriminates
+ *   on `kind`, so a second discriminant would be a second home for one
+ *   fact. What is mirrored from `excess-move.ts` is its **vocabulary and its
+ *   word**, not its record shape — that shape is right for a reference
+ *   record with no other discriminant, which is not this.
+ *
+ * **Reversal trigger, as a condition**: the first tool whose `inapplicable`
+ * arm needs to carry a PAYLOAD rather than a bare word from a closed
+ * vocabulary. At that point this stops being a vocabulary extension and
+ * wants its own ADR.
+ */
 export type ToolOutcome<T> =
   | { readonly kind: "ok"; readonly value: T }
-  | { readonly kind: "refused"; readonly reason: ToolRefusal };
+  | { readonly kind: "refused"; readonly reason: ToolRefusal }
+  | { readonly kind: "inapplicable"; readonly because: ToolInapplicability };
 
 // ------------------------------------------------------------------- step
 
@@ -386,10 +527,13 @@ export type InvestigationEvent =
 // -------------------------------------------------------------- wire shape
 
 /** A tool outcome, as it travels. Mirrors {@link ToolOutcome} with the
- * payload narrowed to JSON. */
+ * payload narrowed to JSON — including the `inapplicable` arm since Task
+ * 7.2.4, carrying the same `because` word rather than being flattened into a
+ * refusal on the way out. */
 export type WireToolOutcome =
   | { readonly kind: "ok"; readonly value: Readonly<Record<string, JsonValue>> }
-  | { readonly kind: "refused"; readonly reason: ToolRefusal };
+  | { readonly kind: "refused"; readonly reason: ToolRefusal }
+  | { readonly kind: "inapplicable"; readonly because: ToolInapplicability };
 
 /**
  * One map per member of {@link Step}, for `WireMarketBreadth`'s own

@@ -77,6 +77,25 @@ than by convention**: `AnalyticalTool<Input, Output>`, a closed
 `ok`/`refused` outcome union, never a thrown error for an honest absence.
 `get_security_snapshot` is the one tool built against it — see §2.
 
+**Amended 2026-11-19 (Task 7.2.4): the outcome union is `ok`/`refused`/
+`inapplicable`, and the sentence above is otherwise unchanged.** The
+load-bearing half is _never a thrown error for an honest absence_, which is
+still true — nothing was added that a tool can throw. What changed is the
+arity: `inapplicable` is _the question does not arise_, a third claim this
+product had already decided differs in shape (`packages/shared/src/
+excess-move.ts` chose that word over four others in Story 5.6, because a
+reader told _unavailable_ reasonably waits and no backfill will ever give a
+broad-market fund a sector). Its field is **`because`, not `reason`**,
+deliberately, so a handler that reads one off the other does not compile;
+there is no second `applies: false` discriminant, because `kind` already
+discriminates. The frontend's own duplicated wire shape has a closed `kind`
+whitelist that silently drops an unhandled member — one invariant
+(`the-tool-outcome-decoder-branches-on-every-kind`) and one `pnpm break`
+hold that, since an outcome it cannot read is dropped on the floor with every
+test green. No new ADR: ADR 0050 never stated this union's arity.
+**Reversal trigger**: the first tool whose `inapplicable` arm needs to carry
+a payload rather than a bare word from a closed vocabulary.
+
 ## 2. The one tool, and the refusal it draws from the universe rather than the store
 
 `get_security_snapshot` wraps `current-market-state.ts`'s own `read(symbol)`

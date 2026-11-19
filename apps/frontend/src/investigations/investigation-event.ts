@@ -37,10 +37,23 @@ export type KnownInvestigationEventType =
 /** A tool's outcome, exactly as `WireToolOutcome` describes it on the wire —
  * duplicated rather than imported for the same reason the event shape is:
  * this is a fact about JSON, not about the domain object either side holds
- * it as. */
+ * it as.
+ *
+ * **The `inapplicable` arm arrived 2026-11-19 (Task 7.2.4), and the
+ * duplication is exactly what made it dangerous**: `readToolOutcome` below is
+ * a closed whitelist, and an outcome kind it does not branch on makes the
+ * WHOLE event `unreadable` — which `use-investigation.ts` then silently
+ * ignores, so the first `inapplicable` outcome this product ever produced
+ * would have been dropped on the floor with every test green.
+ * `the-tool-outcome-decoder-branches-on-every-kind` is the check that stops
+ * that happening again, with a `pnpm break` planting the fourth kind. The
+ * field is `because`, never `reason` — see `packages/shared/src/
+ * investigation.ts`'s own `ToolOutcome` docblock for why that is a decision
+ * rather than a spelling. */
 export type WireToolOutcome =
   | { readonly kind: "ok"; readonly value: Readonly<Record<string, unknown>> }
-  | { readonly kind: "refused"; readonly reason: string };
+  | { readonly kind: "refused"; readonly reason: string }
+  | { readonly kind: "inapplicable"; readonly because: string };
 
 interface WireEventBase {
   readonly seq: number;
@@ -266,6 +279,15 @@ function readToolOutcome(raw: unknown): WireToolOutcome | undefined {
   if (kind === "refused") {
     return typeof raw.reason === "string"
       ? { kind: "refused", reason: raw.reason }
+      : undefined;
+  }
+  // *The question does not arise* — a third claim rather than a refusal, and
+  // read off `because` rather than `reason` so a flattened frame fails to
+  // decode here rather than rendering as *unavailable* to a reader who would
+  // then reasonably wait.
+  if (kind === "inapplicable") {
+    return typeof raw.because === "string"
+      ? { kind: "inapplicable", because: raw.because }
       : undefined;
   }
   return undefined;

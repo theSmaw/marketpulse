@@ -9,8 +9,16 @@
 // stream open. Both are `investigations.process.test.ts`'s and
 // `index.process.test.ts`'s.
 
-import { REQUEST_ID_HEADER, toTicker } from "@marketpulse/shared";
-import type { Investigation, InvestigationEvent } from "@marketpulse/shared";
+import {
+  REQUEST_ID_HEADER,
+  excessMoveReference,
+  toTicker,
+} from "@marketpulse/shared";
+import type {
+  ExcessMoveReference,
+  Investigation,
+  InvestigationEvent,
+} from "@marketpulse/shared";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -25,6 +33,11 @@ import {
   createSecuritySnapshotTool,
   toWireSecuritySnapshot,
 } from "../tool-security-snapshot.js";
+import {
+  createCompareSecuritiesTool,
+  toWireCompareSecurities,
+} from "../tool-compare-securities.js";
+import { UNIVERSE } from "../universe.js";
 import type { InvestigationStore } from "../investigation-store.js";
 import { createInvestigationRoutes } from "./investigations.js";
 
@@ -36,6 +49,17 @@ afterEach(async () => {
 });
 
 const NVDA = toTicker("NVDA");
+
+/**
+ * **Which fund each security is differenced against, from the real resolver
+ * over the real curated universe** — so the two inapplicabilities asserted
+ * below are facts about this product's own file rather than about literals
+ * typed in a test.
+ */
+const REFERENCES = new Map<string, ExcessMoveReference>(
+  UNIVERSE.map((security) => [security.symbol, excessMoveReference(security)]),
+);
+
 const READ_AT = Date.parse("2026-11-16T14:00:00.000Z");
 
 const OBSERVATION: LiveObservation = {
@@ -370,6 +394,90 @@ describe("GET /investigations/:id/events", () => {
       "symbol",
       "volume",
     ]);
+  });
+
+  // ------------------------------------- the third outcome kind, on the wire
+  //
+  // **Task 7.2.4's Done-when 2, as the wire-level test it was reworded to
+  // ask for.** The checklist itself deliberately discards
+  // `TOOL_CALL_COMPLETED`'s outcome today (`investigation-checklist-state.ts`,
+  // by Task 7.1.4's own decision — drawing a step's own outcome word is Story
+  // 7.3's), so "visibly distinct on screen" is not a property this task can
+  // establish. What it CAN establish, and what everything later depends on,
+  // is that the third kind survives the whole stack: `excessMoveReference` →
+  // `excessMoveFactor` → the tool → `toWireInvestigationEvent` → the SSE
+  // frame, carrying `because` and not `reason`.
+  //
+  // The tool is the real one over the real curated universe, with no bars at
+  // all — which is exactly CI's store, and the one state where this answer is
+  // reachable on a gated machine, because both inapplicabilities are decided
+  // from the universe rather than from any store.
+
+  const inapplicableOutcomeFor = async (symbol: string): Promise<unknown> => {
+    const { instance } = serverWith({
+      tools: [
+        toRunnableTool(
+          createCompareSecuritiesTool({
+            referenceOf: (ticker) => REFERENCES.get(ticker),
+            windowOf: () => [],
+            baselineOf: () => undefined,
+            grid: { spanMinutes: 5, feed: "sip" },
+          }),
+          (subjectSymbols) => {
+            const [subject] = subjectSymbols;
+            if (subject === undefined) throw new Error("test setup");
+            return { symbol: subject };
+          },
+          toWireCompareSecurities,
+        ),
+      ],
+    });
+
+    const created = (
+      await instance.inject({
+        method: "POST",
+        url: "/investigations",
+        payload: { symbol },
+      })
+    ).json<Investigation>();
+    await settle();
+
+    const response = await instance.inject({
+      method: "GET",
+      url: `/investigations/${created.id}/events?from=0`,
+    });
+    const frames = parseSseFrames(response.body);
+    const toolCallCompleted = frames.find(
+      (frame) => frame.event === "TOOL_CALL_COMPLETED",
+    );
+    expect(toolCallCompleted).toBeDefined();
+    return (toolCallCompleted?.data as { outcome: unknown }).outcome;
+  };
+
+  it("carries kind inapplicable with because is-benchmark for a sector ETF", async () => {
+    // `XLK` IS the fund technology is measured against; the excess would be
+    // exactly `0` for ever and no backfill will change that.
+    expect(await inapplicableOutcomeFor("XLK")).toStrictEqual({
+      kind: "inapplicable",
+      because: "is-benchmark",
+    });
+  });
+
+  it("carries kind inapplicable with because no-sector for a market proxy", async () => {
+    expect(await inapplicableOutcomeFor("SPY")).toStrictEqual({
+      kind: "inapplicable",
+      because: "no-sector",
+    });
+  });
+
+  it("refuses rather than answers inapplicable for an equity with no bars", async () => {
+    // The pair that makes the distinction worth having: the SAME tool, the
+    // SAME empty store, two securities, two different KINDS of answer. An
+    // equity's absence is a wait; a sector ETF's is permanent.
+    expect(await inapplicableOutcomeFor("NVDA")).toStrictEqual({
+      kind: "refused",
+      reason: "no-subject-move",
+    });
   });
 
   it("refuses honestly for an untracked security, through the full stack", async () => {

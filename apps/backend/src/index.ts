@@ -42,7 +42,7 @@ import {
   snapshotOf,
 } from "./current-market-state.js";
 import { createTrailingWindow } from "./trailing-window.js";
-import { RETURN_SPAN_MINUTES, fiveMinuteReturn } from "./five-minute-return.js";
+import { RETURN_SPAN_MINUTES } from "./five-minute-return.js";
 
 import type { FiveMinuteReturn } from "./five-minute-return.js";
 import { toWireSymbolReturn, toWireVolume } from "./five-minute-return-wire.js";
@@ -56,7 +56,6 @@ import type { OverviewPass } from "./market-overview.js";
 // four clock rules make AC 12's *reads no clock, socket or handle* a lint
 // error rather than a reading.
 import { compositeAnomaly } from "./market-composite.js";
-import { excessMoveFactor } from "./excess-move-factor.js";
 import { EXCESS_REFERENCE_KIND } from "./excess-move-baseline.js";
 import { createExcessBaselineStore } from "./excess-move-baseline-store.js";
 import { createExcessBaselineCache } from "./excess-move-baseline-cache.js";
@@ -125,9 +124,15 @@ import {
   createVolumeRatioTool,
   toWireVolumeRatio,
 } from "./tool-volume-ratio.js";
+import {
+  createCompareSecuritiesTool,
+  toWireCompareSecurities,
+} from "./tool-compare-securities.js";
 import { readPriceAnomaly } from "./price-anomaly.js";
+import { readPeerComparison } from "./peer-comparison.js";
 
 import type { PriceAnomalySources } from "./price-anomaly.js";
+import type { PeerComparisonSources } from "./peer-comparison.js";
 
 // Declared before the try rather than assigned inside it, because everything
 // below the catch needs it and the catch never returns. TypeScript follows
@@ -423,6 +428,25 @@ const investigationTools = [
     createVolumeRatioTool(),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireVolumeRatio,
+  ),
+  // **Story 7.2's third of five — the peer-comparison step** (Task 7.2.4),
+  // described on the checklist as `Compare against sector benchmark`. The
+  // sources are the same three reads `symbolReturn` makes through the one
+  // shared producer (`peer-comparison.ts`), so the investigation and the
+  // market-stream frame's own composite cannot disagree about which fund
+  // this security is differenced against, nor about the instant both legs
+  // were read at. The `Input` is `{ symbol }` alone — the benchmark is
+  // `excessMoveReference`'s to decide, never an argument.
+  toRunnableTool(
+    createCompareSecuritiesTool({
+      referenceOf: (symbol) => excessReferenceOf.get(symbol),
+      windowOf: (symbol) => trailingWindows.read(symbol),
+      baselineOf: (symbol, asOf) =>
+        excessBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+      grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+    }),
+    (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
+    toWireCompareSecurities,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({
@@ -1489,6 +1513,27 @@ const priceAnomalySources: PriceAnomalySources = {
 };
 
 /**
+ * **Where the peer comparison's three reads come from** (Task 7.2.4).
+ *
+ * The same object `compare_securities` is built with a few hundred lines
+ * above, so the investigation step and the market-stream frame's composite
+ * read one pair of windows, one reference resolver and one excess-move
+ * generation rather than two of each.
+ *
+ * `referenceOf` is the one shared resolver's answer, already resolved once
+ * for the life of the process — never a second branch on `kind`/`sector`,
+ * which would be a security scored against the wrong fund on one surface
+ * only.
+ */
+const peerComparisonSources: PeerComparisonSources = {
+  referenceOf: (symbol) => excessReferenceOf.get(symbol),
+  windowOf: (symbol) => trailingWindows.read(symbol),
+  baselineOf: (symbol, asOf) =>
+    excessBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
+  grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
+};
+
+/**
  * **One security's 5-minute return, for the browser whose screen is about it**
  * (Task 5.2.3).
  *
@@ -1538,9 +1583,6 @@ const symbolReturn = (symbol: string): SymbolFigures => {
   // this process does not track is a fully-formed claim about nothing.
   if (!isTicker(symbol)) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
 
-  const referenceOf = excessReferenceOf.get(symbol);
-  if (referenceOf === undefined) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
-
   const asOf = new Date();
 
   // **The move and its ranking, from the ONE shared producer** (Task 7.2.2).
@@ -1556,20 +1598,22 @@ const symbolReturn = (symbol: string): SymbolFigures => {
     asOf,
   );
 
-  // **The benchmark's own five-minute return, read at the SAME `asOf`** (the
-  // 2026-10-26 repair). `STREAM_SYMBOLS` is `trackedTickers()`, so every
-  // sector SPDR has a trailing window of its own and the benchmark's leg is
-  // the same three lines as the subject's — no figure map, no second join and
-  // no `OverviewPass`.
+  // **The relative move, from the ONE shared producer** (Task 7.2.4).
+  // `peer-comparison.ts` holds the four calls this site used to make inline —
+  // the reference resolution, the benchmark's own window read, the
+  // generation read and `excessMoveFactor` — because `compare_securities`
+  // needs the identical assembly and a second copy of it is two homes for
+  // one comparison. **Both legs are still read at one instant**, which is
+  // what `one-instant-for-a-subject-and-its-benchmark` holds; what moved is
+  // the file the pair sits in, and the pair is still one argument list.
   //
-  // **Read here, beside the subject's, on one `asOf`.** That adjacency is what
-  // `one-instant-for-a-subject-and-its-benchmark` holds: two reads with two
-  // instants subtract to a well-formed, correctly-signed number that is wrong,
-  // and nothing on the wire can see it, because a score computed that way
-  // re-adds to itself.
-  const referenceFigure = referenceOf.applies
-    ? fiveMinuteReturn(trailingWindows.read(referenceOf.symbol), { asOf })
-    : undefined;
+  // A focus the curated universe does not describe is answered here rather
+  // than inside the producer: membership is a universe question, and the
+  // score is `null` for ADR 0029's reason — an explanation listing three
+  // refusals about a security this process does not track is a fully-formed
+  // claim about nothing.
+  const relative = readPeerComparison(peerComparisonSources, symbol, asOf);
+  if (!relative.described) return NOTHING_FOR_AN_UNTRACKED_FOCUS;
 
   // **The volume multiple, from the SAME walk** (Task 5.5.4). It is computed
   // whatever the return did, because the two refuse independently: a window
@@ -1585,31 +1629,21 @@ const symbolReturn = (symbol: string): SymbolFigures => {
     volumeBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
   );
 
-  // **The relative-move factor, and the two returns it differences are over
-  // the SAME FIVE MINUTES** (repaired 2026-10-26). It shipped differencing two
-  // `WireOverviewFigure`s — a session-to-date move either side of the operator
-  // — against `0016`'s distribution of **five-minute** excesses, so the factor
-  // contributed its full 35 of 100 for most of the universe and grew through
-  // the session. `excess-move-factor.ts` carries the measurement.
-  //
-  // `referenceOf` is the one shared resolver's answer — the same one the drawn
-  // region's `figuresOf` reads — so the two processes cannot disagree about
-  // which fund this security is measured against.
-  const excess = excessMoveFactor({
-    subject: figure,
-    reference: referenceFigure,
-    referenceOf,
-    stored: excessBaselines.baselineAsOf(marketDateAt(asOf)).get(symbol),
-    grid: { spanMinutes: SAMPLE_SPAN_MINUTES, feed: BASELINE_FEED },
-  });
-
   // **The composite, at the one site that holds all three factors** (Task
   // 5.6.4). Nothing is computed here: `market-composite.ts` translates each
   // factor's own vocabulary into the scorer's, and `scoreAnomaly` holds every
   // arithmetic in the score.
+  //
+  // The relative-move factor differences two returns over the SAME FIVE
+  // MINUTES (repaired 2026-10-26, and the reason the producer above reads
+  // both legs in one argument list): it shipped differencing two
+  // `WireOverviewFigure`s — a session-to-date move either side of the
+  // operator — against `0016`'s distribution of **five-minute** excesses, so
+  // it contributed its full 35 of 100 for most of the universe and grew
+  // through the session. `excess-move-factor.ts` carries the measurement.
   const score = compositeAnomaly({
     price: { figure, comparison, percentile },
-    excess,
+    excess: relative.factor,
   });
 
   return {

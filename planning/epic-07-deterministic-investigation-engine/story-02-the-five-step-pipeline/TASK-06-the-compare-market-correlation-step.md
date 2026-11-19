@@ -43,10 +43,11 @@ feed }` — deliberately **no `r` field on the rendered/wire side**. Keep
   `CORRELATION_MINIMUM_OVERLAP`'s own stated reversal trigger, which
   additionally requires a derived precision floor this story does not
   take on.
-- Add the `is-the-market-proxy` inapplicable member (parallel to
-  `excess-move.ts`'s existing `is-benchmark`) for the `SPY`-as-subject
-  case, reusing whichever `inapplicable`/`ToolOutcome` shape Task 7.2.4
-  settled.
+- Use the `is-the-market-proxy` member of `ToolInapplicability`
+  (`packages/shared/src/investigation.ts`), already added by Task 7.2.4
+  alongside `no-sector`/`is-benchmark` — the real third `ToolOutcome` arm
+  (`{ kind: "inapplicable", because }`), resolved 2026-11-19. Do not
+  re-derive the shape; reuse it.
 - Reads: resolve the baseline store's covered end → `baselineWindowEndingAt`
   → `subjectFor` for both legs → `readWindowCloses` for both legs →
   **re-run `seriesIsDiscontinuous` on each leg explicitly** (the nightly

@@ -5719,18 +5719,25 @@ export const BREAKS = [
       "`buildMarketOverview(` call sites and this adds none. And the symptom " +
       "is not a wrong number, which is what makes it worse: the factor " +
       "refuses a pair whose endpoints disagree, so the region goes quietly " +
-      "`mixed-basis` and a reader sees an honest-looking absence for ever.",
-    file: "apps/backend/src/index.ts",
-    find: "  const referenceFigure = referenceOf.applies",
+      "`mixed-basis` and a reader sees an honest-looking absence for ever.\n\n" +
+      "**Repointed 2026-11-19 (Task 7.2.4) from `index.ts` to " +
+      "`peer-comparison.ts`**, which is where both legs now sit: " +
+      "`compare_securities` needs the same assembly `symbolReturn` was " +
+      "making inline, so the pair moved behind one producer rather than " +
+      "being copied. The plant is unchanged in substance — the benchmark's " +
+      "leg read on a clock of its own — and the file it lands in is now the " +
+      "only shipped file holding both reads.",
+    file: "apps/backend/src/peer-comparison.ts",
+    find: "  const reference = referenceOf.applies",
     replace:
       "  // pnpm break: reverted automatically\n" +
       "  const onItsOwnClock = referenceOf.applies\n" +
-      "    ? fiveMinuteReturn(trailingWindows.read(referenceOf.symbol), {\n" +
+      "    ? fiveMinuteReturn(sources.windowOf(referenceOf.symbol), {\n" +
       "        asOf: new Date(),\n" +
       "      })\n" +
       "    : undefined;\n" +
       "  void onItsOwnClock;\n" +
-      "  const referenceFigure = referenceOf.applies",
+      "  const reference = referenceOf.applies",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-instant-for-a-subject-and-its-benchmark",
   },
@@ -5750,13 +5757,24 @@ export const BREAKS = [
       "correct `symbolReturn` was reported as reading only ONE leg. The " +
       "keys are therefore compared on the `asOf` expression — so " +
       "`{ asOf }` and `asOf` are one interval — and this break is what " +
-      "proves the normalisation did not also flatten `new Date()` into it.",
-    file: "apps/backend/src/index.ts",
-    find: "  const { figure, comparison, percentile } = readPriceAnomaly(",
+      "proves the normalisation did not also flatten `new Date()` into it.\n\n" +
+      "**Repointed 2026-11-19 (Task 7.2.4), and the plant changed shape with " +
+      "the code.** The subject's leg moved AGAIN — out of `readPriceAnomaly` " +
+      "in `index.ts` and into `peer-comparison.ts`, because " +
+      "`compare_securities` needs both legs and a second copy of the pair is " +
+      "the one defect this check exists for. So no shipped file now calls " +
+      "both `readPriceAnomaly` and `excessMoveFactor`, which leaves that " +
+      "check's own 2026-11-19 `PRODUCER_READ` arm with no live call site: it " +
+      "is kept because it is the shape `symbolReturn` would take again the " +
+      "day the subject's percentile and its excess are assembled together, " +
+      "and the arm this break now proves is the direct one, with the legs " +
+      "still swapped against its sibling.",
+    file: "apps/backend/src/peer-comparison.ts",
+    find: "  const subject = fiveMinuteReturn(sources.windowOf(symbol), { asOf });",
     replace:
+      "  const subject = fiveMinuteReturn(sources.windowOf(symbol), { asOf });\n" +
       "  // pnpm break: reverted automatically\n" +
-      "  void readPriceAnomaly(priceAnomalySources, symbol, new Date());\n" +
-      "  const { figure, comparison, percentile } = readPriceAnomaly(",
+      "  void fiveMinuteReturn(sources.windowOf(symbol), { asOf: new Date() });",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "one-instant-for-a-subject-and-its-benchmark",
   },
@@ -6866,5 +6884,45 @@ export const BREAKS = [
       "export interface RunnableTool {",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "a-tool-takes-no-channel-to-another-step",
+  },
+  // ## Task 7.2.4's, on the third `ToolOutcome` kind and the decoder that
+  // ## silently drops one it does not know
+  {
+    name: "a-fourth-tool-outcome-kind-the-decoder-ignores",
+    proves:
+      "`the-tool-outcome-decoder-branches-on-every-kind` goes red when the " +
+      "shared `ToolOutcome` union grows an arm the frontend's " +
+      "`readToolOutcome` whitelist does not handle.\n\n" +
+      "**The plant is the defect this task's own decision would have " +
+      "shipped.** `investigation-event.ts` duplicates the wire shape by " +
+      "deliberate decision (it describes JSON, not the domain), so `tsc -b` " +
+      "cannot see the drift — and the drift is silent in the worst " +
+      "direction: `readToolOutcome` answers `undefined` for a kind it does " +
+      "not know, `readInvestigationEvent` reports the WHOLE " +
+      "`TOOL_CALL_COMPLETED` event as `unreadable`, and " +
+      "`use-investigation.ts` drops an unreadable frame without a word. The " +
+      "step still completes on screen; its outcome is simply gone. Had this " +
+      "check not landed with the `inapplicable` arm, that is exactly what " +
+      "would have happened to the first inapplicable outcome this product " +
+      "ever produced, with every test green.\n\n" +
+      "**Nothing else sees it.** `pnpm test` passes: no frontend test " +
+      "furnishes a kind the decoder does not know, because the fixtures are " +
+      "written from the decoder. `pnpm e2e` passes: CI's store has zero " +
+      "bars, and in any case the checklist draws a step's status rather " +
+      "than its outcome (Task 7.1.4's own decision). And a reader sees a " +
+      "completed row either way.\n\n" +
+      "**The plant APPENDS a member and keeps the found line**, so the " +
+      "registry's own `find` survives its own break (2026-10-16): a " +
+      "substitution that deleted the declaration would go red twice, once " +
+      "from `every-break-can-still-land` about the break rather than from " +
+      "the check under test.",
+    file: "packages/shared/src/investigation.ts",
+    find: "export type ToolOutcome<T> =",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export type ToolOutcome<T> =\n" +
+      '  | { readonly kind: "deferred"; readonly until: string }',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-tool-outcome-decoder-branches-on-every-kind",
   },
 ];

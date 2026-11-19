@@ -100,6 +100,60 @@ describe("readInvestigationEvent", () => {
     expect(decoded.kind).toBe("event");
   });
 
+  it("decodes TOOL_CALL_COMPLETED with an inapplicable outcome, carrying `because`", () => {
+    // **Task 7.2.4, and the defect this test exists for.** `readToolOutcome`
+    // is a closed whitelist and an unhandled `kind` makes the WHOLE event
+    // `unreadable`, which `use-investigation.ts` then silently ignores — so
+    // before the branch existed, the first `inapplicable` outcome this
+    // product ever produced was dropped on the floor with every other test
+    // still green. `compare_securities` answers this for all fifteen
+    // landmark securities, on every store including CI's.
+    const decoded = readInvestigationEvent({
+      type: "TOOL_CALL_COMPLETED",
+      seq: 4,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 0,
+      outcome: { kind: "inapplicable", because: "is-benchmark" },
+    });
+
+    expect(decoded).toStrictEqual({
+      kind: "event",
+      event: {
+        type: "TOOL_CALL_COMPLETED",
+        seq: 4,
+        investigationId: "inv-1",
+        stepId: "step-1",
+        tool: "compare_securities",
+        durationMs: 0,
+        outcome: { kind: "inapplicable", because: "is-benchmark" },
+      },
+    });
+  });
+
+  it("refuses an inapplicable outcome that spells `reason` instead of `because`", () => {
+    // The field name is the decision (`packages/shared/src/investigation.ts`'s
+    // own `ToolOutcome` docblock): a frame that flattened the third kind onto
+    // a refusal's own field fails to decode here rather than reaching a
+    // reader as *unavailable*, which would invite them to wait for something
+    // that will never arrive.
+    const decoded = readInvestigationEvent({
+      type: "TOOL_CALL_COMPLETED",
+      seq: 4,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 0,
+      outcome: { kind: "inapplicable", reason: "is-benchmark" },
+    });
+
+    expect(decoded).toStrictEqual({
+      kind: "unreadable",
+      reason: "malformed TOOL_CALL_COMPLETED",
+    });
+  });
+
   it("decodes STEP_COMPLETED", () => {
     const decoded = readInvestigationEvent({
       type: "STEP_COMPLETED",

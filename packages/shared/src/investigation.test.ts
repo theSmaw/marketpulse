@@ -12,6 +12,10 @@ import type {
   Step,
   ToolOutcome,
 } from "./investigation.js";
+import {
+  EXCESS_FACTOR_REFUSALS,
+  EXCESS_MOVE_INAPPLICABILITIES,
+} from "./excess-move.js";
 import { PERCENTILE_REFUSALS } from "./return-baseline.js";
 import {
   INVESTIGATION_EVENT_TYPES,
@@ -20,6 +24,7 @@ import {
   STEP_STATUSES,
   STEP_STATUS_LABEL,
   TERMINAL_EVENT_TYPES,
+  TOOL_INAPPLICABILITIES,
   TOOL_NAMES,
   TOOL_REFUSALS,
   isTerminalEventType,
@@ -178,11 +183,21 @@ describe("Step", () => {
 });
 
 describe("ToolOutcome", () => {
-  it("has exactly two members, never a thrown third path", () => {
+  it("has exactly three members, never a thrown fourth path", () => {
+    // **Amended 2026-11-19 (Task 7.2.4): three, not two.** The property this
+    // test holds is unchanged and is the one that matters — every member is a
+    // VALUE a `TOOL_CALL_COMPLETED` event can carry, and a new one fails the
+    // build at the `never` below rather than reaching a surface unhandled.
+    // `inapplicable` is *the question does not arise*, which no backfill will
+    // ever turn into a figure; it is not a refusal and must not print as one.
     const ok: ToolOutcome<number> = { kind: "ok", value: 1 };
     const refused: ToolOutcome<number> = {
       kind: "refused",
       reason: "nothing-observed",
+    };
+    const inapplicable: ToolOutcome<number> = {
+      kind: "inapplicable",
+      because: "is-benchmark",
     };
 
     function present(outcome: ToolOutcome<number>): string {
@@ -191,8 +206,10 @@ describe("ToolOutcome", () => {
           return "ok";
         case "refused":
           return "refused";
+        case "inapplicable":
+          return "inapplicable";
         default: {
-          // Exhaustive: a third ToolOutcome member fails the build here.
+          // Exhaustive: a fourth ToolOutcome member fails the build here.
           const unhandled: never = outcome;
           return unhandled;
         }
@@ -201,6 +218,41 @@ describe("ToolOutcome", () => {
 
     expect(present(ok)).toBe("ok");
     expect(present(refused)).toBe("refused");
+    expect(present(inapplicable)).toBe("inapplicable");
+  });
+
+  it("names the inapplicable field `because`, never `reason`", () => {
+    // The field name is a decision rather than a spelling (Task 7.2.4): a
+    // handler reading `.reason` off a collapsed outcome does not compile, so
+    // *we will not answer yet* and *the question does not arise* cannot be
+    // read as one another by accident.
+    const inapplicable: ToolOutcome<number> = {
+      kind: "inapplicable",
+      because: "no-sector",
+    };
+    expect(Object.keys(inapplicable).sort()).toStrictEqual(["because", "kind"]);
+  });
+
+  it("TOOL_INAPPLICABILITIES shares no word with TOOL_REFUSALS", () => {
+    // The type-level half is `ToolRefusalsAndInapplicabilitiesAreDisjoint`;
+    // this is the runtime half over the two published lists, because a word
+    // carried by both would let a surface print either sentence for it with
+    // nothing saying which is right.
+    const refusals = new Set<string>(TOOL_REFUSALS);
+    expect(
+      TOOL_INAPPLICABILITIES.filter((word) => refusals.has(word)),
+    ).toStrictEqual([]);
+  });
+
+  it("TOOL_INAPPLICABILITIES carries every excess-move word plus the correlation one", () => {
+    // Task 7.2.4's own hand-off to Task 7.2.6: `no-sector`/`is-benchmark` are
+    // `excess-move.ts`'s, reused verbatim, and `is-the-market-proxy` is
+    // minted here for the correlation tool rather than in a module whose
+    // subject it is not.
+    expect([...TOOL_INAPPLICABILITIES]).toStrictEqual([
+      ...EXCESS_MOVE_INAPPLICABILITIES,
+      "is-the-market-proxy",
+    ]);
   });
 
   it("TOOL_REFUSALS distinguishes an unobserved security from an untracked one", () => {
@@ -224,6 +276,11 @@ describe("ToolOutcome", () => {
     // security on every store that exists. A third kind of claim rather
     // than a synonym: the figure exists and the history to rank it against
     // does not.
+    // Task 7.2.4 adds `EXCESS_FACTOR_REFUSALS`' own four remaining words,
+    // including the pair that must never merge: `split-discontinuity` is the
+    // SUBJECT's price break and `reference-split-discontinuity` is the
+    // BENCHMARK's, which refuse different securities and are repaired in
+    // different places.
     expect(TOOL_REFUSALS).toStrictEqual([
       "nothing-observed",
       "not-tracked",
@@ -232,19 +289,30 @@ describe("ToolOutcome", () => {
       "too-few-samples",
       "split-discontinuity",
       "no-distribution",
+      "reference-split-discontinuity",
+      "mixed-basis",
+      "no-subject-move",
+      "no-reference-move",
     ]);
     for (const refusal of PERCENTILE_REFUSALS) {
       expect(TOOL_REFUSALS).toContain(refusal);
     }
+    for (const refusal of EXCESS_FACTOR_REFUSALS) {
+      expect(TOOL_REFUSALS).toContain(refusal);
+    }
   });
 
-  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first two steps", () => {
+  it("TOOL_NAMES carries the snapshot tool and Story 7.2's first three steps", () => {
     expect(TOOL_NAMES).toStrictEqual([
       "get_security_snapshot",
       "calculate_return_percentile",
       // Task 7.2.3, and `EPIC.md`'s own order: price anomaly, then volume
       // anomaly.
       "calculate_volume_ratio",
+      // Task 7.2.4 — the peer comparison, third of five. Named for the
+      // arithmetic, not for the `Compare against sector benchmark` sentence
+      // the checklist draws.
+      "compare_securities",
     ]);
   });
 });
