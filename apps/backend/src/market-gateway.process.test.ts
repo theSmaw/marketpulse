@@ -28,6 +28,8 @@ import type {
 } from "@marketpulse/shared";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { MarketGateway, SymbolFigures } from "./market-gateway.js";
+import { createLatestOverviewPass } from "./latest-overview-pass.js";
+
 import type { OverviewPass } from "./market-overview.js";
 
 // **The hole Task 3.5.2's sweep found, closed here** (Task 3.5.4).
@@ -255,6 +257,14 @@ async function attach(
     corsOrigin: "http://localhost:5173",
   });
 
+  // **The holder, wired exactly as `index.ts` wires it** (Task 7.2.5): the
+  // producer records the pass it answers and the gateway reads the record.
+  // Furnishing the two halves from one place is what keeps these tests about
+  // the gateway's own behaviour rather than about a memo it no longer owns —
+  // and the retention they assert is the production retention, not a
+  // test-local one.
+  const passes = createLatestOverviewPass();
+
   const gateway = registerMarketGateway(app, {
     snapshot: () => snapshot,
     feedState:
@@ -262,7 +272,8 @@ async function attach(
       (() => ({ status: "live", feed: "iex", marketOpen: true })),
     // **Wrapped rather than furnished as a pass**, because every test here is
     // about what the gateway sends and the frame is what they furnish.
-    overview: () => passOf(overview()),
+    overview: () => passes.recordPass(passOf(overview())),
+    latestOverviewPass: passes.read,
     symbolReturn: seams.symbolReturn ?? (() => NOTHING_OBSERVED),
     // `exactOptionalPropertyTypes`: absent and `undefined` are different types.
     ...(wallNow === undefined ? {} : { wallNow }),
@@ -838,7 +849,7 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     expect(b.received.some((m) => m.type === "bars")).toBe(false);
   });
 
-  it("re-dates the arithmetic on every connect and NOT the observation", async () => {
+  it("re-dates the arithmetic on every applied batch and NOT the observation", async () => {
     // **Task 4.8.12's Done-when 2, over a socket rather than reasoned.** This
     // gateway reaches the producer on connect and at the foot of every
     // readable `subscribe` — a cold load of `/` pays three joins, counted off
@@ -860,6 +871,21 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
     // published here, so the two tabs below each pay their own join and
     // 4.8.12's Done-when 2 is asserted on the arm where it still applies.
     // The *count* of three paths is unchanged; two of them no longer compute.
+    //
+    // **Amended again 2026-11-19 by Task 7.2.5, and this time the arm the
+    // claim was asserted on is GONE rather than narrowed.** The retained pass
+    // moved beside the producer and the producer records **every** pass it
+    // computes, not only broadcast ones — so the cold-start connect that used
+    // to pay its own join now records it, and the second tab is served that
+    // record. Two tabs therefore read one `computedAt` **always**, which is
+    // asserted first below rather than lost: it is Task 4.7.3's own property
+    // reaching the one case it did not cover.
+    //
+    // Task 4.8.12's Done-when 2 — *the arithmetic is re-dated and the
+    // observation is not* — is unchanged and is asserted at its real, current
+    // boundary: across two applied **batches** rather than across two
+    // connects. That is also the boundary that matters for the defect it
+    // guards, because a stopped feed keeps delivering batches.
     const produce = (): WireMarketOverview => ({
       ...figures,
       computedAt: new Date().toISOString(),
@@ -882,8 +908,30 @@ describe("the overview frame, over a real socket (Task 4.2.4)", () => {
       return frame.overview;
     };
 
-    expect(instantOf(b).computedAt).not.toBe(instantOf(a).computedAt);
+    // **One `computedAt` for both tabs, now including the cold start.**
+    expect(instantOf(b).computedAt).toBe(instantOf(a).computedAt);
     expect(instantOf(b).observedAt).toBe(instantOf(a).observedAt);
+
+    // And the claim itself, across two applied batches. The producer stamps
+    // its own `computedAt` on each call, which is what `index.ts`'
+    // `marketOverview()` does with `new Date()`, while the observation behind
+    // it is fixed — so a sentence written from `computedAt` would date a
+    // stopped feed's figures to the minute the batch arrived.
+    a.received.length = 0;
+    a.gateway.publishObservations([
+      observation("2026-09-16T14:01:00Z", 214.75),
+    ]);
+    await a.waitFor("overview");
+    const firstBatch = instantOf(a);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    a.received.length = 0;
+    a.gateway.publishObservations([observation("2026-09-16T14:02:00Z", 215.1)]);
+    await a.waitFor("overview");
+    const secondBatch = instantOf(a);
+
+    expect(secondBatch.computedAt).not.toBe(firstBatch.computedAt);
+    expect(secondBatch.observedAt).toBe(firstBatch.observedAt);
   });
 
   it("does NOT ride the feed-state path", async () => {
@@ -1168,10 +1216,13 @@ describe("the join does not run with nobody attached (Task 4.8.11)", () => {
       corsOrigin: "http://localhost:5173",
     });
 
+    const passes = createLatestOverviewPass();
+
     const gateway = registerMarketGateway(app, {
       snapshot: () => new Map(),
       feedState: () => ({ status: "live", feed: "iex", marketOpen: true }),
-      overview: () => passOf(overview()),
+      overview: () => passes.recordPass(passOf(overview())),
+      latestOverviewPass: passes.read,
       symbolReturn: () => NOTHING_OBSERVED,
     });
 
