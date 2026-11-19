@@ -110,6 +110,11 @@ export const TOOL_NAMES = [
   // for the checklist sentence it draws (`Measure price anomaly`), which is a
   // separate field for a separate reader.
   "calculate_return_percentile",
+  // Story 7.2's volume-anomaly step (Task 7.2.3) — `volumeFactorAnswer()`
+  // read through the tool contract. Named for the figure it would carry
+  // rather than for the refusal it always answers: the name is the question
+  // asked, and the answer is `no-distribution` on every store that exists.
+  "calculate_volume_ratio",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -140,7 +145,19 @@ export type ToolName = (typeof TOOL_NAMES)[number];
  * vocabulary that lives in this package: a third member of
  * `PERCENTILE_REFUSALS` is a compile error here rather than a refusal a tool
  * cannot name. `ReturnRefusal` lives in the backend, so its own assertion
- * lives beside the tool that reads it (`tool-return-percentile.ts`). */
+ * lives beside the tool that reads it (`tool-return-percentile.ts`).
+ *
+ * **Widened again by Task 7.2.3, with one more word this product already
+ * owns.** `no-distribution` is `FACTOR_ANSWER_STATES`' own member, reused
+ * verbatim by `calculate_volume_ratio` — and it is a third kind of claim
+ * rather than a synonym for either word above it: `refused` is *we will not
+ * answer, a backfill may change it*, `inapplicable` is *the question does not
+ * arise*, and this is *the figure exists and the history to rank it against
+ * does not* — a fact about this product's stored aggregates
+ * (`0015_volume_baselines.sql` holds a median and a dispersion, never a
+ * distribution) rather than about any one security's coverage. The day a
+ * distribution is stored, the word leaves this list with the arm that
+ * produces it. */
 export const TOOL_REFUSALS = [
   "nothing-observed",
   "not-tracked",
@@ -148,6 +165,7 @@ export const TOOL_REFUSALS = [
   "no-basis",
   "too-few-samples",
   "split-discontinuity",
+  "no-distribution",
 ] as const;
 
 export type ToolRefusal = (typeof TOOL_REFUSALS)[number];

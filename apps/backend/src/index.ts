@@ -121,6 +121,10 @@ import {
   createReturnPercentileTool,
   toWireReturnPercentile,
 } from "./tool-return-percentile.js";
+import {
+  createVolumeRatioTool,
+  toWireVolumeRatio,
+} from "./tool-volume-ratio.js";
 import { readPriceAnomaly } from "./price-anomaly.js";
 
 import type { PriceAnomalySources } from "./price-anomaly.js";
@@ -408,6 +412,17 @@ const investigationTools = [
     }),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireReturnPercentile,
+  ),
+  // **Story 7.2's second of five — the volume-anomaly step** (Task 7.2.3),
+  // in the order `EPIC.md` names: price anomaly, volume anomaly, peer
+  // comparison, market breadth, correlation. It takes no sources at all,
+  // because `volumeFactorAnswer()` takes no argument: there is no stored
+  // distribution of this quantity for any security, so there is nothing to
+  // read and the step completes by refusing honestly on every machine.
+  toRunnableTool(
+    createVolumeRatioTool(),
+    (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
+    toWireVolumeRatio,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({
