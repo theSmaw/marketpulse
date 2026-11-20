@@ -52,10 +52,13 @@ import styles from "./InvestigationChecklist.module.css";
 // to this when the panel crossed 780px rather than catching it. Three
 // progressively tighter row treatments were measured (no row padding, a 4px
 // gap, micro type): the panel came down to 743px and the clearance stayed
-// negative in every arm. The answer is a design decision — its own region, a
-// collapsed summary below some width, or withdrawing the budget as a target
-// — and `docs/GAPS.md` carries the figures, the three candidates and the
-// owner. Nothing in this file was changed for it.
+// negative in every arm. **Decided 2026-11-20 by the Product Owner: the
+// 605px/390×780 fit-budget is WITHDRAWN as a target.** The shipped
+// `focusIsObscured` predicate's viewport-height exclusion is the real rule
+// going forward — an element at least as tall as the viewport is not
+// "obscured", because the browser will not scroll a target it already
+// considers in view. `docs/GAPS.md` carries the figures and the decision.
+// Nothing in this file was changed for it.
 //
 // `queued` = `Marker shape="dashed"` (its own existing meaning, "not yet"),
 // `running` = `Marker shape="ring"`, `completed` = `Icon name="check"`. The

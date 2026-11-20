@@ -375,6 +375,15 @@ between the fixed header and the fixed status bar by 168px, which means a
 keyboard user tabbing to it has its top edge hidden behind the header. That is
 **not** fixable by making the rows smaller — measured three ways — because the
 panel was already within 10px of the limit before this epic added anything to
-it. The next piece of work to land in that region (findings, Story 7.3) will
-have to answer it, and the choice between the three ways of answering it is the
-Product Owner's.
+it.
+
+**Both open questions were put to the Product Owner the same day and both are
+now decided.** The panel's 390px fit-budget is withdrawn as a target — the
+shipped keyboard-focus guard's own viewport-height rule is adopted as the real
+one instead, on the reasoning that this is Epic 7's foundational-engine story
+rather than a polish pass and that Story 7.3's findings column will grow this
+panel again regardless of any fix taken now; Story 7.3 inherits the adopted
+rule rather than re-opening the choice. And the correlation step's unmeasured
+database cost is left standing as the recorded `docs/GAPS.md` gap, owned by
+condition rather than taken now, since it is a performance characterization
+rather than a correctness question.

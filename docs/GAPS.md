@@ -6880,7 +6880,14 @@ region, and read `document.activeElement.getBoundingClientRect().top` against
 seconds, and it wants re-taking on a store WITH bars, where the region's own
 content is longer than the refusals measured here.
 
-**Owner: the first story that adds anything else to this region** — Story 7.3
-by intent (findings are the next thing to land in it, and they are taller than
-a checklist row), with the Product Owner owning which of the three answers is
-taken.
+**Decided 2026-11-20, same day, by the Product Owner: the third answer.** The
+605 px/390×780 fit-budget this component's own docblock has carried since
+Story 7.1 is withdrawn as a target; the shipped predicate's viewport-height
+exclusion (an element at least as tall as the viewport is not "obscured",
+because the browser will not scroll a target it already considers in view) is
+adopted as the real rule going forward, on the stated reasoning that this is
+Epic 7's foundational-engine story rather than a polish pass and that Story
+7.3's own findings column will grow this panel again regardless of any fix
+taken now. **Owner: the first story that adds anything else to this region**
+— Story 7.3 by intent, which inherits the adopted rule rather than re-opening
+the three-way choice.
