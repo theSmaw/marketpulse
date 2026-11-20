@@ -85,3 +85,23 @@ The evidence panel, finding cards, and click-to-focus interaction —
 `PRODUCT_SPEC.md` §8.2, Epic 8's by citation. Rejecting a finding (§34,
 needs a human-in-the-loop decision point this epic does not build).
 Persisting a finding past the process's own lifetime (Epic 12).
+
+## A constraint Story 7.2 measured for this story, 2026-11-20
+
+**Read AC 6 against the budget Story 7.2 actually left you, not the one its
+own text assumes.** By the time this story starts, `Abnormal-move
+indicators` is already **603 px before any press at all** at 390×780,
+against a 613 px scroll-padding box — the checklist's six rows alone,
+before this story adds a single claim or chip, already push the pressed
+panel to 781 px. Three progressively tighter row treatments were measured
+and none closed the gap; the Product Owner decided the same day to
+**withdraw the 605 px/390×780 fit-budget as a target** rather than chase
+it, adopting `search-keyboard.spec.ts`'s `focusIsObscured` predicate (an
+element at least as tall as the viewport is not "obscured") as the real
+rule. So **"no layout shift to the rows around it" in AC 6 cannot mean
+"stays inside the old budget"** — that budget no longer exists as a
+target, for this region, at 390 and 768. Measure AC 6 against the shipped
+predicate instead, and expect this story's own one-line claims to push the
+panel further past 780 px rather than toward it. `docs/GAPS.md` carries
+the figures and the decision; `InvestigationChecklist.tsx`'s own docblock
+is the live site.

@@ -566,6 +566,30 @@ there for ever, and no person has watched this feature against a deployed
 backend — `LIVE-REHEARSAL.md` carries no row for this epic yet, owed by
 Story 7.7.
 
+**Story 7.2 (The Five-Step Pipeline) shipped 2026-11-20, in seven tasks.**
+`Investigate` now runs the whole pipeline `EPIC.md`'s own exit criterion
+names — all **six** rows (the snapshot plus five new tools: price anomaly,
+volume anomaly, peer comparison against the sector benchmark, market
+breadth, and an on-demand correlation against `SPY`) painted at once on
+press rather than growing one at a time. `pnpm invariants` holds **93**.
+**Two of this story's eight acceptance criteria are honestly open rather
+than quietly met.** AC 2 (the volume-anomaly tool's refusal rendered as a
+distinct, named outcome) reaches the wire correctly and the decoder keeps
+the word, but the checklist itself still draws every outcome — `ok`,
+`refused`, `inapplicable` — as the same completed tick; a reader meets no
+visible difference, and the surface that would draw one is Story 7.3's by
+design. AC 7 (the full-pipeline performance re-measure) is a **five**-step
+figure, not six: the correlation tool is the only step that reads
+`market_bars`, and no machine anyone has run this story against has had a
+database reachable, so the sixth step has never completed anywhere. **A
+real, structural layout finding**: the checklist panel is **603 px before
+any press at all** against a 613 px scroll-padding box at 390×780, so no
+row treatment can fit it in that budget — the Product Owner withdrew the
+605 px/390×780 fit-budget as a target the same day, adopting the shipped
+keyboard-focus guard's viewport-height exclusion as the real rule, which
+Story 7.3 inherits rather than re-opening. `docs/GAPS.md` carries both
+gaps and the layout decision with figures.
+
 ### What a user can see today
 
 Five routes, a **one-row masthead** carrying the navigation and the market
