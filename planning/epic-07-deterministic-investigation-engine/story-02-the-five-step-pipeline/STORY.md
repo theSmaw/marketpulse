@@ -1,9 +1,16 @@
 # Story 7.2 — The Five-Step Pipeline
 
-**Status:** In progress — 2026-11-18. Decomposed into seven tasks at Gate 1
-(7.2.1–7.2.7) after four parallel shaping passes (business-analyst,
-technical-analyst, technical-architect, tester) plus one architect
-follow-up. See "Resolved at Gate 1" below for every decision taken.
+**Status:** All seven tasks complete — 2026-11-20, awaiting Gate 2
+acceptance. Decomposed into seven tasks at Gate 1 (7.2.1–7.2.7) after four
+parallel shaping passes (business-analyst, technical-analyst,
+technical-architect, tester) plus one architect follow-up — see "Resolved
+at Gate 1" below for every decision taken. **Two of the eight acceptance
+criteria are open rather than fully met, both routed and recorded rather
+than smoothed over**: AC 2 reaches the wire correctly but the checklist
+itself does not yet draw a step's outcome distinctly (Story 7.3's by
+design — `docs/GAPS.md`); AC 7's re-measure is a five-step figure, because
+no machine this story ran on has ever had a database reachable for the
+sixth (correlation) step (`docs/GAPS.md`, owned by condition).
 **Epic:** [Epic 7 — Deterministic Investigation Engine](../EPIC.md)
 **Depends on:** 7.1
 **Epic scope covered:** The return-percentile, volume-anomaly,
