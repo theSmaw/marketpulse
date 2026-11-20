@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { stubFetch } from "../fixtures/stub-fetch.js";
+import { INVESTIGATION_STEP_COUNT } from "./investigation-checklist-state.js";
 import {
   CONNECTION_LOST_SENTENCE,
   useInvestigation,
@@ -101,7 +102,7 @@ const INVESTIGATION_COMPLETED = {
 };
 
 describe("useInvestigation", () => {
-  it("paints a queued row in the SAME commit as start(), before any fetch resolves", () => {
+  it("paints every queued row in the SAME commit as start(), before any fetch resolves", () => {
     stubFetch(() => new Promise(() => undefined)); // never resolves in this test
 
     const { result } = renderHook(() => useInvestigation("NVDA"));
@@ -112,11 +113,15 @@ describe("useInvestigation", () => {
     });
 
     // Done-when 3: client-optimistic, measured — no `await` happened above.
-    expect(result.current.checklist?.steps).toHaveLength(1);
-    expect(result.current.checklist?.steps[0]).toMatchObject({
-      id: undefined,
-      status: "queued",
-    });
+    // **All six rows, not one** (Task 7.2.7): the pipeline's length is a
+    // fixed, known list, so the checklist's height is settled in this same
+    // commit rather than six commits later.
+    expect(result.current.checklist?.steps).toHaveLength(
+      INVESTIGATION_STEP_COUNT,
+    );
+    for (const step of result.current.checklist?.steps ?? []) {
+      expect(step).toMatchObject({ id: undefined, status: "queued" });
+    }
   });
 
   it("reaches completed with the real duration, for a run under the 160ms threshold", async () => {
@@ -157,6 +162,68 @@ describe("useInvestigation", () => {
     // half.
     expect(result.current.pastCoverThreshold).toBe(false);
     expect(result.current.announcement).toBe("Measure move complete, 5 ms");
+  });
+
+  it("announces the step the run is AT, not the first row — a two-step run", async () => {
+    // Task 7.2.7: with six seeded rows, `steps[0]` is the row that finished
+    // FIRST, so a live region keyed on it would report a step that ended
+    // four steps ago as the run's own outcome.
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(STEP_STARTED);
+      stream.push(stepCompleted(5));
+      stream.push({
+        type: "STEP_STARTED",
+        seq: 4,
+        investigationId: "inv-1",
+        stepId: "step-2",
+        description: "Measure price anomaly",
+        tool: "calculate_return_percentile",
+        startedAt: "2026-11-16T14:00:00.005Z",
+      });
+      stream.push({
+        type: "STEP_COMPLETED",
+        seq: 5,
+        investigationId: "inv-1",
+        stepId: "step-2",
+        status: "completed",
+        durationMs: 7,
+      });
+      stream.push(INVESTIGATION_COMPLETED);
+      stream.end();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.terminal).toBe(true);
+    });
+
+    expect(result.current.checklist?.steps[0]).toMatchObject({
+      description: "Measure move",
+      durationMs: 5,
+    });
+    expect(result.current.checklist?.steps[1]).toMatchObject({
+      description: "Measure price anomaly",
+      durationMs: 7,
+    });
+    expect(result.current.announcement).toBe(
+      "Measure price anomaly complete, 7 ms",
+    );
   });
 
   it("crosses the 160ms cover threshold on a slower run, and the live region says so before completion", async () => {

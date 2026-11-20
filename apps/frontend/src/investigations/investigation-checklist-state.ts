@@ -49,15 +49,44 @@ const PLACEHOLDER_STEP: ChecklistStepView = {
 };
 
 /**
+ * How many rows the checklist paints on press, before any network response —
+ * the number of tools `index.ts`' own `investigationTools` runs (Task 7.2.7).
+ *
+ * **A COUNT and not the descriptions, deliberately.** Each step's sentence is
+ * declared once, in the tool that owns it (`tool-return-percentile.ts`'s
+ * `description: "Measure price anomaly"`, and five more beside it), and
+ * arrives here on that step's own `STEP_STARTED`. Seeding the labels too
+ * would put six strings in a second home on the other side of the wire, where
+ * nothing could tell a stale copy from a current one; seeding the COUNT puts
+ * one number there, and `pnpm invariants`' `the-checklist-seeds-one-row-per-
+ * tool` fails the build when it disagrees with the pipeline's own length. A
+ * seeded row therefore holds reserved room rather than a guessed sentence —
+ * the same treatment the single placeholder row has had since Task 7.1.4,
+ * now six deep instead of one.
+ *
+ * **Why the count matters at all**: a checklist that grows from one row to six
+ * as the events land moves everything beneath it six times, inside a panel
+ * Story 7.1 measured at 601px against a 605px budget at 390×780. The rows are
+ * a fixed, known list — the pipeline is not model-driven until Epic 10 — so
+ * there is nothing to discover here at run time.
+ */
+export const INVESTIGATION_STEP_COUNT = 6;
+
+/**
  * The checklist's first paint, before any network response — Done-when 3's
- * own requirement: a reader presses `Investigate` and sees a queued row in
- * the same frame, not after a round trip.
+ * own requirement: a reader presses `Investigate` and sees the whole queued
+ * checklist in the same frame, not after a round trip, and not one row that
+ * grows into six (Story 7.2's own Gate 1 decision, and `PRODUCT_SPEC.md`
+ * §14's own example shape, which draws every row at once with some complete
+ * and some pending).
  */
 export function optimisticChecklist(symbol: string): ChecklistState {
   return {
     symbol,
     investigationId: undefined,
-    steps: [PLACEHOLDER_STEP],
+    steps: Array.from({ length: INVESTIGATION_STEP_COUNT }, () => ({
+      ...PLACEHOLDER_STEP,
+    })),
     terminal: false,
     connectionLost: false,
   };
@@ -77,9 +106,14 @@ function updateStep(
   stepId: string,
   update: (step: ChecklistStepView) => ChecklistStepView,
 ): readonly ChecklistStepView[] {
-  // The placeholder (no `id` yet) is the one step a real `stepId` can
-  // legitimately replace rather than merely update — everything after the
-  // first real event matches by id.
+  // A seeded placeholder (no `id` yet) is what a real `stepId` first
+  // replaces rather than merely updates; everything after that step's own
+  // `STEP_STARTED` matches by id. The two clauses are ordered, and that
+  // order is what makes six seeded rows fill left-to-right: a step the
+  // pipeline has already named is found by its id wherever it sits, and a
+  // step arriving for the first time takes the EARLIEST row still holding
+  // room, which under a sequential orchestrator (Story 7.2's own Gate 1
+  // decision) is the next one down.
   const index = steps.findIndex(
     (step) => step.id === stepId || step.id === undefined,
   );
@@ -103,7 +137,7 @@ export function applyInvestigationEvent(
 ): ChecklistState {
   switch (event.type) {
     case "INVESTIGATION_STARTED":
-      // The steps stay the placeholder a moment longer — this event's own
+      // The steps stay the seeded placeholders a moment longer — this event's own
       // decoded shape carries only `id`/`title`/`subjectSymbols` (see
       // `investigation-event.ts`), and the real step arrives on its own
       // `STEP_STARTED`, which always follows in the same stream.

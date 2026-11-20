@@ -6685,6 +6685,24 @@ condition is that story's own opening of `LIVE-REHEARSAL.md`'s first row for
 this epic, which Epic 3's and Epic 4's own close stories each did for
 themselves rather than deferring to a later epic.
 
+**Widened 2026-11-20 by Task 7.2.7, and the subject is now a six-step run
+rather than a one-step one — the entry is amended rather than copied, because
+it is one fact with one home.** `PRODUCT_SPEC.md` §28 carries the re-take
+(press → all six rows painted p50 13.5 ms; press → five rows complete p50
+32.0 ms, n=20, 1440×900), and three things about it are worse than the figure
+above rather than better. The machine it was taken on had **no database
+reachable at all**, so the sixth step — `calculate_rolling_correlation`, the
+one tool in the pipeline that reads `market_bars` — threw instead of
+completing and the run ended `failed`: the distribution is five in-memory
+tools, and the whole-pipeline figure this story's AC 7 asked for does not
+exist on any machine. **Nobody has watched a five-step run anywhere** — not
+deployed, not against a real session, and not on a store with bars; the only
+checklists any person has ever seen complete are a one-step run (Story 7.1)
+and this task's own five-of-six refusals. And `LIVE-REHEARSAL.md` still
+carries **no row at all for Epic 7**, which this task deliberately did not
+open: Story 7.7 owns that ledger, and a row opened by a task that cannot
+produce a sitting would be a row that looks taken.
+
 ## No reader has ever seen a step's own outcome — an inapplicable or a refused step draws the same checkmark as a figure
 
 **Added 2026-11-19 by Task 7.2.4**, which is the first task to produce an
@@ -6723,3 +6741,153 @@ byte-identical today.
 intent (findings), though the condition is deliberately the surface rather than
 the story number, because a step's outcome word could equally arrive on the
 checklist row itself before a finding exists.
+
+## Four of the pipeline's six steps can never draw a figure on a gated machine, and the fifth draws an `ok` whose every count is zero
+
+**Added 2026-11-20 by Task 7.2.7**, as the pipeline's own completion made the
+shape of this visible for the first time: with six steps rather than one, it is
+no longer "the tool refuses on CI" but a property of the whole investigation.
+On a gated run (CI: 516 securities, zero bars, `provider=none`, no live socket
+and no composite generation):
+
+- `get_security_snapshot` — `refused: nothing-observed`, for every tracked
+  security, permanently. Story 7.1 recorded this.
+- `calculate_return_percentile` — `refused`, always: the numerator is a
+  5-minute return out of a process-memory trailing window fed by a live
+  socket, and the baseline is a nightly table nothing generates there.
+- `calculate_volume_ratio` — `refused: no-distribution`, on **every** machine
+  that exists, by design (`0015` stores a median and a dispersion, not a
+  distribution). The one step whose gated answer is also its deployed answer.
+- `compare_securities` — `refused`, always, for the same reason as the price
+  step: both legs come out of the same trailing window.
+- `calculate_rolling_correlation` — `refused`, always: two `market_bars` reads
+  over a store with no bars give an overlap of zero.
+- `get_market_breadth` — **`ok`**, and this is the subtle one. A browser
+  attaching makes the gateway compute a pass, so the tool reads a real
+  aggregate and answers `ok` — with every count zero and `observedAt` absent,
+  because nothing has been observed. It is a correct `ok` about an empty
+  market, and it is the only `ok` any gated machine has ever produced in this
+  pipeline.
+
+**Why it is not mechanisable**: it is not a defect to fix, it is what the
+store is. Every one of those refusals is the honest answer on that machine, and
+`security-investigate.spec.ts` is written to be insensitive to which arm a tool
+reaches for exactly that reason — it asserts the pipeline ran, never a figure.
+What no check can do is tell anybody whether an investigation that **answers**
+reads well, because no gated machine can produce one.
+
+**Re-measure**: press `Investigate` on `/securities/NVDA` against a store with
+bars, during a session (the price, peer and correlation steps all need a live
+trailing window; the correlation step needs only stored closes), and read which
+of the six draw a figure. On a laptop out of hours, expect the correlation step
+alone to reach `ok`.
+
+**Owner: the first sitting that watches an investigation against a real
+session** — `LIVE-REHEARSAL.md`'s first Epic 7 row, Story 7.7's to open.
+
+## The correlation tool's two database reads have never been timed, on any machine, and they are a named §28 breach candidate on the deployed tier
+
+**Added 2026-11-20 by Task 7.2.7**, and it is the one figure this task's own
+AC 7 set out to take and could not. `calculate_rolling_correlation` is the only
+tool in the six-step pipeline that touches PostgreSQL: two per-security window
+reads (the subject and `SPY`) through `readWindowCloses`, the same read the
+nightly baseline pass issues 516 times and whose own docblock records that it
+was budgeted **for a GitHub runner, not for a 0.25 vCPU container**. Every
+figure in `PRODUCT_SPEC.md` §28's investigation amendment is therefore a
+five-step figure: the sixth step threw on the machine the measurement was taken
+on (no database at all), and nothing anywhere has ever timed it against bars.
+
+**What makes it a breach candidate rather than a worry.** §28's own target is
+<500 ms to visible feedback, which the client-seeded first paint settles at
+13.5 ms whatever the tools do — so the risk is not the target as worded. It is
+the two unmeasured reads landing on the tier `HOSTING.md` describes at **10
+MiB/s** of disk, inside a request a reader is watching, where the laptop figure
+for one such read is **11.78 s warm / 20.67 s cold for the whole universe**
+(Story 5.3) and the per-security share of that has never been isolated. A
+single investigation issues two of them, on demand, per press.
+
+**Why it is not mechanisable**: `pnpm verify` has no database by design and
+CI's store has no bars, so no gate can produce a read with rows in it. A
+deployed timing needs a deployed backend and a press.
+
+**Re-measure**: on a populated local store, press `Investigate` and read the
+correlation step's own `durationMs` off the checklist (it is on the wire
+already, free); then take the same figure against the deployed backend. Both
+arms want n ≥ 20 and the cold/warm distinction stated, because the first read
+after a deploy pays for a cold heap.
+
+**Owner: the first task that presses `Investigate` against a store with bars**
+— deliberately the condition rather than a story number, because it is
+answerable in thirty seconds by anybody with a populated store and is owed
+before Story 7.7 reports this epic's figures.
+
+## `Abnormal-move indicators` is taller than the 390×780 scroll-padding box with ANY checklist in it, and the guard that would have caught it goes blind above the viewport height
+
+**Added 2026-11-20 by Task 7.2.7**, which went looking for the 4px of headroom
+Story 7.1 measured and found it gone — not by 4px, by 168. Measured against
+this developer's running pair (no database, so the region draws its refusal
+sentences; a populated store may differ, which is itself part of the gap):
+
+```text
+viewport   panel unpressed   panel with the checklist   scroll-padding box
+1440x780        603 px               763 px                  690 px
+1024x780        603 px               763 px                  690 px
+ 768x780        603 px               781 px                  670 px
+ 390x780        603 px               781 px                  613 px
+```
+
+**The region's own ADR-0039 tab stop lands behind the masthead at 390**: its
+top edge is at **10 px** against a 94 px chrome, a clearance of **−88 px**.
+Three things make this worth an entry rather than a fix in that task.
+
+**It is not the checklist's doing, and no row treatment reaches it.** The
+UNPRESSED panel is already 603 px against a 613 px box, so the first row of
+anything (26 px plus a 12 px separator) overflows it. Measured by injecting
+three progressively tighter row treatments — no row padding, then a 4 px gap,
+then micro type — the panel came down 781 → 781 → 761 → 743 px and the
+clearance moved −88 → −88 → −78 → −69 px. **Negative in every arm.** Fitting a
+checklist at 390 needs the panel under ~613 px, which is 150+ px of a region
+that was 603 px before this epic touched it.
+
+**The shipped guard cannot see it, and it got blind as the panel got worse.**
+`search-keyboard.spec.ts`' `focusIsObscured` excludes an element at least as
+tall as the viewport — a deliberate measurement, argued in its own docblock
+(the browser does not scroll a target it already considers in view, so nothing
+about it is obscured) — and the panel crossed 780 px at 768 and 390 when the
+fifth tool landed. At 1440 and 1024 it is 763 px, inside the predicate's
+reach, with a clearance of exactly **0 px**. So the 1440 arm passes by nothing
+at all and the two narrow arms pass by being excluded.
+
+**And by that predicate the walk is clean**: 13 stops at each of the four
+widths, **0 obscured**, every button and field clear by 13–606 px. Nothing
+here is a WCAG 2.4.11 failure — the focused region is partially visible, not
+hidden — which is why this is a gap rather than a defect, and why the repair is
+a design decision rather than an arithmetic one.
+
+**Why it is not mechanisable**: the one mechanism that could hold it is a
+height ceiling on the region, and nobody has decided what the region should do
+when its content exceeds one. The three candidate answers are all product
+decisions — the checklist moves into its own region on this page (a second tab
+stop, and a collision with Story 7.6's `Current investigations`), the checklist
+collapses to a summary line below some width (the topology legend's own
+precedent), or the budget is withdrawn as a target and the predicate's
+viewport-height exclusion is adopted as the real rule.
+
+**Re-measure**: with a pair running, press `Investigate` on `/securities/NVDA`
+at 390×780, Tab from the page heading to the `Abnormal-move indicators`
+region, and read `document.activeElement.getBoundingClientRect().top` against
+`document.querySelector("header").getBoundingClientRect().bottom`. Thirty
+seconds, and it wants re-taking on a store WITH bars, where the region's own
+content is longer than the refusals measured here.
+
+**Decided 2026-11-20, same day, by the Product Owner: the third answer.** The
+605 px/390×780 fit-budget this component's own docblock has carried since
+Story 7.1 is withdrawn as a target; the shipped predicate's viewport-height
+exclusion (an element at least as tall as the viewport is not "obscured",
+because the browser will not scroll a target it already considers in view) is
+adopted as the real rule going forward, on the stated reasoning that this is
+Epic 7's foundational-engine story rather than a polish pass and that Story
+7.3's own findings column will grow this panel again regardless of any fix
+taken now. **Owner: the first story that adds anything else to this region**
+— Story 7.3 by intent, which inherits the adopted rule rather than re-opening
+the three-way choice.

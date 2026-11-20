@@ -43,6 +43,24 @@ reason and drawn by nothing. And the SSE stream carries a **keepalive
 comment** on an 80-second interval, which §9 records in full. Everything
 else in this section is unchanged: still one tool, one path, one surface.
 
+**Amended 2026-11-20 (Story 7.2 complete, Task 7.2.7): _one tool_ is now
+SIX, and the first sentence of this document is the one that changed.** A
+reader on `/securities/NVDA` presses `Investigate` and meets **all six rows
+at once** — the snapshot plus `EPIC.md`'s five named steps, in its order:
+`Measure move`, `Measure price anomaly`, `Measure volume anomaly`,
+`Compare against sector benchmark`, `Calculate market breadth`, `Compare
+against the broad market` — each ticking from queued to running to complete
+with its own real tool, status and measured duration. §10 is this story's
+own account. What is still true, verbatim: no `Finding` or `Evidence` on
+screen (Story 7.3), no cancellation that does anything, no reader-facing
+sentence for a failure (Story 7.5), no landing-page region (Story 7.6), no
+persistence past a restart (Epic 12). And one sentence is now **weaker**
+than it was: _proved end to end against this product's own live-data
+store_ was true of one tool reading process memory; four of the six can
+only draw a figure on a store with bars during a session, and one of them
+can never draw one on any store that exists — `docs/GAPS.md` carries the
+step-by-step table.
+
 ## 1. The domain model, and what is reachable from this story alone
 
 `Investigation` and `Step` are **two separate status vocabularies**
@@ -248,6 +266,28 @@ furnished: this story's real tool against the real `current-market-state.ts`,
 not a fixture. No deployed or real-network re-take exists yet.
 `PRODUCT_SPEC.md` §28 carries the dated amendment.
 
+**AC 7 — the same two figures re-taken against the SIX-step pipeline, 2026-11-20
+(Task 7.2.7).** Same method, 20 presses each after a reload, 1440×900:
+
+```text
+press → all six rows painted:                     p50 13.5 ms  p95 15.7 ms  max 15.9 ms  min 11.1 ms
+press → five rows rendered complete:              p50 32.0 ms  p95 39.4 ms  max 42.1 ms  min 25.1 ms
+each step's own wire durationMs:                  0–1 ms
+```
+
+**Three things in that are more interesting than the quantiles.** The first
+paint is now a **six-row** paint rather than a one-row paint, which is the whole
+of 8.6 → 13.5 ms. The five completions land in **one `requestAnimationFrame`
+tick** — the per-k quantiles for 1, 2, 3, 4 and 5 completed rows are
+**identical**, so this is the whole run arriving inside a single frame rather
+than five separable arrivals, and a six-step pipeline is therefore not five
+times a one-step one in any observable way. And the figure is **five steps, not
+six**: the machine had no database reachable, so `calculate_rolling_correlation`
+threw and the run ended `failed` — this is a floor (_how fast can five
+in-memory tools answer_), the step that reads `market_bars` is absent from it,
+and `docs/GAPS.md` carries that as a named §28 breach candidate with its own
+owner. Still loopback, still one laptop.
+
 ## 8. What no gated machine and no person has ever seen
 
 **CI's store is 516 securities and zero bars**, so `get_security_snapshot`
@@ -257,6 +297,18 @@ never been drawn by CI. The e2e suite's own `security-investigate.spec.ts`
 runs against a developer's real, populated store for exactly this reason,
 the same split `CLAUDE.md` already states for every chart on the security
 page.
+
+**Widened 2026-11-20 (Task 7.2.7): it is now four steps that can never draw
+a figure on a gated machine, one that can never draw one anywhere, and one
+`ok` whose every count is zero.** CI's store makes the price, peer and
+correlation steps refuse permanently (a process-memory trailing window with no
+socket, and two reads over a store with no bars); `calculate_volume_ratio`
+refuses on **every** machine that exists, by design; and
+`get_market_breadth` answers **`ok`** — a real aggregate, with every count
+zero and no `observedAt`, because a browser attaching makes the gateway
+compute a pass over a market nothing has been heard from. It is the only `ok`
+any gated machine has ever produced in this pipeline. `docs/GAPS.md` carries
+the step-by-step table and the re-measure.
 
 **No person has watched this feature work against a real, deployed
 backend.** Every figure in §7 and every manual verification this story
@@ -308,3 +360,102 @@ story and carried forward.
   epic's close rather than at its first story — here it is named at the
   first story specifically so the ledger exists before six more tools are
   built against the same pipe.
+- **The checklist does not fit the region it lives in, at 390 or 768.**
+  Added 2026-11-20 by Task 7.2.7, measured rather than argued: the
+  `Abnormal-move indicators` panel is **603 px before any press** against a
+  **613 px** scroll-padding box at 390×780, so the first row of anything
+  overflows it, and with six rows it is **781 px** and its own ADR-0039 tab
+  stop lands **88 px behind the masthead**. No row treatment reaches it
+  (three progressively tighter ones were measured; the clearance stayed
+  negative in all of them), and `search-keyboard.spec.ts`' own predicate
+  cannot see it, because it excludes an element at least as tall as the
+  viewport — deliberately, and the panel crossed 780 px when the fifth tool
+  landed. `docs/GAPS.md` carries the figures, the three candidate answers
+  and why none of them is this task's to take. Owner: **the first story
+  that adds anything else to this region** — Story 7.3 by intent, with the
+  Product Owner owning which answer.
+- **What the correlation step costs with rows in it.** Added 2026-11-20 by
+  Task 7.2.7. It is the one tool in the pipeline that reads a database, two
+  per-security window reads per press, and it has never been timed on any
+  machine: §7's own re-take was taken against a backend with no database
+  reachable, where that step threw. `docs/GAPS.md` carries it as a named
+  §28 breach candidate on the deployed tier, with the condition that
+  closes it. Owner: **the first task that presses `Investigate` against a
+  store with bars.**
+
+## 10. Story 7.2 — the five-step pipeline, and the three things in it that were not tools
+
+**The story's own subject is `EPIC.md`'s exit criterion verbatim**: the five
+analytical tools, wired into the one orchestrator Story 7.1 proved. Each
+tool is documented in its own task file (7.2.2–7.2.6) and each wraps
+arithmetic this product already had, rather than new arithmetic — except
+the correlation step, which is this story's one new computation
+(on-demand, `SPY`, derived from `context.asOf` rather than from a
+ledger's covered end, so it stays isolated under Epic 13's eventual
+replay). `STORY.md`'s "Resolved at Gate 1" section is the decision record
+for all of it, including **AC 3's reuse decision at the code level** —
+which functions of Story 6.5's nightly correlation pipeline this tool
+reuses unchanged, and which two are actively wrong for one pair. That
+decision is recorded there and deliberately not restated here.
+
+Three things this story produced are not a tool and outlive it.
+
+**The shared aggregate has one writer and one holder.** The breadth tool
+reads the overview aggregate rather than recomputing one, which is ADR
+0038's own named trigger — _the first consumer of the aggregate that is
+not a browser_ — firing exactly as `EPIC.md` anticipated. The single
+producer's latest pass is retained in a small holder beside
+`currentMarketState` in `index.ts`, **not** inside `market-gateway.ts`,
+whose own rule is that it decides when a browser is told something and
+never what is true; the gateway's `lastBroadcastPass` became a read of
+that one holder rather than a second memo of the same fact, and the holder
+records **every** pass the producer computes rather than only broadcast
+ones. Where nothing has been computed — CI with no browser attached, a
+cold deploy's first ~46 s — the step completes with its own distinct
+refusal (`no-aggregate-yet`) rather than a recomputed join, which is
+exactly the call shape Epic 13's replay has to refuse. Two guards hold it:
+`one-writer-of-the-latest-overview-pass` and the pre-existing
+`one-producer-of-the-overview-aggregate`. ADR 0038 carries the dated
+amendment; Task 7.2.5 carries the detail, including that the check's first
+draft was red on the desired state and the repair was to name the
+holder's method for the check rather than teach the check an exemption.
+
+**The checklist paints every row on press, and one number crosses the wire
+by hand to make that possible.** `optimisticChecklist` seeds
+`INVESTIGATION_STEP_COUNT` rows in the same commit as the press — Story
+7.2's own Gate 1 decision, and `PRODUCT_SPEC.md` §14's own example shape,
+which draws the whole checklist at once with some rows complete and some
+pending. **A count and not the sentences**: each step's description has one
+home, the tool that declares it, and arrives on that step's own
+`STEP_STARTED`; what a client cannot learn from the wire in time to paint
+the first frame is how many rows there will be. So one number is
+duplicated, and `the-checklist-seeds-one-row-per-tool` fails the build when
+it disagrees with the number of `toRunnableTool(` calls in
+`investigationTools` — with the break `a-seventh-tool-the-checklist-never-paints`
+behind it, which plants the defect the NEXT story writes rather than this
+one's. A seeded row holds reserved room rather than a guessed sentence,
+which is the same treatment the single placeholder row has had since Task
+7.1.4.
+
+**Two consequences of six rows that one row hid.** The live region was
+keyed on `steps[0]`, which was the only row there was; with six it would
+have reported the step that finished FIRST as the run's own outcome, so it
+now reads the step the run is actually at — whichever is `running` while it
+runs, and the **last completed** step once the investigation is terminal
+(the last completed rather than the last row, because a run that ends
+early leaves seeded rows holding room and keying on those would answer
+with silence where something did happen). And the 160 ms breathing latch
+asks whether ANY row is running rather than the first. Both are
+`use-investigation.ts`, both have a test, and the second is why an
+ordinary six-step run still never breathes: the whole pipeline completes
+inside one frame on a loopback machine.
+
+**And a row now publishes its own status as `data-step`.** A checklist row
+carries no role and no accessible name — it is three `<p>`s in a flex line
+— so with six of them a browser spec had nothing to count and nothing to
+scope a per-step assertion to. `security-investigate.spec.ts` asserts the
+six rows painted on press (the first-paint claim, which no unit level can
+see), each step's duration **inside its own row**, and the rendered order
+against the pipeline's; the attribute is read by no stylesheet, because the
+glyph is the visible encoding and a second home for that would be two
+things to keep in step.

@@ -89,11 +89,113 @@ const dropped: ChecklistState = {
   connectionLost: true,
 };
 
+/**
+ * **The whole pipeline, mid-run — Task 7.2.7's own subject.** Six rows, which
+ * is what a reader meets from the first frame after a press: `optimisticChecklist`
+ * seeds `INVESTIGATION_STEP_COUNT` rows rather than one that grows into six, so
+ * the checklist's HEIGHT is settled before any response arrives.
+ *
+ * The sentences below are the six tools' own `description`s copied for a
+ * workshop illustration; each one's single home is the tool that declares it
+ * (`tool-return-percentile.ts` and five beside it), and nothing reads this
+ * story — a sentence that changes there and not here makes a story look dated,
+ * never the product wrong.
+ */
+const wholePipeline: ChecklistState = {
+  symbol: "NVDA",
+  investigationId: "inv-1",
+  steps: [
+    {
+      id: "step-1",
+      description: "Measure move",
+      status: "completed",
+      startedAt: "2026-11-20T14:00:00.000Z",
+      completedAt: "2026-11-20T14:00:00.001Z",
+      durationMs: 1,
+    },
+    {
+      id: "step-2",
+      description: "Measure price anomaly",
+      status: "completed",
+      startedAt: "2026-11-20T14:00:00.001Z",
+      completedAt: "2026-11-20T14:00:00.001Z",
+      durationMs: 0,
+    },
+    {
+      id: "step-3",
+      description: "Measure volume anomaly",
+      status: "completed",
+      startedAt: "2026-11-20T14:00:00.001Z",
+      completedAt: "2026-11-20T14:00:00.001Z",
+      durationMs: 0,
+    },
+    {
+      id: "step-4",
+      description: "Compare against sector benchmark",
+      status: "completed",
+      startedAt: "2026-11-20T14:00:00.001Z",
+      completedAt: "2026-11-20T14:00:00.002Z",
+      durationMs: 1,
+    },
+    {
+      id: "step-5",
+      description: "Calculate market breadth",
+      status: "running",
+      startedAt: "2026-11-20T14:00:00.002Z",
+      completedAt: undefined,
+      durationMs: undefined,
+    },
+    {
+      id: undefined,
+      description: undefined,
+      status: "queued",
+      startedAt: undefined,
+      completedAt: undefined,
+      durationMs: undefined,
+    },
+  ],
+  terminal: false,
+  connectionLost: false,
+};
+
+/** The same six rows as a reader meets them in the FIRST frame after the
+ * press — every one queued, every one holding room for a sentence that has
+ * not arrived yet. */
+const wholePipelineQueued: ChecklistState = {
+  ...wholePipeline,
+  investigationId: undefined,
+  steps: wholePipeline.steps.map(() => ({
+    id: undefined,
+    description: undefined,
+    status: "queued",
+    startedAt: undefined,
+    completedAt: undefined,
+    durationMs: undefined,
+  })),
+};
+
 export const Queued: Story = {
   args: {
     checklist: queued,
     announcement: "",
     pastCoverThreshold: false,
+  },
+};
+/** First paint, all six rows — Task 7.2.7's Done-when 1. */
+export const SeededOnPress: Story = {
+  args: {
+    checklist: wholePipelineQueued,
+    announcement: "",
+    pastCoverThreshold: false,
+  },
+};
+/** Four complete, one running, one still queued — `PRODUCT_SPEC.md` §14's
+ * own example shape, which draws the whole checklist at once. */
+export const WholePipeline: Story = {
+  args: {
+    checklist: wholePipeline,
+    announcement: "Calculate market breadth running",
+    pastCoverThreshold: true,
   },
 };
 // Running, UNDER the 160 ms cover threshold — a static ring, no breathing.

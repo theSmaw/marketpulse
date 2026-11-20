@@ -64,6 +64,20 @@ function startedAnnouncement(step: ChecklistStepView): string {
  * render time rather than through an effect, because none of it needs a
  * clock. Only `runningAnnounced` itself does, which is why it is the one
  * piece of state `useInvestigation` manages with a timer.
+ *
+ * **Reads the step the run is actually AT, not `steps[0]` (Task 7.2.7).**
+ * With one step those were the same row and the distinction did not exist;
+ * with six, `steps[0]` is the row that finished first, so a terminal
+ * investigation would have announced the completion of a step that ended
+ * five steps ago. What a listener gets instead is the pipeline's own
+ * progress: the sentence of whichever step is `running` while it runs, and
+ * the last COMPLETED step's own once the run is terminal.
+ *
+ * **The last completed step rather than the last ROW**, because the two
+ * differ in exactly the case that matters: a run that ends without reaching
+ * its final step leaves seeded rows still holding room, and keying on the
+ * last row would answer that with silence — the one outcome a live region
+ * must never produce where something did happen.
  */
 function liveRegionText(
   checklist: ChecklistState | undefined,
@@ -72,12 +86,17 @@ function liveRegionText(
   if (checklist === undefined) return "";
   if (checklist.connectionLost) return CONNECTION_LOST_SENTENCE;
 
-  const step = checklist.steps[0];
-  if (checklist.terminal && step?.status === "completed") {
-    return completionAnnouncement(step);
+  if (checklist.terminal) {
+    const lastCompleted = checklist.steps.findLast(
+      (step) => step.status === "completed",
+    );
+    return lastCompleted === undefined
+      ? ""
+      : completionAnnouncement(lastCompleted);
   }
-  if (runningAnnounced && step !== undefined) {
-    return startedAnnouncement(step);
+  const runningStep = checklist.steps.find((step) => step.status === "running");
+  if (runningAnnounced && runningStep !== undefined) {
+    return startedAnnouncement(runningStep);
   }
   return "";
 }
@@ -155,7 +174,10 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
     if (checklist.connectionLost || checklist.terminal) {
       return undefined;
     }
-    if (checklist.steps[0]?.status !== "running") {
+    // ANY step running, not `steps[0]` — the latch fires once per run and
+    // the run is "running" for as long as any of its six rows is (Task
+    // 7.2.7).
+    if (!checklist.steps.some((step) => step.status === "running")) {
       return undefined;
     }
     if (runningTimerRef.current !== undefined) {

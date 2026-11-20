@@ -36,7 +36,36 @@ import {
 
 const EXPLORER = "/securities/NVDA";
 
-test("pressing Investigate paints a row immediately, then reaches complete with a real duration", async ({
+// **The pipeline's own six steps, in the order `index.ts`' `investigationTools`
+// runs them** — the snapshot plus `EPIC.md`'s five named steps. Each sentence
+// is the owning tool's own `description`; the one home for every one of them is
+// that tool, and this list is a browser spec's copy of what it expects to read
+// on screen. The ORDER is asserted as well as the membership, because a
+// re-ordered pipeline is a different investigation and nothing else in this
+// suite would notice (Task 7.2.7).
+const STEPS = [
+  "Measure move",
+  "Measure price anomaly",
+  "Measure volume anomaly",
+  // **Gate 1's own sentence for this step, not `EPIC.md`'s "compare peers"** —
+  // the shipped arithmetic is a comparison against the capitalisation-weighted
+  // sector SPDR, and *peers* promises an unweighted peer median this product
+  // does not compute.
+  "Compare against sector benchmark",
+  // **The one step whose subject is the whole market rather than this
+  // security** (Task 7.2.5) — and the one step a gated machine can see reach
+  // its `ok` arm, because breadth over a store with zero bars is an honest
+  // count of zero over a stated denominator rather than a refusal.
+  "Calculate market breadth",
+  // **The compare-market step** (Task 7.2.6), and the one step in the pipeline
+  // that reads a database. On this runner it completes by refusing — CI's store
+  // has zero bars, so no tape has reached a frontier and the overlap is zero —
+  // which is a completed row with a duration, exactly as the volume step's
+  // permanent refusal is.
+  "Compare against the broad market",
+] as const;
+
+test("pressing Investigate paints every row immediately, then reaches complete with a real duration", async ({
   page,
 }) => {
   await page.goto(EXPLORER);
@@ -54,52 +83,48 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
 
   await button.click();
 
+  // **Every row, in the same frame as the press** — Task 7.2.7's own
+  // Done-when 1, and the one assertion in this spec that is about the FIRST
+  // paint rather than the finished run. `data-step` is the row's own published
+  // status (`InvestigationChecklist.tsx`): a row carries no role and no
+  // accessible name, so this is what a browser has to count. No timeout is
+  // given deliberately — these rows are client-seeded, so they do not wait on
+  // a response, and Playwright's own default is the only slack here.
+  await expect(region.locator("[data-step]")).toHaveCount(STEPS.length);
+
   // Reaches a real, measured duration — the one thing only this backend
   // can produce. `ms` is this component's own reserved-column format
   // (`InvestigationChecklist.module.css`'s `.duration`), and its arrival
-  // is what proves the checklist painted a row at all: the step's own
-  // description text is identical before and after, so the duration is
-  // the one signal that distinguishes "still running" from "complete".
+  // is what proves a row RAN: the step's own description text is identical
+  // before and after, so the duration is the one signal that distinguishes
+  // "still queued" from "complete".
   //
-  // **Six rows since Task 7.2.6**, which added `calculate_rolling_correlation`
-  // beside `get_market_breadth`, `compare_securities`,
-  // `calculate_volume_ratio` and `calculate_return_percentile` — the snapshot
-  // plus all five of `EPIC.md`'s named steps. The count is the assertion
-  // rather than a `.first()`: a dropped step would otherwise pass unseen.
-  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(6, {
-    timeout: 10_000,
-  });
-  await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
-  await expect(
-    region.getByText("Measure price anomaly", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    region.getByText("Measure volume anomaly", { exact: true }),
-  ).toBeVisible();
-  // **Gate 1's own sentence for this step, not `EPIC.md`'s "compare
-  // peers"** — the shipped arithmetic is a comparison against the
-  // capitalisation-weighted sector SPDR, and *peers* promises an unweighted
-  // peer median this product does not compute.
-  await expect(
-    region.getByText("Compare against sector benchmark", { exact: true }),
-  ).toBeVisible();
-  // **The one step whose subject is the whole market rather than this
-  // security** (Task 7.2.5) — and the one step a gated machine can see reach
-  // its `ok` arm, because breadth over a store with zero bars is an honest
-  // count of zero over a stated denominator rather than a refusal. The row's
-  // own duration is what this spec asserts; nothing on the checklist renders
-  // a tool's payload yet (Story 7.3's scope).
-  await expect(
-    region.getByText("Calculate market breadth", { exact: true }),
-  ).toBeVisible();
-  // **The compare-market step** (Task 7.2.6), and the one step in the
-  // pipeline that reads a database. On this runner it completes by refusing
-  // — CI's store has zero bars, so no tape has reached a frontier and the
-  // overlap is zero — which is a completed row with a duration, exactly as
-  // the volume step's permanent refusal is.
-  await expect(
-    region.getByText("Compare against the broad market", { exact: true }),
-  ).toBeVisible();
+  // **Scoped per step rather than counted over the region** (Task 7.2.7).
+  // The count alone was true of six rows in any order, with any six
+  // sentences — and with six real steps it cannot say WHICH step failed to
+  // finish. Each assertion below is a duration inside the row that carries
+  // that step's own sentence, so a step left queued names itself.
+  for (const [index, description] of STEPS.entries()) {
+    const row = region.locator("[data-step]", {
+      has: page.getByText(description, { exact: true }),
+    });
+    await expect(row).toHaveCount(1, { timeout: 10_000 });
+    await expect(row.getByText(/^\d+ ms$/)).toHaveCount(1, {
+      timeout: 10_000,
+    });
+    // The order the pipeline ran them in, read off the page.
+    await expect(region.locator("[data-step]").nth(index)).toContainText(
+      description,
+    );
+  }
+
+  // And nothing beyond the six — a seventh row would mean the client seeded
+  // fewer than the pipeline runs and the reducer appended the remainder
+  // mid-run, which is exactly the growth this task removed.
+  await expect(region.locator("[data-step]")).toHaveCount(STEPS.length);
+  await expect(region.locator('[data-step="completed"]')).toHaveCount(
+    STEPS.length,
+  );
 
   await expectNothingFailedToRender(page);
 });
@@ -120,12 +145,16 @@ test("a second press while one is already showing does nothing — no second row
     timeout: 10_000,
   });
 
-  // Exactly one row, however many times the control was pressed while it
-  // was still showing — the client-side mirror of the backend's own
-  // idempotent `POST`.
+  // Exactly one checklist, however many times the control was pressed while
+  // it was still showing — the client-side mirror of the backend's own
+  // idempotent `POST`. **Both halves since Task 7.2.7**: one row per step
+  // (not two), and `STEPS.length` rows in total rather than a second
+  // seeded set of six appended beneath the first, which is the shape a
+  // re-press that slipped past the guard would now take.
   await expect(region.getByText("Measure move", { exact: true })).toHaveCount(
     1,
   );
+  await expect(region.locator("[data-step]")).toHaveCount(STEPS.length);
 });
 
 test("the region stays a tab stop with the checklist showing", async ({
