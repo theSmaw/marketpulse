@@ -5,6 +5,7 @@ import type {
   ExcessMoveInapplicability,
 } from "./excess-move.js";
 import type { PercentileRefusal } from "./return-baseline.js";
+import type { CorrelationRefusal } from "./return-correlation.js";
 import type { Ticker } from "./ticker.js";
 
 /**
@@ -146,6 +147,15 @@ export const TOOL_NAMES = [
   // ticker at all — breadth is a group fact, and AC 5's *never a verdict on
   // the investigated security* is held by that absence.
   "get_market_breadth",
+  // Story 7.2's compare-market step (Task 7.2.6) — a Pearson correlation
+  // between the investigated security and the broad-market proxy, computed
+  // **on demand** over the same 60-session grid Story 6.5's nightly pass
+  // uses and for a pair that pass structurally cannot form (`SPY` and the
+  // other fourteen landmarks are excluded from it by design). `rolling`
+  // rather than `pairwise` because the window rolls with the tape's own
+  // frontier; `calculate_` rather than `get_` because this one does compute,
+  // from two window reads of its own.
+  "calculate_rolling_correlation",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -226,7 +236,29 @@ export type ToolName = (typeof TOOL_NAMES)[number];
  * measurement, which is invariant 1's subject; `refused` rather than
  * `inapplicable` because the aggregate arrives on the next applied batch — a
  * refusal promises something may one day produce a figure, and here something
- * will. */
+ * will.
+ *
+ * **Widened a last time by Task 7.2.6 with `CORRELATION_REFUSALS`' own two
+ * words, verbatim** — `calculate_rolling_correlation` reads that vocabulary
+ * rather than collapsing it, and the pair is the one place in this list where
+ * **both members are facts about a PAIR rather than about a security**
+ * (`return-correlation.ts`'s own note):
+ *
+ * - `too-few-overlapping-samples` — the two securities' 5-minute grids
+ *   intersect at fewer than `CORRELATION_MINIMUM_OVERLAP` anchors, so the
+ *   statistic is **undefined** rather than imprecise. It is also the word a
+ *   store with no bars at all answers with, at an overlap of **zero** — CI's
+ *   and every fresh store's permanent state — because *we read two empty
+ *   windows* and *we read two windows that barely meet* are the same claim
+ *   about the same quantity, and `comparableBaseline`'s own precedent is that
+ *   a missing generation shares a word with a short one rather than minting a
+ *   second.
+ * - `zero-variance` — one leg's returns do not vary, so Pearson's denominator
+ *   is zero. Never a coefficient of `0`, which is a **claim** rather than an
+ *   arithmetic accident.
+ *
+ * {@link CorrelationRefusalIsAToolRefusal} is the structural half, exactly as
+ * the two assertions above it are for their own vocabularies. */
 export const TOOL_REFUSALS = [
   "nothing-observed",
   "not-tracked",
@@ -240,6 +272,8 @@ export const TOOL_REFUSALS = [
   "no-subject-move",
   "no-reference-move",
   "no-aggregate-yet",
+  "too-few-overlapping-samples",
+  "zero-variance",
 ] as const;
 
 export type ToolRefusal = (typeof TOOL_REFUSALS)[number];
@@ -300,6 +334,19 @@ export type ExcessFactorRefusalIsAToolRefusal =
 
 /** Satisfied only while the assertion above holds. */
 export const TOOL_REFUSALS_COVER_THE_EXCESS_ONES: ExcessFactorRefusalIsAToolRefusal = true;
+
+/**
+ * Every correlation refusal is a tool refusal — the same mechanism a third
+ * vocabulary over (Task 7.2.6). A third member of `CORRELATION_REFUSALS`
+ * fails `tsc -b` here rather than reaching
+ * `calculate_rolling_correlation`'s `run` as a word the outcome union
+ * cannot carry.
+ */
+export type CorrelationRefusalIsAToolRefusal =
+  CorrelationRefusal extends ToolRefusal ? true : never;
+
+/** Satisfied only while the assertion above holds. */
+export const TOOL_REFUSALS_COVER_THE_CORRELATION_ONES: CorrelationRefusalIsAToolRefusal = true;
 
 /**
  * Every excess-move inapplicability is a tool inapplicability. **The free

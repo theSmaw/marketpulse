@@ -61,11 +61,12 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // description text is identical before and after, so the duration is
   // the one signal that distinguishes "still running" from "complete".
   //
-  // **Five rows since Task 7.2.5**, which added `get_market_breadth` beside
-  // `compare_securities`, `calculate_volume_ratio` and
-  // `calculate_return_percentile` — so the count is the assertion rather than
-  // a `.first()`: a dropped step would otherwise pass unseen.
-  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(5, {
+  // **Six rows since Task 7.2.6**, which added `calculate_rolling_correlation`
+  // beside `get_market_breadth`, `compare_securities`,
+  // `calculate_volume_ratio` and `calculate_return_percentile` — the snapshot
+  // plus all five of `EPIC.md`'s named steps. The count is the assertion
+  // rather than a `.first()`: a dropped step would otherwise pass unseen.
+  await expect(region.getByText(/^\d+ ms$/)).toHaveCount(6, {
     timeout: 10_000,
   });
   await expect(region.getByText("Measure move", { exact: true })).toBeVisible();
@@ -90,6 +91,14 @@ test("pressing Investigate paints a row immediately, then reaches complete with 
   // a tool's payload yet (Story 7.3's scope).
   await expect(
     region.getByText("Calculate market breadth", { exact: true }),
+  ).toBeVisible();
+  // **The compare-market step** (Task 7.2.6), and the one step in the
+  // pipeline that reads a database. On this runner it completes by refusing
+  // — CI's store has zero bars, so no tape has reached a frontier and the
+  // overlap is zero — which is a completed row with a duration, exactly as
+  // the volume step's permanent refusal is.
+  await expect(
+    region.getByText("Compare against the broad market", { exact: true }),
   ).toBeVisible();
 
   await expectNothingFailedToRender(page);
