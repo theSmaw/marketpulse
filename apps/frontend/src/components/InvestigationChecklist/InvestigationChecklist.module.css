@@ -1,6 +1,9 @@
 /*
  * The checklist `Investigate` paints beneath itself, inside `Abnormal-move
- * indicators` — one row per step, today always one (Task 7.1.4).
+ * indicators` — one row per step; ~~today always one~~ **six since Task
+ * 7.2.7**, seeded in the same frame as the press rather than grown one at a
+ * time (`INVESTIGATION_STEP_COUNT`). Measured at 26px a row, and 44px for the
+ * one that wraps at 390 and 768.
  *
  * No new geometry invented: the row's own rhythm is `AbnormalMove.module.css`'s
  * — `--space-8` between a label and its figure, `--font-size-micro` for

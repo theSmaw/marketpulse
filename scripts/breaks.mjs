@@ -7022,4 +7022,43 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-tool-outcome-decoder-branches-on-every-kind",
   },
+  // ## Task 7.2.7's, on the one number that crosses the wire by hand
+  {
+    name: "a-seventh-tool-the-checklist-never-paints",
+    proves:
+      "`the-checklist-seeds-one-row-per-tool` goes red when a tool is added " +
+      "to the pipeline without moving the client's own seeded row count.\n\n" +
+      "**The plant is the defect the NEXT story writes, not this one.** " +
+      "Story 7.3 adds findings and Story 7.4 a topology step; the first " +
+      "author to add a seventh entry to `investigationTools` has no reason " +
+      "to think about a constant in a frontend module on the other side of " +
+      "the wire, and nothing downstream complains: the backend emits seven " +
+      "steps' events, the reducer APPENDS the row it has no seed for " +
+      "(`updateStep`'s own `-1` branch), and the checklist simply grows a " +
+      "row mid-run — which is precisely the 1-then-grows sequence this task " +
+      "existed to remove, and it moves everything beneath it inside a panel " +
+      "measured against a 390px tab-stop budget.\n\n" +
+      "**Nothing else sees it.** `pnpm test` passes: no unit test knows how " +
+      "many tools the pipeline holds, because `investigationTools` lives in " +
+      "`index.ts`, which no runner instruments. `pnpm e2e` passes too — it " +
+      "asserts the rows that DO appear, and a row that appears late still " +
+      "appears.\n\n" +
+      "**The plant APPENDS a tool and keeps the found line** (2026-10-16's " +
+      "rule), so the registry's own `find` survives its own break. It " +
+      "duplicates the volume tool deliberately: a second `createVolumeRatioTool()` " +
+      "compiles, needs no new import, and is a seventh `toRunnableTool(` " +
+      "inside the array — the clause a re-implementer cannot avoid writing.",
+    file: "apps/backend/src/index.ts",
+    find: "const investigationTools = [",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "const investigationTools = [\n" +
+      "  toRunnableTool(\n" +
+      "    createVolumeRatioTool(),\n" +
+      "    (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),\n" +
+      "    toWireVolumeRatio,\n" +
+      "  ),",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-checklist-seeds-one-row-per-tool",
+  },
 ];

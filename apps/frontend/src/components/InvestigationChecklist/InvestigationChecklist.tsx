@@ -38,6 +38,25 @@ import styles from "./InvestigationChecklist.module.css";
 // clears that budget, and the header-height question turned out to be the
 // smaller cost by a wide margin once a real keyboard walk measured both.
 //
+// **The 4px of headroom in the paragraph above is GONE, measured 2026-11-20
+// (Task 7.2.7), and no row treatment brings it back.** The paragraph stays
+// standing because its reasoning is why this component sits where it does.
+// What is no longer true is its arithmetic: with six rows the panel is
+// **781px** at 390×780 and 768×780 and **763px** at 1024 and 1440, against a
+// scroll-padding box of 613/670/690/690 — and the panel is **603px before
+// any press at all**, so the first row of anything overflows the narrow
+// budget. At 390 the region's own tab stop then lands 88px behind the
+// masthead, because the browser does not scroll a target it already
+// considers in view; `search-keyboard.spec.ts`' own predicate excludes an
+// element at least as tall as the viewport, deliberately, so it went blind
+// to this when the panel crossed 780px rather than catching it. Three
+// progressively tighter row treatments were measured (no row padding, a 4px
+// gap, micro type): the panel came down to 743px and the clearance stayed
+// negative in every arm. The answer is a design decision — its own region, a
+// collapsed summary below some width, or withdrawing the budget as a target
+// — and `docs/GAPS.md` carries the figures, the three candidates and the
+// owner. Nothing in this file was changed for it.
+//
 // `queued` = `Marker shape="dashed"` (its own existing meaning, "not yet"),
 // `running` = `Marker shape="ring"`, `completed` = `Icon name="check"`. The
 // security-identity arrival mark two hundred pixels up this same page is
@@ -139,7 +158,7 @@ function Row({
 }) {
   if (droppedSentence !== undefined) {
     return (
-      <div className={cx(styles.row)}>
+      <div className={cx(styles.row)} data-step="dropped">
         <span
           aria-hidden="true"
           className={cx(styles.glyph, styles.glyphQueued)}
@@ -155,7 +174,18 @@ function Row({
   }
 
   return (
-    <div className={cx(styles.row, breathing ? styles.running : undefined)}>
+    <div
+      className={cx(styles.row, breathing ? styles.running : undefined)}
+      // **A row's own status, readable from outside** — the same
+      // `data-arrival` idiom `SecurityIdentity` already publishes for its
+      // mark, and for the same reason: a row carries no role and no
+      // accessible name (it is three `<p>`s in a flex line), so a browser
+      // spec asserting "all six rows painted on press" or "this step and
+      // not another one completed" has nothing semantic to hold. Never
+      // read by any stylesheet — the glyph is the visible encoding, and a
+      // second home for that would be two things to keep in step.
+      data-step={step.status}
+    >
       <span
         aria-hidden="true"
         className={cx(

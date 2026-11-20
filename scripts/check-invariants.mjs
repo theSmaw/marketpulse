@@ -12126,6 +12126,113 @@ const INVARIANTS = [
       }
     },
   },
+  {
+    id: "the-checklist-seeds-one-row-per-tool",
+    claim:
+      "`INVESTIGATION_STEP_COUNT` " +
+      "(`apps/frontend/src/investigations/investigation-checklist-state.ts`) " +
+      "equals the number of tools the pipeline actually runs — every " +
+      "`toRunnableTool(` in `apps/backend/src/index.ts`'s own " +
+      "`investigationTools`. The checklist paints that many rows in the " +
+      "same frame as the press, before any response, so a count that " +
+      "disagrees with the pipeline is a checklist that grows or that holds " +
+      "a row nothing will ever fill.",
+    check() {
+      // **Task 7.2.7, and it guards a number that is deliberately in a
+      // second place.** The six step SENTENCES each have one home — the
+      // tool that declares its own `description` — and arrive in the
+      // browser on that step's `STEP_STARTED`. What the client cannot
+      // learn from the wire in time to paint the FIRST frame is how many
+      // rows there will be, so one number crosses the boundary, and this
+      // is what stops it rotting: a seventh tool added to the pipeline
+      // with the frontend left at six paints a checklist that grows a row
+      // mid-run, and a tool removed leaves a row queued for ever.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **`toRunnableTool(`** — every member of `investigationTools` is
+      // one, because `AnalyticalTool` is typed per tool (its own `Input`
+      // and `Output`) and `toRunnableTool` is the adapter that erases both
+      // so the orchestrator can hold a list. A tool added without it does
+      // not compile into that array at all.
+      const FRONTEND =
+        "apps/frontend/src/investigations/investigation-checklist-state.ts";
+      const BACKEND = "apps/backend/src/index.ts";
+
+      const frontend = withoutComments(
+        readAnchored(resolve(REPO_ROOT, FRONTEND)),
+      );
+      const backend = withoutComments(
+        readAnchored(resolve(REPO_ROOT, BACKEND)),
+      );
+
+      const SEEDED =
+        /export const INVESTIGATION_STEP_COUNT\s*=\s*(\d+)\s*;/u.exec(frontend);
+      if (SEEDED === null) {
+        throw new InvariantFailure(
+          `No \`export const INVESTIGATION_STEP_COUNT = <n>;\` in ` +
+            `\`${FRONTEND}\`. That constant is the client's own copy of the ` +
+            "pipeline's length and the whole subject of this check; if the " +
+            "seed was restructured, repoint this in the same change — a " +
+            "grep that matches nothing looks exactly like a grep that " +
+            "passes.",
+        );
+      }
+
+      const ARRAY = /const investigationTools = \[/u.exec(backend);
+      if (ARRAY === null) {
+        throw new InvariantFailure(
+          `No \`const investigationTools = [\` in \`${BACKEND}\`. The ` +
+            "pipeline's own length is read from that array; if it moved, " +
+            "repoint this check with it.",
+        );
+      }
+
+      // From the array's own `[` to its balanced `]`, so a `toRunnableTool(`
+      // somewhere else in this 2,000-line module is not counted.
+      const from = backend.indexOf("[", ARRAY.index);
+      let depth = 0;
+      let to = backend.length;
+      for (let index = from; index < backend.length; index += 1) {
+        const character = backend[index];
+        if (character === "[") depth += 1;
+        else if (character === "]") {
+          depth -= 1;
+          if (depth === 0) {
+            to = index;
+            break;
+          }
+        }
+      }
+
+      const tools = (
+        backend.slice(from, to).match(/\btoRunnableTool\(/gu) ?? []
+      ).length;
+
+      if (tools === 0) {
+        throw new InvariantFailure(
+          `\`investigationTools\` in \`${BACKEND}\` holds no ` +
+            "`toRunnableTool(` call at all — either the pipeline is empty, " +
+            "which is the defect, or the adapter was renamed, in which " +
+            "case repoint this check with it.",
+        );
+      }
+
+      const seeded = Number(SEEDED[1]);
+      if (seeded !== tools) {
+        throw new InvariantFailure(
+          `The checklist seeds ${String(seeded)} row(s) ` +
+            `(\`INVESTIGATION_STEP_COUNT\` in \`${FRONTEND}\`) while the ` +
+            `pipeline runs ${String(tools)} tool(s) (\`investigationTools\` ` +
+            `in \`${BACKEND}\`). Seeding too few makes the checklist GROW ` +
+            "mid-run, which moves everything beneath it inside a panel " +
+            "already measured against a 390px tab-stop budget; seeding too " +
+            "many leaves a row queued for ever, which reads as a step that " +
+            "never started. Move both in the same change.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

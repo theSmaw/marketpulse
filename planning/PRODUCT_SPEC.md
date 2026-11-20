@@ -1826,6 +1826,29 @@ rather than the `n≥24` `CLAUDE.md`'s flake-rate rule asks of a RATE — a
 reasonable sample for a latency distribution this far under its own
 ceiling, not a claim that a rarer tail was searched for.
 
+**Re-measured 2026-11-20 by Story 7.2 (AC 7, Task 7.2.7) against the
+SIX-step pipeline this epic was accepted on, and the headroom holds — with
+one step's cost missing rather than small.** Same paint-anchored,
+`requestAnimationFrame`-polled method, 20 presses, each after a reload,
+1440×900: **press → all six rows painted, p50 13.5 ms, p95 15.7 ms, max
+15.9 ms, min 11.1 ms**; **press → five rows rendered complete with their own
+durations, p50 32.0 ms, p95 39.4 ms, max 42.1 ms, min 25.1 ms**. The five
+completions land in **one `requestAnimationFrame` tick** — every per-k
+quantile above is identical, which is the whole run arriving inside a single
+frame rather than five separable arrivals — and each step's own wire
+`durationMs` is **0–1 ms**.
+
+**Three caveats, and the third is the one that matters.** It is a loopback
+figure, as above. The first paint is now a **six-row** paint rather than a
+one-row paint, which is why 8.6 → 13.5 ms. And **the sixth step is absent
+from every figure here**: `calculate_rolling_correlation` is the one tool in
+the pipeline that reads the database, the machine this was taken on had **no
+database reachable at all**, so that step threw rather than completing and
+the run ended `failed` after five. So this distribution is a floor — _how
+fast can five in-memory tools answer_ — and the real question, what the
+pipeline costs with two real `market_bars` reads in it, is **unmeasured on
+any machine**. `docs/GAPS.md` carries it with an owner and a condition.
+
 ---
 
 # 29. Backend architecture

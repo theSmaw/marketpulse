@@ -102,6 +102,32 @@ describe("InvestigationChecklist", () => {
     );
   });
 
+  it("publishes each row's own status as `data-step` — the hook the browser suite scopes to", () => {
+    // Task 7.2.7. A row carries no role and no accessible name, so with six
+    // of them a browser spec has nothing semantic to count or to scope a
+    // per-step duration assertion to. Asserted here as well as there
+    // because this is the cheap level: a renamed attribute would otherwise
+    // surface as a five-minute browser run going red.
+    const mixed: ChecklistState = {
+      ...RUNNING,
+      steps: [...COMPLETED.steps, ...RUNNING.steps, ...QUEUED.steps],
+    };
+
+    const { container } = render(
+      <InvestigationChecklist
+        checklist={mixed}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(
+      [...container.querySelectorAll("[data-step]")].map((row) =>
+        row.getAttribute("data-step"),
+      ),
+    ).toStrictEqual(["completed", "running", "queued"]);
+  });
+
   it("renders a running row under the cover threshold with no breathing class", () => {
     const { container } = render(
       <InvestigationChecklist
