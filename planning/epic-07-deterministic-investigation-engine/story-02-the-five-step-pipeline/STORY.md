@@ -1,7 +1,7 @@
 # Story 7.2 — The Five-Step Pipeline
 
-**Status:** All seven tasks complete — 2026-11-20, awaiting Gate 2
-acceptance. Decomposed into seven tasks at Gate 1 (7.2.1–7.2.7) after four
+**Status:** Complete — accepted by the Product Owner 2026-11-20.
+Decomposed into seven tasks at Gate 1 (7.2.1–7.2.7) after four
 parallel shaping passes (business-analyst, technical-analyst,
 technical-architect, tester) plus one architect follow-up — see "Resolved
 at Gate 1" below for every decision taken. **Two of the eight acceptance
