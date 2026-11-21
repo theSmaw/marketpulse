@@ -33,7 +33,7 @@ indicators` just below it.
   listener.
 - **`InvestigationChecklist.tsx`/`.module.css`**: replace Task 7.3.1's
   plain-text line with the real two-line CSS grid — `glyph | description
-  | duration` on row 1, the claim + `ConfidenceMark` spanning the
+| duration` on row 1, the claim + `ConfidenceMark` spanning the
   description and duration columns on row 2 (reclaiming the duration's
   reserved width for the claim line). Use an explicit `{" "}` between the
   mark and the claim sentence (a flex `gap` is invisible to a screen

@@ -76,7 +76,7 @@ change.**
    type's own docblock.
 2. An **evidenced** `Finding` cannot be constructed without at least one
    `Evidence` item — a non-empty tuple, enforced by the type system. A
-   **refused** outcome's `Finding` is a *structurally different type*
+   **refused** outcome's `Finding` is a _structurally different type_
    with no `evidence` member at all (never `evidence: []`), carrying
    instead the refusal word it answered with. Both are minted at exactly
    two sites, held by an invariant mirroring
@@ -151,8 +151,8 @@ change.**
 13. A new `pnpm invariants` entry asserts every event type the backend's
     serialiser gives a payload to has a matching case in the frontend's
     decoder — the sibling check `the-tool-outcome-decoder-branches-on-
-every-kind` does not cover (a new *event type* reaching an un-updated
-    decoder is a different failure shape from a new `ToolOutcome` *kind*
+every-kind` does not cover (a new _event type_ reaching an un-updated
+    decoder is a different failure shape from a new `ToolOutcome` _kind_
     doing so), with its own `pnpm break`.
 
 ## Out of scope
@@ -214,7 +214,7 @@ is open; this is the record.
   signature untouched. The field means "when this process recorded the
   claim," bounded by the step's own already-published `durationMs` —
   honest and checkable rather than falsely precise. Rejected: `retrievedAt
-  = asOf` (lies in replay — it would claim a past figure was retrieved on
+= asOf` (lies in replay — it would claim a past figure was retrieved on
   the day it happened) and a second `ToolContext` field (widens the
   clock guard and needs an ADR for no benefit this story has a use for).
 - **Claims omit the investigated ticker.** The security is already named
@@ -261,8 +261,8 @@ step` is unaffected (it greps only `run`'s parameter list).
 
 ### The vocabulary
 
-Six `FindingType` values, one per step (the finding type names *the
-question asked*; it is not 1:1 with `Step.tool` for ever, and the
+Six `FindingType` values, one per step (the finding type names _the
+question asked_; it is not 1:1 with `Step.tool` for ever, and the
 docblock says so): `PRICE_MOVE`, `VOLUME_RATE`, `RELATIVE_MOVE` (reused
 verbatim from `PRODUCT_SPEC.md` §15's own worked example, rather than a
 synonym), `MARKET_BREADTH`, `RETURN_CORRELATION` (the shipped word for
@@ -337,7 +337,7 @@ already draws a factor ledger ~100px above the checklist, and four of
 this story's claims restate figures that ledger already states — from a
 **different instant** in two cases (the ledger reads the live frame; the
 price and peer-comparison tools read at `context.asOf`). Mitigated by
-reusing the ledger's own formatters so the *spelling* cannot drift and by
+reusing the ledger's own formatters so the _spelling_ cannot drift and by
 having every claim name its own `n`/span so a reader can see why two
 correct figures differ; photographed together at 1440 as part of this
 story's own record rather than argued away.
