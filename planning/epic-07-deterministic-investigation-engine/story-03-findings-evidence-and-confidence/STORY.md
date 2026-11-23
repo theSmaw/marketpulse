@@ -346,3 +346,56 @@ story's own record rather than argued away.
 Its finding type and claim text are settled at Task 7.3.1 rather than
 left implicit, closing the risk that row 1 reads as a step whose finding
 silently failed to render once rows 2–6 each grow one.
+
+### Two blockers found during Task 7.3.1's own technical shaping, resolved 2026-11-23
+
+**B1 — the claim's formatters live in the frontend feature module, and
+the backend cannot reach them.** `percentileOrdinal`, `ordinalSuffix`,
+`describeMeasuredSet` and its family, and `NO_DISTRIBUTION_REASON` are
+all shipped — in `apps/frontend/src/market/`, behind a lint rule that
+forbids importing anything else under that directory, while the
+backend's own `tool-return-percentile.ts` docblock states the opposite
+division of labour ("nothing is derived and nothing is formatted... all
+the browser's"). **Resolved: move the individual functions this claim
+needs into `packages/shared`, never whole files**, with
+`apps/frontend/src/market/index.ts` re-exporting them so external call
+sites don't move. `packages/shared/src/feed-words.ts`'s own
+full-sentence vocabulary (`CONNECTION_DESCRIPTIONS`, `ANOMALY_BANDS`) is
+the precedent that this kind of presentation vocabulary already lives
+there; confirmed the move trips none of the four clock-reading lint
+rules scoped to that directory (these are pure string formatters over
+numbers, no `Date`/`Intl` construction). `percentileOrdinal`/
+`ordinalSuffix` land in `percentile-ranking.ts` (already the declared
+home of the ordinal's own comparator). Two sibling checks
+(`one-home-for-the-ordinal-suffix` and the backend tool's own docblock)
+need re-pointing and a dated amendment in the same change, not a silent
+move — both currently name the frontend as the one and only place that
+formats, and that sentence goes false the moment this ships.
+
+**Settle the per-string question before moving anything**: a function
+moves only if the backend will print it **verbatim** — a different
+grammar for the same fact (e.g. the breadth region's own multi-clause
+footer sentence versus this story's one-line, character-ceilinged claim)
+gets its own home beside `finding.ts` rather than relocating the footer's
+file for no shared benefit. **The breadth claim gets its own shorter
+grammar under AC 6's ceiling, built from the same counted figures**
+(`countInWords` etc.) rather than reusing `describeMeasuredSet`'s own
+longer sentence verbatim — settled the same way, by the per-string test.
+**The claim vocabulary inherits `measured-set.ts`'s existing reservation
+that counted-population text carries no intensity adjective** (`high` is
+a reserved anomaly-band word) — Gate 1 already forbids a confidence
+level from reading as a band word; this extends the same rule to claim
+prose, stated once here rather than discovered when a band chip and a
+claim sit on one screen in Epic 8.
+
+**B2 — a real, pre-existing bug, found as a byproduct of shaping AC 13's
+new invariant.** `INVESTIGATION_FAILED` has carried a backend wire case
+since Task 7.2.1 (2026-11-18) with no matching frontend decoder case, so
+a tool that throws today is silently dropped and a failed run draws the
+**dropped-connection** sentence rather than the truth about the failure.
+**Decided: fixed in Task 7.3.1** — a decoder case and a reducer arm
+marking the run terminal, no new reader-facing sentence (that stays
+Story 7.5's — the failure degradation UI itself is that story's scope).
+This is also load-bearing for AC 13 itself: the new event-type/decoder-
+parity invariant would otherwise be red on `main` before a single line of
+this story's own code exists.
