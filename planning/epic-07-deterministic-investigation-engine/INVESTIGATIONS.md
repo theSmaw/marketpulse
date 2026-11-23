@@ -459,3 +459,212 @@ see), each step's duration **inside its own row**, and the rendered order
 against the pipeline's; the attribute is read by no stylesheet, because the
 glyph is the visible encoding and a second home for that would be two
 things to keep in step.
+
+## 11. Story 7.3, Task 7.3.1 — findings reach the wire, and what the claim is NOT
+
+**Every tool in Story 7.2 already produced a value; this is what turns a value
+into the object `PRODUCT_SPEC.md` §15/§16 names.** Each completed step now
+mints exactly one `Finding` — a `type`, a one-line `claim`, a `confidence`
+level and either the `Evidence` that licenses it or the refusal word it
+answered with — which travels on a new `FINDING_CREATED` event and lands as a
+second line of plain, unstyled text inside the checklist row that produced it.
+Nothing is styled and no confidence mark is drawn; that is Task 7.3.2's.
+
+### 11.1 Two arms that differ in SHAPE, and what the brand does not prove
+
+`packages/shared/src/finding.ts` is a new module (not `investigation.ts`,
+which already holds three vocabularies, both lifecycles, the event union and
+the whole wire projection at ~850 lines). `Finding` is a two-arm union
+mirroring `AnomalyScore`/`UnscoredAnomaly` exactly:
+
+- **`EvidencedFinding`** carries `evidence: readonly [Evidence, ...Evidence[]]`,
+  so an evidence-less evidenced finding is **untypeable** — AC 2 as a compile
+  error rather than a test.
+- **`UnevidencedFinding`** has **no `evidence` member at all**, never
+  `evidence: []`, and its `confidence` is the **literal** `"UNKNOWN"` rather
+  than `Confidence` — so AC 3's _a refused outcome always produces `UNKNOWN`_
+  is a type-level statement rather than a convention.
+
+A real `Symbol` brand, not exported, with **exactly two mint sites** held by
+`two-mint-sites-for-a-finding` and the break `a-third-mint-site-for-a-finding`.
+**No finding carries a `security` field on either arm** — the subject is named
+by the route, the identity block and `subjectSymbols`, and Gate 1 settled that
+claims omit the investigated ticker — which strengthens AC 8 past its own
+wording: a four-arm union discriminated on `type` is not needed, because no
+finding anywhere has one to omit. `Evidence.security?` is the single
+per-security home, absent for breadth.
+
+**The one place the `composite-score.ts` analogy breaks, stated plainly in the
+module's own header**: there is **no `readFinding`** and there must not be
+one. The brand dies at `JSON.parse` and is never restored, because the browser
+declares its own wire shape and reads three fields off it (`stepId`, `claim`,
+`confidence`) rather than reconstituting a domain object. So **AC 2's
+guarantee is a backend guarantee**. What keeps it honest across the wire is
+not a type but the frame: the evidence travels **inline** on the same event.
+
+### 11.2 Confidence is a stated function of counted evidence, and `POSSIBLE` has only TWO real producers
+
+`refused` → `UNKNOWN`, always. `inapplicable` → **no finding at all** (AC 3's
+one exception, and the reason the tool contract's `mintFinding` may answer
+`undefined`): _the question does not arise_ is a different, permanent fact
+from _not enough evidence_, so the row draws the inapplicability sentence
+Story 7.2 already ships. `ok` below the tool's own **shipped** sufficiency
+floor → `POSSIBLE`; above it → `SUPPORTED`. `CONFIRMED` has no producer
+anywhere in this epic and is reserved for Epic 9's filings, documented exactly
+as `INVESTIGATION_STATUSES`' `awaiting_user` already is.
+
+**`POSSIBLE` is reachable in only two of six tools, and no second floor was
+invented to fill the other four.** `get_market_breadth` at `measured === 0`
+(CI's permanent state, so the only arm a gated machine will ever draw there)
+and `calculate_rolling_correlation` at `significant === false`. The other four
+have floors already enforced **upstream as refusals** — `comparableBaseline`'s
+derived `n ≥ 2500`, `comparableExcessBaseline`'s, `CORRELATION_MINIMUM_OVERLAP`
+— so their `ok` is above the floor by construction, and a `POSSIBLE` there
+would need a threshold nobody derived sitting beside a refusal threshold
+somebody did. `get_security_snapshot` has no floor at all and is deliberately
+**not keyed on `ageMs`**: staleness has one home, the status bar's connection
+word, and a confidence level falling at some age would be a second, quieter
+one.
+
+### 11.3 The claim's voice, and the formatters that had to move
+
+One clause, past tense, no terminal stop, the figure **and its denominator**,
+no verdict adjective, no investigated ticker — and bounded by `CLAIM_CEILING`,
+72 characters, enforced in each tool's own unit tests rather than thrown at
+the mint (the mint is reached from inside the orchestrator's `try`, where a
+`RangeError` would kill a whole run because a refusal sentence was one
+character too long). The six shipped claims, as their own suites assert them:
+
+```text
+Traded at 184.52 on 12,480 shares in the latest bar
++0.50% over 5 min — 50th of 2,500
+Volume rate — no stored distribution to rank against
++0.50 pts against XLK over 5 min — 50th of 2,500
+2 up, 2 down, 1 flat of 5 measured in the last 5 min
+Positive co-movement with SPY — 48 anchors, 60 sessions
+```
+
+**Every figure goes through a shipped formatter, and getting that true meant
+moving five functions into `packages/shared`** — Story 7.3's Gate 1 blocker
+B1. `percentileOrdinal`/`ordinalSuffix` into `percentile-ranking.ts` (already
+the declared home of the ordinal's own comparator), and `formatPrice`,
+`formatChangePercent` and `formatSignedCount` into a new
+`packages/shared/src/price-format.ts`, with
+`apps/frontend/src/market/price-format.ts` and `return-percentile.ts` left as
+re-exports so **no frontend call site moved**. Two new ones were added beside
+them: `formatSignedPoints` (a difference between two percentages is not a
+percentage) and `formatCount`.
+
+**The test that decided each move is per-string: does the backend print it
+VERBATIM.** Three did. What failed it stayed where it was and got its own
+short grammar in `finding-claim.ts` instead — the breadth region's own footer
+is a multi-clause sentence over a counted population and a claim is one line
+under 72 characters, so relocating that file would have moved a sentence
+neither surface could use. The sharpest case is `no-distribution`: the
+composite ledger draws `no history to rank it` in a ~34-character cell and
+`tool-volume-ratio.ts`'s header says in terms that the honest sentence has one
+home and it is not in the backend. **That still stands** — the claim's
+`no stored distribution to rank against` is a different grammar for the same
+fact, and the extra word is the point, because the absence is about this
+product's stored aggregates rather than this security's coverage.
+
+**Two sibling claims had to be repointed in the same change rather than
+silently left standing**, which is this repository's own rule about a
+falsified document. `one-home-for-the-ordinal-suffix` named the frontend file
+as the home and its own docblock said _a backend that formats an ordinal is a
+different defect with a different owner_ — that sentence went false the day
+this shipped, and is struck with its reason rather than deleted. And
+`tool-return-percentile.ts`'s and `tool-compare-securities.ts`' _nothing is
+derived and nothing is formatted — all the browser's_ is narrowed to name the
+**wire projection** it is still true of.
+
+**One claim deliberately does NOT draw the figure its tool is named for.**
+`calculate_volume_ratio`'s unreachable `ok` arm states the ordinal rather than
+the `×` multiple, because the multiple glyph has one home
+(`one-home-for-the-multiple-glyph`, five channels decided together) and moving
+`formatMultiple` into `packages/shared` for an arm **no store can reach**
+would be infrastructure built before the iteration that needs it. The
+condition for moving it is stated beside the arm.
+
+### 11.4 The tool contract gained a THUNK, which is a real structural change
+
+`RunnableTool.run` now answers `ToolRun` — the wire outcome plus
+`mintFinding: (stamp: FindingStamp) => Finding | undefined` — and
+`toRunnableTool` takes a fourth argument. Unlike Story 7.2's additions, which
+only ever widened an existing union, this is a contract change, and the thunk
+rather than a `finding` field is forced by two facts at once:
+`Evidence.retrievedAt` **does not exist** when `run` returns (the orchestrator
+stamps it from its own injected clock at the moment it emits, which is after
+`completedAt` is known), and a claim must be derived from the tool's **typed
+`Output`** before `analytical-tool.ts`'s deliberate erasure to `JsonValue`.
+`a-tool-takes-no-channel-to-another-step` is unaffected (it captures `run`'s
+parameter list, untouched) and so is `a-tool-reads-no-clock` (a `toFinding`
+takes `retrievedAt` off the stamp and constructs no `Date` of its own).
+
+### 11.5 The wire, and the ordering decision §33 could not keep
+
+`FINDING_CREATED` is appended **after** that step's `TOOL_CALL_COMPLETED` and
+**before** its `STEP_COMPLETED`, so a reader's row learns what was measured in
+the same frame it learns the step finished. It carries **no top-level
+`stepId`** unlike every sibling event: `Finding.stepId` is the one home for
+that fact and a second copy on the envelope would be a second answer to one
+question. `EVIDENCE_ADDED` is **not** given a payload — §33's literal order
+cannot coexist with AC 2, and `PRODUCT_SPEC.md` §33 carries the dated
+amendment rather than a rewrite.
+
+### 11.6 A real, pre-existing defect found by shaping a check (B2)
+
+**`INVESTIGATION_FAILED` has had a backend serialiser case since Task 7.2.1
+(2026-11-18) and no frontend decoder case at all.** So a thrown tool decoded
+as `unsupported`, `use-investigation.ts` dropped it without a word, the stream
+then ended with no terminal event the reducer had seen, and
+`withConnectionLost` drew the **dropped-connection** sentence over a run that
+had actually failed — five days, with every test green, because no fixture
+furnishes an event type the decoder does not know and `tsc -b` cannot see
+across a deliberately duplicated wire shape.
+
+It was found by shaping AC 13's new invariant, which **was red on `main`
+before a line of this story existed** — verified by removing the new case and
+re-running: `1 serialised event type(s) have no case in
+readInvestigationEvent: INVESTIGATION_FAILED`. The repair is a decoder case
+and a reducer arm marking the run `terminal`, with **no new reader-facing
+sentence**: that degradation UI is Story 7.5's stated scope, and that story's
+own `STORY.md` carries it as a constraint it inherits.
+
+### 11.7 The two new checks, and the naive draft that passed wrongly
+
+`pnpm invariants` now holds **95**.
+
+- **`two-mint-sites-for-a-finding`**, with
+  `pnpm break a-third-mint-site-for-a-finding`. The naive draft — count
+  declarations of the two mints, assert one of each in the home — was run
+  against the real plant (a seventh tool casting a record into `Finding`) and
+  reported `NAIVE DRAFT GREEN — both mints are declared once, in
+packages/shared/src/finding.ts.` at exit 0, with the third mint site on
+  disk. The shipped check keys on the **assertion** instead and went red on
+  the same plant naming the file and the line.
+- **`every-serialised-event-type-has-a-decoder-case`**, with
+  `pnpm break an-event-type-the-decoder-never-learnt`. A **sibling** of
+  `the-tool-outcome-decoder-branches-on-every-kind` rather than a widening:
+  an unhandled outcome _kind_ makes a whole event `unreadable`, while an
+  unhandled event _type_ is `unsupported` — the arm written for a frame from
+  a type this bundle predates, so **the drop looks correct**. Anchored on the
+  serialiser's own switch and never on `INVESTIGATION_EVENT_TYPES`, which
+  legitimately holds payload-free names a decoder correctly has no case for.
+
+### 11.8 What is owed, and what no machine has seen
+
+**AC 6's ceiling is NOT the probe measurement that criterion asks for.** 72 is
+the longest claim the six shipped producers can mint, asserted in each tool's
+own suite; the figure AC 6 wants comes from `pnpm probe` against a **zero-bar
+store** at all four widths, and the surface that can be probed is Task 7.3.2's
+real two-line grid rather than this task's deliberately unstyled `<p>`. The
+reversal condition is stated at the constant. `docs/GAPS.md` carries it.
+
+**No database was reachable on the machine this task was built on**, so
+`pnpm test:database` and the browser suite were not run — which also means the
+`calculate_rolling_correlation` claim, the only one of the six whose tool reads
+`market_bars`, has never been produced by anything but its own furnished unit
+suite. And on CI's zero-bar store **five of the six rows draw a refusal
+claim**, which makes the refusal grammar the shipped product for every gated
+run and the measured claims the thing only a real deployment will show.

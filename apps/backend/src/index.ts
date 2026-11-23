@@ -116,26 +116,32 @@ import { createScriptedAgentProvider } from "./scripted-agent-provider.js";
 import { toRunnableTool } from "./analytical-tool.js";
 import {
   createSecuritySnapshotTool,
+  toSecuritySnapshotFinding,
   toWireSecuritySnapshot,
 } from "./tool-security-snapshot.js";
 import {
   createReturnPercentileTool,
+  toReturnPercentileFinding,
   toWireReturnPercentile,
 } from "./tool-return-percentile.js";
 import {
   createVolumeRatioTool,
+  toVolumeRatioFinding,
   toWireVolumeRatio,
 } from "./tool-volume-ratio.js";
 import {
   createCompareSecuritiesTool,
+  toCompareSecuritiesFinding,
   toWireCompareSecurities,
 } from "./tool-compare-securities.js";
 import {
   createMarketBreadthTool,
+  toMarketBreadthFinding,
   toWireMarketBreadthReading,
 } from "./tool-market-breadth.js";
 import {
   createRollingCorrelationTool,
+  toRollingCorrelationFinding,
   toWireRollingCorrelation,
 } from "./tool-rolling-correlation.js";
 import { readPriceAnomaly } from "./price-anomaly.js";
@@ -441,6 +447,7 @@ const investigationTools = [
     createSecuritySnapshotTool(currentMarketState),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireSecuritySnapshot,
+    toSecuritySnapshotFinding,
   ),
   // **Story 7.2's first of five — the price-anomaly step** (Task 7.2.2). The
   // sources are the same two reads `symbolReturn` makes a few hundred lines
@@ -458,6 +465,7 @@ const investigationTools = [
     }),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireReturnPercentile,
+    toReturnPercentileFinding,
   ),
   // **Story 7.2's second of five — the volume-anomaly step** (Task 7.2.3),
   // in the order `EPIC.md` names: price anomaly, volume anomaly, peer
@@ -469,6 +477,7 @@ const investigationTools = [
     createVolumeRatioTool(),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireVolumeRatio,
+    toVolumeRatioFinding,
   ),
   // **Story 7.2's third of five — the peer-comparison step** (Task 7.2.4),
   // described on the checklist as `Compare against sector benchmark`. The
@@ -488,6 +497,7 @@ const investigationTools = [
     }),
     (subjectSymbols) => ({ symbol: theSubjectSymbol(subjectSymbols) }),
     toWireCompareSecurities,
+    toCompareSecuritiesFinding,
   ),
   // **Story 7.2's fourth of five — the market-breadth step** (Task 7.2.5),
   // and the only tool in the pipeline whose subject is not the investigated
@@ -504,6 +514,7 @@ const investigationTools = [
     createMarketBreadthTool(latestOverviewPass.read),
     () => ({}),
     toWireMarketBreadthReading,
+    toMarketBreadthFinding,
   ),
   // **Story 7.2's fifth of five — the compare-market step** (Task 7.2.6), and
   // the only tool in the pipeline that reads a database.
@@ -524,6 +535,7 @@ const investigationTools = [
       against: BROAD_MARKET_SYMBOL,
     }),
     toWireRollingCorrelation,
+    toRollingCorrelationFinding,
   ),
 ];
 const investigationRoutes = createInvestigationRoutes({

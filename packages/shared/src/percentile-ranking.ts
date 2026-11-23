@@ -42,6 +42,91 @@
  */
 
 /**
+ * **The ordinal's own suffix** — `1st`, `2nd`, `3rd`, `11th`, `42nd`.
+ *
+ * Moved here from `apps/frontend/src/market/return-percentile.ts` on
+ * 2026-11-23 (Task 7.3.1), function by function rather than as a file, into
+ * the module whose own header already declares itself *the only place the
+ * order of a list of price percentiles is decided* — so the ordinal's
+ * comparator and the ordinal's spelling now sit together, and
+ * `one-home-for-the-ordinal-suffix` is repointed at this file in the same
+ * change.
+ *
+ * **Why it had to move at all**: Story 7.3's `Finding.claim` is a sentence the
+ * BACKEND prints, and `−4.20% over 5 min — 94th of 4,620` carries the same
+ * ordinal `Abnormal-move indicators` draws a few centimetres above the
+ * checklist. A second speller in `apps/backend/src` would be two strings that
+ * happen to agree, and the disagreement they eventually produce is between a
+ * figure a reader SEES and a figure a listener HEARS.
+ *
+ * The teens are the whole reason this is a function: `11st`, `12nd` and `13rd`
+ * are what a `% 10` alone produces, and the rank this draws most often is in
+ * the nineties where a `% 10` is right.
+ */
+function ordinalSuffix(rank: number): string {
+  if (rank % 100 >= 11 && rank % 100 <= 13) return "th";
+
+  switch (rank % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+/**
+ * **What spelling an ordinal needs to know, and it is two fields.**
+ *
+ * The minimum rather than `WireReturnPercentile`, which is
+ * {@link PercentileRanked}'s own argument one function down: the spelling is a
+ * rule about an integer and a ceiling flag, and a function taking the wire row
+ * would be a rule that cannot be stated about anything else — including the
+ * backend's own `ReturnPercentileReading` and `CompareSecuritiesReading`,
+ * neither of which is a wire type and both of which now print one.
+ */
+export interface PercentileOrdinal {
+  /** The integer ordinal, `0`–`99`. **Never `100`.** */
+  readonly rank: number;
+  /** The magnitude is strictly above every sample the baseline holds. */
+  readonly aboveSample: boolean;
+}
+
+/**
+ * **The ordinal — `99th`, or `>99th` at the ceiling.**
+ *
+ * ## Integer ordinals, and the ceiling is the owner's decision
+ *
+ * Story 5.3's Gate 1 decision 2. The binomial standard error at the 99th of
+ * n = 4,620 is **0.146 points**, so `99.1st percentile` —
+ * `PRODUCT_SPEC.md` §11's own example, which now carries a dated amendment —
+ * is a precision the sample cannot resolve. And `100th` is never drawn: above
+ * the highest order statistic there is no sample, so it would assert a strict
+ * maximum over a distribution that deliberately excludes the window being
+ * scored.
+ *
+ * `>99th` is therefore the **stronger** statement rather than a clamp hiding
+ * one — it says the baseline holds nothing as large as this move, which is
+ * what a reader at the extreme actually wants to know. The producer decides
+ * which of the two this is (`aboveSample`), so no renderer can invent a
+ * ceiling.
+ *
+ * **No `%`, ever.** A `99` beside a `+0.42%` formatted by the same decimals is
+ * two numbers of visibly the same kind, and only one of them is a price move;
+ * the ordinal suffix is what tells them apart, because no numeral anywhere
+ * else in this product ends in `st`, `nd`, `rd` or `th`. The WORD
+ * `percentile` is the surface's to add — `percentileReading` adds it for the
+ * security page, `Unusual activity` puts it in a list heading once, and a
+ * `Finding.claim` states the denominator instead (`94th of 4,620`) because it
+ * has a character ceiling and no heading to hang a word in.
+ */
+export const percentileOrdinal = (percentile: PercentileOrdinal): string =>
+  `${percentile.aboveSample ? ">" : ""}${String(percentile.rank)}${ordinalSuffix(percentile.rank)}`;
+
+/**
  * What the order needs to know about a row: where it sits, and which security
  * it is.
  *

@@ -1,14 +1,22 @@
 import {
+  CLAIM_CEILING,
   TOOL_REFUSALS,
+  TOOL_REFUSAL_CLAIMS,
+  toFindingId,
   toInvestigationId,
+  toStepId,
   toTicker,
 } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { volumeFactorAnswer } from "./market-composite.js";
-import { createVolumeRatioTool } from "./tool-volume-ratio.js";
+import {
+  createVolumeRatioTool,
+  toVolumeRatioFinding,
+} from "./tool-volume-ratio.js";
 
 import type { ToolContext } from "./analytical-tool.js";
+import type { FindingStamp } from "@marketpulse/shared";
 
 // **The volume-anomaly tool** (Task 7.2.3, Done-when 1). No database, no
 // fixture and no furnished store, because the behaviour is STRUCTURAL: the
@@ -28,6 +36,13 @@ const CONTEXT: ToolContext = {
   investigationId: toInvestigationId("inv-1"),
   asOf: new Date("2026-11-19T14:06:00.000Z"),
   mode: "live",
+};
+
+/** The ORCHESTRATOR's own stamp — a tool never supplies one. */
+const STAMP: FindingStamp = {
+  findingId: toFindingId("finding-1"),
+  stepId: toStepId("step-1"),
+  retrievedAt: new Date("2026-11-19T14:06:00.500Z"),
 };
 
 describe("createVolumeRatioTool", () => {
@@ -94,5 +109,61 @@ describe("createVolumeRatioTool", () => {
   it("reuses the producer's own word, which the tool vocabulary carries", () => {
     expect(volumeFactorAnswer().state).toBe("no-distribution");
     expect(TOOL_REFUSALS).toContain("no-distribution");
+  });
+});
+
+describe("toVolumeRatioFinding", () => {
+  it("mints the one claim EVERY machine meets, UNKNOWN and evidence-less", async () => {
+    const tool = createVolumeRatioTool(UNIVERSE);
+    const finding = toVolumeRatioFinding(
+      await tool.run({ symbol: NVDA }, CONTEXT),
+      STAMP,
+    );
+    if (finding === undefined) throw new Error("expected a finding");
+
+    expect(finding.claim).toBe(
+      "Volume rate — no stored distribution to rank against",
+    );
+    expect(finding.confidence).toBe("UNKNOWN");
+    expect(finding.evidenced).toBe(false);
+    expect("evidence" in finding).toBe(false);
+    expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+  });
+
+  it("says `stored`, which the composite ledger's own ~34-character cell could not fit", () => {
+    // **Deliberately NOT a copy of `anomaly-score.ts`' `no history to rank
+    // it`.** Gate 1's per-string test: a formatter moves into
+    // `packages/shared` only if the backend prints it verbatim, and this is
+    // a different grammar for the same fact — a clause in a one-line claim
+    // with 72 characters to spend rather than a fragment in a fixed column.
+    // The extra word is the point: the absence is a fact about this
+    // product's stored aggregates rather than about this security's
+    // coverage, which is what the whole tool exists to say.
+    expect(TOOL_REFUSAL_CLAIMS["no-distribution"]).toContain("stored");
+    expect(TOOL_REFUSAL_CLAIMS["no-distribution"]).not.toBe(
+      "no history to rank it",
+    );
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach", async () => {
+    // Done-when 2 / AC 10. This tool reaches two arms and no more — the `ok`
+    // arm is structurally unreachable while `0015_volume_baselines.sql`
+    // stores a median and a dispersion rather than a distribution — so the
+    // assertion is that the membership refusal and the product-wide one are
+    // two sentences and not one. Two TRUE sentences about `PSKY`, of which
+    // only one is the sentence this step owes.
+    const tool = createVolumeRatioTool(UNIVERSE);
+    const claims = await Promise.all(
+      [NVDA, PSKY].map(
+        async (symbol) =>
+          toVolumeRatioFinding(await tool.run({ symbol }, CONTEXT), STAMP)
+            ?.claim,
+      ),
+    );
+
+    expect(new Set(claims).size).toBe(claims.length);
+    for (const claim of claims) {
+      expect(claim?.length ?? 0).toBeLessThanOrEqual(CLAIM_CEILING);
+    }
   });
 });

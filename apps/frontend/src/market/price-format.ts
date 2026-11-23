@@ -56,8 +56,6 @@
 // surface, and `PRICE_DECIMALS`, which is a price's precision and not a
 // percentage's.
 
-import { PERCENT_DISPLAY_DECIMALS, directionOf } from "@marketpulse/shared";
-
 // **A re-export rather than a second declaration**, which is what keeps the
 // frontend's public surface identical across the move. `pnpm invariants`'
 // `one-classifier-for-the-direction-of-a-move` is what holds the other half:
@@ -65,105 +63,31 @@ import { PERCENT_DISPLAY_DECIMALS, directionOf } from "@marketpulse/shared";
 export { PRICE_DIRECTIONS, directionOf } from "@marketpulse/shared";
 export type { PriceDirection } from "@marketpulse/shared";
 
-/**
- * How many decimal places a price is shown to.
- *
- * Two, which is what US equities quote in and what every reader expects. The
- * store holds `numeric(18, 6)` and the extra four places are real — they matter
- * to a sub-dollar security and to Epic 5's arithmetic — so this is a *display*
- * decision and the value it rounds is never fed back into anything.
- */
-const PRICE_DECIMALS = 2;
-
-// **A percentage's precision is `packages/shared`'s since Task 4.3.4**, and the
-// two constants are deliberately not collapsed. A price's decimals are this
-// module's business; a *percentage's* are now shared with the backend, because
-// the sector ranking is computed there and its no-swap rule is keyed on the
-// displayed figure — the displayed order must never contradict the displayed
-// figures, which needs both processes rounding in the same place.
-
-/**
- * The minus sign, U+2212, and not a hyphen.
- *
- * A hyphen-minus is a different width from the digits around it in most faces,
- * so a column of negative figures does not align with the positive ones — which
- * undoes exactly what `tabular-nums` was bought for (Task 1.4.3 measured a
- * 14.3 px spread). The same measurement is why an axis of proportional numerals
- * jitters as the window moves, so this constant matters on a chart for the same
- * reason it mattered in a table.
- */
-const MINUS = "−";
-
-/**
- * A price, as this product shows it.
- *
- * `toFixed` rather than `Intl.NumberFormat`, and that is a deliberate
- * restriction rather than an oversight: a locale-aware format would render
- * `1,234.56` for one reader and `1.234,56` for another, and a tabular column —
- * or a value axis — depends on every figure being the same shape on every
- * machine. It is also `no-restricted-syntax`-adjacent territory:
- * `packages/shared/src/market-time.ts` is the one module in this workspace
- * allowed to construct an `Intl` formatter, because a formatter that reads the
- * environment is a value that differs between two machines rendering the same
- * data.
- *
- * There is no grouping separator for the same reason: `1234.56` and `1,234.56`
- * are different widths, and at four figures the separator buys nothing in a
- * right-aligned figure.
- */
-export function formatPrice(price: number): string {
-  return price.toFixed(PRICE_DECIMALS);
-}
-
-/**
- * A percentage, formatted with its sign — `+0.84%`, `−1.24%`, `0.00%`.
- *
- * The sign is one of the three channels carrying direction (the glyph and the
- * spoken word are the others), so it is part of the string rather than something
- * the colour implies. A move that rounds to zero gets **no sign at all**:
- * `+0.00%` claims a direction the rounding threw away, and `−0.00%` is worse.
- */
-export function formatChangePercent(percent: number): string {
-  const figure = `${Math.abs(percent).toFixed(PERCENT_DISPLAY_DECIMALS)}%`;
-
-  // **The sign is read off the one classifier, never off the raw sign**
-  // (tightened 2026-10-07 by Task 4.4.2; it was `percent > 0` here). The
-  // output is unchanged for every figure a surface can reach — `directionOf`
-  // already decided whether a sign is claimed at all — and the reason to spell
-  // it this way is that `percent > 0` in this file *is* a second
-  // classification of a move, which is the shape
-  // `one-classifier-for-the-direction-of-a-move` exists to refuse. A figure
-  // with no direction gets no sign, which is `+0.00%`'s rule arriving at the
-  // only other input that has no direction to claim.
-  const direction = directionOf(percent);
-  if (direction === "positive") return `+${figure}`;
-  if (direction === "negative") return `${MINUS}${figure}`;
-  return figure;
-}
-
-/**
- * A signed **count**, formatted — `+132`, `−78`, `0`.
- *
- * The breadth region's headline is `advancing − declining`, which is the one
- * figure on this screen that is signed and is not a percentage. It is spelled
- * here rather than in that region for the two reasons this module exists: the
- * minus sign is {@link MINUS} and nothing outside this file may type one, and
- * the decision about whether a sign is claimed at all is `directionOf`'s —
- * `formatChangePercent` had the same pair of obligations and they are the same
- * two lines.
- *
- * **No decimals and no grouping separator.** A count is an integer, and at
- * three digits a separator buys nothing in a right-aligned figure —
- * {@link formatPrice}'s own note, for the same reason.
- *
- * A net of zero gets **no sign**, which is `+0.00%`'s rule at a second input: a
- * `+0` over a market where the advancers and the decliners are equal claims a
- * direction the subtraction did not find.
- */
-export function formatSignedCount(count: number): string {
-  const figure = String(Math.abs(count));
-  const direction = directionOf(count);
-  if (direction === "positive") return `+${figure}`;
-  if (direction === "negative") return `${MINUS}${figure}`;
-  return figure;
-}
+// ## Amended 2026-11-23 (Task 7.3.1): the SPELLINGS left this module too
+//
+// `formatPrice`, `formatChangePercent` and `formatSignedCount` — with
+// `PRICE_DECIMALS` and `MINUS` beside them — are now
+// `packages/shared/src/price-format.ts`', and this is the same move
+// `directionOf` made above arriving at the functions that call it. The reason
+// is the premise the paragraphs above rest on rather than their argument:
+// *"the backend has no surface"* was true until Story 7.3, which makes the
+// backend print a `Finding.claim` carrying a five-minute move, a price and an
+// excess in points — the same figures the security page draws a few
+// centimetres higher. A second `toFixed(2)` in `apps/backend/src` is exactly
+// how ADR 0029's one-fact-one-home rule breaks, and `price-direction.ts`'s own
+// note predicted the shape: *"both sides already hold the number" is the
+// condition under which two implementations appear, not a reason against
+// sharing one.*
+//
+// What this file still is: **this module's public spelling of a market
+// figure**, re-exported so every component's import and `market/index.ts`'s
+// own barrel are unchanged. The per-string test Story 7.3's Gate 1 settled is
+// *does the backend print it verbatim*, and these do.
+export {
+  MINUS,
+  formatChangePercent,
+  formatCount,
+  formatPrice,
+  formatSignedCount,
+  formatSignedPoints,
+} from "@marketpulse/shared";

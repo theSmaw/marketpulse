@@ -1,7 +1,10 @@
 import {
   BASELINE_MINIMUM_SAMPLE,
+  CLAIM_CEILING,
   excessMoveReference,
+  toFindingId,
   toInvestigationId,
+  toStepId,
   toTicker,
 } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
@@ -9,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { breakpointsOf } from "./return-baseline.js";
 import {
   createCompareSecuritiesTool,
+  toCompareSecuritiesFinding,
   toWireCompareSecurities,
 } from "./tool-compare-securities.js";
 import { createTrailingWindow } from "./trailing-window.js";
@@ -21,6 +25,7 @@ import type { PeerComparisonSources } from "./peer-comparison.js";
 import type {
   BarSource,
   ExcessMoveReference,
+  FindingStamp,
   Ticker,
 } from "@marketpulse/shared";
 
@@ -65,6 +70,13 @@ const CONTEXT: ToolContext = {
   investigationId: toInvestigationId("inv-1"),
   asOf: ASOF,
   mode: "live",
+};
+
+/** The ORCHESTRATOR's own stamp — a tool never supplies one. */
+const STAMP: FindingStamp = {
+  findingId: toFindingId("finding-1"),
+  stepId: toStepId("step-1"),
+  retrievedAt: new Date("2026-11-19T14:06:00.500Z"),
 };
 
 const barAt = (
@@ -491,5 +503,105 @@ describe("toWireCompareSecurities", () => {
     // while failing on one that did not.
     expect(Object.getOwnPropertySymbols(wire)).toStrictEqual([]);
     expect(Object.getOwnPropertySymbols(outcome.value)).toHaveLength(1);
+  });
+});
+
+describe("toCompareSecuritiesFinding", () => {
+  const scored = () =>
+    createCompareSecuritiesTool(
+      sourcesWith(AHEAD_BY_HALF_A_POINT, rankableBaseline()),
+      UNIVERSE_SET,
+    );
+
+  it("names the BENCHMARK, states the excess in points, and ranks it — SUPPORTED", async () => {
+    const outcome = await scored().run({ symbol: NVDA }, CONTEXT);
+    const finding = toCompareSecuritiesFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    expect(finding.claim).toBe(
+      "+0.50 pts against XLK over 5 min — 50th of 2,500",
+    );
+    expect(finding.confidence).toBe("SUPPORTED");
+    expect(finding.type).toBe("RELATIVE_MOVE");
+    // **The one ticker a claim carries is the REFERENCE**, because *which
+    // benchmark* is the entire meaning of a comparison and nothing else on
+    // the row says it. The investigated ticker stays out, per Gate 1.
+    expect(finding.claim).toContain("XLK");
+    expect(finding.claim).not.toContain("NVDA");
+    expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+  });
+
+  it("carries the pair read and the ranking as two items, the first naming both legs", async () => {
+    const outcome = await scored().run({ symbol: NVDA }, CONTEXT);
+    const finding = toCompareSecuritiesFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    const [observation, metric] = finding.evidence;
+    if (metric === undefined) throw new Error("expected two items");
+    // One item rather than two, because `sameInterval` refuses a pair whose
+    // endpoints disagree — so the two legs are one read a reader would check
+    // together, not two a reader would have to pair up.
+    expect(observation.rawData).toBe("trailing-window:NVDA+XLK");
+    expect(observation.security).toBe(NVDA);
+    expect(metric.method).toBe("excessMoveFactor");
+    expect(metric.rawData).toBe("excess_move_baselines:NVDA");
+  });
+
+  it("mints NO finding at all for either inapplicability — AC 3's one exception", async () => {
+    // **`XLK` IS the fund its sector is measured against, and `SPY` has no
+    // sector.** No backfill, repair or waiting will ever produce a figure, so
+    // *the question does not arise* must not collapse onto `UNKNOWN`, which
+    // means *not enough evidence* and invites a reader to come back later.
+    // The row draws the inapplicability Story 7.2 already ships.
+    const tool = createCompareSecuritiesTool(
+      sourcesWith([], undefined),
+      UNIVERSE_SET,
+    );
+
+    for (const symbol of [XLK, SPY]) {
+      const outcome = await tool.run({ symbol }, CONTEXT);
+      expect(outcome.kind).toBe("inapplicable");
+      expect(toCompareSecuritiesFinding(outcome, STAMP)).toBeUndefined();
+    }
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach", async () => {
+    // Done-when 2 / AC 10. The two inapplicabilities mint nothing and are
+    // asserted above; what is left is the scored reading and three refusals
+    // with genuinely different repairs.
+    const outcomes = [
+      await scored().run({ symbol: NVDA }, CONTEXT),
+      // No windows at all — neither leg has a five-minute move.
+      await createCompareSecuritiesTool(
+        sourcesWith([], rankableBaseline()),
+        UNIVERSE_SET,
+      ).run({ symbol: NVDA }, CONTEXT),
+      // Both legs measured and no generation to rank the excess against.
+      await createCompareSecuritiesTool(
+        sourcesWith(AHEAD_BY_HALF_A_POINT, undefined),
+        UNIVERSE_SET,
+      ).run({ symbol: NVDA }, CONTEXT),
+      // Outside the curated universe.
+      await scored().run({ symbol: PSKY }, CONTEXT),
+    ];
+
+    const findings = outcomes.map((outcome) =>
+      toCompareSecuritiesFinding(outcome, STAMP),
+    );
+    const claims = findings.map((finding) => finding?.claim);
+
+    expect(claims).toHaveLength(4);
+    expect(new Set(claims).size).toBe(claims.length);
+
+    for (const finding of findings) {
+      if (finding === undefined) throw new Error("expected a finding");
+      expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+      if (finding.evidenced) continue;
+      expect(finding.confidence).toBe("UNKNOWN");
+      expect("evidence" in finding).toBe(false);
+      // AC 9: no fabricated instant and no invented figure.
+      expect(finding.claim).not.toMatch(/\d{4}-\d{2}-\d{2}/u);
+      expect(finding.claim).not.toContain("pts");
+    }
   });
 });

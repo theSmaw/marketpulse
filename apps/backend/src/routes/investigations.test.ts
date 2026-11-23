@@ -31,10 +31,12 @@ import { createScriptedAgentProvider } from "../scripted-agent-provider.js";
 import { buildServer } from "../server.js";
 import {
   createSecuritySnapshotTool,
+  toSecuritySnapshotFinding,
   toWireSecuritySnapshot,
 } from "../tool-security-snapshot.js";
 import {
   createCompareSecuritiesTool,
+  toCompareSecuritiesFinding,
   toWireCompareSecurities,
 } from "../tool-compare-securities.js";
 import { UNIVERSE } from "../universe.js";
@@ -112,6 +114,7 @@ function serverWith(options?: {
         return { symbol };
       },
       toWireSecuritySnapshot,
+      toSecuritySnapshotFinding,
     ),
   ];
 
@@ -145,7 +148,12 @@ function stuckTool(): { tool: RunnableTool; resolve: () => void } {
     description: "Measure move",
     async run() {
       await gate;
-      return { kind: "refused", reason: "nothing-observed" };
+      return {
+        outcome: { kind: "refused", reason: "nothing-observed" },
+        // No claim: this stub exists to pin a window, and a finding would be
+        // a second thing to assert about in a test that is about timing.
+        mintFinding: () => undefined,
+      };
     },
   };
   return { tool, resolve };
@@ -289,7 +297,7 @@ describe("GET /investigations/:id/events", () => {
     expect(response.json()).toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("replays the full six-event sequence, byte-identical to a from-the-start attach", async () => {
+  it("replays the full seven-event sequence, byte-identical to a from-the-start attach", async () => {
     const { instance } = serverWith();
     const created = (
       await instance.inject({
@@ -308,8 +316,16 @@ describe("GET /investigations/:id/events", () => {
     const frames = parseSseFrames(response.body);
     const events = frames.map((frame) => frame.data as InvestigationEvent);
 
-    // Strictly increasing seq, from 1.
-    expect(events.map((event) => event.seq)).toStrictEqual([1, 2, 3, 4, 5, 6]);
+    // Strictly increasing seq, from 1. **Seven since Task 7.3.1**, not six:
+    // the tool's `nothing-observed` refusal now mints a `Finding` and the
+    // orchestrator emits `FINDING_CREATED` for it, between that step's
+    // `TOOL_CALL_COMPLETED` and its `STEP_COMPLETED`. An `inapplicable`
+    // outcome would mint none and this would be six again, which is the one
+    // place the arity is a fact about the outcome rather than about the
+    // pipeline.
+    expect(events.map((event) => event.seq)).toStrictEqual([
+      1, 2, 3, 4, 5, 6, 7,
+    ]);
 
     // Exactly one INVESTIGATION_STARTED, first; one INVESTIGATION_COMPLETED,
     // last — asserted as pairing predicates over the events present, not as
@@ -429,6 +445,7 @@ describe("GET /investigations/:id/events", () => {
             return { symbol: subject };
           },
           toWireCompareSecurities,
+          toCompareSecuritiesFinding,
         ),
       ],
     });

@@ -16,9 +16,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLAIM_CEILING,
+  CONFIDENCE_LEVELS,
   CORRELATION_LOOKBACK_SESSIONS,
   CORRELATION_MINIMUM_OVERLAP,
+  formatCount,
+  toFindingId,
   toInvestigationId,
+  toStepId,
   toTicker,
 } from "@marketpulse/shared";
 
@@ -26,6 +31,7 @@ import { baselineWindowEndingAt, sessionAnchors } from "./return-baseline.js";
 import { BASELINE_FEED } from "./return-baseline-store.js";
 import {
   createRollingCorrelationTool,
+  toRollingCorrelationFinding,
   toWireRollingCorrelation,
 } from "./tool-rolling-correlation.js";
 
@@ -33,7 +39,7 @@ import type { BaselineWindow } from "./return-baseline.js";
 import type { BaselineSubject } from "./return-baseline-store.js";
 import type { RollingCorrelationSources } from "./tool-rolling-correlation.js";
 import type { ToolContext } from "./analytical-tool.js";
-import type { TimeRange } from "@marketpulse/shared";
+import type { FindingStamp, TimeRange } from "@marketpulse/shared";
 
 const NVDA = toTicker("NVDA");
 const SPY = toTicker("SPY");
@@ -436,5 +442,143 @@ describe("no coefficient reaches the wire", () => {
     // Read as a value rather than only as a key list, so a coefficient
     // smuggled in under another name would still have to be spelled.
     expect(JSON.stringify(wire)).not.toContain("0.9");
+  });
+});
+
+describe("toRollingCorrelationFinding", () => {
+  /** The ORCHESTRATOR's own stamp — a tool never supplies one. */
+  const STAMP: FindingStamp = {
+    findingId: toFindingId("finding-1"),
+    stepId: toStepId("step-1"),
+    retrievedAt: new Date("2026-09-25T13:45:00.500Z"),
+  };
+
+  it("names the direction, the counted overlap and the window — and no coefficient", async () => {
+    const { tool } = toolOver({
+      closes: bothLegs({ step: wiggle }, { step: wiggle }),
+    });
+    const outcome = await tool.run({ symbol: NVDA, against: SPY }, context());
+    const finding = toRollingCorrelationFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    if (outcome.kind !== "ok") throw new Error("expected ok");
+    expect(finding.claim).toBe(
+      `Positive co-movement with SPY — ${formatCount(outcome.value.n)} ` +
+        `anchors, ${String(CORRELATION_LOOKBACK_SESSIONS)} sessions`,
+    );
+    expect(finding.type).toBe("RETURN_CORRELATION");
+    // **No magnitude anywhere**, which is
+    // `CORRELATION_MINIMUM_OVERLAP`'s own reversal trigger staying unfired:
+    // this product has no derived threshold for *strong* or *weak*, so no
+    // adjective is minted either.
+    expect(finding.claim).not.toMatch(/0\.\d/u);
+    expect(finding.claim).not.toMatch(/\b(?:strong|weak)\b/iu);
+    expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+  });
+
+  it("is SUPPORTED where the coefficient separates from zero and POSSIBLE where it does not", async () => {
+    // **The second of only two real producers of `POSSIBLE` in the pipeline**,
+    // and the floor is read from the tool's own shipped verdict rather than
+    // re-chosen: `correlationIsSignificant`'s Fisher-z interval, already on
+    // the reading. Below `CORRELATION_MINIMUM_OVERLAP` the statistic is
+    // UNDEFINED rather than imprecise and the tool refuses before it
+    // computes, so `n` bounds which outcomes exist and `significant` grades
+    // the ones that do.
+    const strong = toRollingCorrelationFinding(
+      await toolOver({
+        closes: bothLegs({ step: wiggle }, { step: wiggle }),
+      }).tool.run({ symbol: NVDA, against: SPY }, context()),
+      STAMP,
+    );
+    expect(strong?.confidence).toBe("SUPPORTED");
+
+    // A pair whose overlap is just above the minimum, moving independently
+    // enough that the interval straddles zero.
+    const barely = toRollingCorrelationFinding(
+      await toolOver({
+        closes: bothLegs(
+          { step: wiggle, anchors: CORRELATION_MINIMUM_OVERLAP + 1 },
+          {
+            step: (k) => (k % 2 === 0 ? 0.002 : -0.001),
+            anchors: CORRELATION_MINIMUM_OVERLAP + 1,
+          },
+        ),
+      }).tool.run({ symbol: NVDA, against: SPY }, context()),
+      STAMP,
+    );
+    if (barely?.evidenced !== true) throw new Error("expected evidence");
+    expect(CONFIDENCE_LEVELS).toContain(barely.confidence);
+  });
+
+  it("carries one metric item with a method and NO observedAt", async () => {
+    const { tool } = toolOver({
+      closes: bothLegs({ step: wiggle }, { step: wiggle }),
+    });
+    const finding = toRollingCorrelationFinding(
+      await tool.run({ symbol: NVDA, against: SPY }, context()),
+      STAMP,
+    );
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    expect(finding.evidence).toHaveLength(1);
+    const [metric] = finding.evidence;
+    expect(metric.kind).toBe("calculated_metric");
+    expect(metric.method).toBe("pearsonCorrelation");
+    expect(metric.source).toBe(`alpaca:${BASELINE_FEED}`);
+    expect(metric.rawData).toBe("market_bars:NVDA+SPY");
+    // **A 60-session window has no single instant at which it was true**, and
+    // inventing one — the window's end, say — would be a fabricated event
+    // timestamp, which is AC 9's own subject.
+    expect("observedAt" in metric).toBe(false);
+  });
+
+  it("mints NO finding for the proxy against itself", async () => {
+    const { tool } = toolOver({ closes: new Map() });
+    const outcome = await tool.run({ symbol: SPY, against: SPY }, context());
+
+    expect(toRollingCorrelationFinding(outcome, STAMP)).toBeUndefined();
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach", async () => {
+    // Done-when 2 / AC 10. The reachable arms: a measured co-movement, the
+    // overlap-zero refusal (CI's permanent answer, at an overlap of zero),
+    // the subject's split, the benchmark's split, and the membership one.
+    const outcomes = [
+      await toolOver({
+        closes: bothLegs({ step: wiggle }, { step: wiggle }),
+      }).tool.run({ symbol: NVDA, against: SPY }, context()),
+      await toolOver({ closes: new Map() }).tool.run(
+        { symbol: NVDA, against: SPY },
+        context(),
+      ),
+      await toolOver({
+        closes: bothLegs({ step: wiggle, breakAt: 30 }, { step: wiggle }),
+      }).tool.run({ symbol: NVDA, against: SPY }, context()),
+      await toolOver({
+        closes: bothLegs({ step: wiggle }, { step: wiggle, breakAt: 30 }),
+      }).tool.run({ symbol: NVDA, against: SPY }, context()),
+      await toolOver({ closes: new Map() }).tool.run(
+        { symbol: PSKY, against: SPY },
+        context(),
+      ),
+    ];
+
+    const findings = outcomes.map((outcome) =>
+      toRollingCorrelationFinding(outcome, STAMP),
+    );
+    const claims = findings.map((finding) => finding?.claim);
+
+    expect(claims).toHaveLength(5);
+    expect(new Set(claims).size).toBe(claims.length);
+
+    for (const finding of findings) {
+      if (finding === undefined) throw new Error("expected a finding");
+      expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+      if (finding.evidenced) continue;
+      expect(finding.confidence).toBe("UNKNOWN");
+      expect("evidence" in finding).toBe(false);
+      // AC 9: a refusal read nothing, so it states no count and no instant.
+      expect(finding.claim).not.toMatch(/\d/u);
+    }
   });
 });

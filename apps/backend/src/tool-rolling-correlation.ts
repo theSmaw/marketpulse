@@ -83,8 +83,13 @@
 
 import {
   CORRELATION_LOOKBACK_SESSIONS,
+  FINDING_TYPE_FOR_TOOL,
   correlationIsSignificant,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  formatCount,
   pearsonCorrelation,
+  refusalClaim,
 } from "@marketpulse/shared";
 
 import {
@@ -100,6 +105,8 @@ import type { AnalyticalTool } from "./analytical-tool.js";
 import type { BaselineWindow } from "./return-baseline.js";
 import type { ReturnBaselineStore } from "./return-baseline-store.js";
 import type {
+  Finding,
+  FindingStamp,
   JsonValue,
   MarketFeed,
   Ticker,
@@ -399,4 +406,110 @@ export function toWireRollingCorrelation(
     lookbackSessions: reading.lookbackSessions,
     feed: reading.feed,
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled. */
+const TYPE = FINDING_TYPE_FOR_TOOL.calculate_rolling_correlation;
+
+/**
+ * **What each direction reads as in a claim — a total record over
+ * `CORRELATION_DIRECTIONS`**, so a fourth word is a compile error naming the
+ * missing member rather than an `undefined` reaching a reader's row.
+ *
+ * **`none` says *no direction*, never *these do not move together***, which is
+ * {@link CORRELATION_DIRECTIONS}' own rule: `r === 0` is a measurable
+ * arithmetic outcome (two series whose covariance cancels to exactly zero),
+ * and the stronger claim is the one `zero-variance`'s refusal exists to avoid
+ * making.
+ *
+ * **No adjective, and that is a reversal trigger rather than a style
+ * choice.** This product has no derived threshold for *strong* or *weak*, and
+ * `CORRELATION_MINIMUM_OVERLAP`'s own trigger — *the first surface that prints
+ * a coefficient as a figure rather than drawing it as an edge* — is what a
+ * magnitude here would fire. The claim therefore carries a direction, a
+ * counted overlap and a window, and no `r` at all.
+ */
+const DIRECTION_CLAIMS = {
+  positive: "Positive co-movement with",
+  negative: "Negative co-movement with",
+  none: "No co-movement direction with",
+} satisfies Record<CorrelationDirection, string>;
+
+/**
+ * **This step's claim** (Task 7.3.1) —
+ * `Positive co-movement with SPY — 48 anchors, 60 sessions`.
+ *
+ * ## Confidence: `POSSIBLE` where the coefficient is not distinguishable from
+ * ## zero, and this is the SECOND of only two real producers of that word
+ *
+ * The floor is read from the tool's own shipped verdict rather than re-chosen
+ * here: `correlationIsSignificant`'s Fisher-z interval, already computed and
+ * already on the reading as `significant`. `false` is an `ok` below the floor
+ * — we measured, and the measurement does not separate from zero at this
+ * pair's counted overlap — which is exactly what `POSSIBLE` means.
+ *
+ * It is **not** keyed on `n` against `CORRELATION_MINIMUM_OVERLAP`, because
+ * that bound is already enforced upstream as the
+ * `too-few-overlapping-samples` refusal: below it the statistic is
+ * **undefined** rather than imprecise, and this tool refuses before it
+ * computes. So `n` bounds which outcomes exist and `significant` grades the
+ * ones that do.
+ *
+ * ## The reference is named, the coefficient is not, and `n` is counted
+ *
+ * `against` is on the reading because `index.ts`' own `buildInput` is the one
+ * home for *which fund this product calls the broad market*, and a claim that
+ * said *the market* would hide the decision. `n` is the **counted** overlap —
+ * anchors present in both legs' grids, never `60 × 77` and never either leg's
+ * own — because the significance verdict is a function of it and a reader
+ * cannot re-derive it.
+ *
+ * ## One evidence item, and it has no `observedAt`
+ *
+ * A 60-session window has no single instant at which it was true. Inventing
+ * one — the window's end, say — would be a fabricated event timestamp, which
+ * is AC 9's own subject, and the window's depth is in the claim.
+ */
+export function toRollingCorrelationFinding(
+  outcome: ToolOutcome<RollingCorrelationReading>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  // **`SPY` against itself mints nothing.** `r = 1` is arithmetic rather than
+  // a measurement, and *the question does not arise* is a permanent fact that
+  // must not collapse onto `UNKNOWN`'s *not enough evidence*.
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const reading = outcome.value;
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim:
+        `${DIRECTION_CLAIMS[reading.direction]} ${reading.against} — ` +
+        `${formatCount(reading.n)} anchors, ` +
+        `${String(reading.lookbackSessions)} sessions`,
+      confidence: reading.significant ? "SUPPORTED" : "POSSIBLE",
+      evidence: [
+        {
+          kind: "calculated_metric",
+          source: `alpaca:${reading.feed}`,
+          method: "pearsonCorrelation",
+          security: reading.symbol,
+          rawData: `market_bars:${reading.symbol}+${reading.against}`,
+        },
+      ],
+    },
+    stamp,
+  );
 }

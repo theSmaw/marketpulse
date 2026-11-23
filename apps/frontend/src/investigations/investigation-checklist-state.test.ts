@@ -33,6 +33,8 @@ describe("optimisticChecklist", () => {
         startedAt: undefined,
         completedAt: undefined,
         durationMs: undefined,
+        claim: undefined,
+        confidence: undefined,
       });
     }
     expect(state.terminal).toBe(false);
@@ -71,6 +73,8 @@ describe("applyInvestigationEvent", () => {
       startedAt: "2026-11-16T14:00:00.000Z",
       completedAt: undefined,
       durationMs: undefined,
+      claim: undefined,
+      confidence: undefined,
     });
   });
 
@@ -192,6 +196,8 @@ describe("applyInvestigationEvent", () => {
       startedAt: "2026-11-16T14:00:00.000Z",
       completedAt: "2026-11-16T14:00:00.000Z",
       durationMs: 12,
+      claim: undefined,
+      confidence: undefined,
     });
   });
 
@@ -236,5 +242,117 @@ describe("withConnectionLost", () => {
     });
 
     expect(withConnectionLost(completed)).toStrictEqual(completed);
+  });
+
+  it("is a no-op once the run has FAILED, which is the whole of the B2 repair", () => {
+    // Before Task 7.3.1 `INVESTIGATION_FAILED` had no decoder case at all, so
+    // it never reached this reducer, `terminal` stayed `false`, the stream
+    // ended, and this function drew the dropped-connection sentence over a
+    // run that had actually failed. The repair is `terminal: true` and
+    // nothing else — the sentence a reader is owed is Story 7.5's.
+    const failed = applyInvestigationEvent(optimisticChecklist("NVDA"), {
+      type: "INVESTIGATION_FAILED",
+      seq: 7,
+      investigationId: "inv-1",
+      status: "failed",
+      failedAt: "2026-11-16T14:00:00.012Z",
+      stepCount: 0,
+    });
+
+    expect(failed.terminal).toBe(true);
+    expect(withConnectionLost(failed)).toStrictEqual(failed);
+    expect(failed.connectionLost).toBe(false);
+  });
+});
+
+describe("applyInvestigationEvent — FINDING_CREATED (Task 7.3.1)", () => {
+  const started = () =>
+    applyInvestigationEvent(optimisticChecklist("NVDA"), {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      description: "Measure price anomaly",
+      tool: "calculate_return_percentile",
+      startedAt: "2026-11-23T14:00:00.000Z",
+    });
+
+  it("puts the claim and the confidence on the row the FINDING names", () => {
+    const state = applyInvestigationEvent(started(), {
+      type: "FINDING_CREATED",
+      seq: 2,
+      investigationId: "inv-1",
+      finding: {
+        stepId: "step-1",
+        claim: "−4.20% over 5 min — 94th of 4,620",
+        confidence: "SUPPORTED",
+      },
+    });
+
+    expect(state.steps[0]?.claim).toBe("−4.20% over 5 min — 94th of 4,620");
+    expect(state.steps[0]?.confidence).toBe("SUPPORTED");
+    // The row is still `running` — the orchestrator emits this BEFORE that
+    // step's `STEP_COMPLETED`.
+    expect(state.steps[0]?.status).toBe("running");
+    // And no other row moved.
+    expect(state.steps[1]?.claim).toBeUndefined();
+  });
+
+  it("survives that step's own STEP_COMPLETED", () => {
+    // The completion carries no claim, so a reducer arm that rebuilt the row
+    // rather than spreading it would blank the sentence the frame before.
+    let state = applyInvestigationEvent(started(), {
+      type: "FINDING_CREATED",
+      seq: 2,
+      investigationId: "inv-1",
+      finding: {
+        stepId: "step-1",
+        claim: "0 up, 0 down, 0 flat of 0 measured in the last 5 min",
+        confidence: "POSSIBLE",
+      },
+    });
+    state = applyInvestigationEvent(state, {
+      type: "STEP_COMPLETED",
+      seq: 3,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      status: "completed",
+      durationMs: 4,
+    });
+
+    expect(state.steps[0]?.status).toBe("completed");
+    expect(state.steps[0]?.claim).toBe(
+      "0 up, 0 down, 0 flat of 0 measured in the last 5 min",
+    );
+    expect(state.steps[0]?.confidence).toBe("POSSIBLE");
+  });
+
+  it("leaves the confidence absent where the decoder dropped an unknown level", () => {
+    const state = applyInvestigationEvent(started(), {
+      type: "FINDING_CREATED",
+      seq: 2,
+      investigationId: "inv-1",
+      finding: { stepId: "step-1", claim: "−4.20% over 5 min — 94th of 4,620" },
+    });
+
+    expect(state.steps[0]?.claim).toBe("−4.20% over 5 min — 94th of 4,620");
+    expect(state.steps[0]?.confidence).toBeUndefined();
+  });
+
+  it("leaves a row with NO claim where no finding ever arrives — an inapplicable step", () => {
+    // AC 3's one exception, at the reducer: `inapplicable` mints no finding,
+    // so no event is emitted and the row completes with nothing to say.
+    const state = applyInvestigationEvent(started(), {
+      type: "STEP_COMPLETED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      status: "completed",
+      durationMs: 1,
+    });
+
+    expect(state.steps[0]?.status).toBe("completed");
+    expect(state.steps[0]?.claim).toBeUndefined();
+    expect(state.steps[0]?.confidence).toBeUndefined();
   });
 });

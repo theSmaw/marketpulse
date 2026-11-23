@@ -1,4 +1,6 @@
+import { toWireFinding } from "./finding.js";
 import { asInstant, asIs, toWire } from "./wire-serialiser.js";
+import type { Finding } from "./finding.js";
 import type { JsonValue, WireFields } from "./wire-serialiser.js";
 import type {
   ExcessFactorRefusal,
@@ -470,6 +472,17 @@ export type Step =
  * rather than shipped empty (ADR 0029: a fully-formed record about
  * nothing is a false impression). `findings`/`evidence` arrive at Story
  * 7.3; `workspaceState`/`messages` are Epic 10/11's.
+ *
+ * **Corrected 2026-11-23 (Task 7.3.1): `findings`/`evidence` did NOT arrive
+ * at Story 7.3, and the sentence above would otherwise assert a field that
+ * does not exist.** Findings travel on the **event stream** —
+ * `FINDING_CREATED`, with the evidence inline — which is what makes them
+ * visible, streamable and testable. The arrays on *this* type are a property
+ * of an investigation that **outlives its own run**, and nothing in this epic
+ * re-reads a finished investigation's claims: `investigation-store.ts` is a
+ * 200-entry process-lifetime cache, so a field here would be populated,
+ * evicted and never read. They arrive with **Epic 12's persistence**, which is
+ * the story that gives them a reader.
  */
 export interface Investigation {
   readonly id: InvestigationId;
@@ -497,7 +510,21 @@ export interface Investigation {
  * produces one (Story 7.4). **Corrected 2026-11-18 (Task 7.2.1): this
  * used to say `INVESTIGATION_FAILED` waits for Story 7.5 — it ships here,
  * as the terminal event alone, and Story 7.5 still owns what a reader is
- * told about a failed run.** */
+ * told about a failed run.**
+ *
+ * **Amended 2026-11-23 (Task 7.3.1): eight of the ten now carry a payload,
+ * and the two that do not are each reserved for a stated condition.**
+ * `FINDING_CREATED` ships here, carrying its finding **with the evidence
+ * inline**. `EVIDENCE_ADDED` is deliberately **not** given a payload in the
+ * same change, which is Story 7.3's Gate 1 decision rather than an
+ * omission: `PRODUCT_SPEC.md` §33's literal order (`FINDING_CREATED` then
+ * `EVIDENCE_ADDED`) cannot coexist with AC 2's guarantee, because a finding
+ * would have to exist before — or reference — evidence not yet sent, and
+ * the whole point of the type is that an evidenced finding cannot be
+ * constructed without its evidence. §33 carries a dated amendment recording
+ * the deviation. The word stays reserved for the story where evidence can
+ * be **pinned with no attached finding**, which is Epic 8's workspace.
+ * `WORKSPACE_COMMAND` is still Story 7.4's. */
 export const INVESTIGATION_EVENT_TYPES = [
   "INVESTIGATION_STARTED",
   "STEP_STARTED",
@@ -546,7 +573,15 @@ interface InvestigationEventBase {
 
 /** The six events Story 7.1 ships, fully typed. The other four exist as
  * names only in {@link INVESTIGATION_EVENT_TYPES} — their payload shape
- * is each one's own story's to add, as a new member of this union. */
+ * is each one's own story's to add, as a new member of this union.
+ *
+ * **Amended 2026-11-18 (Task 7.2.1) and again 2026-11-23 (Task 7.3.1): this
+ * union has EIGHT members.** `INVESTIGATION_FAILED` became the seventh and
+ * `FINDING_CREATED` the eighth; the two names still carrying no payload
+ * (`EVIDENCE_ADDED`, `WORKSPACE_COMMAND`) each have their condition stated at
+ * {@link INVESTIGATION_EVENT_TYPES}. The count is corrected rather than the
+ * paragraph rewritten, because its subject — *a name in the vocabulary is not
+ * yet a shape on the wire* — is unchanged and is the thing a reader needs. */
 export type InvestigationEvent =
   | (InvestigationEventBase & {
       readonly type: "INVESTIGATION_STARTED";
@@ -570,6 +605,34 @@ export type InvestigationEvent =
       readonly tool: ToolName;
       readonly durationMs: number;
       readonly outcome: WireToolOutcome;
+    })
+  /**
+   * **Added 2026-11-23 (Task 7.3.1).** One step's claim, emitted after that
+   * step's own `TOOL_CALL_COMPLETED` and **before** its `STEP_COMPLETED`.
+   *
+   * **The evidence travels INLINE on the finding** — Story 7.3's Gate 1
+   * decision, taken over `EVIDENCE_ADDED`-first-and-reference-by-id, because
+   * it keeps AC 2 at full strength (an evidenced finding cannot exist without
+   * its evidence, so it cannot be sent before it either) and needs only a
+   * dated amendment to `PRODUCT_SPEC.md` §33 rather than a rewrite of its
+   * sequence.
+   *
+   * **There is no top-level `stepId`, unlike every sibling event here, and
+   * that is deliberate.** `Finding.stepId` is already the one home for *which
+   * step produced this*; a second copy on the envelope would be a second
+   * answer to one question, and the failure mode is the quiet one — two
+   * fields that agree until something writes one of them from the wrong
+   * place. A reader keys on `event.finding.stepId`.
+   *
+   * **No event at all for an `inapplicable` outcome.** That step's row draws
+   * the inapplicability Story 7.2 already ships, with no claim and no
+   * confidence mark: *the question does not arise* is a different, permanent
+   * fact from *not enough evidence*, and collapsing it onto an `UNKNOWN`
+   * finding would say the second about the first.
+   */
+  | (InvestigationEventBase & {
+      readonly type: "FINDING_CREATED";
+      readonly finding: Finding;
     })
   | (InvestigationEventBase & {
       readonly type: "STEP_COMPLETED";
@@ -764,6 +827,22 @@ const toolCallCompletedFields: WireFields<
   outcome: asIs,
 };
 
+/**
+ * `FINDING_CREATED`'s own map (Task 7.3.1). The finding goes through
+ * {@link toWireFinding} — a hand-written, field-by-field mapper rather than a
+ * `WireFields<Finding>` map, for the reason its own docblock gives at length:
+ * `keyof` a union is its members' intersection, and the brand's symbol key
+ * would typecheck into such a map while `Object.keys` never reads it.
+ */
+const findingCreatedFields: WireFields<
+  Extract<InvestigationEvent, { type: "FINDING_CREATED" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  finding: toWireFinding,
+};
+
 const stepCompletedFields: WireFields<
   Extract<InvestigationEvent, { type: "STEP_COMPLETED" }>
 > = {
@@ -815,6 +894,8 @@ export const toWireInvestigationEvent = (
       return toWire(toolCallStartedFields, event);
     case "TOOL_CALL_COMPLETED":
       return toWire(toolCallCompletedFields, event);
+    case "FINDING_CREATED":
+      return toWire(findingCreatedFields, event);
     case "STEP_COMPLETED":
       return toWire(stepCompletedFields, event);
     case "INVESTIGATION_COMPLETED":
@@ -822,12 +903,12 @@ export const toWireInvestigationEvent = (
     case "INVESTIGATION_FAILED":
       return toWire(investigationFailedFields, event);
     default: {
-      // Exhaustive over the seven members this product emits —
+      // Exhaustive over the eight members this product emits —
       // `INVESTIGATION_FAILED` became the seventh on 2026-11-18 (Task
-      // 7.2.1). An eighth (`FINDING_CREATED`, `EVIDENCE_ADDED`,
-      // `WORKSPACE_COMMAND`) fails the build here the day its own
-      // story gives it a payload, naming the member rather than leaving
-      // it silently unserialisable.
+      // 7.2.1) and `FINDING_CREATED` the eighth on 2026-11-23 (Task
+      // 7.3.1). A ninth (`EVIDENCE_ADDED`, `WORKSPACE_COMMAND`) fails the
+      // build here the day its own story gives it a payload, naming the
+      // member rather than leaving it silently unserialisable.
       const unhandled: never = event;
       return unhandled;
     }
