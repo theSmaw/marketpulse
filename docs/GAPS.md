@@ -6891,3 +6891,90 @@ Epic 7's foundational-engine story rather than a polish pass and that Story
 taken now. **Owner: the first story that adds anything else to this region**
 — Story 7.3 by intent, which inherits the adopted rule rather than re-opening
 the three-way choice.
+
+## `overview-market-topology-burst-absorption.spec.ts` has failed on three separate, documentation-only PRs, each on a different sub-test, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the three
+
+**Added 2026-11-21, found while shipping Story 7.2's close and Story 7.3's
+Gate 1 — neither of which touched any application code.** Three CI `e2e`
+runs failed this story's own work, each on a PR whose diff was Markdown
+only (`STORY.md`/`TASK-NN-*.md` edits, no `apps/`, `packages/` or `scripts/`
+changes), which is the cheapest control this repository's own rule asks
+for before blaming a branch — and it has now been run three times without
+asking for it, by accident, because each PR happened to be doc-only. **A
+different specific test inside the same file failed each time:**
+
+- PR #698 (run `44504120506`): `overview-market-topology-burst-absorption.
+spec.ts:256:1 › a furnished, narrower population (the pre-6.7.1 ~30)
+absorbs the same 3 bursts, for comparison` — verbatim: `furnished arm (30
+symbols): burst 3 produced a task over 50 ms within 1 s of arriving:
+[{"type":"long-animation-frame","ms":56.59999999997672,
+"at":9973.800000000047}]`. `overview-market-topology-live-mark.spec.ts:
+70:1 › a live burst produces one decaying graph-level mark, and the loop
+is proved running rather than assumed` co-failed in the same run.
+- PR #701 (run `44705640695`, first attempt): `overview-market-topology-
+burst-absorption.spec.ts:246:1 › the real subscribed population (516)
+absorbs 3 consecutive bursts with nothing over the 50 ms ceiling` —
+  the **real** population this time, not the furnished comparison arm.
+  `overview-market-topology-live-mark.spec.ts:70:1` co-failed again, the
+  same test as PR #698's.
+- PR #702 (run `44864244413`, after an unrelated Prettier fix): `overview-
+market-topology-burst-absorption.spec.ts:299:1 › the same 3 bursts are
+absorbed with a BAND FILTER active — Task 6.8.2's own regression arm` —
+  a **third** distinct sub-test in the same file. `live-mark` did not
+  co-fail this time.
+
+**The pattern, read honestly rather than smoothed into "it's just flaky."**
+All three sub-tests that failed assert the same thing — zero main-thread
+tasks over `PRODUCT_SPEC.md` §28's 50 ms ceiling across three consecutive
+market-stream bursts the test itself furnishes over a mocked socket — on
+three **different** populations (furnished ~30, real 516, band-filtered).
+That the specific sub-test varies while the assertion shape does not is
+the same shape this repository has already recorded once for a different
+spec (`overview-degraded-grid.spec.ts`, above): a length- or timing-
+sensitive test surfacing different concrete symptoms under contention
+rather than one broken assertion. `live-mark`'s co-failure in two of three
+occurrences, always the identical sub-test, is suggestive of shared
+underlying machinery (both specs drive the mocked feed's burst delivery
+and read `PerformanceObserver` timing) but is not itself proof of one.
+
+**What was NOT done, and why it matters**: the correct next step per this
+repository's own established protocol for a CI-contention flake — re-run
+the specific failing spec locally with `--workers=1`, load read before
+the run, per the `overview-degraded-grid.spec.ts` entry's own "Owner" line
+— **could not be taken**. This machine has no Docker, so no local
+PostgreSQL exists, and `GET /securities` (which the topology's own graph
+is built from) 500s with no database reachable even though the burst
+itself is socket-furnished and needs no stored bar. The backend was
+confirmed to start and serve the market-stream socket cleanly with no
+database at all (`database unreachable, continuing without it`) — the
+blocker is specifically the universe table, not the bars this spec's own
+subject is. Three `gh run rerun --failed` calls were made before this was
+diagnosed, which is itself the wrong response this repository's `retries:
+0` policy and its own comment (`e2e/playwright.config.ts`: "this
+repository has never once responded to a failure by re-running it") name
+by name — recorded here as the correction rather than repeated silently.
+
+**Not mechanisable as a check** — a 50 ms ceiling under real contention is
+a property of the CI runner at the moment it ran, not of the product; the
+same ceiling has never been breached on a settled local machine with a
+real GPU (Story 6.7's own 16.7 ms median, `docs/GAPS.md`'s own earlier
+entry on that story). **Three occurrences is still far short of this
+repository's own n = 24 floor** for telling a measured flake rate from a
+regression, and — the one solid piece of evidence available without a
+database — **zero application code changed across all three**, which is
+the strongest argument available that this is CI-runner variance in a
+50 ms-ceiling test rather than anything introduced by Epic 7's own work.
+
+**Re-measure**: the first person with a local PostgreSQL reachable
+(`pnpm db && pnpm migrate && pnpm universe`) should run `pnpm e2e
+overview-market-topology-burst-absorption.spec.ts
+overview-market-topology-live-mark.spec.ts --workers=1 --repeat-each=24`,
+load read before the run rather than during it, against `--workers=4` for
+comparison — the same instrument this file's own `overview-degraded-
+grid.spec.ts` entry already asks for, extended to this pair of specs.
+
+**Owner: the first task that needs to cite a flake rate for this pair of
+specs rather than re-run past one** — until then, the correct response to
+a red run of either is to check whether the failing PR touched any
+application code at all before treating the failure as news, and to stop
+at that check rather than re-running CI to make the signal go away.
