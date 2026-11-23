@@ -15,7 +15,15 @@
 // is that the word is spelled once for the whole pipeline rather than once
 // per tool.
 
-import { asInstant } from "@marketpulse/shared";
+import {
+  FINDING_TYPE_FOR_TOOL,
+  asInstant,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  formatCount,
+  formatPrice,
+  refusalClaim,
+} from "@marketpulse/shared";
 
 import { untrackedRefusal } from "./tool-universe.js";
 import { trackedSymbols } from "./universe.js";
@@ -24,6 +32,8 @@ import type { AnalyticalTool } from "./analytical-tool.js";
 import type { CurrentMarketState } from "./current-market-state.js";
 import type {
   BarSource,
+  Finding,
+  FindingStamp,
   JsonValue,
   Ticker,
   ToolOutcome,
@@ -139,4 +149,87 @@ export function toWireSecuritySnapshot(
     },
     ageMs: snapshot.ageMs,
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled —
+ * `FINDING_TYPE_FOR_TOOL` is `satisfies Record<ToolName, FindingType>`, so a
+ * seventh tool is a compile error there until it declares its own. */
+const TYPE = FINDING_TYPE_FOR_TOOL.get_security_snapshot;
+
+/**
+ * **This step's claim** (Task 7.3.1) — the finding `FINDING_CREATED` carries,
+ * minted from the tool's own typed `Output` rather than from the wire record
+ * beside it.
+ *
+ * ## Confidence: `SUPPORTED` on every `ok`, and this tool has no floor at all
+ *
+ * The other five tools each have a shipped sufficiency floor — a sample count,
+ * an overlap, a significance verdict — and map `ok` below it to `POSSIBLE`.
+ * This one has none, because there is nothing to be insufficient about: a bar
+ * either arrived or it did not, and *it did not* is the `nothing-observed`
+ * refusal rather than a weakly-evidenced reading.
+ *
+ * **Deliberately NOT keyed on `ageMs`.** A stale bar is still an honest
+ * observation of the minute it describes, and *how current is this feed* has
+ * exactly one home in this product — the status bar's `LIVE`/`STALE`/
+ * `DISCONNECTED` cell, which `pnpm invariants` refuses a second of. A
+ * confidence level that fell to `POSSIBLE` at some age would be a second,
+ * quieter connection word, with its own threshold nobody had derived.
+ *
+ * ## The claim states the span it was measured over, and nothing else
+ *
+ * `Traded at 184.52 on 12,480 shares in the latest bar`. No ticker (Gate 1 —
+ * the route and the identity block already name it), no instant (the identity
+ * block draws one a few centimetres up and the evidence carries the real
+ * `observedAt`), and no freshness adjective.
+ */
+export function toSecuritySnapshotFinding(
+  outcome: ToolOutcome<SecuritySnapshot>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  // **No finding at all for an inapplicable outcome** — Story 7.3's AC 3.
+  // Unreachable from this tool, which has no inapplicable arm, and written as
+  // a narrowing rather than omitted so the day one arrives it is already
+  // right.
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const snapshot = outcome.value;
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim:
+        `Traded at ${formatPrice(snapshot.price)} on ` +
+        `${formatCount(snapshot.volume)} shares in the latest bar`,
+      confidence: "SUPPORTED",
+      evidence: [
+        {
+          kind: "market_observation",
+          // **The feed is NAMED rather than implied** — invariant 6's field,
+          // taken off the observation's own `BarSource` rather than assumed:
+          // a live bar is `iex` and a stored one is `sip`, and the whole point
+          // of this product's provenance rule is that the two are not
+          // interchangeable.
+          source: `${snapshot.source.provider}:${snapshot.source.feed}`,
+          observedAt: snapshot.observedAt,
+          security: snapshot.symbol,
+          // A **reference** to the read, never a copy of the figure — the
+          // claim above already states it, and a second copy could disagree.
+          rawData: `current-market-state:${snapshot.symbol}`,
+        },
+      ],
+    },
+    stamp,
+  );
 }

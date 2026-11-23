@@ -58,9 +58,19 @@
 // investigation route can genuinely be, because `POST /investigations` needs
 // no socket.
 
+import {
+  FINDING_TYPE_FOR_TOOL,
+  breadthClaim,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  refusalClaim,
+} from "@marketpulse/shared";
+
 import type { AnalyticalTool } from "./analytical-tool.js";
 import type { OverviewPass } from "./market-overview.js";
 import type {
+  Finding,
+  FindingStamp,
   JsonValue,
   ToolOutcome,
   WireMarketBreadth,
@@ -185,4 +195,90 @@ export function toWireMarketBreadthReading(
       ? {}
       : { observedAt: reading.observedAt }),
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled. */
+const TYPE = FINDING_TYPE_FOR_TOOL.get_market_breadth;
+
+/**
+ * **This step's claim** (Task 7.3.1) —
+ * `218 up, 236 down, 12 flat of 466 measured in the last 5 min`.
+ *
+ * ## It is the one claim with no `security` anywhere, at the type level
+ *
+ * AC 8, held by two absences rather than by a wording review. The claim opens
+ * with the **population** and never with a ticker, built by `breadthClaim`
+ * from the counted figures the wire already carries; and the evidence item
+ * carries **no `security` field at all**, which is what `Evidence.security?`'s
+ * optionality is for. A per-security verdict is therefore a compile error on
+ * one side and a grammar that has nowhere to put a ticker on the other.
+ *
+ * ## Confidence: `POSSIBLE` at `measured === 0`, and this is one of only TWO
+ * ## real producers of that word in the whole pipeline
+ *
+ * The rule is `ok` below the tool's own stated sufficiency floor →
+ * `POSSIBLE`. This tool's floor is `measured > 0`, and it is **not an invented
+ * threshold**: a breadth count over nothing is three zeroes and a denominator
+ * of zero — a true measurement, which is why it is `ok` rather than a refusal
+ * (`TOOL_REFUSALS`' own `nothing-observed`/`no-aggregate-yet` pair) — and it
+ * licenses no claim about how broad the market's move was. It is also
+ * **CI's permanent state**: zero bars means `measured: 0, tracked: 516` for
+ * ever, so the `POSSIBLE` arm is the only one a gated machine will ever draw
+ * here, and the `SUPPORTED` arm needs a real feed.
+ *
+ * ## The instant is the AGGREGATE'S, and absent where it has none
+ *
+ * `observedAt` comes off the pass's own frame — the newest observation it
+ * contains — and is **absent** where the frame contains none (ADR 0038's
+ * decision 3: say nothing rather than say now). It is deliberately not
+ * `computedAt`, which advances whenever somebody opens a tab.
+ *
+ * It arrives on the reading as the wire's own ISO string and is parsed into a
+ * `Date` here because {@link Evidence} holds instants as instants. That is a
+ * construction **from an argument**, not a clock read —
+ * `a-tool-reads-no-clock` forbids `Date.now()` and a zero-argument
+ * `new Date()`, and this is neither.
+ */
+export function toMarketBreadthFinding(
+  outcome: ToolOutcome<MarketBreadthReading>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const reading = outcome.value;
+  const observedAt =
+    reading.observedAt === undefined ? undefined : new Date(reading.observedAt);
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim: breadthClaim(reading.counts),
+      confidence: reading.counts.measured === 0 ? "POSSIBLE" : "SUPPORTED",
+      evidence: [
+        {
+          kind: "market_observation",
+          // The one producer, named — `one-producer-of-the-overview-aggregate`
+          // permits exactly one call site of the builder, and this is a read
+          // of what it computed rather than a join of its own.
+          source: "market-overview-pass",
+          ...(observedAt === undefined ? {} : { observedAt }),
+          // **No `security`.** See this function's own header: breadth is a
+          // group fact and the absence is the mechanism.
+          rawData: "market-overview-pass:breadth",
+        },
+      ],
+    },
+    stamp,
+  );
 }

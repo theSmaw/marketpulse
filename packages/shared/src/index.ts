@@ -173,9 +173,26 @@ export {
   UNUSUAL_ROWS,
   compareByPercentile,
   isRankedByPercentile,
+  percentileOrdinal,
   selectByPercentile,
 } from "./percentile-ranking.js";
-export type { PercentileRanked } from "./percentile-ranking.js";
+export type {
+  PercentileOrdinal,
+  PercentileRanked,
+} from "./percentile-ranking.js";
+// How this product spells a price, a percentage, a signed count and a figure
+// in points — moved out of `apps/frontend/src/market/price-format.ts` on
+// 2026-11-23 (Task 7.3.1), because Story 7.3's `Finding.claim` is a sentence
+// the BACKEND prints carrying figures the security page already draws. That
+// file re-exports them, so no frontend call site moved.
+export {
+  MINUS,
+  formatChangePercent,
+  formatCount,
+  formatPrice,
+  formatSignedCount,
+  formatSignedPoints,
+} from "./price-format.js";
 // The composite score, its explanation and the band floors (Task 5.6.3). It is
 // in this package because `eslint.config.mjs` scopes the four clock rules to
 // `packages/shared/src/**`, which makes AC 12's *reads no clock, socket or
@@ -745,6 +762,45 @@ export {
   toWireInvestigationEvent,
   toWireStep,
 } from "./investigation.js";
+// Epic 7's findings and their evidence (Task 7.3.1) — `PRODUCT_SPEC.md`
+// §15/§16 and invariant 5's own domain model rather than prose. The brand is
+// NOT exported and there is no constructor beyond the two mint sites:
+// `two-mint-sites-for-a-finding` holds that. There is deliberately no
+// `readFinding` — see `finding.ts`'s header for why this is the one place the
+// `composite-score.ts` analogy breaks.
+export {
+  CLAIM_CEILING,
+  CONFIDENCE_LEVELS,
+  EVIDENCE_KINDS,
+  FINDING_TYPES,
+  FINDING_TYPE_FOR_TOOL,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  toFindingId,
+  toWireFinding,
+} from "./finding.js";
+export type {
+  Confidence,
+  Evidence,
+  EvidenceFacts,
+  EvidenceKind,
+  EvidencedFinding,
+  Finding,
+  FindingId,
+  FindingStamp,
+  FindingType,
+  UnevidencedFinding,
+} from "./finding.js";
+// The claim's own short grammar (Task 7.3.1) — the half of the claim
+// vocabulary that FAILED Gate 1's per-string test, because the breadth
+// region's own footer is a multi-clause sentence and a claim is one line under
+// a 72-character ceiling.
+export {
+  FINDING_SUBJECTS,
+  TOOL_REFUSAL_CLAIMS,
+  breadthClaim,
+  refusalClaim,
+} from "./finding-claim.js";
 export type {
   CancelledStep,
   CompletedStep,

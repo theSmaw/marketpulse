@@ -16,19 +16,36 @@
 // therefore answers one of three kinds and nothing it is given can make it
 // throw.
 
-/** The six event types this story's own backend ever sends. The other four
- * `PRODUCT_SPEC.md` §33 names (`FINDING_CREATED`, `EVIDENCE_ADDED`,
- * `WORKSPACE_COMMAND`, `INVESTIGATION_FAILED`) have no payload shape here —
- * a frame carrying one of those decodes as `unsupported`, exactly as a
- * frame from a type this bundle predates would, until the story that ships
- * one adds its own member below. */
+import { CONFIDENCE_LEVELS } from "@marketpulse/shared";
+
+import type { Confidence } from "@marketpulse/shared";
+
+/** The event types this bundle can decode. The remaining `PRODUCT_SPEC.md`
+ * §33 names have no payload shape here — a frame carrying one of those
+ * decodes as `unsupported`, exactly as a frame from a type this bundle
+ * predates would, until the story that ships one adds its own member below.
+ *
+ * **Eight since 2026-11-23 (Task 7.3.1), and two of the additions are not the
+ * same kind of change.** `FINDING_CREATED` is this story's own new event.
+ * `INVESTIGATION_FAILED` is a **repair**: it has carried a backend wire case
+ * since Task 7.2.1 (2026-11-18) with no case here, so a tool that threw was
+ * decoded as `unsupported` and dropped, the stream then ended with no
+ * terminal event this reducer had seen, and the row drew the
+ * **dropped-connection** sentence instead of the truth about the failure.
+ * Found while shaping this story's event-type/decoder-parity invariant — the
+ * check would have been **red on `main`** before a line of Story 7.3 existed
+ * — and fixed here, with **no new reader-facing sentence**: what a reader is
+ * told about a failed run is Story 7.5's scope by decision, and that story's
+ * own `STORY.md` carries the constraint it inherits. */
 export const KNOWN_INVESTIGATION_EVENT_TYPES = [
   "INVESTIGATION_STARTED",
   "STEP_STARTED",
   "TOOL_CALL_STARTED",
   "TOOL_CALL_COMPLETED",
+  "FINDING_CREATED",
   "STEP_COMPLETED",
   "INVESTIGATION_COMPLETED",
+  "INVESTIGATION_FAILED",
 ] as const;
 
 export type KnownInvestigationEventType =
@@ -88,6 +105,31 @@ export type WireInvestigationEvent =
       readonly durationMs: number;
       readonly outcome: WireToolOutcome;
     })
+  /**
+   * One step's claim (Task 7.3.1) — **declaring only the fields the browser
+   * reads**, which is `INVESTIGATION_STARTED`'s own shipped precedent of
+   * partial decoding two members up.
+   *
+   * The backend's `Finding` carries an id, a type, a discriminant and either
+   * its evidence inline or the refusal word it answered with. The checklist
+   * needs three fields: which row (`stepId`, off the **finding** — the
+   * envelope deliberately carries no second copy), what to draw (`claim`),
+   * and how well evidenced it is (`confidence`). Declaring the rest would be
+   * a wire shape this bundle has no reader for, which Epic 8's evidence panel
+   * widens when it has one.
+   *
+   * `confidence` is optional **here and not on the wire**: the backend always
+   * sends one, and a level this bundle does not recognise is dropped rather
+   * than guessed — see `readInvestigationEvent`'s own case.
+   */
+  | (WireEventBase & {
+      readonly type: "FINDING_CREATED";
+      readonly finding: {
+        readonly stepId: string;
+        readonly claim: string;
+        readonly confidence?: Confidence;
+      };
+    })
   | (WireEventBase & {
       readonly type: "STEP_COMPLETED";
       readonly stepId: string;
@@ -98,6 +140,21 @@ export type WireInvestigationEvent =
       readonly type: "INVESTIGATION_COMPLETED";
       readonly status: "completed";
       readonly completedAt: string;
+      readonly stepCount: number;
+    })
+  /**
+   * **The repair, not a feature** (Task 7.3.1) — see
+   * {@link KNOWN_INVESTIGATION_EVENT_TYPES}. It carries no reason, no message
+   * and no step id, because the backend's own member does not: a thrown
+   * message is internal detail for the same reason a 5xx never carries one,
+   * and WHICH step failed is Story 7.5's. What this member buys is that the
+   * reducer sees a terminal event at all, so a failed run stops being
+   * reported as a dropped connection.
+   */
+  | (WireEventBase & {
+      readonly type: "INVESTIGATION_FAILED";
+      readonly status: "failed";
+      readonly failedAt: string;
       readonly stepCount: number;
     });
 
@@ -118,6 +175,24 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+/**
+ * **One of the four levels this bundle knows.**
+ *
+ * Read off the SHARED vocabulary rather than a fourth copy of it — which is
+ * the one duplication this module deliberately does not make, and the reason
+ * is the opposite of the one in its own header. The event SHAPE is a fact
+ * about JSON (a `startedAt` is a `string` here, not a `Date`) and is declared
+ * locally on purpose; a confidence **level** is a closed domain vocabulary
+ * whose members mean the same thing on both sides of the wire, so a local list
+ * would be a second list to keep in step with nothing checking that it is.
+ */
+function isConfidence(value: unknown): value is Confidence {
+  return (
+    typeof value === "string" &&
+    (CONFIDENCE_LEVELS as readonly string[]).includes(value)
+  );
 }
 
 /**
@@ -232,6 +307,40 @@ export function readInvestigationEvent(
       };
     }
 
+    case "FINDING_CREATED": {
+      const finding = raw.finding;
+      if (!isRecord(finding)) {
+        return { kind: "unreadable", reason: "missing finding" };
+      }
+      const { stepId, claim, confidence } = finding;
+      if (!isNonEmptyString(stepId) || !isNonEmptyString(claim)) {
+        return { kind: "unreadable", reason: "malformed FINDING_CREATED" };
+      }
+      // **A confidence level this bundle does not recognise is DROPPED, never
+      // guessed — and is never a reason to drop the claim with it.**
+      //
+      // `readReturnPercentile`'s own rule, one vocabulary over: a level a
+      // newer backend knows and this bundle does not would otherwise refuse a
+      // frame the producer is being honest in. And the claim is the thing a
+      // reader came for — a row with a measured figure and no confidence mark
+      // is the same honest-absence shape an `inapplicable` step already
+      // draws, whereas a dropped event is a row that silently says nothing.
+      const known = isConfidence(confidence);
+      return {
+        kind: "event",
+        event: {
+          type,
+          seq,
+          investigationId,
+          finding: {
+            stepId,
+            claim,
+            ...(known ? { confidence } : {}),
+          },
+        },
+      };
+    }
+
     case "STEP_COMPLETED": {
       const { stepId, status, durationMs } = raw;
       if (
@@ -262,6 +371,24 @@ export function readInvestigationEvent(
       return {
         kind: "event",
         event: { type, seq, investigationId, status, completedAt, stepCount },
+      };
+    }
+
+    case "INVESTIGATION_FAILED": {
+      const { status, failedAt, stepCount } = raw;
+      if (
+        status !== "failed" ||
+        !isNonEmptyString(failedAt) ||
+        !isFiniteNumber(stepCount)
+      ) {
+        return {
+          kind: "unreadable",
+          reason: "malformed INVESTIGATION_FAILED",
+        };
+      }
+      return {
+        kind: "event",
+        event: { type, seq, investigationId, status, failedAt, stepCount },
       };
     }
 

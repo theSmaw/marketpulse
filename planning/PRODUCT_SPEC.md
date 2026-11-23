@@ -2030,6 +2030,30 @@ This makes:
 
 much easier than parsing a stream of unstructured AI text.
 
+**Amended 2026-11-23 (Task 7.3.1) on the ORDER above, not on the list.** The
+ten names are unchanged and every one of them is still what the wire carries.
+What this section's sequence implies and the shipped product does not do is
+emit `EVIDENCE_ADDED` **after** `FINDING_CREATED`: that order cannot coexist
+with Story 7.3's own AC 2, which makes an **evidenced finding impossible to
+construct without at least one evidence item** (a non-empty tuple in
+`packages/shared/src/finding.ts`, enforced by the type system). A finding
+would have to exist before — or reference by id — evidence not yet sent, and
+the guarantee would survive only as prose.
+
+So **`FINDING_CREATED` carries its evidence inline**, and `EVIDENCE_ADDED` is
+emitted by nothing: it stays a name in the vocabulary, reserved for the story
+where evidence can be **pinned with no attached finding**, which is Epic 8's
+workspace. The alternative — `EVIDENCE_ADDED` first, with `FINDING_CREATED`
+referencing by id — was considered at Story 7.3's Gate 1 and rejected because
+it weakens AC 2 to buy an ordering nothing reads.
+
+Two further facts about what is live, so a reader of the list above does not
+over-read it: **eight of the ten carry a payload** today
+(`WORKSPACE_COMMAND` is Story 7.4's, `EVIDENCE_ADDED` is Epic 8's), and
+`FINDING_CREATED` carries **no top-level `stepId`** unlike every sibling
+event — `Finding.stepId` is already the one home for _which step produced
+this_.
+
 ---
 
 # 34. Human-in-the-loop controls

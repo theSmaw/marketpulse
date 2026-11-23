@@ -206,6 +206,33 @@ function Row({
       <p className={cx(styles.duration)}>
         {step.durationMs === undefined ? NBSP : `${String(step.durationMs)} ms`}
       </p>
+      {/*
+       * **The claim, deliberately unstyled** (Task 7.3.1).
+       *
+       * A second `<p>` with no class of its own and no confidence mark beside
+       * it. This is throwaway visually and is meant to be: Task 7.3.2 replaces
+       * it with the real two-line grid — the claim spanning the description and
+       * duration columns, reclaiming the duration's reserved width — plus the
+       * `ConfidenceMark` and the `--motion-duration-decay` settle. What this
+       * task owes is the VALUE on screen, so the layout task has something real
+       * to measure `pnpm probe` against rather than a furnished string.
+       *
+       * **Absent rather than empty**, which is why there is no reserved room
+       * here and no `NBSP`: a queued row, a running row and an `inapplicable`
+       * step each have nothing to say, and ADR 0029's rule is that a clause
+       * renders only when its own data is present. It does mean the rows grow
+       * as the claims land — which Story 7.2's own 603px/781px measurement
+       * already put outside the withdrawn 390 fit-budget, and which Task
+       * 7.3.2 owns as a layout question rather than this task hiding from it.
+       *
+       * **Zero focusable elements and zero click handlers** (AC 7). A `<p>` has
+       * no tabindex, no role and no handler, so the claim adds nothing to this
+       * row's keyboard surface — asserted structurally in this component's own
+       * test rather than left as a sentence in a record, because the evidence
+       * panel and the click-to-focus interaction are Epic 8's by citation and
+       * the easiest way to ship them early by accident is one `onClick`.
+       */}
+      {step.claim === undefined ? null : <p>{step.claim}</p>}
     </div>
   );
 }

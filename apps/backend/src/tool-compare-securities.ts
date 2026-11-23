@@ -47,7 +47,16 @@
 // answer `is-benchmark` and `no-sector` identically on CI, on a laptop and
 // on the deployment.
 
-import { asInstant } from "@marketpulse/shared";
+import {
+  FINDING_TYPE_FOR_TOOL,
+  asInstant,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  formatCount,
+  formatSignedPoints,
+  percentileOrdinal,
+  refusalClaim,
+} from "@marketpulse/shared";
 
 import { readPeerComparison } from "./peer-comparison.js";
 import { untrackedRefusal } from "./tool-universe.js";
@@ -56,6 +65,8 @@ import { trackedSymbols } from "./universe.js";
 import type { AnalyticalTool } from "./analytical-tool.js";
 import type { PeerComparisonSources } from "./peer-comparison.js";
 import type {
+  Finding,
+  FindingStamp,
   JsonValue,
   MarketFeed,
   Sector,
@@ -249,9 +260,17 @@ export function createCompareSecuritiesTool(
  * field added to {@link CompareSecuritiesReading} without being added here is
  * never read, so it cannot reach the wire unexamined.
  *
- * **Nothing is derived and nothing is formatted.** The ordinal's suffix, the
- * `ahead`/`behind` wording of the signed excess and the sector's display name
- * are all the browser's, from the fields below.
+ * **Nothing is derived and nothing is formatted IN THIS FUNCTION.** The
+ * ordinal's suffix, the `ahead`/`behind` wording of the signed excess and the
+ * sector's display name are all the browser's, from the fields below.
+ *
+ * **Narrowed 2026-11-23 (Task 7.3.1)**, for the reason
+ * `toWireReturnPercentile`'s own docblock gives at length:
+ * {@link toCompareSecuritiesFinding} below formats a sentence the backend
+ * prints, so the sentence *all the browser's* is now true of the **wire
+ * projection** rather than of the file. The `ahead`/`behind` wording in
+ * particular is still the drawn region's and is **not** what the claim uses —
+ * see that function.
  */
 export function toWireCompareSecurities(
   reading: CompareSecuritiesReading,
@@ -272,4 +291,103 @@ export function toWireCompareSecurities(
     baselineSpanMinutes: reading.baselineSpanMinutes,
     baselineFeed: reading.baselineFeed,
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled. */
+const TYPE = FINDING_TYPE_FOR_TOOL.compare_securities;
+
+/**
+ * **This step's claim** (Task 7.3.1) —
+ * `−3.10 pts against XLK over 5 min — 92nd of 3,180`.
+ *
+ * ## The benchmark is NAMED, and it is the one ticker a claim carries
+ *
+ * Gate 1's decision omits the **investigated** ticker, because the route and
+ * the identity block already name it. A reference security is the exception
+ * and has to be: *which benchmark* is the entire meaning of a comparison, the
+ * fund is `excessMoveReference`'s to choose rather than the reader's to guess,
+ * and nothing else on the checklist row says it.
+ *
+ * ## It prints the SIGNED excess in points, not `ahead`/`behind`
+ *
+ * The drawn region states this in words — `behind by 2.20 pts` — untinted,
+ * because a security down 4.2% against a sector down 6.0% is *ahead while
+ * falling* and a tinted cell would say it rose. That register needs two
+ * separate spans and a sentence around them; a claim has one line, so it
+ * carries the **figure** with its sign through
+ * `formatSignedPoints`, whose sign comes from `directionOf` — the one
+ * classifier — so this is not a second classification of a move. The words
+ * stay where they are rather than being copied into a second grammar, which is
+ * Gate 1's own per-string test.
+ *
+ * ## Confidence: `SUPPORTED`, and `POSSIBLE` is correctly unreachable
+ *
+ * `calculate_return_percentile`'s reason exactly: the sufficiency floor is
+ * `comparableExcessBaseline`'s, enforced upstream as a `too-few-samples`
+ * refusal this tool forwards verbatim, so an `ok` is above it by construction.
+ * No second floor was invented to fill the arm.
+ *
+ * ## Two evidence items, for the pair and for the ranking
+ *
+ * The observation is a **pair** read — both legs over the same two instants,
+ * which `sameInterval` refuses to let disagree — so it is one item naming both
+ * securities in its `rawData` rather than two items a reader would have to
+ * pair up. `security` is the **subject**, because the claim is about the
+ * subject's position relative to the benchmark rather than about the
+ * benchmark.
+ */
+export function toCompareSecuritiesFinding(
+  outcome: ToolOutcome<CompareSecuritiesReading>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  // **The inapplicable arm is this tool's own, and it is the reason AC 3 has
+  // an exception at all.** `XLK` IS the fund its sector is measured against
+  // and an `index_etf` has no sector — no backfill, repair or waiting will
+  // ever produce a figure — so *the question does not arise* must not collapse
+  // onto `UNKNOWN`, which means *not enough evidence* and invites a reader to
+  // come back later.
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const reading = outcome.value;
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim:
+        `${formatSignedPoints(reading.excessPoints)} against ` +
+        `${reading.referenceSymbol} over ` +
+        `${String(reading.spanMinutes)} min — ` +
+        `${percentileOrdinal(reading)} of ` +
+        formatCount(reading.sampleCount),
+      confidence: "SUPPORTED",
+      evidence: [
+        {
+          kind: "market_observation",
+          source: "trailing-window",
+          observedAt: reading.measuredTo,
+          security: reading.symbol,
+          rawData: `trailing-window:${reading.symbol}+${reading.referenceSymbol}`,
+        },
+        {
+          kind: "calculated_metric",
+          source: `alpaca:${reading.baselineFeed}`,
+          method: "excessMoveFactor",
+          security: reading.symbol,
+          rawData: `excess_move_baselines:${reading.symbol}`,
+        },
+      ],
+    },
+    stamp,
+  );
 }

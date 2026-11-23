@@ -1,4 +1,10 @@
-import { toInvestigationId, toTicker } from "@marketpulse/shared";
+import {
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  toInvestigationId,
+  toTicker,
+  toWireInvestigationEvent,
+} from "@marketpulse/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import { toRunnableTool } from "./analytical-tool.js";
@@ -58,6 +64,11 @@ describe("the scripted agent provider", () => {
       spy.tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     await provider.runInvestigation(CONTEXT("inv-1"), [runnable]);
@@ -78,6 +89,11 @@ describe("the scripted agent provider", () => {
       spy.tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     const investigation = await provider.runInvestigation(CONTEXT("inv-2"), [
@@ -122,6 +138,11 @@ describe("the scripted agent provider", () => {
       spy.tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     const investigation = await provider.runInvestigation(CONTEXT("inv-3"), [
@@ -171,6 +192,11 @@ describe("the scripted agent provider", () => {
       throwingTool(),
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     await expect(
@@ -205,6 +231,11 @@ describe("the scripted agent provider", () => {
       throwingTool(),
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     await provider
@@ -227,11 +258,21 @@ describe("the scripted agent provider", () => {
       spyTool({ kind: "ok", value: { answer: 1 } }).tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
     const bad = toRunnableTool(
       throwingTool(),
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     await provider
@@ -262,6 +303,11 @@ describe("the scripted agent provider", () => {
       throwingTool(),
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     await provider
@@ -292,6 +338,11 @@ describe("the scripted agent provider", () => {
       spy.tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     const investigation = await provider.runInvestigation(CONTEXT("inv-4"), [
@@ -316,6 +367,11 @@ describe("the scripted agent provider", () => {
       spy.tool,
       () => undefined,
       (value) => value,
+      // No claim — this suite is about the orchestration's own order and
+      // its failure path, and a tool minting no finding is the arm that
+      // emits no `FINDING_CREATED` at all (an `inapplicable` outcome's).
+      // The emission itself has its own tests further down.
+      () => undefined,
     );
 
     const investigation = await provider.runInvestigation(CONTEXT("inv-5"), [
@@ -357,6 +413,7 @@ describe("the scripted agent provider", () => {
       { name: "get_security_snapshot", description: "Measure move", run },
       () => undefined,
       (value: { readonly answer: number }) => value,
+      () => undefined,
     );
 
     const runPromise = provider.runInvestigation(CONTEXT("inv-6"), [runnable]);
@@ -387,5 +444,163 @@ describe("the scripted agent provider", () => {
       "STEP_COMPLETED",
       "INVESTIGATION_COMPLETED",
     ]);
+  });
+});
+
+describe("FINDING_CREATED", () => {
+  /** A tool whose claim is minted by the shared mint, like a real one's. */
+  const claiming = () =>
+    toRunnableTool(
+      spyTool({ kind: "refused", reason: "nothing-observed" }).tool,
+      () => undefined,
+      (value) => value,
+      (outcome, stamp) =>
+        outcome.kind === "refused"
+          ? createUnevidencedFinding(
+              {
+                type: "PRICE_OBSERVATION",
+                claim: "Last price — nothing observed to measure",
+                because: outcome.reason,
+              },
+              stamp,
+            )
+          : undefined,
+    );
+
+  it("is appended after that step's TOOL_CALL_COMPLETED and BEFORE its STEP_COMPLETED", async () => {
+    // **The order is the decision.** A reader's row learns what was measured
+    // in the same frame it learns the step finished, rather than completing
+    // first and growing a line afterwards.
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-23T14:01:00.000Z"),
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-finding"), [claiming()]);
+
+    expect(
+      [...store.eventsFrom(toInvestigationId("inv-finding"), 0)].map(
+        (event) => event.type,
+      ),
+    ).toStrictEqual([
+      "INVESTIGATION_STARTED",
+      "STEP_STARTED",
+      "TOOL_CALL_STARTED",
+      "TOOL_CALL_COMPLETED",
+      "FINDING_CREATED",
+      "STEP_COMPLETED",
+      "INVESTIGATION_COMPLETED",
+    ]);
+  });
+
+  it("stamps `retrievedAt` from the step's own completion instant, not a second clock read", async () => {
+    // Story 7.3's Gate 1: `retrievedAt` means *when this process recorded
+    // the claim*, read from the orchestrator's own injected clock — and
+    // reusing `completedAt` is what bounds it by the step's already-published
+    // `durationMs` rather than letting the two disagree.
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-23T14:01:00.000Z"),
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-stamp"), [claiming()]);
+
+    const events = [...store.eventsFrom(toInvestigationId("inv-stamp"), 0)];
+    const finding = events.find((event) => event.type === "FINDING_CREATED");
+    const step = events.find((event) => event.type === "STEP_COMPLETED");
+    if (finding?.type !== "FINDING_CREATED") throw new Error("no finding");
+    if (step?.type !== "STEP_COMPLETED") throw new Error("no step");
+
+    // The run's own clock ticks 12 ms a call: created, started, completed.
+    expect(step.durationMs).toBe(CLOCK_TICK_MS);
+    expect(finding.finding.stepId).toBe(step.stepId);
+    // No second copy of the step id on the envelope — `Finding.stepId` is
+    // the one home for that fact.
+    expect("stepId" in finding).toBe(false);
+  });
+
+  it("emits NOTHING where the tool mints no finding — AC 3's one exception", async () => {
+    // An `inapplicable` outcome's answer. The row draws the inapplicability
+    // sentence Story 7.2 already ships, with no claim and no confidence
+    // mark, rather than an `UNKNOWN` finding inviting a reader to come back
+    // later.
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-23T14:01:00.000Z"),
+    });
+    const silent = toRunnableTool(
+      spyTool({ kind: "inapplicable", because: "is-the-market-proxy" }).tool,
+      () => undefined,
+      (value) => value,
+      () => undefined,
+    );
+
+    await provider.runInvestigation(CONTEXT("inv-silent"), [silent]);
+
+    expect(
+      [...store.eventsFrom(toInvestigationId("inv-silent"), 0)].map(
+        (event) => event.type,
+      ),
+    ).not.toContain("FINDING_CREATED");
+  });
+
+  it("serialises onto the wire with its evidence inline", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-23T14:01:00.000Z"),
+    });
+    const evidenced = toRunnableTool(
+      spyTool({ kind: "ok", value: { answer: 1 } }).tool,
+      () => undefined,
+      (value) => value,
+      (outcome, stamp) =>
+        outcome.kind === "ok"
+          ? createEvidencedFinding(
+              {
+                type: "PRICE_OBSERVATION",
+                claim: "Traded at 1.00 on 1 share in the latest bar",
+                confidence: "SUPPORTED",
+                evidence: [
+                  {
+                    kind: "market_observation",
+                    source: "fixture:iex",
+                    observedAt: new Date("2026-11-23T14:00:00.000Z"),
+                    security: NVDA,
+                    rawData: "current-market-state:NVDA",
+                  },
+                ],
+              },
+              stamp,
+            )
+          : undefined,
+    );
+
+    await provider.runInvestigation(CONTEXT("inv-wire"), [evidenced]);
+
+    const finding = [
+      ...store.eventsFrom(toInvestigationId("inv-wire"), 0),
+    ].find((event) => event.type === "FINDING_CREATED");
+    if (finding === undefined) throw new Error("no finding");
+
+    const wire = toWireInvestigationEvent(finding);
+
+    expect(wire.type).toBe("FINDING_CREATED");
+    // `EVIDENCE_ADDED` is not emitted this story (Gate 1) — the evidence
+    // travels here, on the same frame, which is what keeps AC 2 at full
+    // strength.
+    expect(wire).toMatchObject({
+      finding: {
+        evidenced: true,
+        claim: "Traded at 1.00 on 1 share in the latest bar",
+        confidence: "SUPPORTED",
+        evidence: [{ security: "NVDA", source: "fixture:iex" }],
+      },
+    });
+    // And the brand never reaches the wire.
+    expect(Object.getOwnPropertySymbols(wire)).toStrictEqual([]);
   });
 });

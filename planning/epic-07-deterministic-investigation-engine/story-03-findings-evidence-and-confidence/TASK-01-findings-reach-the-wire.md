@@ -1,6 +1,11 @@
 # Task 7.3.1 — Findings reach the wire, and the checklist shows a plain claim
 
-**Status:** Not started
+**Status:** Complete — 2026-11-23. Every completed step now mints exactly one
+`Finding` and draws its claim; the two things found that the plan did not
+predict are that **`POSSIBLE` is correctly unreachable in four of the six
+tools** and that **the pre-existing `INVESTIGATION_FAILED` decoder gap made
+the new parity invariant red on `main` before a line of this story existed**,
+which is how the check earned itself.
 **Story:** [7.3 Findings, Evidence, & Confidence](STORY.md)
 **Depends on:** nothing (lands on top of Story 7.2's shipped six-step pipeline)
 
@@ -344,3 +349,162 @@ section gaining the brand/non-empty-tuple/two-mint-sites convention
    decoder-parity break both go red for the right clause and restore
    byte-identical.
 6. `pnpm verify` is green.
+
+## What was done
+
+**The plan above was followed; three things in it changed on contact with the
+code and each is recorded where it belongs rather than only here.**
+`INVESTIGATIONS.md` §11 is the maintained account of this task and **wins**
+over this file.
+
+**1. `packages/shared/src/finding.ts` (new, + `finding.test.ts`).** Six
+`FINDING_TYPES` with `PRICE_OBSERVATION` settled as §4 said; a
+`FINDING_TYPE_FOR_TOOL` map `satisfies Record<ToolName, FindingType>` — and it
+is **read** rather than merely asserted, because each tool's `toFinding` takes
+its type from it (`FINDING_TYPE_FOR_TOOL.get_security_snapshot`) rather than
+spelling a literal, which was the one way to keep the map from being a field
+with no reader. All four `CONFIDENCE_LEVELS`; two `EVIDENCE_KINDS` with the
+other six §16 names' conditions in the docblock; the two-arm union, the real
+`Symbol` brand, the two mints, `toWireFinding` as a hand-written field-by-field
+mapper, and `CLAIM_CEILING`.
+
+**2. The formatters moved, and more of them than §2 named.** `percentileOrdinal`
+and `ordinalSuffix` into `packages/shared/src/percentile-ranking.ts`, as
+planned. What §2 did not anticipate is that the claims also print a **price**, a
+**percentage** and a **difference in points**, so `formatPrice`,
+`formatChangePercent` and `formatSignedCount` moved into a new
+`packages/shared/src/price-format.ts` by the same per-string test, with
+`formatSignedPoints` and `formatCount` added beside them. The frontend's
+`market/price-format.ts` and `market/return-percentile.ts` are left as
+**re-exports**, so no frontend call site moved and `market/index.ts`'s barrel is
+unchanged. `one-home-for-the-ordinal-suffix` is repointed and its own false
+sentence struck with its reason; both tools' `nothing is derived and nothing is
+formatted` docblocks are narrowed to name the wire projection.
+
+**3. The tool contract.** `ToolRun` with `mintFinding` as a thunk, exactly as
+§3 specified; `toRunnableTool` gained a fourth argument; six call sites in
+`index.ts` and six in the tests.
+
+**4. Six `toFinding` functions**, each beside its own `toWire…`, each with a
+`describe` block in that tool's existing suite asserting the claim verbatim,
+the confidence, the evidence's shape, and **pairwise distinctness across every
+arm that tool can reach** with the ceiling checked on each.
+
+**5. The orchestrator** emits `FINDING_CREATED` after `TOOL_CALL_COMPLETED` and
+before `STEP_COMPLETED`, stamping `retrievedAt` from `completedAt` rather than
+taking a second clock reading — so the field is bounded by the step's own
+published `durationMs` and the two cannot disagree. `undefined` emits nothing.
+
+**6. The frontend** gained the `FINDING_CREATED` wire member (three fields
+only), its decoder case (an unrecognised confidence level is dropped and the
+claim kept), the `INVESTIGATION_FAILED` decoder case and reducer arm,
+`claim`/`confidence` on `ChecklistStepView`, and a deliberately unstyled second
+`<p>`. The now-wrong `TOOL_CALL_COMPLETED` no-op comment is corrected.
+
+**7. Two new invariants with two breaks**, `pnpm invariants` 93 → **95**.
+
+### What deviated from the plan, and why
+
+- **`POSSIBLE` has two producers, not four**, and §4 predicted this correctly;
+  what the code added is that the other four tools' `POSSIBLE` arms are
+  **unreachable by construction** rather than merely unused, because each
+  floor is already enforced upstream as a refusal. Each one says so in its own
+  docblock, as §4 asked.
+- **`calculate_volume_ratio`'s unreachable `ok` claim does not draw the `×`
+  multiple.** It cannot: `one-home-for-the-multiple-glyph` permits exactly one
+  home for that glyph and it is a frontend module. Caught by running
+  `pnpm invariants` rather than by reading — the first draft spelled
+  `4.10× the typical minute` and the check went red naming both files. The
+  claim draws the ordinal instead, with the condition for moving
+  `formatMultiple` stated beside the arm. Scaffolding a shared formatter for an
+  arm no store can reach would have been building ahead of the step.
+- **`VolumeRatioReading` gained `aboveSample`**, because `percentileOrdinal`
+  takes the rank **and** the ceiling flag and supplying a `false` would have
+  been a figure nobody read. A fill rather than a design, in the spirit that
+  interface already declares for itself.
+- **The claim for `no-distribution` is NOT the ledger's `no history to rank
+it`**, which §2's own example implied. `tool-volume-ratio.ts`'s header says in
+  terms that that sentence has one home and it is not in the backend, and B1's
+  own per-string test is what settles it: a different grammar for the same fact
+  keeps its own home. The claim says `no stored distribution to rank against`,
+  and the extra word is the point.
+- **`finding.test.ts`' empty-tuple proof is declared and never called.** The
+  precedent in `composite-score.test.ts` calls its subject because that subject
+  reads a field; this one walks a tuple, so calling it exercises what an
+  impossible value does at run time rather than the guarantee. The assertion is
+  the `@ts-expect-error`.
+
+## Gates
+
+**`pnpm verify` — green.** `95 invariants hold.`;
+`packages/shared 37 files / 775 tests`, `apps/backend 82 / 1,491`,
+`apps/frontend 109 / 2,008`, `test:scripts 21`, `test:process 3 / 63`. **No
+`Unhandled Errors` block in any run** — read rather than inferred from the exit
+code, per this repository's own rule.
+
+**Both breaks go red for the right clause**, and the mint-site one was proved
+against a **naive draft first**, per the break-writing discipline:
+
+```text
+$ node /tmp/.../naive-mint.mjs          # count the two mint DECLARATIONS
+NAIVE DRAFT GREEN — both mints are declared once, in packages/shared/src/finding.ts.
+naive exit=0                             # …with the third mint site on disk
+
+$ node scripts/check-invariants.mjs      # the SHIPPED check, same plant
+  ✗ two-mint-sites-for-a-finding
+    1 shipped line(s) assert their way into a branded finding type outside
+    packages/shared/src/finding.ts:
+      apps/backend/src/tool-security-snapshot.ts: }) as unknown as Finding;
+1 of 95 invariants failed.
+```
+
+The parity check was proved on the defect it was **written against** rather
+than on a synthetic one — the decoder case was removed and the run re-taken:
+
+```text
+  ✗ every-serialised-event-type-has-a-decoder-case
+    1 serialised event type(s) have no case in `readInvestigationEvent`:
+    `INVESTIGATION_FAILED`
+1 of 95 invariants failed.
+```
+
+Both reds are an **assertion failure with the other 94 still collecting**,
+which is the only red that proves a check works; both trees were restored and
+`95 invariants hold.` re-confirmed after each.
+
+**What was NOT run, and why.** `pnpm test:database` and `pnpm e2e` — **no
+Docker on this machine**, so no local PostgreSQL exists and the pair
+`pnpm e2e` needs cannot serve `GET /securities`. The data-layer surface this
+task touched is zero (no migration, no query, no schema change); the browser
+surface is one unstyled `<p>`, which Task 7.3.2 replaces. The consequence worth
+naming is narrower and is in `docs/GAPS.md`:
+`calculate_rolling_correlation`'s claim — the only one of the six whose tool
+reads `market_bars` — exists only against furnished `ReadonlyMap`s.
+
+**`pnpm probe` was not run either, and AC 6's ceiling is therefore owed.**
+`CLAIM_CEILING = 72` is a measurement of the **producers** (the longest claim
+the six can mint, asserted in their own suites) and **not** the probe figure
+against a zero-bar store at four widths that AC 6 asks for. `docs/GAPS.md`
+carries it with Task 7.3.2 as owner and a stated reversal condition.
+
+## For a stakeholder
+
+**Press `Investigate` on a security and every finished row now tells you what
+it found.** Six rows, six sentences — `+0.50% over 5 min — 50th of 2,500`,
+`2 up, 2 down, 1 flat of 5 measured in the last 5 min`,
+`Volume rate — no stored distribution to rank against` — each in plain,
+deliberately unstyled text under the step it came from. Where a step could not
+answer, the row says **why** rather than going quiet; where the question did
+not arise at all (`SPY` correlated with itself, `XLK` compared against its own
+sector), the row says that instead and claims nothing.
+
+**It still looks unfinished, and that is on purpose.** There is no confidence
+mark, no two-line layout and no styling: the next task draws all of it. What
+this one buys is that the real sentences are on screen to be designed around
+rather than furnished.
+
+**One real bug was fixed on the way, and nobody had noticed it.** A run whose
+tool crashed had been telling readers the **connection dropped** since
+2026-11-18, because the failure event never reached the browser at all. It
+does now. What a reader is _told_ about a failed run is still Story 7.5's to
+write — this is the plumbing, not the sentence.

@@ -1,6 +1,9 @@
 import {
   BASELINE_MINIMUM_SAMPLE,
+  CLAIM_CEILING,
+  toFindingId,
   toInvestigationId,
+  toStepId,
   toTicker,
 } from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
@@ -9,6 +12,7 @@ import { breakpointsOf } from "./return-baseline.js";
 import { createTrailingWindow } from "./trailing-window.js";
 import {
   createReturnPercentileTool,
+  toReturnPercentileFinding,
   toWireReturnPercentile,
 } from "./tool-return-percentile.js";
 
@@ -16,7 +20,7 @@ import type { ToolContext } from "./analytical-tool.js";
 import type { LiveObservation } from "./market-data-stream.js";
 import type { PriceAnomalySources } from "./price-anomaly.js";
 import type { StoredReturnBaseline } from "./return-baseline-store.js";
-import type { BarSource, Ticker } from "@marketpulse/shared";
+import type { BarSource, FindingStamp, Ticker } from "@marketpulse/shared";
 
 // **The price-anomaly tool, against the real arithmetic** (Task 7.2.2,
 // Done-when 1 and 4). No server, no socket, no database: the trailing window
@@ -44,6 +48,15 @@ const CONTEXT: ToolContext = {
   investigationId: toInvestigationId("inv-1"),
   asOf: ASOF,
   mode: "live",
+};
+
+/** The ORCHESTRATOR's own stamp — a tool never supplies one, and
+ * `retrievedAt` is deliberately a different instant from `asOf`: it is when
+ * this process recorded the claim, not when the data was true. */
+const STAMP: FindingStamp = {
+  findingId: toFindingId("finding-1"),
+  stepId: toStepId("step-1"),
+  retrievedAt: new Date("2026-11-19T14:06:00.500Z"),
 };
 
 const barAt = (minute: string, close: number): LiveObservation => ({
@@ -406,5 +419,100 @@ describe("toWireReturnPercentile", () => {
     });
     // The brand never reaches the wire — a named mapper rather than a spread.
     expect(JSON.stringify(wire)).not.toContain("Symbol");
+  });
+});
+
+describe("toReturnPercentileFinding", () => {
+  const rankable = () =>
+    createReturnPercentileTool(
+      sourcesWith(HALF_PERCENT_UP, rankableBaseline()),
+      UNIVERSE,
+    );
+
+  it("mints the figure, its span and its denominator, SUPPORTED", async () => {
+    const outcome = await rankable().run({ symbol: NVDA }, CONTEXT);
+    const finding = toReturnPercentileFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    // The shipped formatters, so this claim and the factor ledger ~100px
+    // above it on the same page cannot spell one figure two ways.
+    expect(finding.claim).toBe("+0.50% over 5 min — 50th of 2,500");
+    expect(finding.confidence).toBe("SUPPORTED");
+    expect(finding.type).toBe("PRICE_MOVE");
+    expect(finding.claim).not.toContain("NVDA");
+    expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+  });
+
+  it("carries two evidence items — the observation and the ranking — and no instant on the baseline", async () => {
+    const outcome = await rankable().run({ symbol: NVDA }, CONTEXT);
+    const finding = toReturnPercentileFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    expect(finding.evidence).toHaveLength(2);
+    const [observation, metric] = finding.evidence;
+    if (metric === undefined) throw new Error("expected two items");
+
+    expect(observation.kind).toBe("market_observation");
+    expect(observation.observedAt).toStrictEqual(
+      new Date("2026-11-19T14:05:00.000Z"),
+    );
+    // **The numerator's own tape is not on this reading and is not guessed** —
+    // AC 9 reaching provenance. The item names the PRODUCER.
+    expect(observation.source).toBe("trailing-window");
+
+    expect(metric.kind).toBe("calculated_metric");
+    expect(metric.method).toBe("returnPercentileOf");
+    expect(metric.source).toBe("alpaca:sip");
+    // A 60-session distribution has no single instant at which it was true.
+    expect("observedAt" in metric).toBe(false);
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach, each UNKNOWN and evidence-less where it refused", async () => {
+    // Done-when 2 / AC 10 over this tool's reachable arms: the two
+    // inapplicabilities belong to other tools, and `split-discontinuity`
+    // needs a generation the furnished baseline cannot carry — so the set
+    // here is two of the numerator's refusals, the denominator's one, the
+    // membership one, and the measured reading.
+    const outcomes = [
+      await rankable().run({ symbol: NVDA }, CONTEXT),
+      // No window at all — the numerator refuses before the baseline is
+      // consulted.
+      await createReturnPercentileTool(
+        sourcesWith([], rankableBaseline()),
+        UNIVERSE,
+      ).run({ symbol: NVDA }, CONTEXT),
+      // One bar — there is an observation and no earlier endpoint five
+      // minutes back.
+      await createReturnPercentileTool(
+        sourcesWith([barAt("14:05", 100.5)], rankableBaseline()),
+        UNIVERSE,
+      ).run({ symbol: NVDA }, CONTEXT),
+      // A measurable move and no generation to rank it against.
+      await createReturnPercentileTool(
+        sourcesWith(HALF_PERCENT_UP, undefined),
+        UNIVERSE,
+      ).run({ symbol: NVDA }, CONTEXT),
+      // Outside the curated universe.
+      await rankable().run({ symbol: PSKY }, CONTEXT),
+    ];
+
+    const findings = outcomes.map((outcome) =>
+      toReturnPercentileFinding(outcome, STAMP),
+    );
+    const claims = findings.map((finding) => finding?.claim);
+
+    expect(claims).toHaveLength(5);
+    expect(new Set(claims).size).toBe(claims.length);
+
+    for (const finding of findings) {
+      if (finding === undefined) throw new Error("expected a finding");
+      expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+      if (finding.evidenced) continue;
+      // AC 9 on every refusal: `UNKNOWN`, no evidence member at all, and no
+      // fabricated instant.
+      expect(finding.confidence).toBe("UNKNOWN");
+      expect("evidence" in finding).toBe(false);
+      expect(finding.claim).not.toMatch(/\d{4}-\d{2}-\d{2}/u);
+    }
   });
 });

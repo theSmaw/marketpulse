@@ -7061,4 +7061,103 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-checklist-seeds-one-row-per-tool",
   },
+  // ## Task 7.3.1's two: the finding's brand, and the event type a decoder
+  // ## never learnt
+  {
+    name: "a-third-mint-site-for-a-finding",
+    proves:
+      "`two-mint-sites-for-a-finding` goes red on a third route into one of " +
+      "`Finding`'s branded types — a cast, which is the only route the " +
+      "compiler leaves open once the brand's symbol is not exported.\n\n" +
+      "**The plant is the file the NEXT author writes.** Story 7.4 adds a " +
+      "topology step and Epic 10 lets a model choose tools; the first author " +
+      "to add a seventh tool has a typed `Output` and a claim to make, and " +
+      "the shortest way to a `Finding` is to assemble the record and assert " +
+      "it. Nothing downstream complains: it compiles, the wire carries a " +
+      "well-formed finding, the decoder reads it, and the row draws the " +
+      "claim. What is lost is the one guarantee the type exists for — AC 2's " +
+      "non-empty evidence tuple — because a cast checks none of the fields " +
+      "beside it, so `evidence: []` reaches a surface that reads `.length` " +
+      "off it and draws *no evidence gathered* for a step that gathered " +
+      "nothing because there was nothing to gather.\n\n" +
+      "**Nothing else sees it.** `pnpm test` passes: every test that builds " +
+      "a finding goes through the mint, because the mint is the only thing " +
+      "exported. `tsc -b` passes by construction — an `as unknown as` is a " +
+      "legal assertion. And `pnpm e2e` passes: CI's store has zero bars, so " +
+      "every step refuses and no evidenced finding is drawn there at all.\n\n" +
+      "**The naive draft that passed WRONGLY, with its transcript** " +
+      "(2026-11-23). The obvious draft counts declarations of " +
+      "`createEvidencedFinding` and `createUnevidencedFinding` and asserts " +
+      "there is one of each, in the home — the shape " +
+      "`one-classifier-for-the-direction-of-a-move`'s clause one takes. Run " +
+      "against this very plant it reported `NAIVE DRAFT GREEN — both mints " +
+      "are declared once, in packages/shared/src/finding.ts.` and exit 0, " +
+      "with a third mint site on disk. Nothing in that draft is about " +
+      "minting; it is about two identifiers, and the defect is precisely an " +
+      "author who never reaches for either. The shipped check keys on the " +
+      "**assertion** instead, and went red on the same plant naming the " +
+      "file and the line.\n\n" +
+      "**The plant APPENDS beside the found line and keeps it** " +
+      "(2026-10-16's rule), so the registry's own `find` survives its own " +
+      "break: a substitution that replaced the declaration would go red " +
+      "twice, once from `every-break-can-still-land` about the break rather " +
+      "than from the check under test.",
+    file: "apps/backend/src/tool-security-snapshot.ts",
+    find: 'const brand = Symbol("security-snapshot");',
+    replace:
+      'const brand = Symbol("security-snapshot");\n' +
+      "// pnpm break: reverted automatically\n" +
+      "export const plantedFinding = (): Finding =>\n" +
+      '  ({ evidenced: true, claim: "planted", evidence: [] }) as unknown as Finding;',
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "two-mint-sites-for-a-finding",
+  },
+  {
+    name: "an-event-type-the-decoder-never-learnt",
+    proves:
+      "`every-serialised-event-type-has-a-decoder-case` goes red when the " +
+      "backend's serialiser gains a case the frontend's " +
+      "`readInvestigationEvent` whitelist does not handle.\n\n" +
+      "**This is the defect that was ALREADY ON `main` when the check was " +
+      "written, which is how it found its own first one.** " +
+      "`INVESTIGATION_FAILED` had a serialiser case from Task 7.2.1 " +
+      "(2026-11-18) and no decoder case until Task 7.3.1 (2026-11-23), so a " +
+      "thrown tool decoded as `unsupported`, `use-investigation.ts` dropped " +
+      "it, the stream then ended with no terminal event the reducer had " +
+      "seen, and `withConnectionLost` drew the **dropped-connection** " +
+      "sentence over a run that had actually failed. Verified by removing " +
+      "the new decoder case and re-running: `1 serialised event type(s) " +
+      "have no case in readInvestigationEvent: INVESTIGATION_FAILED`.\n\n" +
+      "**It is a SIBLING of `the-tool-outcome-decoder-branches-on-every-" +
+      "kind`, not a widening**, and the plant is why: an unhandled outcome " +
+      "KIND makes a whole `TOOL_CALL_COMPLETED` event `unreadable`, while " +
+      "an unhandled event TYPE is `unsupported` — the arm deliberately " +
+      "written for *a frame from a type this bundle predates*, which is a " +
+      "legitimate state a tab left open across a deploy is really in. So " +
+      "the drop is not merely quiet, **it looks correct**.\n\n" +
+      "**Nothing else sees it.** `pnpm test` passes: no frontend test " +
+      "furnishes an event type the decoder does not know, because the " +
+      "fixtures are written from the decoder. `tsc -b` cannot see it either " +
+      "— `investigation-event.ts` describes the wire by deliberate decision " +
+      "(a `startedAt` is a `string` there, not a `Date`), so the two shapes " +
+      "are two types with nothing joining them.\n\n" +
+      "**The plant is anchored on the SERIALISER rather than on " +
+      "`INVESTIGATION_EVENT_TYPES`**, which is the check's own decision: " +
+      "that vocabulary legitimately holds payload-free names a decoder " +
+      "correctly has no case for (`EVIDENCE_ADDED`, `WORKSPACE_COMMAND`), " +
+      "so a check over the list would be red on a correct tree for ever. " +
+      "The plant therefore gives one of those names a serialiser case — " +
+      "which is exactly what the story that ships it will do — and keeps " +
+      "the found line (2026-10-16's rule).",
+    file: "packages/shared/src/investigation.ts",
+    find: '    case "STEP_COMPLETED":\n      return toWire(stepCompletedFields, event);',
+    replace:
+      '    case "STEP_COMPLETED":\n' +
+      "      return toWire(stepCompletedFields, event);\n" +
+      "    // pnpm break: reverted automatically\n" +
+      '    case "EVIDENCE_ADDED":\n' +
+      "      return toWire(stepCompletedFields, event);",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "every-serialised-event-type-has-a-decoder-case",
+  },
 ];

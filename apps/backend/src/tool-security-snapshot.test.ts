@@ -1,15 +1,22 @@
-import { toInvestigationId, toTicker } from "@marketpulse/shared";
+import {
+  CLAIM_CEILING,
+  toFindingId,
+  toInvestigationId,
+  toStepId,
+  toTicker,
+} from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { createCurrentMarketState } from "./current-market-state.js";
 import {
   createSecuritySnapshotTool,
+  toSecuritySnapshotFinding,
   toWireSecuritySnapshot,
 } from "./tool-security-snapshot.js";
 
 import type { ToolContext } from "./analytical-tool.js";
 import type { LiveObservation } from "./market-data-stream.js";
-import type { BarSource } from "@marketpulse/shared";
+import type { BarSource, FindingStamp } from "@marketpulse/shared";
 
 const NVDA = toTicker("NVDA");
 const PSKY = toTicker("PSKY"); // untracked since 2026-10-12 — CLAUDE.md §2.
@@ -41,6 +48,15 @@ const CONTEXT: ToolContext = {
   investigationId: toInvestigationId("inv-1"),
   asOf: new Date(READ_AT),
   mode: "live",
+};
+
+/** What the ORCHESTRATOR supplies at the mint — never a tool, which reads no
+ * clock. `retrievedAt` is deliberately a different instant from `asOf`: it is
+ * when this process recorded the claim, not when the data was true. */
+const STAMP: FindingStamp = {
+  findingId: toFindingId("finding-1"),
+  stepId: toStepId("step-1"),
+  retrievedAt: new Date("2026-11-16T14:01:00.500Z"),
 };
 
 describe("the security snapshot tool", () => {
@@ -146,5 +162,102 @@ describe("the security snapshot tool", () => {
       },
       ageMs: 60_000,
     });
+  });
+});
+
+describe("toSecuritySnapshotFinding", () => {
+  const stateWithBar = () => {
+    const state = createCurrentMarketState({ now: () => READ_AT });
+    state.observe([OBSERVATION]);
+    return state;
+  };
+
+  it("mints an evidenced, SUPPORTED claim naming the price, the volume and the span", async () => {
+    const tool = createSecuritySnapshotTool(stateWithBar(), new Set([NVDA]));
+    const outcome = await tool.run({ symbol: NVDA }, CONTEXT);
+
+    const finding = toSecuritySnapshotFinding(outcome, STAMP);
+    if (finding === undefined) throw new Error("expected a finding");
+    if (!finding.evidenced) throw new Error("expected evidence");
+
+    expect(finding.claim).toBe(
+      "Traded at 181.50 on 1,234,567 shares in the latest bar",
+    );
+    expect(finding.confidence).toBe("SUPPORTED");
+    expect(finding.type).toBe("PRICE_OBSERVATION");
+    // **No ticker in the claim** — Gate 1's decision: the route and the
+    // identity block already name it.
+    expect(finding.claim).not.toContain("NVDA");
+  });
+
+  it("names the feed on its evidence and references the read rather than copying the figure", async () => {
+    const tool = createSecuritySnapshotTool(stateWithBar(), new Set([NVDA]));
+    const outcome = await tool.run({ symbol: NVDA }, CONTEXT);
+
+    const finding = toSecuritySnapshotFinding(outcome, STAMP);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    expect(finding.evidence).toStrictEqual([
+      {
+        kind: "market_observation",
+        // Invariant 6: the feed is NAMED, off the observation's own source.
+        source: "fixture:iex",
+        observedAt: OBSERVATION.bar.startsAt,
+        retrievedAt: STAMP.retrievedAt,
+        security: NVDA,
+        rawData: "current-market-state:NVDA",
+      },
+    ]);
+    // A reference, never a copy of the figure the claim already states.
+    expect(finding.evidence[0].rawData).not.toContain("181.5");
+  });
+
+  it("mints an UNKNOWN claim with no evidence for each refusal, carrying no fabricated instant or figure", async () => {
+    // AC 9, on both of this tool's refusals. The claim names the read that
+    // refused and nothing it did not actually read.
+    const empty = createCurrentMarketState({ now: () => READ_AT });
+    const tool = createSecuritySnapshotTool(empty, new Set([NVDA]));
+
+    for (const symbol of [NVDA, PSKY]) {
+      const outcome = await tool.run({ symbol }, CONTEXT);
+      const finding = toSecuritySnapshotFinding(outcome, STAMP);
+      if (finding === undefined) throw new Error("expected a finding");
+
+      expect(finding.evidenced).toBe(false);
+      expect(finding.confidence).toBe("UNKNOWN");
+      expect("evidence" in finding).toBe(false);
+      expect(finding.claim).not.toMatch(/\d{4}-\d{2}-\d{2}/u);
+    }
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach", async () => {
+    // **Done-when 2 / AC 10, and the defect it catches is a claim templated
+    // from the tool's NAME rather than from its outcome.** On a zero-bar
+    // store — CI's permanent state — every step refuses, so six rows reading
+    // six identical labels would look exactly like six rows reading six
+    // measurements, and no gated machine could tell them apart.
+    const empty = createCurrentMarketState({ now: () => READ_AT });
+    const emptyTool = createSecuritySnapshotTool(empty, new Set([NVDA]));
+    const fullTool = createSecuritySnapshotTool(
+      stateWithBar(),
+      new Set([NVDA]),
+    );
+
+    const claims = await Promise.all(
+      [
+        fullTool.run({ symbol: NVDA }, CONTEXT),
+        emptyTool.run({ symbol: NVDA }, CONTEXT),
+        emptyTool.run({ symbol: PSKY }, CONTEXT),
+      ].map(
+        async (pending) =>
+          toSecuritySnapshotFinding(await pending, STAMP)?.claim,
+      ),
+    );
+
+    expect(claims).toHaveLength(3);
+    expect(new Set(claims).size).toBe(claims.length);
+    for (const claim of claims) {
+      expect(claim?.length ?? 0).toBeLessThanOrEqual(CLAIM_CEILING);
+    }
   });
 });
