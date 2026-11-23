@@ -24,6 +24,8 @@ const QUEUED: ChecklistState = {
       startedAt: undefined,
       completedAt: undefined,
       durationMs: undefined,
+      claim: undefined,
+      confidence: undefined,
     },
   ],
   terminal: false,
@@ -41,6 +43,8 @@ const RUNNING: ChecklistState = {
       startedAt: "2026-11-16T14:00:00.000Z",
       completedAt: undefined,
       durationMs: undefined,
+      claim: undefined,
+      confidence: undefined,
     },
   ],
   terminal: false,
@@ -58,6 +62,8 @@ const COMPLETED: ChecklistState = {
       startedAt: "2026-11-16T14:00:00.000Z",
       completedAt: "2026-11-16T14:00:00.120Z",
       durationMs: 120,
+      claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+      confidence: "SUPPORTED",
     },
   ],
   terminal: true,
@@ -244,5 +250,71 @@ describe("InvestigationChecklist", () => {
     );
 
     expect(screen.getByRole("status")).toBeTruthy();
+  });
+});
+
+describe("the claim (Task 7.3.1)", () => {
+  it("draws the claim as a second line on a row that has one", () => {
+    render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(
+      screen.getByText("Traded at 184.52 on 12,480 shares in the latest bar"),
+    ).toBeTruthy();
+  });
+
+  it("draws NOTHING where a row has no claim — absent rather than empty", () => {
+    // ADR 0029's rule at the clause level: a queued row, a running row and an
+    // `inapplicable` step each have nothing to say, so there is no reserved
+    // room and no `NBSP` here. The growth that costs is Task 7.3.2's layout
+    // question rather than this task's to hide from.
+    const { container } = render(
+      <InvestigationChecklist
+        checklist={QUEUED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    const row = container.querySelector(`.${styles.row ?? ""}`);
+    if (row === null) throw new Error("expected a row");
+    // Three paragraphs — glyph, description, duration — and no fourth.
+    expect(row.querySelectorAll("p")).toHaveLength(2);
+  });
+
+  it("adds ZERO focusable elements and ZERO click handlers to a row — AC 7", () => {
+    // **The structural assertion AC 7 asks for rather than a sentence in a
+    // record.** No evidence panel, no finding card and no click-to-focus
+    // interaction exists: those are `PRODUCT_SPEC.md` §8.2's and Epic 8's by
+    // citation, and the easiest way to ship them early by accident is one
+    // `onClick`.
+    const { container } = render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(
+      container.querySelectorAll(
+        'a, button, input, select, textarea, [tabindex], [role="button"]',
+      ),
+    ).toHaveLength(0);
+
+    const claim = screen.getByText(
+      "Traded at 184.52 on 12,480 shares in the latest bar",
+    );
+    expect(claim.tagName).toBe("P");
+    expect(claim.getAttribute("tabindex")).toBeNull();
+    expect(claim.getAttribute("role")).toBeNull();
+    // A click handler is not readable from the DOM, so the tag is the
+    // assertion: a `<p>` React rendered with no `onClick` has no listener,
+    // and a `<button>` or a `[tabindex]` would have failed the query above.
   });
 });

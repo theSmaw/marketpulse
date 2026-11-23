@@ -15,7 +15,11 @@
 
 import { randomUUID } from "node:crypto";
 
-import { isTerminalEventType, toStepId } from "@marketpulse/shared";
+import {
+  isTerminalEventType,
+  toFindingId,
+  toStepId,
+} from "@marketpulse/shared";
 
 import type {
   CompletedStep,
@@ -220,7 +224,7 @@ export function createScriptedAgentProvider(
           asOf,
           mode,
         };
-        const outcome = await tool.run(subjectSymbols, toolContext);
+        const run = await tool.run(subjectSymbols, toolContext);
 
         const completedAt = now();
         const durationMs = completedAt.getTime() - startedAt.getTime();
@@ -232,8 +236,48 @@ export function createScriptedAgentProvider(
           stepId: queuedStep.id,
           tool: queuedStep.tool,
           durationMs,
-          outcome,
+          outcome: run.outcome,
         });
+
+        // **The claim (Task 7.3.1), and this is where `Evidence.retrievedAt`
+        // comes from.**
+        //
+        // The stamp is filled here rather than inside the tool because the
+        // instant does not exist when `run` returns: Story 7.3's Gate 1
+        // settled that `retrievedAt` means *when this process recorded the
+        // claim*, read from the orchestrator's own injected `now` — the one
+        // seam in this product that legitimately reads the real clock — which
+        // leaves `a-tool-reads-no-clock` at full strength and every tool
+        // signature untouched. `completedAt` is reused rather than taken
+        // again, so the field is bounded by the step's own already-published
+        // `durationMs` and the two cannot disagree.
+        //
+        // **`undefined` is the `inapplicable` answer and no event is emitted
+        // at all.** AC 3's one exception: *the question does not arise* is a
+        // different, permanent fact from *not enough evidence*, so that row
+        // draws the inapplicability Story 7.2 already ships with no claim and
+        // no confidence mark, rather than an `UNKNOWN` finding inviting a
+        // reader to come back later.
+        //
+        // **Before `STEP_COMPLETED`**, deliberately: a reader's row learns
+        // what was measured in the same frame it learns the step finished,
+        // rather than completing first and growing a line afterwards.
+        const finding = run.mintFinding({
+          findingId: toFindingId(randomUUID()),
+          stepId: queuedStep.id,
+          retrievedAt: completedAt,
+        });
+
+        if (finding !== undefined) {
+          store.appendEvent(id, {
+            type: "FINDING_CREATED",
+            seq: nextSeq(),
+            investigationId: id,
+            // No top-level `stepId` — `Finding.stepId` is the one home for
+            // that fact, and the envelope carries no second copy.
+            finding,
+          });
+        }
 
         const completedStep: CompletedStep = {
           ...runningStep,

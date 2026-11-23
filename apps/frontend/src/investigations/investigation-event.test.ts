@@ -181,13 +181,21 @@ describe("readInvestigationEvent", () => {
   });
 
   it("answers unsupported for a type this bundle does not know, never throwing", () => {
+    // **`FINDING_CREATED` until Task 7.3.1, when this bundle learnt it.** The
+    // subject of the test is the `unsupported` ARM, not that one particular
+    // name is unknown — so the furnished type is a name no story has ever
+    // shipped, which is the state a tab left open across a deploy is really
+    // in. `EVIDENCE_ADDED` is the honest choice: it is in the shared
+    // `INVESTIGATION_EVENT_TYPES` vocabulary and deliberately carries no
+    // payload until the story where evidence can be pinned with no attached
+    // finding.
     expect(
       readInvestigationEvent({
-        type: "FINDING_CREATED",
+        type: "EVIDENCE_ADDED",
         seq: 7,
         investigationId: "inv-1",
       }),
-    ).toStrictEqual({ kind: "unsupported", type: "FINDING_CREATED" });
+    ).toStrictEqual({ kind: "unsupported", type: "EVIDENCE_ADDED" });
   });
 
   it("answers unreadable for something that is not an object, never throwing", () => {
@@ -224,6 +232,137 @@ describe("readInvestigationEvent", () => {
         investigationId: "inv-1",
         stepId: "step-1",
         tool: "get_security_snapshot",
+      }),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+});
+
+describe("readInvestigationEvent — FINDING_CREATED (Task 7.3.1)", () => {
+  const frame = (finding: unknown) => ({
+    type: "FINDING_CREATED",
+    seq: 5,
+    investigationId: "inv-1",
+    finding,
+  });
+
+  it("decodes only the three fields the browser reads, off the FINDING's own stepId", () => {
+    const decoded = readInvestigationEvent(
+      frame({
+        evidenced: true,
+        id: "finding-1",
+        stepId: "step-1",
+        type: "PRICE_MOVE",
+        claim: "−4.20% over 5 min — 94th of 4,620",
+        confidence: "SUPPORTED",
+        evidence: [
+          {
+            kind: "market_observation",
+            source: "alpaca:iex",
+            retrievedAt: "2026-11-23T14:01:00.500Z",
+            rawData: "trailing-window:NVDA",
+          },
+        ],
+      }),
+    );
+
+    // `INVESTIGATION_STARTED`'s own shipped precedent of partial decoding:
+    // the id, the type, the discriminant and the evidence are all on the
+    // wire and read by nothing in this bundle, so they are not declared.
+    expect(decoded).toStrictEqual({
+      kind: "event",
+      event: {
+        type: "FINDING_CREATED",
+        seq: 5,
+        investigationId: "inv-1",
+        finding: {
+          stepId: "step-1",
+          claim: "−4.20% over 5 min — 94th of 4,620",
+          confidence: "SUPPORTED",
+        },
+      },
+    });
+  });
+
+  it("DROPS a confidence level it does not recognise and keeps the claim", () => {
+    // `readReturnPercentile`'s own rule, one vocabulary over: a level a newer
+    // backend knows and this bundle does not must not refuse a frame the
+    // producer is being honest in — and must not take the claim down with
+    // it. A row with a measured figure and no confidence mark is the same
+    // honest-absence shape an `inapplicable` step already draws.
+    const decoded = readInvestigationEvent(
+      frame({
+        stepId: "step-1",
+        claim: "−4.20% over 5 min — 94th of 4,620",
+        confidence: "COROBORATED",
+      }),
+    );
+
+    expect(decoded).toStrictEqual({
+      kind: "event",
+      event: {
+        type: "FINDING_CREATED",
+        seq: 5,
+        investigationId: "inv-1",
+        finding: {
+          stepId: "step-1",
+          claim: "−4.20% over 5 min — 94th of 4,620",
+        },
+      },
+    });
+  });
+
+  it("answers unreadable for a missing finding, a missing stepId or an empty claim", () => {
+    expect(readInvestigationEvent(frame(undefined))).toMatchObject({
+      kind: "unreadable",
+    });
+    expect(readInvestigationEvent(frame({ claim: "something" }))).toMatchObject(
+      { kind: "unreadable" },
+    );
+    expect(
+      readInvestigationEvent(frame({ stepId: "step-1", claim: "" })),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+});
+
+describe("readInvestigationEvent — INVESTIGATION_FAILED (the B2 repair)", () => {
+  it("decodes the terminal failure event this bundle used to DROP", () => {
+    // **A pre-existing defect, shipped since Task 7.2.1 and found while
+    // shaping this story's event-type/decoder-parity invariant.** With no
+    // case here, a thrown tool decoded as `unsupported`, the stream then
+    // ended with no terminal event the reducer had seen, and the row drew
+    // the dropped-connection sentence — a run that failed reported as a
+    // network fault.
+    expect(
+      readInvestigationEvent({
+        type: "INVESTIGATION_FAILED",
+        seq: 7,
+        investigationId: "inv-1",
+        status: "failed",
+        failedAt: "2026-11-23T14:01:00.012Z",
+        stepCount: 2,
+      }),
+    ).toStrictEqual({
+      kind: "event",
+      event: {
+        type: "INVESTIGATION_FAILED",
+        seq: 7,
+        investigationId: "inv-1",
+        status: "failed",
+        failedAt: "2026-11-23T14:01:00.012Z",
+        stepCount: 2,
+      },
+    });
+  });
+
+  it("answers unreadable for a malformed one rather than throwing", () => {
+    expect(
+      readInvestigationEvent({
+        type: "INVESTIGATION_FAILED",
+        seq: 7,
+        investigationId: "inv-1",
+        status: "failed",
+        // `failedAt` missing.
+        stepCount: 2,
       }),
     ).toMatchObject({ kind: "unreadable" });
   });

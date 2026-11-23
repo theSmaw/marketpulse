@@ -32,7 +32,16 @@
 // rank needs a live feed AND a nightly generation, which only the deployment
 // has.
 
-import { asInstant } from "@marketpulse/shared";
+import {
+  FINDING_TYPE_FOR_TOOL,
+  asInstant,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  formatChangePercent,
+  formatCount,
+  percentileOrdinal,
+  refusalClaim,
+} from "@marketpulse/shared";
 
 import { readPriceAnomaly } from "./price-anomaly.js";
 import { untrackedRefusal } from "./tool-universe.js";
@@ -42,6 +51,8 @@ import type { AnalyticalTool } from "./analytical-tool.js";
 import type { ReturnRefusal } from "./five-minute-return.js";
 import type { PriceAnomalySources } from "./price-anomaly.js";
 import type {
+  Finding,
+  FindingStamp,
   JsonValue,
   MarketFeed,
   Ticker,
@@ -192,9 +203,22 @@ export function createReturnPercentileTool(
  * field added to {@link ReturnPercentileReading} without being added here is
  * never read, so it cannot reach the wire unexamined.
  *
- * **Nothing is derived and nothing is formatted.** The ordinal's suffix, the
- * `>99th` reading of `aboveSample` and the thousands separator on
- * `sampleCount` are all the browser's, from the fields below.
+ * **Nothing is derived and nothing is formatted IN THIS FUNCTION.** The
+ * ordinal's suffix, the `>99th` reading of `aboveSample` and the thousands
+ * separator on `sampleCount` are all the browser's, from the fields below.
+ *
+ * **Narrowed 2026-11-23 (Task 7.3.1), because the file-level version of that
+ * sentence went false and the claim had to be repointed rather than left
+ * standing.** This module's own header used to say *nothing is derived and
+ * nothing is formatted — all the browser's* about the whole file, and
+ * {@link toReturnPercentileFinding} below now formats three figures into a
+ * sentence the backend prints. The division of labour is unchanged for the
+ * **wire projection**: a figure crossing the wire as data is raw, and a reader
+ * spells it. What is new is a second kind of payload — a **claim**, which is
+ * prose by construction and has to be built where the typed reading is. It
+ * spells nothing of its own: `formatChangePercent`, `percentileOrdinal` and
+ * `formatCount` all moved into `packages/shared` in the same change so there
+ * is one spelling of each figure and not two.
  */
 export function toWireReturnPercentile(
   reading: ReturnPercentileReading,
@@ -212,4 +236,96 @@ export function toWireReturnPercentile(
     baselineSpanMinutes: reading.baselineSpanMinutes,
     baselineFeed: reading.baselineFeed,
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled. */
+const TYPE = FINDING_TYPE_FOR_TOOL.calculate_return_percentile;
+
+/**
+ * **This step's claim** (Task 7.3.1) — `−4.20% over 5 min — 94th of 4,620`.
+ *
+ * ## Confidence: `SUPPORTED` on every `ok`, and `POSSIBLE` is correctly
+ * ## UNREACHABLE here
+ *
+ * The rule is a stated function of the reading's own counted evidence: `ok`
+ * below the tool's own shipped sufficiency floor is `POSSIBLE`, above it
+ * `SUPPORTED`. **This tool's floor is enforced upstream as a refusal.**
+ * `returnPercentileOf`'s minimum sample is derived rather than chosen —
+ * `50/√n ≤ 1` gives `n ≥ 2500` exactly, because an integer ordinal's last
+ * digit is one percentile point — and `comparableBaseline` answers
+ * `too-few-samples` below it, which this tool forwards verbatim. So an `ok`
+ * from this tool is above the floor **by construction**.
+ *
+ * **No second floor was invented to fill that arm**, which is the decision
+ * worth recording: a `POSSIBLE` here would need a threshold nobody has
+ * derived, sitting beside a refusal threshold somebody did, and the two would
+ * disagree about what *enough* means for one figure.
+ *
+ * ## Two evidence items, because two independent reads happened
+ *
+ * The **numerator** is an observation — two bars from the trailing window —
+ * and the **denominator** is a stored aggregate the nightly pass computed.
+ * They refuse for unrelated reasons (this module's own header), they come from
+ * different stores, and a reader asking *what is this ranked against* is
+ * asking about the second one specifically.
+ *
+ * **The observation's own tape is not on this reading, and is not guessed.**
+ * `ReturnPercentileReading` carries `baselineFeed` and no feed for the
+ * numerator, so that item's `source` names the **producer** —
+ * `trailing-window` — rather than asserting `iex`. AC 9's rule reaches
+ * provenance as well as figures: an item must carry nothing it did not
+ * actually read.
+ */
+export function toReturnPercentileFinding(
+  outcome: ToolOutcome<ReturnPercentileReading>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const reading = outcome.value;
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim:
+        `${formatChangePercent(reading.percent)} over ` +
+        `${String(reading.spanMinutes)} min — ` +
+        `${percentileOrdinal(reading)} of ` +
+        formatCount(reading.sampleCount),
+      confidence: "SUPPORTED",
+      evidence: [
+        {
+          kind: "market_observation",
+          source: "trailing-window",
+          // The NEWER endpoint's own instant — the move is measured between
+          // two bars and this is the one a reader would check a chart against.
+          observedAt: reading.measuredTo,
+          security: reading.symbol,
+          rawData: `trailing-window:${reading.symbol}`,
+        },
+        {
+          kind: "calculated_metric",
+          source: `alpaca:${reading.baselineFeed}`,
+          // **No `observedAt`.** The baseline is 60 sessions of returns, which
+          // has no single instant at which it was true — and inventing one
+          // would be exactly the fabrication AC 9 forbids.
+          method: "returnPercentileOf",
+          security: reading.symbol,
+          rawData: `return_baselines:${reading.symbol}`,
+        },
+      ],
+    },
+    stamp,
+  );
 }

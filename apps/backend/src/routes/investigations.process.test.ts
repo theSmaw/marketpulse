@@ -43,7 +43,12 @@ function stuckTool(): { tool: RunnableTool; resolve: () => void } {
     description: "Measure move",
     async run() {
       await gate;
-      return { kind: "refused", reason: "nothing-observed" };
+      return {
+        outcome: { kind: "refused", reason: "nothing-observed" },
+        // No claim: this stub exists to pin a window, and a finding would be
+        // a second thing to assert about in a test that is about timing.
+        mintFinding: () => undefined,
+      };
     },
   };
   return { tool, resolve };

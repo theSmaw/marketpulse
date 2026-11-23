@@ -7986,11 +7986,32 @@ const INVARIANTS = [
     id: "one-home-for-the-ordinal-suffix",
     claim:
       "`st` / `nd` / `rd` / `th` after a number is written in exactly one " +
-      "shipped file — `apps/frontend/src/market/return-percentile.ts`, where " +
+      "shipped file — `packages/shared/src/percentile-ranking.ts`, where " +
       "`percentileOrdinal` builds it and `percentileReading` is derived from " +
-      "it — so the drawn short form and the spoken long form of one figure " +
-      "cannot drift.",
+      "it — so the drawn short form, the spoken long form and the BACKEND's " +
+      "own claim cannot drift.",
     check() {
+      // **Repointed 2026-11-23 (Task 7.3.1), and one sentence of the note
+      // below went FALSE in the same change rather than merely stale.** The
+      // home was `apps/frontend/src/market/return-percentile.ts` until
+      // Story 7.3 made the backend print an ordinal: a `Finding.claim` reads
+      // `−4.20% over 5 min — 94th of 4,620`, which is the same ordinal
+      // `Abnormal-move indicators` draws a few centimetres above the
+      // checklist. So `percentileOrdinal` and `ordinalSuffix` moved —
+      // function by function, into the module that already declares itself
+      // the one home of the ordinal's own comparator — and the frontend file
+      // re-exports `percentileOrdinal` so its public surface is unchanged.
+      //
+      // **The sentence that went false is this check's own.** Its last
+      // paragraph read: *"a **backend** that formats an ordinal into a
+      // string the browser prints whole … is a different defect with a
+      // different owner."* That was true while the backend had no surface.
+      // It now has one, by decision, and the division of labour is narrower
+      // than *the renderer spells it*: a figure crossing the wire as **data**
+      // is still raw and still spelled by a reader, and a **claim** is prose
+      // by construction, built where the typed reading is — from the one
+      // shared speller, which is what this check now holds across three
+      // trees instead of one.
       // **Task 5.4.3.** `Unusual activity` draws `99th` on the row and hands
       // a listener `99th percentile` from a visually-hidden sibling, while
       // `Abnormal-move indicators` draws the whole phrase on the security
@@ -8042,14 +8063,18 @@ const INVARIANTS = [
       //
       // ## What it cannot see, stated so nobody over-trusts it
       //
-      // A suffix assembled from parts (`"t" + "h"`), a lookup keyed on
-      // something other than a literal, and a **backend** that formats an
-      // ordinal into a string the browser prints whole. The last is the real
-      // residue and it is the reverse of this product's rule rather than a
-      // gap in the grep: invariant 1 says every figure comes from
-      // deterministic code and the renderer spells it, so a server sending a
-      // formatted ordinal is a different defect with a different owner.
-      const HOME = "apps/frontend/src/market/return-percentile.ts";
+      // A suffix assembled from parts (`"t" + "h"`) and a lookup keyed on
+      // something other than a literal. ~~and a **backend** that formats an
+      // ordinal into a string the browser prints whole … a different defect
+      // with a different owner~~ — **struck 2026-11-23 (Task 7.3.1): the
+      // backend formats one now, by decision, and this check's corpus
+      // already covered `apps/backend/src` the whole time.** The struck text
+      // is left standing because it is a prediction that came true in the
+      // opposite direction from the one it feared: the second speller it
+      // warned about would have been in `apps/backend/src`, and what
+      // happened instead is that the one speller moved into
+      // `packages/shared` and the backend calls it.
+      const HOME = "packages/shared/src/percentile-ranking.ts";
 
       // The three SHIPPED roots, through `shippedSourceFiles()` rather than a
       // file list, for `one-comparator-for-the-order-of-a-percentile`'s
@@ -12229,6 +12254,269 @@ const INVARIANTS = [
             "already measured against a 390px tab-stop budget; seeding too " +
             "many leaves a row queued for ever, which reads as a step that " +
             "never started. Move both in the same change.",
+        );
+      }
+    },
+  },
+  {
+    id: "two-mint-sites-for-a-finding",
+    claim:
+      "A `Finding`'s brand is minted in exactly two places — " +
+      "`createEvidencedFinding` and `createUnevidencedFinding`, both in " +
+      "`packages/shared/src/finding.ts` — and no other shipped file asserts " +
+      "its way into one of its branded types.",
+    check() {
+      // **Task 7.3.1, and a structural mirror of
+      // `two-mint-sites-for-an-anomaly-score` rather than a copy of its
+      // words.** AC 2 asks that an *evidenced* finding cannot be constructed
+      // without at least one evidence item, and the non-empty tuple is what
+      // makes that a compile error. Its whole strength is that the brand's
+      // symbol is not exported — so the failure mode is not a forged finding,
+      // which is impossible, but a **second route in**: an
+      // `as unknown as Finding` somewhere else, which is a cast the compiler
+      // permits and which checks none of the fields beside it.
+      //
+      // Two sites rather than one, and the pair is the two ARMS rather than a
+      // producer and a reader. That is the one place this check differs from
+      // the composite score's, and it is a consequence of a decision rather
+      // than an accident: there is **no `readFinding`**, because the browser
+      // declares its own wire shape and never reconstitutes a domain
+      // `Finding` (`finding.ts`'s own header says so at length). So the brand
+      // dies at `JSON.parse` and is never restored, and every mint is on the
+      // producing side.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // A **type assertion naming one of the branded types**. A tool cannot
+      // put a record into `Finding` any other way: the brand is not
+      // exported, so the only routes are a call to one of the two mints or a
+      // cast. The pattern keys on the cast rather than on the symbol, which
+      // is invisible outside its module by construction.
+      //
+      // **The draft that passed wrongly, with its transcript.** The obvious
+      // draft counts declarations of the two mints and asserts there is one
+      // of each in the home. Run against the plant — the file the NEXT author
+      // writes, a seventh tool assembling
+      // `return { evidenced: true, … } as unknown as Finding;` rather than
+      // calling the mint, in `apps/backend/src/tool-security-snapshot.ts` —
+      // it reported `95 invariants hold.` and exit 0 with a third mint site
+      // on disk. Nothing in that draft is about minting; it is about two
+      // identifiers.
+      const HOME = "packages/shared/src/finding.ts";
+
+      const shipped = shippedSourceFiles().map(({ path, text }) => ({
+        path: relative(REPO_ROOT, path),
+        text,
+      }));
+
+      const BRANDED = ["EvidencedFinding", "UnevidencedFinding", "Finding"];
+
+      // `as Finding`, `as unknown as Finding` and a `satisfies` are all one
+      // shape: the type's name preceded by an assertion keyword. A generic
+      // parameter — `Map<string, Finding>`, `ToolOutcome<Finding>` — is not,
+      // which is why the keyword is required. `FindingType`,
+      // `FindingStamp` and `FindingId` are untouched by the trailing `\b`.
+      const ASSERTION = new RegExp(
+        String.raw`\b(?:as|satisfies)\s+(?:unknown\s+as\s+)?(?:readonly\s+)?(?:${BRANDED.join("|")})\b`,
+        "u",
+      );
+
+      // The brand key itself, which is the mint when the symbol is in scope.
+      // Used **only as the home's anchor** and deliberately not scanned
+      // across the corpus: several modules declare brands of their own and
+      // each writes `[brand]` as a key, which is none of this check's
+      // business.
+      const WRITES_THE_BRAND = /\[brand\]\s*:/u;
+
+      const home = shipped.find((file) => file.path === HOME);
+      if (home === undefined) {
+        throw new InvariantFailure(
+          `${HOME} is not in the shipped corpus, and it is this check's ` +
+            "anchor. The finding types moved; repoint this check in the " +
+            "same change.",
+        );
+      }
+
+      const mints = home.text
+        .split("\n")
+        .filter((line) => WRITES_THE_BRAND.test(line)).length;
+
+      if (mints === 0) {
+        throw new InvariantFailure(
+          `${HOME} no longer writes the brand key anywhere, and it is this ` +
+            "check's anchor. Either the brand was replaced by a type " +
+            "assertion — which is the thing this check forbids, and the home " +
+            "is now its own first offender — or the mint moved. Note that a " +
+            "`declare const brand: unique symbol` cannot be written as a key " +
+            "at all (it has no runtime value), so a module that switched to " +
+            "one has switched to casts.",
+        );
+      }
+
+      const elsewhere = [];
+      for (const file of shipped) {
+        if (file.path === HOME) continue;
+        for (const line of file.text.split("\n")) {
+          if (ASSERTION.test(line)) {
+            elsewhere.push(`${file.path}: ${line.trim()}`);
+          }
+        }
+      }
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} shipped line(s) assert their way into ` +
+            `a branded finding type outside ${HOME}:\n      ` +
+            elsewhere.join("\n      ") +
+            "\n    A finding reaches that type through " +
+            "`createEvidencedFinding` or `createUnevidencedFinding` and " +
+            "through nothing else. A cast checks none of the fields beside " +
+            "it, so a third mint site is an evidenced finding with an EMPTY " +
+            "evidence array wearing the type that was supposed to make that " +
+            "impossible — and `evidence: []` is the one shape AC 2 names by " +
+            "name, because a surface reading `.length` off it draws *no " +
+            "evidence gathered* for a step that gathered nothing because " +
+            "there was nothing to gather.",
+        );
+      }
+    },
+  },
+  {
+    id: "every-serialised-event-type-has-a-decoder-case",
+    claim:
+      "Every investigation event type the backend's serialiser gives a " +
+      "payload to (`toWireInvestigationEvent` in " +
+      "`packages/shared/src/investigation.ts`) has a matching case in the " +
+      "frontend's decoder (`readInvestigationEvent` in " +
+      "`apps/frontend/src/investigations/investigation-event.ts`) — an " +
+      "unhandled event type decodes as `unsupported` and is dropped without " +
+      "a word.",
+    check() {
+      // **Task 7.3.1, and a SIBLING of
+      // `the-tool-outcome-decoder-branches-on-every-kind` rather than a
+      // widening of it.** That check is blind to a new event TYPE, and the
+      // two failures are a layer apart and in different directions:
+      //
+      // - an unhandled `ToolOutcome` **kind** makes the whole
+      //   `TOOL_CALL_COMPLETED` event `unreadable`;
+      // - an unhandled event **type** is silently `unsupported`, which is the
+      //   arm written for *a frame from a type this bundle predates* — a
+      //   legitimate state a tab left open across a deploy is really in. So
+      //   the drop is not merely quiet, it looks correct.
+      //
+      // **This check was RED on `main` before Story 7.3 existed**, and that
+      // is how it found its own first defect. `INVESTIGATION_FAILED` has had
+      // a serialiser case since Task 7.2.1 (2026-11-18) and no decoder case
+      // at all, so a thrown tool decoded as `unsupported`, the stream then
+      // ended with no terminal event the reducer had seen, and the row drew
+      // the **dropped-connection** sentence over a run that had actually
+      // failed. Task 7.3.1 fixed that in the same change, which is what let
+      // this ship green.
+      //
+      // ## Anchored on the SERIALISER's own switch, never on the vocabulary
+      //
+      // `INVESTIGATION_EVENT_TYPES` legitimately holds payload-free names a
+      // decoder correctly has no case for — `EVIDENCE_ADDED` and
+      // `WORKSPACE_COMMAND` today, each with its own stated condition. A
+      // check over that list would be red on a correct tree for ever, which
+      // is the shape of a check nobody can keep green.
+      const SERIALISER = "packages/shared/src/investigation.ts";
+      const DECODER = "apps/frontend/src/investigations/investigation-event.ts";
+
+      const serialiser = withoutComments(
+        readAnchored(resolve(REPO_ROOT, SERIALISER)),
+      );
+      const decoder = withoutComments(
+        readAnchored(resolve(REPO_ROOT, DECODER)),
+      );
+
+      /** A function's body at `from`, by balanced braces. */
+      const bodyAt = (text, from) => {
+        const opens = text.indexOf("{", from);
+        if (opens < 0) return "";
+        let depth = 0;
+        for (let index = opens; index < text.length; index += 1) {
+          const character = text[index];
+          if (character === "{") depth += 1;
+          else if (character === "}") {
+            depth -= 1;
+            if (depth === 0) return text.slice(opens, index + 1);
+          }
+        }
+        return text.slice(opens);
+      };
+
+      const ENCODER = /export const toWireInvestigationEvent\s*=/u.exec(
+        serialiser,
+      );
+      if (ENCODER === null) {
+        throw new InvariantFailure(
+          `No \`export const toWireInvestigationEvent =\` in ` +
+            `\`${SERIALISER}\`. That switch is this check's anchor — the one ` +
+            "list of event types that actually reach a browser — so if it " +
+            "moved or was renamed, repoint this in the same change: a grep " +
+            "that matches nothing looks exactly like a grep that passes.",
+        );
+      }
+
+      const CASE = /case "([A-Z_]+)":/gu;
+      const serialised = [
+        ...bodyAt(serialiser, ENCODER.index).matchAll(CASE),
+      ].map((match) => match[1]);
+
+      if (serialised.length === 0) {
+        throw new InvariantFailure(
+          `\`toWireInvestigationEvent\` in \`${SERIALISER}\` switches on no ` +
+            '`case "…":` at all. Either it stopped being a switch — in ' +
+            "which case this check wants repointing at whatever replaced it " +
+            "— or the whole projection is gone.",
+        );
+      }
+
+      const READER = /export function readInvestigationEvent\s*\(/u.exec(
+        decoder,
+      );
+      if (READER === null) {
+        throw new InvariantFailure(
+          `No \`readInvestigationEvent\` in \`${DECODER}\`. The whitelist ` +
+            "this check reads is that function's own; if the decode moved, " +
+            "repoint this in the same change.",
+        );
+      }
+
+      const handled = new Set(
+        [...bodyAt(decoder, READER.index).matchAll(CASE)].map(
+          (match) => match[1],
+        ),
+      );
+
+      if (handled.size === 0) {
+        throw new InvariantFailure(
+          `\`readInvestigationEvent\` in \`${DECODER}\` tests no ` +
+            '`case "…":` at all. Either it stopped being a whitelist — in ' +
+            "which case this check wants repointing at whatever replaced it " +
+            "— or the whole decode is gone.",
+        );
+      }
+
+      const unhandled = serialised.filter((type) => !handled.has(type));
+
+      if (unhandled.length > 0) {
+        throw new InvariantFailure(
+          `${String(unhandled.length)} serialised event type(s) have no ` +
+            "case in `readInvestigationEvent`: " +
+            unhandled.map((type) => `\`${type}\``).join(", ") +
+            "\n    The decoder handles " +
+            [...handled].map((type) => `\`${type}\``).join(", ") +
+            ".\n    An unhandled type is not rendered wrongly — it is " +
+            "dropped, and the drop LOOKS CORRECT: `readInvestigationEvent` " +
+            "answers `unsupported`, which is the arm written for a frame " +
+            "from a type this bundle predates, and `use-investigation.ts` " +
+            "ignores it without a word. That is exactly how " +
+            "`INVESTIGATION_FAILED` shipped for five days drawing the " +
+            "dropped-connection sentence over a run that had failed. Add " +
+            "the case in the same change as the serialiser's, declaring " +
+            "only the fields the browser actually reads.",
         );
       }
     },

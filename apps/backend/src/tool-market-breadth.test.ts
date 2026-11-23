@@ -1,4 +1,11 @@
-import { toInvestigationId, toMarketDate, toTicker } from "@marketpulse/shared";
+import {
+  CLAIM_CEILING,
+  toFindingId,
+  toInvestigationId,
+  toMarketDate,
+  toStepId,
+  toTicker,
+} from "@marketpulse/shared";
 import { describe, expect, it } from "vitest";
 
 import { createLatestOverviewPass } from "./latest-overview-pass.js";
@@ -10,12 +17,13 @@ import {
 import { overviewPassOf } from "./market-overview.js";
 import {
   createMarketBreadthTool,
+  toMarketBreadthFinding,
   toWireMarketBreadthReading,
 } from "./tool-market-breadth.js";
 
 import type { ToolContext } from "./analytical-tool.js";
 import type { MarketOverviewEntry, OverviewPass } from "./market-overview.js";
-import type { BarSource, Ticker } from "@marketpulse/shared";
+import type { BarSource, FindingStamp, Ticker } from "@marketpulse/shared";
 
 // **The market-breadth tool, against the real arithmetic** (Task 7.2.5,
 // Done-when 3). No server, no socket, no database: the counts come from the
@@ -35,6 +43,13 @@ const CONTEXT: ToolContext = {
   investigationId: toInvestigationId("inv-1"),
   asOf: ASOF,
   mode: "live",
+};
+
+/** The ORCHESTRATOR's own stamp — a tool never supplies one. */
+const STAMP: FindingStamp = {
+  findingId: toFindingId("finding-1"),
+  stepId: toStepId("step-1"),
+  retrievedAt: new Date("2026-09-16T18:03:30.500Z"),
 };
 
 const SOURCE: BarSource = {
@@ -282,5 +297,100 @@ describe("get_market_breadth", () => {
       tracked: 5,
       observedAt: "2026-09-16T18:02:30.000Z",
     });
+  });
+});
+
+describe("toMarketBreadthFinding", () => {
+  const findingOver = async (entries: readonly MarketOverviewEntry[]) => {
+    const holder = createLatestOverviewPass();
+    holder.recordPass(passOver(entries));
+    const outcome = await createMarketBreadthTool(holder.read).run({}, CONTEXT);
+    return toMarketBreadthFinding(outcome, STAMP);
+  };
+
+  it("opens with the population and carries no security anywhere — AC 8, in the grammar AND in the type", async () => {
+    const finding = await findingOver(TWO_UP_TWO_DOWN_ONE_FLAT);
+    if (finding?.evidenced !== true) throw new Error("expected evidence");
+
+    expect(finding.claim).toBe(
+      "2 up, 2 down, 1 flat of 5 measured in the last 5 min",
+    );
+    // The claim opens with a FIGURE, never a ticker — so there is nothing in
+    // it a reader could take as a verdict on the security whose page this is.
+    expect(finding.claim).toMatch(/^\d/u);
+    expect(finding.claim).not.toContain("NVDA");
+    // And the evidence item has no `security` field at all, which is what
+    // `Evidence.security?`'s optionality is for.
+    expect("security" in finding.evidence[0]).toBe(false);
+    expect(finding.type).toBe("MARKET_BREADTH");
+  });
+
+  it("is SUPPORTED where something was measured and POSSIBLE at a count of zero", async () => {
+    // **One of only two real producers of `POSSIBLE` in the whole
+    // pipeline**, and the floor is not an invented threshold: three zeroes
+    // over a denominator of zero is a true measurement — which is why the
+    // tool answers `ok` — and it licenses no claim about how broad the
+    // market's move was. It is also CI's permanent state, so this is the
+    // only arm a gated machine will ever draw here.
+    const measured = await findingOver(TWO_UP_TWO_DOWN_ONE_FLAT);
+    const nothing = await findingOver([]);
+
+    expect(measured?.confidence).toBe("SUPPORTED");
+    expect(nothing?.confidence).toBe("POSSIBLE");
+    expect(nothing?.claim).toBe(
+      "0 up, 0 down, 0 flat of 0 measured in the last 5 min",
+    );
+  });
+
+  it("dates its evidence by the OBSERVATION, and absently where there is none", async () => {
+    const measured = await findingOver(TWO_UP_TWO_DOWN_ONE_FLAT);
+    if (measured?.evidenced !== true) throw new Error("expected evidence");
+    expect(measured.evidence[0].observedAt).toStrictEqual(
+      new Date("2026-09-16T18:02:30.000Z"),
+    );
+    expect(measured.evidence[0].source).toBe("market-overview-pass");
+    expect(measured.evidence[0].rawData).toBe("market-overview-pass:breadth");
+
+    // ADR 0038's decision 3: say nothing rather than say now. **Absent**,
+    // never present as `undefined` — `exactOptionalPropertyTypes` makes those
+    // different types and this is the one that is honest.
+    const nothing = await findingOver([]);
+    if (nothing?.evidenced !== true) throw new Error("expected evidence");
+    expect("observedAt" in nothing.evidence[0]).toBe(false);
+  });
+
+  it("produces pairwise-DISTINCT claims across every arm it can reach, with no fabricated count on the refusal", async () => {
+    // Done-when 2 / AC 10. Three arms: a measured count, a zero count, and
+    // the no-aggregate refusal — which must carry no denominator at all,
+    // because *we have no aggregate* has none to state. That is the pair
+    // `TOOL_REFUSALS`' own docblock keeps apart.
+    const refused = toMarketBreadthFinding(
+      await createMarketBreadthTool(createLatestOverviewPass().read).run(
+        {},
+        CONTEXT,
+      ),
+      STAMP,
+    );
+
+    const findings = [
+      await findingOver(TWO_UP_TWO_DOWN_ONE_FLAT),
+      await findingOver([]),
+      refused,
+    ];
+    const claims = findings.map((finding) => finding?.claim);
+
+    expect(new Set(claims).size).toBe(claims.length);
+    for (const finding of findings) {
+      if (finding === undefined) throw new Error("expected a finding");
+      expect(finding.claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+    }
+
+    expect(refused?.claim).toBe(
+      "Market breadth — no aggregate computed in this process yet",
+    );
+    expect(refused?.confidence).toBe("UNKNOWN");
+    expect(refused === undefined || "evidence" in refused).toBe(false);
+    // AC 9: no invented figure where nothing was read.
+    expect(refused?.claim).not.toMatch(/\d/u);
   });
 });

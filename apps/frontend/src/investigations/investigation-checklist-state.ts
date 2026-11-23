@@ -7,6 +7,7 @@
 // that story rewriting this file.
 
 import type { WireInvestigationEvent } from "./investigation-event.js";
+import type { Confidence } from "@marketpulse/shared";
 
 export type ChecklistStepStatus = "queued" | "running" | "completed";
 
@@ -23,6 +24,30 @@ export interface ChecklistStepView {
   readonly startedAt: string | undefined;
   readonly completedAt: string | undefined;
   readonly durationMs: number | undefined;
+  /**
+   * **What this step actually measured, in one line** (Task 7.3.1) — the
+   * backend's own `Finding.claim`, arriving on `FINDING_CREATED`.
+   *
+   * `undefined` in three distinct, correct cases, and they are not one case:
+   * a **queued** row (nothing has run), a **running** row (the claim arrives
+   * with the outcome), and a completed row whose outcome was
+   * **`inapplicable`** — *the question does not arise*, which mints no
+   * finding at all and draws the inapplicability sentence Story 7.2 already
+   * ships rather than an `UNKNOWN` claim inviting a reader to come back
+   * later.
+   */
+  readonly claim: string | undefined;
+  /**
+   * How well evidenced the claim is. `undefined` wherever {@link claim} is,
+   * and additionally where the level the backend sent is one this bundle does
+   * not recognise — dropped rather than guessed, and never a reason to drop
+   * the claim with it (`investigation-event.ts`'s own decoder case).
+   *
+   * **Nothing draws it yet.** Task 7.3.2 ships the `ConfidenceMark`; this
+   * task puts the value on the view so that component has something real to
+   * read on its first commit rather than a prop threaded through afterwards.
+   */
+  readonly confidence: Confidence | undefined;
 }
 
 export interface ChecklistState {
@@ -46,6 +71,8 @@ const PLACEHOLDER_STEP: ChecklistStepView = {
   startedAt: undefined,
   completedAt: undefined,
   durationMs: undefined,
+  claim: undefined,
+  confidence: undefined,
 };
 
 /**
@@ -153,6 +180,8 @@ export function applyInvestigationEvent(
           startedAt: event.startedAt,
           completedAt: undefined,
           durationMs: undefined,
+          claim: undefined,
+          confidence: undefined,
         })),
       };
 
@@ -163,10 +192,40 @@ export function applyInvestigationEvent(
       return state;
 
     case "TOOL_CALL_COMPLETED":
-      // Likewise: `STEP_COMPLETED` is what the checklist draws. This
-      // event's `outcome` is Story 7.3's own future reader (a finding), not
-      // this checklist's.
+      // **Corrected 2026-11-23 (Task 7.3.1): the outcome's reader has
+      // arrived, and it is not here.** This case used to say *this event's
+      // `outcome` is Story 7.3's own future reader*, which was true and is
+      // now misleading in a way that would send the next author to the wrong
+      // file: the reader is the **backend's** own `toFinding`, which derives
+      // a claim from the tool's TYPED output before the erasure to
+      // `JsonValue` — invariant 1, since a browser assembling a sentence from
+      // a wire record would be a second producer of a figure nobody can
+      // eyeball.
+      //
+      // This checklist still changes nothing here, for a narrower reason than
+      // the old comment gave: what it draws is `FINDING_CREATED`'s claim,
+      // which arrives on its own event a moment later. The step is already
+      // `running` since `STEP_STARTED`, and this event exists for a later
+      // story's finer-grained UI (a step with more than one tool call).
       return state;
+
+    case "FINDING_CREATED":
+      // **Keyed on the FINDING's own `stepId`**, which is the one home for
+      // *which step produced this* — the envelope deliberately carries no
+      // second copy, so there is no second field here to disagree with it.
+      //
+      // The claim lands on a row that is still `running`: the orchestrator
+      // emits this before that step's `STEP_COMPLETED`, so a reader's row
+      // learns what was measured in the same frame it learns the step
+      // finished rather than completing first and growing a line afterwards.
+      return {
+        ...state,
+        steps: updateStep(state.steps, event.finding.stepId, (step) => ({
+          ...step,
+          claim: event.finding.claim,
+          confidence: event.finding.confidence,
+        })),
+      };
 
     case "STEP_COMPLETED":
       return {
@@ -182,8 +241,25 @@ export function applyInvestigationEvent(
     case "INVESTIGATION_COMPLETED":
       return { ...state, terminal: true };
 
+    case "INVESTIGATION_FAILED":
+      // **`terminal` and nothing else, which is the whole of the repair**
+      // (Task 7.3.1). This event has had a backend wire case since Task
+      // 7.2.1 and no decoder case at all, so a thrown tool was dropped as
+      // `unsupported`, the stream then ended with no terminal event this
+      // reducer had seen, and `withConnectionLost` drew the
+      // dropped-connection sentence — a run that failed reported as a
+      // network fault.
+      //
+      // **No new reader-facing sentence, by decision.** `terminal` is what
+      // stops the wrong one being drawn; the right one — what a reader is
+      // told about a failed run, and the per-step degradation around it — is
+      // Story 7.5's scope, and that story's own `STORY.md` carries this as a
+      // constraint it inherits. A sentence written here would be the second
+      // home that story would then have to find.
+      return { ...state, terminal: true };
+
     default: {
-      // Exhaustive over the six members `WireInvestigationEvent` has today.
+      // Exhaustive over the eight members `WireInvestigationEvent` has today.
       const unhandled: never = event;
       return unhandled;
     }

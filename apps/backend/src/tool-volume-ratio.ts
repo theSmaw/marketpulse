@@ -51,12 +51,23 @@
 // is what makes it the one step in the pipeline whose interesting case a
 // gated machine can actually exercise.
 
+import {
+  FINDING_TYPE_FOR_TOOL,
+  createEvidencedFinding,
+  createUnevidencedFinding,
+  formatCount,
+  percentileOrdinal,
+  refusalClaim,
+} from "@marketpulse/shared";
+
 import { volumeFactorAnswer } from "./market-composite.js";
 import { untrackedRefusal } from "./tool-universe.js";
 import { trackedSymbols } from "./universe.js";
 
 import type { AnalyticalTool } from "./analytical-tool.js";
 import type {
+  Finding,
+  FindingStamp,
   JsonValue,
   MarketFeed,
   Ticker,
@@ -113,6 +124,18 @@ export interface VolumeRatioReading {
   /** The integer ordinal, `0`–`99`. **Never `100`** — above the highest
    * order statistic there is no sample. */
   readonly rank: number;
+  /**
+   * The magnitude is strictly above every sample the baseline holds; a surface
+   * draws this as `>99th` rather than as a rank.
+   *
+   * **Added 2026-11-23 (Task 7.3.1)** and it is the same fill-rather-than-
+   * design this interface exists for: `percentileOrdinal` — the one home for
+   * spelling an ordinal, now in `packages/shared` — takes the rank **and** the
+   * ceiling flag, because `>99th` is the stronger statement rather than a
+   * clamp. Without this field the claim would have to supply a `false`, which
+   * is a figure nobody read, and AC 9 forbids one.
+   */
+  readonly aboveSample: boolean;
   /** The counted `n` the ranking was taken against — never a constant. */
   readonly sampleCount: number;
   /** The tape both the numerator and the baseline came from — invariant 6's
@@ -194,7 +217,111 @@ export function toWireVolumeRatio(
     symbol: reading.symbol,
     ratio: reading.ratio,
     rank: reading.rank,
+    aboveSample: reading.aboveSample,
     sampleCount: reading.sampleCount,
     feed: reading.feed,
   };
+}
+
+/** This step's claim kind, read from the one home rather than spelled. */
+const TYPE = FINDING_TYPE_FOR_TOOL.calculate_volume_ratio;
+
+/**
+ * **This step's claim** (Task 7.3.1), and it is the one claim in the pipeline
+ * **every** machine meets: `Volume rate — no stored distribution to rank
+ * against`, on CI, on a laptop and on the deployment, for ever.
+ *
+ * ## The refusal arm is the whole function today
+ *
+ * `volumeFactorAnswer()` answers `no-distribution` unconditionally, because
+ * `0015_volume_baselines.sql` stores a **median and a dispersion, not a
+ * distribution**. So `confidence` is `UNKNOWN` — AC 3's *a refused outcome
+ * always produces `UNKNOWN`*, which {@link UnevidencedFinding}'s own literal
+ * type makes unarguable — and there is no evidence member at all, which is the
+ * honest shape: nothing was read.
+ *
+ * ## The claim does NOT reuse the ledger's own wording, by the same test that
+ * ## moved three formatters into `packages/shared`
+ *
+ * This module's header says in terms that the honest sentence for this fact
+ * has one home and it is not here — `apps/frontend/src/market/
+ * anomaly-score.ts`'s `no history to rank it`, in the composite ledger's
+ * ~34-character reason cell. **That still stands.** Story 7.3's Gate 1 (B1)
+ * settled a per-string test — a formatter moves only if the backend prints it
+ * **verbatim** — and this is a *different grammar for the same fact*: the
+ * ledger's is a fragment in a fixed column, and the claim is a clause in a
+ * one-line sentence with 72 characters to spend, which lets it say the word
+ * the cell could not fit. **`stored` is that word, and it is the point**: the
+ * absence is a fact about this product's aggregates rather than about this
+ * security's coverage, which is the distinction this tool exists to draw.
+ *
+ * ## The `ok` arm is unreachable and is written correctly anyway
+ *
+ * Its confidence is `SUPPORTED` with no `POSSIBLE` floor, for
+ * `calculate_return_percentile`'s own reason: the minimum sample is the
+ * percentile's own derived bound, so a rank that exists is above it. The day a
+ * distribution is stored, this arm and {@link VolumeRatioReading} are a fill
+ * rather than a design.
+ *
+ * **And its claim deliberately draws the ORDINAL rather than the multiple**,
+ * which is a one-home decision rather than an omission. The `×` that makes a
+ * figure a multiple has exactly one home — `formatMultiple` in
+ * `apps/frontend/src/market/volume-ratio.ts`, held by
+ * `one-home-for-the-multiple-glyph`, which decides five channels together (the
+ * glyph glued to the digits at the same size and weight, no sign ever, one
+ * decimal always, the comparand as a word beside it, untinted ink). Moving it
+ * into `packages/shared` for an arm **no store can reach** would be
+ * infrastructure built before the iteration that needs it, and the rank is the
+ * scored form in any case — Story 5.6's Gate 1 corollary, that ADR 0045 makes
+ * the percentile the only comparable form of this quantity and never the
+ * `4.1×` multiple.
+ *
+ * **Reversal condition:** the first nightly pass that stores a distribution of
+ * this factor's own quantity — the same condition
+ * {@link VolumeRatioReading}'s own docblock and `FactorAnswer`'s
+ * `no-distribution` arm already carry. On firing, `formatMultiple` moves into
+ * `packages/shared` by Story 7.3's own per-string test (the backend would then
+ * print it verbatim) and this claim takes the multiple with it.
+ */
+export function toVolumeRatioFinding(
+  outcome: ToolOutcome<VolumeRatioReading>,
+  stamp: FindingStamp,
+): Finding | undefined {
+  if (outcome.kind === "inapplicable") return undefined;
+
+  if (outcome.kind === "refused") {
+    return createUnevidencedFinding(
+      {
+        type: TYPE,
+        claim: refusalClaim(TYPE, outcome.reason),
+        because: outcome.reason,
+      },
+      stamp,
+    );
+  }
+
+  const reading = outcome.value;
+
+  return createEvidencedFinding(
+    {
+      type: TYPE,
+      claim:
+        `Volume rate at the ${percentileOrdinal(reading)} of ` +
+        formatCount(reading.sampleCount),
+      confidence: "SUPPORTED",
+      evidence: [
+        {
+          kind: "calculated_metric",
+          // **One tape for both halves** — ADR 0045: a volume LEVEL is not
+          // comparable across two of them, so the numerator's feed and the
+          // baseline's are one field on the reading and one field here.
+          source: `alpaca:${reading.feed}`,
+          method: "volumeRateOf",
+          security: reading.symbol,
+          rawData: `volume_baselines:${reading.symbol}`,
+        },
+      ],
+    },
+    stamp,
+  );
 }

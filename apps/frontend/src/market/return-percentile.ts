@@ -1,4 +1,4 @@
-import { marketSessionStateAt } from "@marketpulse/shared";
+import { marketSessionStateAt, percentileOrdinal } from "@marketpulse/shared";
 
 import type {
   PercentileRefusal,
@@ -111,27 +111,22 @@ function reachesTheOpen(from: Date, to: Date): boolean {
   );
 }
 
-/**
- * `1st`, `2nd`, `3rd`, `11th`, `42nd` — the suffix, for an integer rank.
- *
- * The teens are the whole reason this is a function: `11st`, `12nd` and `13rd`
- * are what a `% 10` alone produces, and the rank this draws most often is in
- * the nineties where a `% 10` is right.
- */
-function ordinalSuffix(rank: number): string {
-  if (rank % 100 >= 11 && rank % 100 <= 13) return "th";
-
-  switch (rank % 10) {
-    case 1:
-      return "st";
-    case 2:
-      return "nd";
-    case 3:
-      return "rd";
-    default:
-      return "th";
-  }
-}
+// **The suffix and the ordinal left this file on 2026-11-23** (Task 7.3.1) for
+// `packages/shared/src/percentile-ranking.ts`, which already declares itself
+// the one home of the ordinal's own comparator — so the ordinal's order and
+// its spelling now sit in one module, reachable from the backend.
+//
+// The reason is Story 7.3's `Finding.claim`: a sentence the BACKEND prints,
+// carrying `94th of 4,620` — the same ordinal `Abnormal-move indicators` draws
+// a few centimetres above the checklist. `one-home-for-the-ordinal-suffix` is
+// repointed at the new home in the same change, and the sentence it used to
+// carry — *"a backend that formats an ordinal is a different defect with a
+// different owner"* — is what went false, so it is amended there rather than
+// left standing.
+//
+// `percentileOrdinal` is **re-exported** below so this module's public surface
+// is unchanged and `percentileReading` still derives from it.
+export { percentileOrdinal } from "@marketpulse/shared";
 
 /**
  * **The figure's second cell: `99th percentile`, or `>99th percentile` at the
@@ -175,30 +170,16 @@ export const percentileReading = (percentile: PercentileFigure): string =>
  */
 type PercentileFigure = Pick<WireReturnPercentile, "rank" | "aboveSample">;
 
-/**
- * **The ordinal alone — `99th`, or `>99th` at the ceiling** (Task 5.4.3).
- *
- * ## One fact, two renderings, and the short one is DERIVED from the long one
- *
- * `Unusual activity` draws ten ordinals in a 64 px cell on a 308 px row, where
- * `>99th percentile` is sixteen glyphs and 143.6 px in the cold-load face —
- * which leaves the company name about six characters. So the **word** moves to
- * the list heading, once, and the row draws this; a listener still gets the
- * whole phrase from a visually-hidden sibling built by
- * {@link percentileReading}.
- *
- * That is ADR 0029's *a drawn sentence and its spoken twin are one string with
- * two renderings* rather than a second copy of the ordinal's spelling — and
- * the dependency runs this way round deliberately: `percentileReading` is the
- * sentence the security page has shipped since Story 5.3, so the new, shorter
- * form is the one that must not be able to drift.
- *
- * **The ceiling cannot move.** `100th` is never printed — above the highest
- * order statistic there is no sample — so `>99th` is the widest string this
- * cell will ever hold, which is why the 64 px track has no reversal trigger.
- */
-export const percentileOrdinal = (percentile: PercentileFigure): string =>
-  `${percentile.aboveSample ? ">" : ""}${String(percentile.rank)}${ordinalSuffix(percentile.rank)}`;
+// **`percentileOrdinal` was declared here until 2026-11-23** and is now
+// `packages/shared/src/percentile-ranking.ts`', re-exported at the top of this
+// file. Its own argument for existing is unchanged and lives with it:
+// `Unusual activity` draws ten ordinals in a 64 px cell on a 308 px row, where
+// `>99th percentile` is sixteen glyphs and 143.6 px in the cold-load face — so
+// the **word** moves to the list heading, once, the row draws the ordinal
+// alone, and a listener still gets the whole phrase from a visually-hidden
+// sibling built by {@link percentileReading}. That is ADR 0029's *a drawn
+// sentence and its spoken twin are one string with two renderings*, and the
+// dependency still runs long-from-short.
 
 /**
  * **What the percentile was taken against — the sample's size and its shape,

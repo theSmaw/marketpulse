@@ -6978,3 +6978,79 @@ specs rather than re-run past one** — until then, the correct response to
 a red run of either is to check whether the failing PR touched any
 application code at all before treating the failure as news, and to stop
 at that check rather than re-running CI to make the signal go away.
+
+## `CLAIM_CEILING` is a measurement of the PRODUCERS, not the probe figure AC 6 asks for
+
+**Added 2026-11-23 by Task 7.3.1, which set the constant and is recording
+what it did not measure rather than letting the number read as a layout
+figure.**
+
+`packages/shared/src/finding.ts`' `CLAIM_CEILING` is **72**, and what that is
+derived from is the **longest claim the six shipped `toFinding` functions can
+mint** — asserted in each tool's own unit suite, across every `ToolOutcome`
+arm it can reach, plus `refusalClaim` over the whole `FindingType` ×
+`ToolRefusal` cross product. So the bound is real and it is checked; it is a
+fact about the producers.
+
+**Story 7.3's AC 6 asks for a different number.** It wants the ceiling taken
+from `pnpm probe` against a **zero-bar store** at all four widths, on the
+reasoning that refusal claims are the longest sentences this product draws
+and the empty store is therefore the worst case rather than an edge case —
+and on CI's store, which is permanently that, **five of the six rows draw a
+refusal claim**. Nothing in this task measured a drawn claim at any width.
+
+Two reasons it was not taken here, and the first is the real one. **The
+surface this task ships is deliberately unstyled** — a bare `<p>` with no
+class, no grid and no confidence mark, which Task 7.3.2 replaces with the
+real two-line row — so a probe of it would measure a layout that is
+scheduled for deletion. And **no database was reachable** on the machine
+this task was built on (no Docker, so no `pnpm db`), which is also why
+`pnpm test:database` and the browser suite were not run.
+
+**Re-measure**: at Task 7.3.2, against the real two-line grid, with
+`DATABASE_NAME=marketpulse_bare pnpm dev` (`pnpm store:bare` builds CI's own
+516-security, zero-bar store) and
+`pnpm probe /securities/NVDA --within Abnormal` after pressing
+`Investigate` — reading each claim's own `clientHeight` against its
+`scrollHeight`, which is how Task 5.4.1 found a shipped region scrolling its
+own placeholder sentence. The constant's own reversal trigger is already
+written beside it as a condition: **the first probe of a drawn claim at 390
+that wraps to a third line, or the first claim a tool wants to mint that 72
+refuses.**
+
+**Owner: Task 7.3.2**, which is the first task that can see a drawn claim at
+all.
+
+## The six claims have never been produced against a real store, and one of them has never been produced anywhere but a furnished unit suite
+
+**Added 2026-11-23 by Task 7.3.1.**
+
+Every `toFinding` is unit-tested across every arm it can reach, with pairwise
+distinctness and the ceiling asserted. What that does not establish is that a
+**real** store produces the figures those claims quote:
+`calculate_rolling_correlation` is the one tool in the pipeline that reads
+`market_bars`, no database was reachable on the machine this task was built
+on, and `pnpm test:database`'s own `rolling-correlation.database.test.ts` was
+therefore not run — so its claim
+(`Positive co-movement with SPY — 48 anchors, 60 sessions`) exists only
+against `ReadonlyMap`s this task furnished.
+
+**On CI it is worse and it is permanent**: zero bars means five of the six
+rows draw a refusal claim for ever, so the **refusal grammar is the shipped
+product for every gated run** and the measured claims are reachable only on a
+real deployment or a populated local store. `ANOMALY.md` §0's own rule
+applies verbatim — almost every claim in this area is a claim about a
+_store_.
+
+**Re-measure**: with a populated store, `pnpm test:database` and then
+`pnpm dev` + press `Investigate` on `/securities/NVDA`, reading all six claim
+lines off the page and checking each figure against the same figure drawn in
+`Abnormal-move indicators` a hundred pixels above it. The two can
+legitimately differ — the ledger reads the live frame while these tools read
+at `context.asOf` — which is exactly why every claim states its own `n` and
+span, and why the pair is worth photographing together rather than arguing
+about.
+
+**Owner: a person with a populated store, before Story 7.3 closes** — and
+`LIVE-REHEARSAL.md` carries no row for Epic 7 at all yet, which Story 7.7
+owes.
