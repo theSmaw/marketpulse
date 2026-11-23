@@ -86,3 +86,18 @@ starts a new one; this story does not special-case resuming an old one —
 Epic 12's branching is the real mechanism for that). A reader asking why
 a tool failed beyond the sentence shown (Epic 8's evidence/debugging
 surface, if any).
+
+## A constraint Task 7.3.1 fixed for this story, 2026-11-23
+
+**The wire-level half of "what a reader is told about a failed run" is
+already done; what remains is yours.** Task 7.3.1 found and fixed a real,
+pre-existing bug: `INVESTIGATION_FAILED` had carried a backend wire case
+since Task 7.2.1 (2026-11-18) with no matching frontend decoder case, so
+a thrown tool was silently dropped and a failed run drew the
+**dropped-connection** sentence instead of the truth. The decoder case
+and a reducer arm marking the run `terminal` are now shipped — **but
+deliberately with no new reader-facing sentence**, because that
+degradation UI is this story's own stated scope, not a byproduct fix.
+When you build the honest sentence a failed run should show, the event
+is already reaching the frontend correctly; you are writing the
+rendering, not the wire.
