@@ -32,6 +32,16 @@ export const Supported: Story = { args: { confidence: "SUPPORTED" } };
 export const Possible: Story = { args: { confidence: "POSSIBLE" } };
 export const Unknown: Story = { args: { confidence: "UNKNOWN" } };
 
+/**
+ * **A second press's own carried-forward claim** (Task 7.3.3, AC 11) —
+ * `--ink-disabled` on the whole mark, through inheritance from one
+ * declaration. Compare against `Supported` above: the stroke style is
+ * unchanged (it is still the real previous level), only the ink dims.
+ */
+export const Stale: Story = {
+  args: { confidence: "SUPPORTED", stale: true },
+};
+
 export const AllPermutations: Story = {
   parameters: { controls: { disable: true } },
   render: () => (

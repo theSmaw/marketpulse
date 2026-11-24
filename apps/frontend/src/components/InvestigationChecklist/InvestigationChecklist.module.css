@@ -13,17 +13,20 @@
  */
 
 .checklist {
+  /*
+   * **A `<ul>` since Task 7.3.3 (AC 12), not a `<div>`** — a browse-mode
+   * screen reader announces "list, 6 items" and reaches each step's claim
+   * and confidence together as one unit. `list-style`/`margin`/`padding`
+   * reset the element's own defaults so nothing changes visually: the flex
+   * layout below is unaffected by the tag.
+   */
+  list-style: none;
+  margin: 0 0 var(--space-12);
+  padding: 0;
+
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  /*
-   * The separator between this and `ScoreBand` beneath it — `.region`'s own
-   * `gap` in `AbnormalMove.module.css` already spaces siblings apart, but this
-   * sits one level up (`SecurityExplorer.tsx` renders it as `AbnormalMove`'s
-   * sibling, not its child), so the gap has to be restated here rather than
-   * inherited.
-   */
-  margin-bottom: var(--space-12);
 }
 
 /*
@@ -216,4 +219,17 @@
   to {
     opacity: 1;
   }
+}
+
+/*
+ * **A second press's own carried-forward claim** (Task 7.3.3, AC 11) —
+ * `--ink-disabled`, declared after `.claim` so it wins on equal specificity,
+ * the same idiom `ConfidenceMark.module.css`'s own `.stale` follows for the
+ * identical reason: this line is a fact already superseded by the row's own
+ * next event, not a sentence a reader relies on right now, which is the
+ * distinction this product's own measured rejections of `--ink-disabled` for
+ * PRIMARY content (`TextField.module.css` and four more) turn on.
+ */
+.claimStale {
+  color: var(--ink-disabled);
 }

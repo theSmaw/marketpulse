@@ -32,6 +32,27 @@
 }
 
 /*
+ * **A second press's own carried-forward claim** (Task 7.3.3, AC 11) —
+ * `--ink-disabled`, one override, declared after `.mark` so it wins on equal
+ * specificity (CSS Modules idiom this file already follows for the stroke
+ * ladder below). The rule's own border is `currentColor` and `.word` sets no
+ * colour of its own, so this single declaration dims the stroke and the word
+ * together, through ordinary inheritance — never two places to keep in step.
+ *
+ * `--ink-disabled` rather than `--ink-secondary` deliberately: this product
+ * has rejected `--ink-disabled` for a sentence a reader relies on RIGHT NOW
+ * (`TextField.module.css`, `SecurityIdentity.module.css` and four more, each
+ * measured and reverted) because it fails the contrast floor for primary
+ * content. A stale mark is the opposite case — a fact already superseded by
+ * the row's own next event, read here for exactly as long as it takes that
+ * event to arrive — which is the same disabled-adjacent category
+ * `Button.module.css`'s own disabled label already spends this token on.
+ */
+.stale {
+  color: var(--ink-disabled);
+}
+
+/*
  * The rule. A zero-height box with one border edge rather than a `<hr>` or a
  * background strip: a background would be the one declaration this mark is
  * forbidden to carry, and a border is the only property with a `style` axis to

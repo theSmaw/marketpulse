@@ -48,6 +48,20 @@ export interface ChecklistStepView {
    * read on its first commit rather than a prop threaded through afterwards.
    */
   readonly confidence: Confidence | undefined;
+  /**
+   * **A second press's own carried-forward claim, not yet replaced by this
+   * run's own finding** (Task 7.3.3, AC 11). `false` everywhere except a row
+   * that survived {@link resetForNewRun} with a prior-run claim still on it —
+   * `optimisticChecklist`'s own fresh placeholders are never stale, because
+   * there is nothing on them to be old.
+   *
+   * Mirrors `bar-series-view.ts`'s own `stale` idiom exactly: a carried
+   * answer, marked old, cleared by the first new fact that actually replaces
+   * it. `STEP_STARTED` deliberately does NOT clear it — a row's queued and
+   * running states render exactly as they do today, claim and all, until
+   * that row's own `FINDING_CREATED` or `STEP_COMPLETED` does.
+   */
+  readonly stale: boolean;
 }
 
 export interface ChecklistState {
@@ -73,6 +87,7 @@ const PLACEHOLDER_STEP: ChecklistStepView = {
   durationMs: undefined,
   claim: undefined,
   confidence: undefined,
+  stale: false,
 };
 
 /**
@@ -116,6 +131,43 @@ export function optimisticChecklist(symbol: string): ChecklistState {
     })),
     terminal: false,
     connectionLost: false,
+  };
+}
+
+/**
+ * **The second press's own paint** (Task 7.3.3, AC 11) — a previous run's
+ * claims persist, dimmed, rather than `optimisticChecklist`'s blank six,
+ * which would be exactly the case ADR 0028 forbids by name the moment a row
+ * carries a real finding rather than a never-yet-answered placeholder.
+ *
+ * Every field but `claim`/`confidence` resets to the placeholder's own
+ * values, `id` included — the fresh run's `STEP_STARTED` events must fill
+ * rows positionally exactly as a first press does (`updateStep`'s own
+ * `id === undefined` clause), so a row carrying a stale claim forward is
+ * otherwise indistinguishable from a freshly seeded one until its own next
+ * event lands.
+ *
+ * `use-investigation.ts`'s `start()` is the one caller, and only for a
+ * second-or-later press of the SAME symbol — a fresh symbol or a genuine
+ * first press reach `optimisticChecklist` instead, which has nothing to
+ * carry forward.
+ */
+export function resetForNewRun(previous: ChecklistState): ChecklistState {
+  return {
+    symbol: previous.symbol,
+    investigationId: undefined,
+    terminal: false,
+    connectionLost: false,
+    steps: previous.steps.map((step) =>
+      step.claim === undefined
+        ? { ...PLACEHOLDER_STEP }
+        : {
+            ...PLACEHOLDER_STEP,
+            claim: step.claim,
+            confidence: step.confidence,
+            stale: true,
+          },
+    ),
   };
 }
 
@@ -171,17 +223,23 @@ export function applyInvestigationEvent(
       return { ...state, investigationId: event.investigation.id };
 
     case "STEP_STARTED":
+      // **Spreads the existing row rather than rebuilding it** (Task
+      // 7.3.3) — the one change that lets a second press's stale claim
+      // survive into this run's own queued-then-running states exactly as
+      // AC 11 asks: "queued/running states render exactly as they do
+      // today otherwise." A first press's row is the untouched
+      // `PLACEHOLDER_STEP`, so spreading it is a no-op there; only a row
+      // `resetForNewRun` carried a claim onto actually keeps anything.
       return {
         ...state,
-        steps: updateStep(state.steps, event.stepId, () => ({
+        steps: updateStep(state.steps, event.stepId, (step) => ({
+          ...step,
           id: event.stepId,
           description: event.description,
           status: "running",
           startedAt: event.startedAt,
           completedAt: undefined,
           durationMs: undefined,
-          claim: undefined,
-          confidence: undefined,
         })),
       };
 
@@ -218,16 +276,28 @@ export function applyInvestigationEvent(
       // emits this before that step's `STEP_COMPLETED`, so a reader's row
       // learns what was measured in the same frame it learns the step
       // finished rather than completing first and growing a line afterwards.
+      // `stale: false` in the same write — this IS the row's own
+      // re-completion AC 11 names: a second press's carried-forward claim
+      // is replaced by a real one here, not merely covered by it.
       return {
         ...state,
         steps: updateStep(state.steps, event.finding.stepId, (step) => ({
           ...step,
           claim: event.finding.claim,
           confidence: event.finding.confidence,
+          stale: false,
         })),
       };
 
     case "STEP_COMPLETED":
+      // **A row still `stale` here never got THIS run's own
+      // `FINDING_CREATED`** — that event always precedes `STEP_COMPLETED`
+      // and clears the flag itself, so `stale` surviving to this point
+      // means this run's own outcome was `inapplicable` (or otherwise
+      // minted nothing). The carried-forward claim is a PREVIOUS run's
+      // answer to a question this run never asked, and is dropped here
+      // rather than left to read as current — the same honest-absence
+      // shape a first-press `inapplicable` step already draws.
       return {
         ...state,
         steps: updateStep(state.steps, event.stepId, (step) => ({
@@ -235,6 +305,8 @@ export function applyInvestigationEvent(
           status: "completed",
           completedAt: step.startedAt,
           durationMs: event.durationMs,
+          ...(step.stale ? { claim: undefined, confidence: undefined } : {}),
+          stale: false,
         })),
       };
 

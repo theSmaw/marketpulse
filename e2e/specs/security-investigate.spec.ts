@@ -157,6 +157,55 @@ test("a second press while one is already showing does nothing — no second row
   await expect(region.locator("[data-step]")).toHaveCount(STEPS.length);
 });
 
+test("a second press after completion keeps the prior claims on screen rather than blanking them (Task 7.3.3, AC 11)", async ({
+  page,
+}) => {
+  await page.goto(EXPLORER);
+
+  const region = page.getByRole("region", { name: "Abnormal-move indicators" });
+  const button = region.getByRole("button", { name: "Investigate" });
+
+  await button.click();
+  await expect(region.locator('[data-step="completed"]')).toHaveCount(
+    STEPS.length,
+    { timeout: 10_000 },
+  );
+
+  // **Row 1's own claim, read before the second press** — CI's zero-bar
+  // store refuses `get_security_snapshot`, and a refusal still mints a
+  // finding (`UNKNOWN` confidence, never `inapplicable`), so there is a
+  // real sentence here to lose. The claim is this row's third `<p>`
+  // (glyph has none; description, duration, then the claim —
+  // `InvestigationChecklist.tsx`'s own order).
+  const firstRow = region.locator("[data-step]").first();
+  const claimBeforeSecondPress = await firstRow
+    .locator("p")
+    .nth(2)
+    .textContent();
+  expect(claimBeforeSecondPress?.trim()).not.toBe("");
+
+  await button.click();
+
+  // **Not blanked, in the SAME frame as the press** — `optimisticChecklist`
+  // alone would have reset this row's claim to nothing, which is exactly
+  // the case ADR 0028 forbids by name the moment a row carries a real
+  // finding rather than a never-yet-answered placeholder. No `waitFor`
+  // here deliberately: `resetForNewRun`'s paint is client-optimistic, in
+  // the same commit as the click, same as the six rows' own first paint
+  // already is.
+  await expect(firstRow.locator("p").nth(2)).toHaveText(
+    claimBeforeSecondPress ?? "",
+  );
+
+  // And the run still finishes normally — the second press is a real
+  // investigation, not a frozen echo of the first.
+  await expect(region.locator('[data-step="completed"]')).toHaveCount(
+    STEPS.length,
+    { timeout: 10_000 },
+  );
+  await expectNothingFailedToRender(page);
+});
+
 test("the region stays a tab stop with the checklist showing", async ({
   page,
 }) => {

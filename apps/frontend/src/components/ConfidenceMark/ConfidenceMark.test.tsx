@@ -53,6 +53,26 @@ describe("ConfidenceMark", () => {
     for (const value of classes) expect(value).not.toBe("");
   });
 
+  it("defaults to not-stale, and the prop toggles a class without touching the stroke (AC 11)", () => {
+    // **No stylesheet is applied here**, so this cannot see the ink change —
+    // the class presence is what survives jsdom, and the stroke's OWN class
+    // staying identical either way is the structural half of "never touches
+    // the stroke, only the ink" that a browser or the workshop judges.
+    const fresh = render(<ConfidenceMark confidence="SUPPORTED" />);
+    const stale = render(<ConfidenceMark confidence="SUPPORTED" stale />);
+
+    const freshMark = fresh.container.querySelector("span");
+    const staleMark = stale.container.querySelector("span");
+    expect(freshMark?.className).not.toBe(staleMark?.className);
+
+    const freshRule = fresh.container.querySelector("[aria-hidden='true']");
+    const staleRule = stale.container.querySelector("[aria-hidden='true']");
+    expect(freshRule?.className).toBe(staleRule?.className);
+
+    fresh.unmount();
+    stale.unmount();
+  });
+
   it("adds no focusable element, and a click changes nothing (AC 7)", () => {
     // The evidence panel, the finding card and the click-to-focus interaction
     // are Epic 8's by citation, and the easiest way to ship one early by
