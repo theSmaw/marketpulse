@@ -36,6 +36,7 @@ const queued: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -55,6 +56,7 @@ const running: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -74,10 +76,31 @@ const completed: ChecklistState = {
       durationMs: 120,
       claim: "Traded at 184.52 on 12,480 shares in the latest bar",
       confidence: "SUPPORTED",
+      stale: false,
     },
   ],
   terminal: true,
   connectionLost: false,
+};
+
+/** The same claim as {@link completed}'s own row, carried forward dimmed —
+ * `ConfidenceMark`'s own `Stale` story is the mark alone; this is the whole
+ * row, mid-second-press, status reset to `queued` exactly as `resetForNewRun`
+ * leaves it (Task 7.3.3, AC 11). */
+const staleClaim: ChecklistState = {
+  ...completed,
+  investigationId: undefined,
+  terminal: false,
+  steps: completed.steps.map((step) => ({
+    ...step,
+    id: undefined,
+    description: undefined,
+    status: "queued",
+    startedAt: undefined,
+    completedAt: undefined,
+    durationMs: undefined,
+    stale: true,
+  })),
 };
 
 const dropped: ChecklistState = {
@@ -93,6 +116,7 @@ const dropped: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -124,6 +148,7 @@ const wholePipeline: ChecklistState = {
       durationMs: 1,
       claim: "Traded at 184.52 on 12,480 shares in the latest bar",
       confidence: "SUPPORTED",
+      stale: false,
     },
     {
       id: "step-2",
@@ -134,6 +159,7 @@ const wholePipeline: ChecklistState = {
       durationMs: 0,
       claim: "−4.20% over 5 min — 94th of 4,620",
       confidence: "SUPPORTED",
+      stale: false,
     },
     {
       id: "step-3",
@@ -144,6 +170,7 @@ const wholePipeline: ChecklistState = {
       durationMs: 0,
       claim: "Volume rate — no stored distribution to rank against",
       confidence: "UNKNOWN",
+      stale: false,
     },
     {
       id: "step-4",
@@ -154,6 +181,7 @@ const wholePipeline: ChecklistState = {
       durationMs: 1,
       claim: "−3.10 pts against XLK over 5 min — 92nd of 3,180",
       confidence: "SUPPORTED",
+      stale: false,
     },
     {
       id: "step-5",
@@ -164,6 +192,7 @@ const wholePipeline: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
     {
       id: undefined,
@@ -174,6 +203,7 @@ const wholePipeline: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -195,6 +225,7 @@ const wholePipelineQueued: ChecklistState = {
     durationMs: undefined,
     claim: undefined,
     confidence: undefined,
+    stale: false,
   })),
 };
 
@@ -297,6 +328,16 @@ export const Completed: Story = {
   args: {
     checklist: completed,
     announcement: "Measure move complete, 120 ms",
+    pastCoverThreshold: false,
+  },
+};
+/** A second press, mid-run: the prior claim is still on screen, dimmed,
+ * while the glyph has gone back to queued — AC 11's own case. Compare
+ * against `Completed` above, same claim, full ink. */
+export const Stale: Story = {
+  args: {
+    checklist: staleClaim,
+    announcement: "",
     pastCoverThreshold: false,
   },
 };
