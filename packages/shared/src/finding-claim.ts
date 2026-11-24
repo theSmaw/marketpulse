@@ -128,13 +128,13 @@ export const TOOL_REFUSAL_CLAIMS = {
   "split-discontinuity": "history crosses an unadjusted price break",
   "no-distribution": "no stored distribution to rank against",
   "reference-split-discontinuity":
-    "the benchmark's history crosses a price break",
+    "the benchmark’s history crosses a price break",
   "mixed-basis": "the two legs cover different minutes",
   "no-subject-move": "no five-minute move to compare",
   "no-reference-move": "the benchmark printed nothing to compare with",
   "no-aggregate-yet": "no aggregate computed in this process yet",
   "too-few-overlapping-samples": "too little shared history",
-  "zero-variance": "one side's returns did not vary",
+  "zero-variance": "one side’s returns did not vary",
 } satisfies Record<ToolRefusal, string>;
 
 /**

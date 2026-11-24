@@ -7007,19 +7007,57 @@ scheduled for deletion. And **no database was reachable** on the machine
 this task was built on (no Docker, so no `pnpm db`), which is also why
 `pnpm test:database` and the browser suite were not run.
 
-**Re-measure**: at Task 7.3.2, against the real two-line grid, with
-`DATABASE_NAME=marketpulse_bare pnpm dev` (`pnpm store:bare` builds CI's own
-516-security, zero-bar store) and
+**Half-discharged at Task 7.3.2, against the real two-line grid — and the
+other half is the SAME Docker gap this whole session has carried.** The
+surface reason is gone: `InvestigationChecklist`'s real grid, with a real
+`ConfidenceMark`, now exists, so there is a layout worth probing. Probed
+against it directly, through Storybook rather than the live route (no
+Docker on this machine either, so `pnpm db`/`pnpm store:bare` were as
+unreachable as they were at Task 7.3.1): `pnpm probe --story
+"investigations-investigationchecklist--claims-at-the-ceiling"` at all four
+widths, against `ClaimsAtTheCeiling` — six rows, one per confidence level
+cycling, each claim padded to exactly `CLAIM_CEILING` (72) characters with
+`·` so the line is at the bound **by construction**. Quoted verbatim from
+that run, 1440×900 (one line, no wrap): `— SUPPORTED Market correlation —
+the benchmark’s history crosses a price break·s·s·s`. At 390×780 the same
+claim wraps to two lines inside its own `.claim` area with **no truncation,
+no third-row collision and no row-height jump beyond the wrap itself** —
+`row 374×65 … rows 18 35` through `374×66 … rows 18 36`, one pixel apart
+across the six rows, which is the "no narrow-width hiding" half of AC 6
+confirmed at the real ceiling rather than at today's 66-character maximum.
+Screenshots at all four widths are in this task's own PR description.
+
+**What this does NOT discharge.** The probe target is a Storybook fixture,
+not `/securities/NVDA` after a real `Investigate` press — so the 160 ms
+cover threshold, the real six-tool pipeline's actual timing, and a genuine
+zero-bar-store refusal (rather than a hand-built fixture imitating one) are
+still unmeasured. **Re-measure**: `DATABASE_NAME=marketpulse_bare pnpm dev`
+(`pnpm store:bare` builds CI's own 516-security, zero-bar store) and
 `pnpm probe /securities/NVDA --within Abnormal` after pressing
 `Investigate` — reading each claim's own `clientHeight` against its
 `scrollHeight`, which is how Task 5.4.1 found a shipped region scrolling its
-own placeholder sentence. The constant's own reversal trigger is already
-written beside it as a condition: **the first probe of a drawn claim at 390
-that wraps to a third line, or the first claim a tool wants to mint that 72
-refuses.**
+own placeholder sentence. The constant's own reversal trigger is unchanged
+and did not fire: **the first probe of a drawn claim at 390 that wraps to a
+third line, or the first claim a tool wants to mint that 72 refuses.**
+Neither happened — the Storybook probe wraps to exactly two lines at every
+width, by construction.
 
-**Owner: Task 7.3.2**, which is the first task that can see a drawn claim at
-all.
+**Enforcement, added at Task 7.3.2**: the ceiling was already asserted
+per-tool at Task 7.3.1; `finding-claim.test.ts` now asserts it over the
+**whole** `FindingType` × `ToolRefusal` cross product in one place
+(independent of which tools exist today) and over `breadthClaim`'s **both**
+bases at a four-digit population — the `observed` tail (`in the last 5
+min`) is four characters longer than `session`'s (`on 2026-09-11`), which
+the original stress test did not cover and this task's own measurement
+found. A `pnpm invariants` entry was considered and not added: the
+cross-product test already fails `pnpm test` (and therefore `pnpm verify`)
+on a violation, calling the real functions rather than re-deriving their
+output from text, which is a strictly stronger check than a static scan
+could be — a second, parallel mechanism for the same fact would be the
+defect `docs/adr/README.md`'s "one fact, one home" rule exists to forbid.
+
+**Owner: the first task that runs this against a real deployment or a
+Docker-equipped machine**, condition unchanged from Task 7.3.1's own.
 
 ## The six claims have never been produced against a real store, and one of them has never been produced anywhere but a furnished unit suite
 
