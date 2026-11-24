@@ -12521,6 +12521,144 @@ const INVARIANTS = [
       }
     },
   },
+
+  {
+    id: "confidence-and-band-never-share-a-component",
+    claim:
+      "`ConfidenceMark` (how well evidenced a claim is) and `AnomalyBadge`/" +
+      "`Badge` (how unusual a score is) share no component, no `composes:` " +
+      "target and no import between them, in either direction.",
+    check() {
+      // **Task 7.3.2.** From Epic 8 onward a confidence mark and a band chip
+      // sit on one row, about 12px apart — `ConfidenceMark.tsx`'s own header
+      // carries the full argument for why that forbids a shared shape: a
+      // band says *how unusual*, a confidence level says *how well
+      // evidenced*, and the designer and the ux-architect converged on *no
+      // filled chip* for the mark specifically so the two are
+      // distinguishable without reading either label. A claim about that
+      // separation reads identically whether it holds or not, so this is the
+      // mechanical half of the comment rather than a restatement of it.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // A next author reaching for "give the mark the chip's own rounded
+      // fill" or "reuse `Badge` for the achromatic levels" writes exactly
+      // one of: an `import` of one component's module from the other's
+      // file, or a `composes:` target naming the other's stylesheet. Both
+      // are greppable; a shared *token* is not what this guards (the two
+      // already share ordinary type and spacing tokens, which is fine) —
+      // only a shared *component or ruleset*.
+      const CONFIDENCE_DIR = "apps/frontend/src/components/ConfidenceMark";
+      const BAND_DIRS = [
+        "apps/frontend/src/components/AnomalyBadge",
+        "apps/frontend/src/components/Badge",
+      ];
+
+      const confidence = sourceFilesUnder(resolve(REPO_ROOT, CONFIDENCE_DIR));
+      const band = BAND_DIRS.flatMap((dir) =>
+        sourceFilesUnder(resolve(REPO_ROOT, dir)),
+      );
+
+      if (confidence.length === 0 || band.length === 0) {
+        throw new InvariantFailure(
+          "ConfidenceMark, AnomalyBadge or Badge is missing its own " +
+            "directory — has one of them moved?",
+        );
+      }
+
+      /** Every CROSSING reference, named by the file that makes it and the
+       * other component it names — an import or a `composes:` target. */
+      const crossings = (files, otherName) =>
+        files.flatMap(({ path, text }) =>
+          withoutComments(text)
+            .split("\n")
+            .filter((line) =>
+              new RegExp(
+                `(?:from\\s+["'][^"']*${otherName}[^"']*["']|composes:[^;]*${otherName})`,
+                "u",
+              ).test(line),
+            )
+            .map((line) => `${relative(REPO_ROOT, path)}: ${line.trim()}`),
+        );
+
+      const confidenceCitesBand = [
+        ...crossings(confidence, "AnomalyBadge"),
+        ...crossings(confidence, "/Badge/"),
+        ...crossings(confidence, "Badge.module"),
+      ];
+      const bandCitesConfidence = crossings(band, "ConfidenceMark");
+
+      const found = [...confidenceCitesBand, ...bandCitesConfidence];
+
+      if (found.length > 0) {
+        throw new InvariantFailure(
+          `${String(found.length)} line(s) cross between the confidence ` +
+            "mark and the anomaly-band chip:\n      " +
+            found.join("\n      ") +
+            "\n    A band says HOW UNUSUAL a score is and a confidence " +
+            "level says HOW WELL EVIDENCED a claim is — different facts " +
+            "that sit a few centimetres apart from Epic 8 onward, and a " +
+            "shared component or a shared `composes:` target is how they " +
+            "would end up visually indistinguishable. Give the new " +
+            "treatment its own rule rather than importing or composing " +
+            "the other's.",
+        );
+      }
+    },
+  },
+
+  {
+    id: "the-confidence-mark-spends-no-fill-and-no-colour",
+    claim:
+      "`ConfidenceMark.module.css` declares no `background`, no " +
+      "`min-width`, and reads no `var(--anomaly-…)` or " +
+      "`var(--palette-amber…)` token anywhere.",
+    check() {
+      // **Task 7.3.2, the sibling check `ConfidenceMark.tsx`'s header names
+      // alongside the one above.** The mark is four stroke styles on one
+      // rule and a word — never a filled lozenge, never a `min-width` box,
+      // and never a cent of the anomaly ramp this product's own
+      // `amber-appears-once-in-the-rail` already reserves for the band
+      // chip's fill. A `background` or a `min-width` here is the shape of
+      // the defect this product has already shipped once, by a different
+      // name: a figure tinted to match the chip beside it is the
+      // risk-meter reading the band's own rule exists to refuse.
+      const PATH = resolve(
+        REPO_ROOT,
+        "apps/frontend/src/components/ConfidenceMark/ConfidenceMark.module.css",
+      );
+
+      const text = withoutComments(readAnchored(PATH));
+      const lines = text.split("\n");
+
+      const findDeclaring = (pattern) =>
+        lines.filter((line) => pattern.test(line)).map((line) => line.trim());
+
+      const problems = [
+        ...findDeclaring(/\bbackground(?:-color)?\s*:/u).map(
+          (line) => `a \`background\` declaration: ${line}`,
+        ),
+        ...findDeclaring(/\bmin-width\s*:/u).map(
+          (line) => `a \`min-width\` declaration: ${line}`,
+        ),
+        ...findDeclaring(/var\(\s*--(?:anomaly-|palette-amber)/u).map(
+          (line) => `a read of the anomaly ramp: ${line}`,
+        ),
+      ];
+
+      if (problems.length > 0) {
+        throw new InvariantFailure(
+          `${relative(REPO_ROOT, PATH)} carries ${String(problems.length)} ` +
+            "declaration(s) this mark is forbidden to spend:\n      " +
+            problems.join("\n      ") +
+            "\n    The mark's whole encoding is the rule's stroke style " +
+            "and the level's own word — no fill, no box and no amber. " +
+            "Each of those is a step toward the filled chip this component " +
+            "was built specifically not to be.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

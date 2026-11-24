@@ -6979,6 +6979,73 @@ a red run of either is to check whether the failing PR touched any
 application code at all before treating the failure as news, and to stop
 at that check rather than re-running CI to make the signal go away.
 
+## A full `e2e` run took 17.0 minutes against this workflow's own documented 69–73 s, with zero test failures
+
+**Added 2026-11-24, found on Task 7.3.2's PR (#705, run `45342893692`), by
+investigating rather than waiting it out.** `verify.yml`'s own comment above
+the `Browser journeys` step states the measured figure: `69.2-72.6 s here
+against 62-64 s locally`. This run's `Browser journeys` step was still
+executing after 17 minutes — **14–15× that figure** — with no `timeout-
+minutes` on the job to bound it, so left alone it would have run toward
+GitHub's own 360-minute default.
+
+**It was not a hang, and the distinction matters.** Rather than re-running
+blindly (this repository's `retries: 0` policy, named above), the run was
+cancelled specifically to force its logs to become available — `gh run
+view --job --log` refuses to return anything for a job still `in_progress`
+— and the recovered log showed the suite had been making steady, if slow,
+progress the entire time: test 38 by 06:48:54 (1.5 minutes in), test 295 by
+07:02:04 (just over 14 minutes in), finishing at 07:04:17 with
+`20 skipped\n326 passed (17.0m)` **and zero failures**, moments after the
+cancellation request landed. The job's own step list confirms every prior
+step (install, build, migrate, start the pair) completed in its ordinary
+time; only `Browser journeys` itself ran long, uniformly across its whole
+length rather than stalling at one point.
+
+**The `FATAL: role "root" does not exist` lines flooding the postgres
+service's own log (visible at container teardown, one roughly every 10 s
+for the run's whole duration) are a red herring, not the cause** — they
+are `--health-cmd pg_isready`'s own unauthenticated probe, which does not
+need to authenticate to report the server as accepting connections; the
+same lines appear on every run of this exact service configuration and
+are not new.
+
+**What this means for the diagnosis, stated at the strength the evidence
+supports.** With zero failures across 326 executed tests and no single
+test individually slow in a way that points at one spec, the only
+candidate is runner-level contention — GitHub's shared `ubuntu-latest`
+pool having a noisy neighbour on this particular run — which is exactly
+the shape `CLAUDE.md`'s own flake-rate guidance describes for a different
+spec (`overview-degraded-grid.spec.ts`, this file's own earlier entries):
+a property of the moment the runner ran rather than of the product. One
+occurrence is far short of any n that could separate "this specific runner
+instance was unusually slow" from "this workflow has gotten slower,"
+and nothing in this change (two new `pnpm invariants` entries, a CSS
+component, a markdown doc edit) plausibly explains a 14× wall-clock
+regression in a job whose own work is unchanged in kind.
+
+**The repair taken: re-queue the cancelled run, record what was found, and
+move on** — not a code change, because nothing in the evidence points at
+one. The cancellation itself is the one dated **cost** of this incident:
+326 tests that had already passed were discarded and had to run again.
+
+**Re-measure**: if a `Browser journeys` step on this repository's own
+`e2e` job is observed running past roughly 5 minutes again, pull `gh run
+view --job <id> --log` only after cancelling (it cannot be read while
+`in_progress`) and check **which** test index the log had reached against
+elapsed wall-clock time, rather than assuming either a hang or a flake —
+a log reaching a late test index at a slow, steady rate is this incident
+repeating; one stuck at an unchanging index for minutes is a genuine hang
+and a different investigation. Add `timeout-minutes` to the `e2e` job if
+this recurs enough to warrant bounding it rather than relying on a human
+noticing.
+
+**Owner: the first task that sees this pattern a second time** — a single
+occurrence with zero test failures is not evidence of a regression in this
+workflow, and the correct response found here (investigate via cancellation
+rather than wait indefinitely or re-run reflexively) is the one to repeat
+rather than escalate from on one data point.
+
 ## `CLAIM_CEILING` is a measurement of the PRODUCERS, not the probe figure AC 6 asks for
 
 **Added 2026-11-23 by Task 7.3.1, which set the constant and is recording
@@ -7007,19 +7074,57 @@ scheduled for deletion. And **no database was reachable** on the machine
 this task was built on (no Docker, so no `pnpm db`), which is also why
 `pnpm test:database` and the browser suite were not run.
 
-**Re-measure**: at Task 7.3.2, against the real two-line grid, with
-`DATABASE_NAME=marketpulse_bare pnpm dev` (`pnpm store:bare` builds CI's own
-516-security, zero-bar store) and
+**Half-discharged at Task 7.3.2, against the real two-line grid — and the
+other half is the SAME Docker gap this whole session has carried.** The
+surface reason is gone: `InvestigationChecklist`'s real grid, with a real
+`ConfidenceMark`, now exists, so there is a layout worth probing. Probed
+against it directly, through Storybook rather than the live route (no
+Docker on this machine either, so `pnpm db`/`pnpm store:bare` were as
+unreachable as they were at Task 7.3.1): `pnpm probe --story
+"investigations-investigationchecklist--claims-at-the-ceiling"` at all four
+widths, against `ClaimsAtTheCeiling` — six rows, one per confidence level
+cycling, each claim padded to exactly `CLAIM_CEILING` (72) characters with
+`·` so the line is at the bound **by construction**. Quoted verbatim from
+that run, 1440×900 (one line, no wrap): `— SUPPORTED Market correlation —
+the benchmark’s history crosses a price break·s·s·s`. At 390×780 the same
+claim wraps to two lines inside its own `.claim` area with **no truncation,
+no third-row collision and no row-height jump beyond the wrap itself** —
+`row 374×65 … rows 18 35` through `374×66 … rows 18 36`, one pixel apart
+across the six rows, which is the "no narrow-width hiding" half of AC 6
+confirmed at the real ceiling rather than at today's 66-character maximum.
+Screenshots at all four widths are in this task's own PR description.
+
+**What this does NOT discharge.** The probe target is a Storybook fixture,
+not `/securities/NVDA` after a real `Investigate` press — so the 160 ms
+cover threshold, the real six-tool pipeline's actual timing, and a genuine
+zero-bar-store refusal (rather than a hand-built fixture imitating one) are
+still unmeasured. **Re-measure**: `DATABASE_NAME=marketpulse_bare pnpm dev`
+(`pnpm store:bare` builds CI's own 516-security, zero-bar store) and
 `pnpm probe /securities/NVDA --within Abnormal` after pressing
 `Investigate` — reading each claim's own `clientHeight` against its
 `scrollHeight`, which is how Task 5.4.1 found a shipped region scrolling its
-own placeholder sentence. The constant's own reversal trigger is already
-written beside it as a condition: **the first probe of a drawn claim at 390
-that wraps to a third line, or the first claim a tool wants to mint that 72
-refuses.**
+own placeholder sentence. The constant's own reversal trigger is unchanged
+and did not fire: **the first probe of a drawn claim at 390 that wraps to a
+third line, or the first claim a tool wants to mint that 72 refuses.**
+Neither happened — the Storybook probe wraps to exactly two lines at every
+width, by construction.
 
-**Owner: Task 7.3.2**, which is the first task that can see a drawn claim at
-all.
+**Enforcement, added at Task 7.3.2**: the ceiling was already asserted
+per-tool at Task 7.3.1; `finding-claim.test.ts` now asserts it over the
+**whole** `FindingType` × `ToolRefusal` cross product in one place
+(independent of which tools exist today) and over `breadthClaim`'s **both**
+bases at a four-digit population — the `observed` tail (`in the last 5
+min`) is four characters longer than `session`'s (`on 2026-09-11`), which
+the original stress test did not cover and this task's own measurement
+found. A `pnpm invariants` entry was considered and not added: the
+cross-product test already fails `pnpm test` (and therefore `pnpm verify`)
+on a violation, calling the real functions rather than re-deriving their
+output from text, which is a strictly stronger check than a static scan
+could be — a second, parallel mechanism for the same fact would be the
+defect `docs/adr/README.md`'s "one fact, one home" rule exists to forbid.
+
+**Owner: the first task that runs this against a real deployment or a
+Docker-equipped machine**, condition unchanged from Task 7.3.1's own.
 
 ## The six claims have never been produced against a real store, and one of them has never been produced anywhere but a furnished unit suite
 

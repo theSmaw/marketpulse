@@ -173,17 +173,33 @@ describe("breadthClaim", () => {
   });
 
   it("fits the ceiling at a four-digit population, which the universe cannot reach", () => {
-    const claim = breadthClaim({
-      basis: "session",
+    // **Both tails, because they are not the same length** (Task 7.3.2):
+    // `on 2026-09-11` is four characters SHORTER than `in the last 5 min`, so
+    // the `observed` basis is the actual worst case and a stress test of
+    // `session` alone understates it — both are asserted here rather than
+    // leaving the longer one unmeasured.
+    const stress = {
       advancing: 1048,
       declining: 1048,
       unchanged: 1048,
       measured: 3144,
       tracked: 4000,
+    };
+
+    const session = breadthClaim({
+      ...stress,
+      basis: "session",
       session: "2026-09-11",
     });
+    const observed = breadthClaim({
+      ...stress,
+      basis: "observed",
+      windowMinutes: 5,
+    });
 
-    expect(claim.length).toBeLessThanOrEqual(CLAIM_CEILING);
+    expect(session.length).toBeLessThanOrEqual(CLAIM_CEILING);
+    expect(observed.length).toBeLessThanOrEqual(CLAIM_CEILING);
+    expect(observed.length).toBeGreaterThan(session.length);
   });
 
   it("separates its figures with commas and its clauses with `of` — no counted word is a bare number beside another", () => {

@@ -7160,4 +7160,71 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "every-serialised-event-type-has-a-decoder-case",
   },
+  // ## Task 7.3.2's two: the confidence mark shares nothing with the band
+  // ## chip, and spends no fill or colour
+  {
+    name: "confidence-mark-composes-the-band-chip",
+    proves:
+      "`confidence-and-band-never-share-a-component` goes red when " +
+      "`ConfidenceMark.module.css` composes a class from `Badge` or " +
+      "`AnomalyBadge`'s own stylesheet.\n\n" +
+      "**The plant is the file the NEXT author writes.** Epic 8 puts an " +
+      "evidence panel beside this checklist, and the shortest way to give " +
+      "the confidence mark a rounded container to sit in is to reuse the " +
+      "badge's own `.badge` class rather than draw a new one — one " +
+      "`composes:` line, syntactically ordinary, and nothing downstream " +
+      "complains: it builds, it lints (`composes:` is a legal CSS Modules " +
+      "idiom this product uses throughout), and the mark now has a fill " +
+      "and a border box it was built specifically not to have.\n\n" +
+      "**Nothing else sees it.** No test in this component's own suite " +
+      "renders a stylesheet — jsdom applies none — so a shared `composes:` " +
+      "target is invisible to `pnpm test`; it is readable only as text, " +
+      "which is what this check is.\n\n" +
+      "**The plant APPENDS beside the found line and keeps it** (2026-10-" +
+      "16's rule): a second `composes:` is not how this component would " +
+      "really end up with one, but the registry's own `find` survives " +
+      "its own break either way, and the check's clause is a crossing " +
+      "reference, not a count of them.",
+    file: "apps/frontend/src/components/ConfidenceMark/ConfidenceMark.module.css",
+    find: "  color: var(--ink-secondary);\n}",
+    replace:
+      "  color: var(--ink-secondary);\n" +
+      "  /* pnpm break: reverted automatically */\n" +
+      '  composes: badge from "../Badge/Badge.module.css";\n' +
+      "}",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "confidence-and-band-never-share-a-component",
+  },
+  {
+    name: "the-confidence-mark-grows-a-fill",
+    proves:
+      "`the-confidence-mark-spends-no-fill-and-no-colour` goes red when " +
+      "`ConfidenceMark.module.css` grows a `background` — the mark's own " +
+      "header names this exact defect: *a figure tinted to match the chip " +
+      "beside it is the risk-meter reading the band's own rule exists to " +
+      "refuse*.\n\n" +
+      "**The plant is the file the NEXT author writes.** `61 / 100` beside " +
+      "an `ELEVATED` chip already tempted one author to tint the score to " +
+      "match it (`amber-appears-once-in-the-rail`'s own finding); the same " +
+      "pull applies here the day the mark looks unfinished beside a filled " +
+      "lozenge, and `background: var(--surface-raised);` is one line that " +
+      "reads as polish rather than as the chip's own fill moved one " +
+      "component over.\n\n" +
+      "**Nothing else sees it.** No stylesheet is applied in the test " +
+      "environment (`getTokens()` throws there by design), so a background " +
+      "on this component is invisible to every unit, component and " +
+      "integration test — a browser or the workshop is the only level that " +
+      "could see it, which is why it needs to be a check over the text.\n\n" +
+      "**The plant APPENDS beside the found line and keeps it** (2026-10-" +
+      "16's rule), so the registry's own `find` survives its own break.",
+    file: "apps/frontend/src/components/ConfidenceMark/ConfidenceMark.module.css",
+    find: "  color: var(--ink-secondary);\n}",
+    replace:
+      "  color: var(--ink-secondary);\n" +
+      "  /* pnpm break: reverted automatically */\n" +
+      "  background: var(--surface-raised);\n" +
+      "}",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-confidence-mark-spends-no-fill-and-no-colour",
+  },
 ];

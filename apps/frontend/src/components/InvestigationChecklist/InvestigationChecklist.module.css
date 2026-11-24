@@ -26,10 +26,38 @@
   margin-bottom: var(--space-12);
 }
 
+/*
+ * **Two lines, as a GRID rather than nested flex** (Task 7.3.2).
+ *
+ * Row 1 is exactly what it was — `glyph | description | duration`. Row 2 is the
+ * claim, spanning the description and duration columns, which is what reclaims
+ * the duration's own `8ch` reserve for the longest line on the row. A nested
+ * flex would have needed a second container element and would have left the
+ * claim's left edge agreeing with the description's only by arithmetic; two
+ * named areas make it agree by construction.
+ *
+ * **It was flex until this task, and the swap is measured rather than
+ * assumed** — the ux-architect flagged at Gate 1 that a flex→grid change can
+ * silently shift the glyph's baseline, and it did, in the direction nobody
+ * expected: `align-items: baseline` over a flex row containing a `<p>` with
+ * default margins put the glyph **17px** from the row's top edge and made every
+ * completed row **52px** tall at 1440/1024/768 and up to **75px** at 390. The
+ * figures either side are in this task's own record.
+ *
+ * `row-gap` is deliberately TIGHTER than `.checklist`'s own 8px gap between
+ * rows — 4px — so a row's two lines bind to each other more strongly than to
+ * their neighbours. That ordering is the whole reason the second line reads as
+ * belonging to the step above it rather than as a seventh row.
+ */
 .row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "glyph description duration"
+    ".     claim       claim";
   align-items: baseline;
-  gap: var(--space-8);
+  column-gap: var(--space-8);
+  row-gap: var(--space-4);
   /*
    * **The breathing ground**, applied to the whole row rather than only the
    * glyph: `ChartPending`'s own cover is the size of the plot it replaces,
@@ -81,12 +109,12 @@
 }
 
 .glyph {
+  grid-area: glyph;
   display: inline-flex;
   align-items: center;
   /* `Icon`'s own `1em` sizing rule: the glyph sits at the description's own
      type size rather than at a size this file invents. */
   font-size: var(--font-size-body);
-  flex: none;
 }
 
 /*
@@ -106,8 +134,8 @@
 }
 
 .description {
+  grid-area: description;
   margin: 0;
-  flex: 1 1 auto;
   font-size: var(--font-size-body);
   color: var(--ink-primary);
 }
@@ -117,8 +145,8 @@
 }
 
 .duration {
+  grid-area: duration;
   margin: 0;
-  flex: none;
   /* Reserved from first paint — `AbnormalMove`'s own `.sample`/`.tape` rows
      reserve room the same way, with held ` ` rather than a width that
      steps the row the moment a real figure lands. `8ch` covers this story's
@@ -128,4 +156,64 @@
   text-align: right;
   font-size: var(--font-size-micro);
   color: var(--ink-secondary);
+}
+
+/*
+ * **The claim — the second line of the row, and the only thing on it.**
+ *
+ * It spans `description` and `duration`, which is the point: the duration's
+ * `8ch` reserve is dead width on this line, and reclaiming it is worth about
+ * 49px at every width — most of a word at 390, where the line is tightest.
+ *
+ * Micro type and the secondary ink, matching `.duration` and
+ * `AbnormalMove`'s own ledger rhythm: the description is what the step IS and
+ * the claim is what it FOUND, so the figure must not out-shout the sentence
+ * above it. Standing out, like receding, is a job for weight and hierarchy
+ * rather than ink outside the contrast floor.
+ *
+ * **No truncation, no `max-width` and no narrow-width hiding** (AC 6). A claim
+ * that does not fit wraps, and the bound is fixed at the MINT instead —
+ * `CLAIM_CEILING` in `packages/shared/src/finding.ts`, which this task's own
+ * probe is the measurement behind. A CSS ceiling here would make the limit a
+ * property of the viewport, which is how a figure disappears on the one screen
+ * that needed it.
+ */
+.claim {
+  grid-area: claim;
+  margin: 0;
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  color: var(--ink-secondary);
+
+  /*
+   * **A fact arriving DECAYS — and a claim PERSISTS, so this is the settle
+   * rather than the mark.** `motion.module.css`' vocabulary is three
+   * behaviours: work in progress loops, a state persists, a fact arriving
+   * decays. The claim is the third arriving into the second, so what it gets
+   * is one gesture at the decay's own duration and then nothing — never
+   * `.arrivalMark`'s fade-OUT, which on a sentence would delete it.
+   *
+   * It is deliberately not a shared class in that layer: the shape there is a
+   * disc's appearance and behaviour, and this is one keyframe pair on a
+   * paragraph. A fourth behaviour would be a change to the vocabulary.
+   *
+   * **No `opacity` base declaration, and that asymmetry with `.arrivalMark` is
+   * the correct one.** Reduced motion resolves `--motion-duration-decay` to
+   * `0ms` and a zero-duration animation applies no keyframe styles at all, so
+   * the element renders at its initial value — which for a mark that must
+   * disappear is a permanent dot (the defect that file records) and for a
+   * sentence that must stay is exactly right: the claim is simply there.
+   */
+  animation: claim-settles var(--motion-duration-decay)
+    var(--motion-ease-standard);
+}
+
+@keyframes claim-settles {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
