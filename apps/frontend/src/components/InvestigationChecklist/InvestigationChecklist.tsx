@@ -130,7 +130,16 @@ export function InvestigationChecklist({
         {announcement}
       </p>
       {checklist === undefined ? null : (
-        <div className={cx(styles.checklist)}>
+        // **A `<ul>` of `<li>`s, not a `<div>` of `<div>`s** (Task 7.3.3, AC
+        // 12). A browse-mode screen reader announces "list, 6 items" and
+        // each item is reachable as one unit carrying its own description,
+        // claim and confidence together — the other half of the same
+        // finding as the live region's own summary: a sub-second six-step
+        // run used to speak only its last claim, and this is how the other
+        // five become reachable to a listener who does not read the screen
+        // from the top down. No visual change from this alone — `.checklist`
+        // resets the list's own default marker and indent, below.
+        <ul className={cx(styles.checklist)}>
           {checklist.steps.map((step, index) => (
             <Row
               key={step.id ?? index}
@@ -143,7 +152,7 @@ export function InvestigationChecklist({
               }
             />
           ))}
-        </div>
+        </ul>
       )}
     </>
   );
@@ -162,7 +171,7 @@ function Row({
 }) {
   if (droppedSentence !== undefined) {
     return (
-      <div className={cx(styles.row)} data-step="dropped">
+      <li className={cx(styles.row)} data-step="dropped">
         <span
           aria-hidden="true"
           className={cx(styles.glyph, styles.glyphQueued)}
@@ -173,12 +182,12 @@ function Row({
           {droppedSentence}
         </p>
         <p className={cx(styles.duration)}>{NBSP}</p>
-      </div>
+      </li>
     );
   }
 
   return (
-    <div
+    <li
       className={cx(styles.row, breathing ? styles.running : undefined)}
       // **A row's own status, readable from outside** — the same
       // `data-arrival` idiom `SecurityIdentity` already publishes for its
@@ -230,6 +239,12 @@ function Row({
        * no mark beside it is a reachable, correct state rather than a defect —
        * `investigation-event.ts`'s own decoder case.
        *
+       * **`step.stale` dims the whole line** (Task 7.3.3, AC 11) — a second
+       * press's carried-forward claim, visible until THIS row's own next
+       * `STEP_COMPLETED`/`FINDING_CREATED` replaces it, never argued from the
+       * glyph above (which already reads queued/running exactly as a first
+       * press does; only this line differs).
+       *
        * **Zero focusable elements and zero click handlers** (AC 7). A `<p>` and
        * three `<span>`s, no tabindex, no role and no handler, so the claim adds
        * nothing to this row's keyboard surface — asserted structurally in this
@@ -239,10 +254,15 @@ function Row({
        * is one `onClick`.
        */}
       {step.claim === undefined ? null : (
-        <p className={cx(styles.claim)}>
+        <p
+          className={cx(
+            styles.claim,
+            step.stale ? styles.claimStale : undefined,
+          )}
+        >
           {step.confidence === undefined ? null : (
             <>
-              <ConfidenceMark confidence={step.confidence} />
+              <ConfidenceMark confidence={step.confidence} stale={step.stale} />
               {/*
                * **An explicit space, because a `gap` is invisible to a screen
                * reader** — the fix this product already ships twice, in
@@ -255,7 +275,7 @@ function Row({
           {step.claim}
         </p>
       )}
-    </div>
+    </li>
   );
 }
 

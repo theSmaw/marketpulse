@@ -5,6 +5,7 @@ import {
   applyInvestigationEvent,
   INVESTIGATION_STEP_COUNT,
   optimisticChecklist,
+  resetForNewRun,
   withConnectionLost,
   withInvestigationId,
 } from "./investigation-checklist-state.js";
@@ -35,6 +36,7 @@ describe("optimisticChecklist", () => {
         durationMs: undefined,
         claim: undefined,
         confidence: undefined,
+        stale: false,
       });
     }
     expect(state.terminal).toBe(false);
@@ -75,6 +77,7 @@ describe("applyInvestigationEvent", () => {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     });
   });
 
@@ -198,6 +201,7 @@ describe("applyInvestigationEvent", () => {
       durationMs: 12,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     });
   });
 
@@ -354,5 +358,170 @@ describe("applyInvestigationEvent — FINDING_CREATED (Task 7.3.1)", () => {
     expect(state.steps[0]?.status).toBe("completed");
     expect(state.steps[0]?.claim).toBeUndefined();
     expect(state.steps[0]?.confidence).toBeUndefined();
+  });
+});
+
+describe("resetForNewRun (Task 7.3.3, AC 11)", () => {
+  /** A terminal checklist with one real finding on the first row and
+   * nothing on the rest — a one-step run, same shape the other describe
+   * blocks in this file use. */
+  function terminalWithOneFinding(): ReturnType<
+    typeof applyInvestigationEvent
+  > {
+    let state = applyInvestigationEvent(optimisticChecklist("NVDA"), BASE);
+    state = applyInvestigationEvent(state, {
+      type: "STEP_STARTED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      description: "Measure move",
+      tool: "get_security_snapshot",
+      startedAt: "2026-11-16T14:00:00.000Z",
+    });
+    state = applyInvestigationEvent(state, {
+      type: "FINDING_CREATED",
+      seq: 3,
+      investigationId: "inv-1",
+      finding: {
+        stepId: "step-1",
+        claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+        confidence: "SUPPORTED",
+      },
+    });
+    state = applyInvestigationEvent(state, {
+      type: "STEP_COMPLETED",
+      seq: 4,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      status: "completed",
+      durationMs: 5,
+    });
+    return applyInvestigationEvent(state, {
+      type: "INVESTIGATION_COMPLETED",
+      seq: 5,
+      investigationId: "inv-1",
+      status: "completed",
+      completedAt: "2026-11-16T14:00:00.005Z",
+      stepCount: 1,
+    });
+  }
+
+  it("keeps a row's claim and confidence, marked stale, rather than blanking it", () => {
+    const after = resetForNewRun(terminalWithOneFinding());
+
+    expect(after.steps[0]).toStrictEqual({
+      id: undefined,
+      description: undefined,
+      status: "queued",
+      startedAt: undefined,
+      completedAt: undefined,
+      durationMs: undefined,
+      claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+      confidence: "SUPPORTED",
+      stale: true,
+    });
+  });
+
+  it("leaves a row with no prior claim as a plain, non-stale placeholder", () => {
+    const after = resetForNewRun(terminalWithOneFinding());
+
+    expect(after.steps[1]).toStrictEqual({
+      id: undefined,
+      description: undefined,
+      status: "queued",
+      startedAt: undefined,
+      completedAt: undefined,
+      durationMs: undefined,
+      claim: undefined,
+      confidence: undefined,
+      stale: false,
+    });
+  });
+
+  it("resets the investigation id and the terminal/connectionLost flags, keeping the symbol", () => {
+    const after = resetForNewRun(terminalWithOneFinding());
+
+    expect(after.symbol).toBe("NVDA");
+    expect(after.investigationId).toBeUndefined();
+    expect(after.terminal).toBe(false);
+    expect(after.connectionLost).toBe(false);
+    expect(after.steps).toHaveLength(INVESTIGATION_STEP_COUNT);
+  });
+
+  it("a stale claim survives STEP_STARTED — queued/running render exactly as they do today otherwise", () => {
+    let state = resetForNewRun(terminalWithOneFinding());
+    state = applyInvestigationEvent(state, {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      description: "Measure move",
+      tool: "get_security_snapshot",
+      startedAt: "2026-11-17T14:00:00.000Z",
+    });
+
+    expect(state.steps[0]).toMatchObject({
+      status: "running",
+      claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+      confidence: "SUPPORTED",
+      stale: true,
+    });
+  });
+
+  it("a real FINDING_CREATED replaces the stale claim and clears the flag", () => {
+    let state = resetForNewRun(terminalWithOneFinding());
+    state = applyInvestigationEvent(state, {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      description: "Measure move",
+      tool: "get_security_snapshot",
+      startedAt: "2026-11-17T14:00:00.000Z",
+    });
+    state = applyInvestigationEvent(state, {
+      type: "FINDING_CREATED",
+      seq: 2,
+      investigationId: "inv-2",
+      finding: {
+        stepId: "step-1",
+        claim: "Traded at 185.10 on 9,200 shares in the latest bar",
+        confidence: "SUPPORTED",
+      },
+    });
+
+    expect(state.steps[0]).toMatchObject({
+      claim: "Traded at 185.10 on 9,200 shares in the latest bar",
+      stale: false,
+    });
+  });
+
+  it("an INAPPLICABLE re-run drops the stale claim rather than leaving it looking current", () => {
+    // The row that completes with no FINDING_CREATED this run never had its
+    // `stale` flag cleared by one — which is exactly how STEP_COMPLETED
+    // tells "this run re-confirmed it" from "this run never asked".
+    let state = resetForNewRun(terminalWithOneFinding());
+    state = applyInvestigationEvent(state, {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      description: "Measure move",
+      tool: "get_security_snapshot",
+      startedAt: "2026-11-17T14:00:00.000Z",
+    });
+    state = applyInvestigationEvent(state, {
+      type: "STEP_COMPLETED",
+      seq: 2,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      status: "completed",
+      durationMs: 1,
+    });
+
+    expect(state.steps[0]?.status).toBe("completed");
+    expect(state.steps[0]?.claim).toBeUndefined();
+    expect(state.steps[0]?.confidence).toBeUndefined();
+    expect(state.steps[0]?.stale).toBe(false);
   });
 });

@@ -64,6 +64,20 @@ import styles from "./ConfidenceMark.module.css";
 
 export interface ConfidenceMarkProps {
   readonly confidence: Confidence;
+  /**
+   * **A second press's own carried-forward claim, not yet replaced by this
+   * run's own finding** (Task 7.3.3, AC 11). Dims the mark's ink to
+   * `--ink-disabled` — never its stroke, which stays the real PREVIOUS
+   * level's own encoding until the row's own re-completion replaces it —
+   * because this value is a disabled-adjacent fact (about to be superseded,
+   * not currently authoritative) rather than a sentence a reader relies on
+   * right now, which is the distinction `TextField.module.css`'s own
+   * measured rejection of this exact token draws for primary content.
+   *
+   * Defaults to `false` so every existing call site, including this
+   * component's own stories and tests, is unaffected.
+   */
+  readonly stale?: boolean;
 }
 
 /** What a listener hears before the level's own word. Carries its own
@@ -78,9 +92,12 @@ const STROKE_CLASS: Readonly<Record<Confidence, string | undefined>> = {
   UNKNOWN: styles.unknown,
 };
 
-export function ConfidenceMark({ confidence }: ConfidenceMarkProps) {
+export function ConfidenceMark({
+  confidence,
+  stale = false,
+}: ConfidenceMarkProps) {
   return (
-    <span className={cx(styles.mark)}>
+    <span className={cx(styles.mark, stale ? styles.stale : undefined)}>
       {/* The rule carries no text, so it is hidden from the accessible tree
           entirely — the word beside it is the fact, and the stroke is the
           redundancy behind it. */}

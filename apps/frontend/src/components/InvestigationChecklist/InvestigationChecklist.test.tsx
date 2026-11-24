@@ -26,6 +26,7 @@ const QUEUED: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -45,6 +46,7 @@ const RUNNING: ChecklistState = {
       durationMs: undefined,
       claim: undefined,
       confidence: undefined,
+      stale: false,
     },
   ],
   terminal: false,
@@ -64,6 +66,7 @@ const COMPLETED: ChecklistState = {
       durationMs: 120,
       claim: "Traded at 184.52 on 12,480 shares in the latest bar",
       confidence: "SUPPORTED",
+      stale: false,
     },
   ],
   terminal: true,
@@ -389,5 +392,89 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
     }
 
     expect(container.innerHTML).toBe(before);
+  });
+});
+
+describe("the list structure (Task 7.3.3, AC 12)", () => {
+  it("is a <ul> of <li>s, so a browse-mode screen reader announces a list and an item count", () => {
+    const mixed: ChecklistState = {
+      ...RUNNING,
+      steps: [...COMPLETED.steps, ...RUNNING.steps, ...QUEUED.steps],
+    };
+
+    render(
+      <InvestigationChecklist
+        checklist={mixed}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    const list = screen.getByRole("list");
+    expect(list.tagName).toBe("UL");
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    for (const item of items) expect(item.tagName).toBe("LI");
+  });
+
+  it("is still a <li> for the dropped-connection row", () => {
+    render(
+      <InvestigationChecklist
+        checklist={DROPPED}
+        announcement={CONNECTION_LOST_SENTENCE}
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+});
+
+describe("a second press's stale claim (Task 7.3.3, AC 11)", () => {
+  const STALE_COMPLETED: ChecklistState = {
+    ...COMPLETED,
+    steps: COMPLETED.steps.map((step) => ({
+      ...step,
+      status: "queued",
+      stale: true,
+    })),
+  };
+
+  it("draws a stale claim with the dimming class, and a fresh one without it", () => {
+    const { container: staleContainer } = render(
+      <InvestigationChecklist
+        checklist={STALE_COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+    const staleClaim = staleContainer.querySelector(`.${String(styles.claim)}`);
+    expect(staleClaim?.className).toContain(styles.claimStale);
+
+    const { container: freshContainer } = render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+    const freshClaim = freshContainer.querySelector(`.${String(styles.claim)}`);
+    expect(freshClaim?.className).not.toContain(styles.claimStale);
+  });
+
+  it("still draws the claim's text and confidence word while stale — AC 11's own wording, nothing hidden", () => {
+    render(
+      <InvestigationChecklist
+        checklist={STALE_COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Traded at 184\.52/u, { selector: "p" }).textContent,
+    ).toBe(
+      "Confidence: SUPPORTED Traded at 184.52 on 12,480 shares in the latest bar",
+    );
   });
 });

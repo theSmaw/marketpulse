@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   applyInvestigationEvent,
   optimisticChecklist,
+  resetForNewRun,
   withConnectionLost,
   withInvestigationId,
   type ChecklistState,
@@ -24,6 +25,7 @@ import {
   startInvestigation,
   streamInvestigationEvents,
 } from "./investigation-stream.js";
+import { CONFIDENCE_LEVELS, type Confidence } from "@marketpulse/shared";
 
 /**
  * How long a step must be `running` before the live region says so — the
@@ -39,18 +41,41 @@ const ANNOUNCE_RUNNING_AFTER_MS = 160;
 export const CONNECTION_LOST_SENTENCE =
   "Connection lost — investigation state unknown";
 
-function completionAnnouncement(step: ChecklistStepView): string {
-  // `?? 0` would be `no-imputed-zero-in-a-figure`'s own trap: a completed
-  // step ALWAYS carries a real duration (`STEP_COMPLETED` is the only
-  // event that sets `status: "completed"`, and it always carries one) —
-  // `liveRegionText`'s own caller only reaches this branch once that is
-  // true, so an absent duration here is this module's own bug, not an
-  // honest zero.
-  if (step.durationMs === undefined) {
-    throw new Error("a completed step must carry its own duration");
+/**
+ * **The terminal announcement — a count by confidence level, not a
+ * transcript** (Task 7.3.3, AC 12). Six claims landing in one sub-second run
+ * used to coalesce onto the LAST-completed step's own sentence alone — five
+ * of six findings never announced to anyone not reading the screen. A
+ * listener now hears what the run actually found: `4 findings supported, 2
+ * unknown`.
+ *
+ * Counts only steps that minted a finding — `confidence !== undefined` — the
+ * exact set with something to report; an `inapplicable` step contributes
+ * nothing here for the same reason it draws no claim on screen. Ordered by
+ * `CONFIDENCE_LEVELS`, so `CONFIRMED` (no producer in this epic) is silently
+ * absent rather than printed at zero, and the word "findings" appears once,
+ * in the first clause, rather than once per level.
+ */
+function confidenceCountSummary(steps: readonly ChecklistStepView[]): string {
+  const counts = new Map<Confidence, number>();
+  for (const step of steps) {
+    if (step.confidence === undefined) continue;
+    counts.set(step.confidence, (counts.get(step.confidence) ?? 0) + 1);
   }
-  const description = step.description ?? "The step";
-  return `${description} complete, ${String(step.durationMs)} ms`;
+  if (counts.size === 0) return "Investigation complete — no findings produced";
+
+  const clauses: string[] = [];
+  for (const level of CONFIDENCE_LEVELS) {
+    const count = counts.get(level);
+    if (count === undefined) continue;
+    const word = level.toLowerCase();
+    clauses.push(
+      clauses.length === 0
+        ? `${String(count)} finding${count === 1 ? "" : "s"} ${word}`
+        : `${String(count)} ${word}`,
+    );
+  }
+  return clauses.join(", ");
 }
 
 function startedAnnouncement(step: ChecklistStepView): string {
@@ -73,11 +98,9 @@ function startedAnnouncement(step: ChecklistStepView): string {
  * progress: the sentence of whichever step is `running` while it runs, and
  * the last COMPLETED step's own once the run is terminal.
  *
- * **The last completed step rather than the last ROW**, because the two
- * differ in exactly the case that matters: a run that ends without reaching
- * its final step leaves seeded rows still holding room, and keying on the
- * last row would answer that with silence — the one outcome a live region
- * must never produce where something did happen.
+ * **The terminal branch is a SUMMARY, not the last completed step's own
+ * sentence** (Task 7.3.3) — `confidenceCountSummary` above carries the full
+ * argument. The pre-terminal, running-step branch below is unchanged.
  */
 function liveRegionText(
   checklist: ChecklistState | undefined,
@@ -87,12 +110,7 @@ function liveRegionText(
   if (checklist.connectionLost) return CONNECTION_LOST_SENTENCE;
 
   if (checklist.terminal) {
-    const lastCompleted = checklist.steps.findLast(
-      (step) => step.status === "completed",
-    );
-    return lastCompleted === undefined
-      ? ""
-      : completionAnnouncement(lastCompleted);
+    return confidenceCountSummary(checklist.steps);
   }
   const runningStep = checklist.steps.find((step) => step.status === "running");
   if (runningAnnounced && runningStep !== undefined) {
@@ -322,8 +340,20 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
     setRunningAnnounced(false);
 
     // The client-optimistic paint: a queued row, in this same commit,
-    // before the `POST` below has even been sent.
-    setRecord({ symbol, checklist: optimisticChecklist(symbol) });
+    // before the `POST` below has even been sent. **A second press for the
+    // SAME symbol keeps the prior run's claims, dimmed, rather than
+    // blanking them** (AC 11) — reaching here with `record.symbol ===
+    // symbol` only happens once the guard above has already confirmed the
+    // prior run is terminal or connection-lost, so `resetForNewRun` always
+    // has a finished run to carry forward. A fresh symbol has nothing of
+    // its own to keep, so it gets the plain blank six.
+    setRecord({
+      symbol,
+      checklist:
+        record?.symbol === symbol
+          ? resetForNewRun(record.checklist)
+          : optimisticChecklist(symbol),
+    });
 
     void runInvestigation(symbol, controller.signal, runId);
   }, [record, symbol, runInvestigation]);

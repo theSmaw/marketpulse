@@ -7159,3 +7159,78 @@ about.
 **Owner: a person with a populated store, before Story 7.3 closes** — and
 `LIVE-REHEARSAL.md` carries no row for Epic 7 at all yet, which Story 7.7
 owes.
+
+## A TWELFTH entry for the standing screen-reader item — a transcript becomes a summary, and six items become a list, both reasoned from structure alone
+
+**Added 2026-11-24 by Task 7.3.3**, which built both repairs and is recording
+that neither has been confirmed by an actual listener — the eleven entries
+before it (`grep -c "screen reader\|screen-reader" docs/GAPS.md` reads 20
+occurrences across those eleven on this date, which is the count of mentions
+rather than of entries; the entries themselves are named by ordinal in their
+own headings, and the highest before this one is `ELEVENTH`, Task 6.4.4,
+2026-11-06) are each a dated account of a region reasoned about rather than
+heard. This one closes two gaps Story 7.3's own AC 12 named rather than
+discovering a new one.
+
+**The first half: `InvestigationChecklist`'s terminal announcement was a
+transcript problem, and it is now a summary.** Before this task, a run's
+`role="status"` region spoke only the LAST-completed step's own sentence —
+`liveRegionText`'s own terminal branch read `checklist.steps.findLast(step
+=> step.status === "completed")`. Six findings landing in one sub-second run
+(this pipeline's own ordinary case — Story 7.2's own measured figure is
+single-digit milliseconds a step) therefore spoke **one** of six to anyone
+not reading the screen; the other five existed only in the DOM. The repair —
+`confidenceCountSummary`, `4 findings supported, 2 unknown` — is reasoned
+from the same structural argument entry one of this list states for the
+chart's own spoken reading: a polite region speaking **once** per terminal
+event cannot carry six facts as a transcript, so it has to carry them as an
+aggregate instead. **What only a listener can confirm**: whether a bare
+confidence-count sentence, with no step named and no "investigation
+complete" framing, reads as the right level of detail for a result a reader
+cannot yet inspect further (Epic 8's evidence panel is the first surface
+that lets them), or as too little — this task picked the shape the
+Gate-1-approved AC text itself names (`4 findings supported, 2 unknown`) and
+went no further than that.
+
+**The second half: the row's own markup was a problem this entry's own
+reasoning predicts rather than measures.** `InvestigationChecklist` drew a
+`<div>` of `<div>`s; it is now a `<ul>` of `<li>`s, so a browse-mode screen
+reader should announce "list, 6 items" and reach each item's description,
+claim and confidence together as one unit rather than as three
+indistinguishable paragraphs in a flat sequence. **Reasoned from the DOM
+API's own documented behaviour, not confirmed against a reader**: this
+product has never had a browse-mode pass taken against ANY of its regions
+(the standing item this whole section is under), so whether six list items
+with no accessible name beyond their own text content actually read as
+navigable and distinct — rather than, say, a list whose items are
+announced with no boundary a listener notices between one step's claim and
+the next step's description — is exactly the unknown every entry before
+this one has left standing.
+
+**A third, smaller structural question this task's own design decided
+without a listener**: `ConfidenceMark`'s `stale` prop and `.claimStale`
+dim the ink to `--ink-disabled` with no second channel (no word, no glyph) —
+a deliberate departure from this product's own "colour is never the sole
+encoding of anything" rule, reasoned as acceptable because the two inks in
+play (`--ink-secondary`/`--ink-disabled`) are both achromatic, so the
+distinction a greyscale simulation or a colour-blind reader loses is a
+LIGHTNESS one, not a hue one, and the actual accessibility question —
+whether that lightness difference alone is a strong enough signal, visually
+or in whatever a screen reader does with a dimmed, non-`aria-disabled`
+paragraph (nothing marks it as disabled in the accessibility tree; it is an
+ordinary, fully-enabled `<p>`) — is unanswered by this task and is not
+mechanically answerable at all.
+
+**Not mechanisable as a check** — all three are questions about what a real
+assistive technology does with real markup, which is the standing item's own
+condition, repeated rather than discharged. **Re-measure**: a person with a
+screen reader on `/securities/NVDA`, pressing `Investigate` to completion,
+listening to the terminal summary, then navigating `Abnormal-move
+indicators`' checklist in browse mode to confirm it reads as a list of six
+reachable items, then pressing `Investigate` a second time and listening for
+whether a stale claim being read aloud (with no "previous run" word attached
+to it) causes any confusion about which run's answer they are hearing.
+
+**Owner: a person with a screen reader, before Epic 11 hands this surface to
+an agent** — the same owner and the same condition every entry in this
+section has carried since the first one.

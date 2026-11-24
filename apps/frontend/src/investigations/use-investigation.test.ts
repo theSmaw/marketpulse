@@ -92,6 +92,13 @@ const stepCompleted = (durationMs: number) => ({
   durationMs,
 });
 
+const findingCreated = (stepId: string, claim: string, confidence: string) => ({
+  type: "FINDING_CREATED",
+  seq: 2,
+  investigationId: "inv-1",
+  finding: { stepId, claim, confidence },
+});
+
 const INVESTIGATION_COMPLETED = {
   type: "INVESTIGATION_COMPLETED",
   seq: 4,
@@ -144,6 +151,13 @@ describe("useInvestigation", () => {
     act(() => {
       stream.push(INVESTIGATION_STARTED);
       stream.push(STEP_STARTED);
+      stream.push(
+        findingCreated(
+          "step-1",
+          "Traded at 184.52 on 12,480 shares in the latest bar",
+          "SUPPORTED",
+        ),
+      );
       stream.push(stepCompleted(5));
       stream.push(INVESTIGATION_COMPLETED);
       stream.end();
@@ -159,15 +173,18 @@ describe("useInvestigation", () => {
     });
     // Under the threshold throughout: the "started" announcement never
     // fires, so the live region speaks exactly once — Done-when 6's first
-    // half.
+    // half. **The terminal utterance is now a confidence-count summary**
+    // (Task 7.3.3, AC 12), not the last-completed step's own sentence.
     expect(result.current.pastCoverThreshold).toBe(false);
-    expect(result.current.announcement).toBe("Measure move complete, 5 ms");
+    expect(result.current.announcement).toBe("1 finding supported");
   });
 
-  it("announces the step the run is AT, not the first row — a two-step run", async () => {
+  it("holds each step's own description and duration independently, and the terminal summary counts BOTH findings — a two-step run", async () => {
     // Task 7.2.7: with six seeded rows, `steps[0]` is the row that finished
-    // FIRST, so a live region keyed on it would report a step that ended
-    // four steps ago as the run's own outcome.
+    // FIRST, so a live region keyed on it alone would report only a step
+    // that ended four steps ago — which the confidence-count summary
+    // (Task 7.3.3) sidesteps entirely by counting the whole run rather than
+    // naming one step.
     const stream = controllableSseStream();
     stubFetch((call) => {
       if (call.url.endsWith("/investigations"))
@@ -187,6 +204,13 @@ describe("useInvestigation", () => {
     act(() => {
       stream.push(INVESTIGATION_STARTED);
       stream.push(STEP_STARTED);
+      stream.push(
+        findingCreated(
+          "step-1",
+          "Traded at 184.52 on 12,480 shares in the latest bar",
+          "SUPPORTED",
+        ),
+      );
       stream.push(stepCompleted(5));
       stream.push({
         type: "STEP_STARTED",
@@ -197,6 +221,13 @@ describe("useInvestigation", () => {
         tool: "calculate_return_percentile",
         startedAt: "2026-11-16T14:00:00.005Z",
       });
+      stream.push(
+        findingCreated(
+          "step-2",
+          "Volume rate — no stored distribution to rank against",
+          "POSSIBLE",
+        ),
+      );
       stream.push({
         type: "STEP_COMPLETED",
         seq: 5,
@@ -221,9 +252,7 @@ describe("useInvestigation", () => {
       description: "Measure price anomaly",
       durationMs: 7,
     });
-    expect(result.current.announcement).toBe(
-      "Measure price anomaly complete, 7 ms",
-    );
+    expect(result.current.announcement).toBe("1 finding supported, 1 possible");
   });
 
   it("crosses the 160ms cover threshold on a slower run, and the live region says so before completion", async () => {
@@ -268,8 +297,13 @@ describe("useInvestigation", () => {
       expect(result.current.checklist?.terminal).toBe(true);
     });
     // The live region's SECOND utterance — Done-when 6's other half: this
-    // run spoke "running" above and "complete" here, twice in total.
-    expect(result.current.announcement).toBe("Measure move complete, 250 ms");
+    // run spoke "running" above and the terminal summary here, twice in
+    // total. No `FINDING_CREATED` was ever pushed, so this is the
+    // zero-findings fallback — this step's own outcome was `inapplicable`,
+    // the one case the summary cannot count.
+    expect(result.current.announcement).toBe(
+      "Investigation complete — no findings produced",
+    );
   });
 
   it("is idempotent: a second press while non-terminal does nothing", async () => {
@@ -333,6 +367,99 @@ describe("useInvestigation", () => {
     });
 
     expect(posts).toBe(2);
+  });
+
+  it("a second press keeps the prior run's claim, marked stale, until that row's own re-completion (AC 11)", async () => {
+    const firstStream = controllableSseStream();
+    const secondStream = controllableSseStream();
+    let posts = 0;
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations")) {
+        posts += 1;
+        return jsonResponse(201, STARTED);
+      }
+      return Promise.resolve(
+        posts === 1 ? firstStream.response : secondStream.response,
+      );
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      firstStream.push(INVESTIGATION_STARTED);
+      firstStream.push(STEP_STARTED);
+      firstStream.push(
+        findingCreated(
+          "step-1",
+          "Traded at 184.52 on 12,480 shares in the latest bar",
+          "SUPPORTED",
+        ),
+      );
+      firstStream.push(stepCompleted(5));
+      firstStream.push(INVESTIGATION_COMPLETED);
+      firstStream.end();
+    });
+    await waitFor(() => {
+      expect(result.current.checklist?.terminal).toBe(true);
+    });
+
+    act(() => {
+      result.current.start();
+    });
+
+    // **Not blanked** — the prior run's claim is still on screen, the whole
+    // reason this test exists: `optimisticChecklist` alone would have reset
+    // this to `undefined` in the same commit.
+    expect(result.current.checklist?.steps[0]).toMatchObject({
+      status: "queued",
+      claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+      confidence: "SUPPORTED",
+      stale: true,
+    });
+
+    await waitFor(() => {
+      expect(posts).toBe(2);
+    });
+
+    act(() => {
+      secondStream.push(INVESTIGATION_STARTED);
+      secondStream.push(STEP_STARTED);
+    });
+
+    // **Still showing, through queued and now running** — AC 11's own
+    // wording: "queued/running states render exactly as they do today
+    // otherwise."
+    await waitFor(() => {
+      expect(result.current.checklist?.steps[0]?.status).toBe("running");
+    });
+    expect(result.current.checklist?.steps[0]).toMatchObject({
+      claim: "Traded at 184.52 on 12,480 shares in the latest bar",
+      stale: true,
+    });
+
+    act(() => {
+      secondStream.push(
+        findingCreated(
+          "step-1",
+          "Traded at 185.10 on 9,200 shares in the latest bar",
+          "SUPPORTED",
+        ),
+      );
+    });
+
+    // **Replaced by this row's own re-completion**, not merely covered.
+    await waitFor(() => {
+      expect(result.current.checklist?.steps[0]?.stale).toBe(false);
+    });
+    expect(result.current.checklist?.steps[0]?.claim).toBe(
+      "Traded at 185.10 on 9,200 shares in the latest bar",
+    );
   });
 
   it("hides the checklist when the page's symbol no longer matches the investigation's own", async () => {
