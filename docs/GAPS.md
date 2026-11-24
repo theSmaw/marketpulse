@@ -6911,16 +6911,20 @@ taken now. **Owner: the first story that adds anything else to this region**
 — Story 7.3 by intent, which inherits the adopted rule rather than re-opening
 the three-way choice.
 
-## `overview-market-topology-burst-absorption.spec.ts` has failed on three separate, documentation-only PRs, each on a different sub-test, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the three
+## `overview-market-topology-burst-absorption.spec.ts` has failed on FOUR separate, documentation-only PRs, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the four
 
 **Added 2026-11-21, found while shipping Story 7.2's close and Story 7.3's
-Gate 1 — neither of which touched any application code.** Three CI `e2e`
-runs failed this story's own work, each on a PR whose diff was Markdown
-only (`STORY.md`/`TASK-NN-*.md` edits, no `apps/`, `packages/` or `scripts/`
-changes), which is the cheapest control this repository's own rule asks
-for before blaming a branch — and it has now been run three times without
-asking for it, by accident, because each PR happened to be doc-only. **A
-different specific test inside the same file failed each time:**
+Gate 1 — neither of which touched any application code.** CI `e2e` runs
+have now failed this story's own work four times, each on a PR whose diff
+was Markdown only (`STORY.md`/`TASK-NN-*.md`/`CLAUDE.md`/`docs/GAPS.md`
+edits, no `apps/`, `packages/` or `scripts/` changes — `git diff --stat
+HEAD~1 HEAD -- apps/ packages/ scripts/ e2e/` returns nothing for the
+fourth, confirmed before writing this), which is the cheapest control
+this repository's own rule asks for before blaming a branch — and it has
+now been run four times without asking for it, by accident, because each
+PR happened to be doc-only. **A specific sub-test inside the same file
+failed each time, and the fourth repeats the first's own sub-test rather
+than finding a new one:**
 
 - PR #698 (run `44504120506`): `overview-market-topology-burst-absorption.
 spec.ts:256:1 › a furnished, narrower population (the pre-6.7.1 ~30)
@@ -6941,18 +6945,34 @@ market-topology-burst-absorption.spec.ts:299:1 › the same 3 bursts are
 absorbed with a BAND FILTER active — Task 6.8.2's own regression arm` —
   a **third** distinct sub-test in the same file. `live-mark` did not
   co-fail this time.
+- PR #707 (run `45354964518`, this story's own close): `overview-market-
+topology-burst-absorption.spec.ts:256:1 › a furnished, narrower population
+(the pre-6.7.1 ~30) absorbs the same 3 bursts, for comparison` — **the
+  same sub-test PR #698 failed on**, not a new one. Verbatim: `furnished arm
+(30 symbols): burst 2 produced a task over 50 ms within 1 s of arriving:
+[{"type":"longtask","ms":51,"at":9409.799999999988}]` — a **different
+  burst index** (2, against #698's 3), a **different channel**
+  (`longtask` against `long-animation-frame`) and a figure **1 ms** over the
+  ceiling, against #698's 6.6 ms over. `live-mark` co-failed again, making it
+  **two of four** rather than two of three.
 
 **The pattern, read honestly rather than smoothed into "it's just flaky."**
-All three sub-tests that failed assert the same thing — zero main-thread
+Every sub-test that has failed asserts the same thing — zero main-thread
 tasks over `PRODUCT_SPEC.md` §28's 50 ms ceiling across three consecutive
-market-stream bursts the test itself furnishes over a mocked socket — on
-three **different** populations (furnished ~30, real 516, band-filtered).
-That the specific sub-test varies while the assertion shape does not is
-the same shape this repository has already recorded once for a different
-spec (`overview-degraded-grid.spec.ts`, above): a length- or timing-
-sensitive test surfacing different concrete symptoms under contention
-rather than one broken assertion. `live-mark`'s co-failure in two of three
-occurrences, always the identical sub-test, is suggestive of shared
+market-stream bursts the test itself furnishes over a mocked socket —
+across three **different** populations (furnished ~30, real 516,
+band-filtered), with the furnished-population sub-test now the one
+repeat. That the specific sub-test varies while the assertion shape does
+not is the same shape this repository has already recorded once for a
+different spec (`overview-degraded-grid.spec.ts`, above): a length- or
+timing-sensitive test surfacing different concrete symptoms under
+contention rather than one broken assertion. **The fourth occurrence is
+the weakest evidence yet for anything but contention**: 1 ms over a 50 ms
+ceiling, on the one run of four whose own job log shows `Browser
+journeys` running 18m15s against this workflow's own documented 69–73 s —
+a run already identified, independently, as under unusual contention
+before this specific test was read. `live-mark`'s co-failure in half of
+all occurrences, always the identical sub-test, is suggestive of shared
 underlying machinery (both specs drive the mocked feed's burst delivery
 and read `PerformanceObserver` timing) but is not itself proof of one.
 
@@ -6977,12 +6997,19 @@ by name — recorded here as the correction rather than repeated silently.
 a property of the CI runner at the moment it ran, not of the product; the
 same ceiling has never been breached on a settled local machine with a
 real GPU (Story 6.7's own 16.7 ms median, `docs/GAPS.md`'s own earlier
-entry on that story). **Three occurrences is still far short of this
+entry on that story). **Four occurrences is still far short of this
 repository's own n = 24 floor** for telling a measured flake rate from a
 regression, and — the one solid piece of evidence available without a
-database — **zero application code changed across all three**, which is
+database — **zero application code changed across all four**, which is
 the strongest argument available that this is CI-runner variance in a
 50 ms-ceiling test rather than anything introduced by Epic 7's own work.
+The fourth occurrence adds a second, independent piece of evidence this
+entry did not have before: the SAME run's own job log shows `Browser
+journeys` taking 18m15s against this workflow's own documented 69–73 s
+(this file's own separate entry on that), so the runner this specific
+failure happened on was already measurably, unusually slow before this
+test was ever read — contention named by a second, independent channel
+rather than only inferred from the failure itself.
 
 **Re-measure**: the first person with a local PostgreSQL reachable
 (`pnpm db && pnpm migrate && pnpm universe`) should run `pnpm e2e
