@@ -61,6 +61,21 @@ only draw a figure on a store with bars during a session, and one of them
 can never draw one on any store that exists — `docs/GAPS.md` carries the
 step-by-step table.
 
+**Amended 2026-11-24 (Story 7.3 complete, Task 7.3.4): _no `Finding` or
+`Evidence` rendered on screen_ is now false, and it is the sentence that
+changed.** Every completed row now draws its own `Finding.claim` on a
+second line, led by a `ConfidenceMark` reading the finding's own
+confidence level — `SUPPORTED`/`POSSIBLE`/`UNKNOWN` today,
+`CONFIRMED` reserved with no producer until Epic 9's filings. §12 is this
+story's own account. What is still true, verbatim: no cancellation that
+does anything (Story 7.5), no reader-facing sentence for a failure (Story
+7.5), no landing-page region (Story 7.6), no persistence past a restart
+(Epic 12). And `Evidence` itself — the record backing an evidenced
+finding, with its source, timestamps and raw-data reference — is still
+**not** rendered anywhere: a claim's confidence level is drawn, the
+evidence that licenses it is not, which is Epic 8's evidence panel by
+citation, unchanged from this document's own first sentence.
+
 ## 1. The domain model, and what is reachable from this story alone
 
 `Investigation` and `Step` are **two separate status vocabularies**
@@ -668,3 +683,110 @@ reversal condition is stated at the constant. `docs/GAPS.md` carries it.
 suite. And on CI's zero-bar store **five of the six rows draw a refusal
 claim**, which makes the refusal grammar the shipped product for every gated
 run and the measured claims the thing only a real deployment will show.
+
+## 12. Story 7.3, Tasks 7.3.2–7.3.4 — the confidence mark, the second press, and the close
+
+### 12.1 The confidence mark: no filled chip, zero colour, nothing shared with `AnomalyBadge`
+
+`ConfidenceMark` (Task 7.3.2) draws a confidence level as `microLabel` text
+beside a 12px leading rule whose **stroke style** carries the level —
+solid 2px `CONFIRMED`, solid 1px `SUPPORTED`, dashed `POSSIBLE`, dotted
+`UNKNOWN` — reusing this product's own existing "dashed means we don't
+know" vocabulary (the chart's coverage edge, this checklist's own queued
+glyph) rather than inventing a fifth meaning for a shape. **No background,
+no border box, no `min-width`, and zero colour tokens spent**: designer and
+ux-architect converged independently on this shape at Story 7.3's Gate 1,
+because `AnomalyBadge` sits roughly 12px below this checklist on the same
+screen (`SecurityExplorer.tsx` renders `InvestigationChecklist` then
+`AbnormalMove` as direct siblings) and a second filled chip in the same
+screen's second colour-spending position would read as a second risk
+meter. Two `pnpm invariants` entries hold the separation mechanically —
+`confidence-and-band-never-share-a-component` (no import or `composes:`
+crossing between the two in either direction) and
+`the-confidence-mark-spends-no-fill-and-no-colour` (no `background`, no
+`min-width`, no read of the anomaly ramp) — each with a `pnpm break`.
+
+The accessible string is the **long form**, `Confidence: SUPPORTED`, via a
+visually-hidden prefix and the one visible word: the two marks sit close
+enough on screen that a bare level name is ambiguous between _how unusual_
+(the band) and _how well evidenced_ (the confidence level), which is
+exactly the collision invariant 5 and `ANOMALY.md` both warn against under
+a different name.
+
+### 12.2 Second-press persistence: a `stale` flag, mirroring `bar-series-view.ts`'s own idiom
+
+Before Task 7.3.3, pressing `Investigate` a second time reset every row to
+`optimisticChecklist`'s blank placeholder — correct for a first press, and
+exactly the case ADR 0028 forbids by name the moment a row carries a real
+finding rather than a never-yet-answered one. `resetForNewRun` now carries
+a `claim`/`confidence` forward, marked `stale: true`, through the row's own
+queued and running states — `STEP_STARTED`'s reducer case changed from
+rebuilding the row from scratch to spreading the existing one, which is
+the one change that lets the stale claim survive a run's own first event
+— until that row's own `FINDING_CREATED` or `STEP_COMPLETED` replaces it.
+`ConfidenceMark`'s own `stale` prop and the claim paragraph's `.claimStale`
+class dim the ink to `--ink-disabled` through one CSS declaration on each
+(the rule's border is `currentColor` and neither sibling sets its own
+colour, so one override dims the whole mark via inheritance).
+
+**A real edge case found and fixed in the same change**: a row carrying a
+stale claim forward whose outcome THIS run is `inapplicable` — no
+`FINDING_CREATED` ever arrives for it — would otherwise keep showing the
+PREVIOUS run's claim as current. `STEP_COMPLETED` now checks whether
+`stale` is still `true` at completion (which it only is if
+`FINDING_CREATED` never fired this run, since that event always precedes
+`STEP_COMPLETED` and clears the flag itself) and drops the claim in that
+one case, caught by a dedicated unit test before it could reach a browser.
+
+### 12.3 The live region: a confidence-count summary, not a transcript
+
+`liveRegionText`'s terminal branch spoke only the LAST-completed step's
+own sentence — one of six findings in a run that typically completes in
+single-digit milliseconds a step. It now speaks a count by confidence
+level, in `CONFIDENCE_LEVELS` order (`CONFIRMED` silently absent, no
+producer in this epic): `4 findings supported, 2 unknown`, or
+`Investigation complete — no findings produced` where every step was
+`inapplicable`. The pre-terminal running-step announcement is unchanged.
+
+### 12.4 The checklist is a `<ul>`/`<li>`
+
+The checklist's markup moved from a `<div>` of `<div>`s to a `<ul>` of
+`<li>`s — no visual change (`.checklist` resets the list's own default
+marker, margin and padding) — so a browse-mode screen reader can reach
+each step's description, claim and confidence together as one of six
+reachable items rather than as an undifferentiated run of paragraphs.
+
+### 12.5 What is owed, and what no screen reader has heard
+
+**AC 5b — the confidence mark and the band chip, together, in greyscale —
+could not be taken as the criterion asks.** Two compounding reasons: no
+database was reachable on the machine this task was built on, so
+`AnomalyBadge` never drew a real band at all (CI's and this developer's own
+zero-bar store renders only the honest `0 of 3 factors` absence, which
+draws no chip); and no screen in this product yet puts the two in **one
+row** together — today they are vertically stacked siblings
+(`InvestigationChecklist` then `AbnormalMove`), and the literal one-row
+arrangement AC 5b's own wording describes is Epic 8's evidence panel,
+unbuilt. What was checked instead, from the two components' own
+stylesheets rather than a photograph: every `AnomalyBadge` state draws a
+fixed-`min-width` rectangular box (filled for `elevated`/`high`/`extreme`,
+bordered for `normal`), and `ConfidenceMark` draws neither a box nor a
+border nor a `min-width` at all — a shape difference enforced by
+`the-confidence-mark-spends-no-fill-and-no-colour`, independent of hue,
+but **reasoned from the stylesheets rather than confirmed by a human
+looking at a rendered screen**, which is what AC 5b actually asks for.
+`docs/GAPS.md` carries the owed re-measure, owned by Epic 8.
+
+**Neither of Task 7.3.3's two repairs — the confidence-count summary, the
+`<ul>`/`<li>` restructuring — nor the stale-claim dimming has been heard
+or navigated by a real screen reader.** This product has never taken a
+real browse-mode pass against any region; `docs/GAPS.md`'s standing
+screen-reader item gains its twelfth entry here.
+
+**What Story 7.3 leaves reachable, stated plainly**: a real `Finding` per
+step, drawn as a one-line claim with its confidence level, on every
+completed row, surviving a second press rather than being blanked by one.
+**What it does not reach**: `Evidence` itself (the record licensing an
+evidenced finding) is not rendered anywhere, rejecting a finding and
+asking a follow-up both need a model this epic does not run, and nothing
+here has been confirmed against a real screen reader or a real deployment.
