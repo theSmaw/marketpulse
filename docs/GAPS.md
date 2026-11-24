@@ -6742,6 +6742,25 @@ intent (findings), though the condition is deliberately the surface rather than
 the story number, because a step's outcome word could equally arrive on the
 checklist row itself before a finding exists.
 
+**Discharged 2026-11-24 by Story 7.3, found while sweeping this entry at
+Task 7.3.4's own close rather than claimed in advance.** The condition named
+above fired, named by the surface rather than guessed at by a story number
+exactly as it was written to be: every completed row now draws a second
+line — the claim — for both `ok` and `refused`, and draws **nothing** for
+`inapplicable`, which `ChecklistStepView.claim`'s own docblock states as a
+deliberate three-way split rather than one case collapsed into another.
+`XLK`'s own `compare_securities` step (`inapplicable`, `because:
+"is-benchmark"`) now shows a bare completed tick with no second line; an
+equity with a thin window (`refused`) shows the tick **and** a sentence
+("Measure price anomaly — too little history to rank it"). The two are no
+longer byte-identical, which is this entry's own stated re-measure. **What
+this does NOT claim**: the distinction is implicit (a line present against a
+line absent) rather than an explicit word naming `inapplicable` by name, and
+whether that implicit shape reads as clearly as a stated word to someone who
+has not read this document is the kind of question the standing
+screen-reader item already asks for every other surface in this product —
+unconfirmed here too, for the same reason.
+
 ## Four of the pipeline's six steps can never draw a figure on a gated machine, and the fifth draws an `ok` whose every count is zero
 
 **Added 2026-11-20 by Task 7.2.7**, as the pipeline's own completion made the
@@ -6892,16 +6911,20 @@ taken now. **Owner: the first story that adds anything else to this region**
 — Story 7.3 by intent, which inherits the adopted rule rather than re-opening
 the three-way choice.
 
-## `overview-market-topology-burst-absorption.spec.ts` has failed on three separate, documentation-only PRs, each on a different sub-test, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the three
+## `overview-market-topology-burst-absorption.spec.ts` has failed on FOUR separate, documentation-only PRs, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the four
 
 **Added 2026-11-21, found while shipping Story 7.2's close and Story 7.3's
-Gate 1 — neither of which touched any application code.** Three CI `e2e`
-runs failed this story's own work, each on a PR whose diff was Markdown
-only (`STORY.md`/`TASK-NN-*.md` edits, no `apps/`, `packages/` or `scripts/`
-changes), which is the cheapest control this repository's own rule asks
-for before blaming a branch — and it has now been run three times without
-asking for it, by accident, because each PR happened to be doc-only. **A
-different specific test inside the same file failed each time:**
+Gate 1 — neither of which touched any application code.** CI `e2e` runs
+have now failed this story's own work four times, each on a PR whose diff
+was Markdown only (`STORY.md`/`TASK-NN-*.md`/`CLAUDE.md`/`docs/GAPS.md`
+edits, no `apps/`, `packages/` or `scripts/` changes — `git diff --stat
+HEAD~1 HEAD -- apps/ packages/ scripts/ e2e/` returns nothing for the
+fourth, confirmed before writing this), which is the cheapest control
+this repository's own rule asks for before blaming a branch — and it has
+now been run four times without asking for it, by accident, because each
+PR happened to be doc-only. **A specific sub-test inside the same file
+failed each time, and the fourth repeats the first's own sub-test rather
+than finding a new one:**
 
 - PR #698 (run `44504120506`): `overview-market-topology-burst-absorption.
 spec.ts:256:1 › a furnished, narrower population (the pre-6.7.1 ~30)
@@ -6922,18 +6945,34 @@ market-topology-burst-absorption.spec.ts:299:1 › the same 3 bursts are
 absorbed with a BAND FILTER active — Task 6.8.2's own regression arm` —
   a **third** distinct sub-test in the same file. `live-mark` did not
   co-fail this time.
+- PR #707 (run `45354964518`, this story's own close): `overview-market-
+topology-burst-absorption.spec.ts:256:1 › a furnished, narrower population
+(the pre-6.7.1 ~30) absorbs the same 3 bursts, for comparison` — **the
+  same sub-test PR #698 failed on**, not a new one. Verbatim: `furnished arm
+(30 symbols): burst 2 produced a task over 50 ms within 1 s of arriving:
+[{"type":"longtask","ms":51,"at":9409.799999999988}]` — a **different
+  burst index** (2, against #698's 3), a **different channel**
+  (`longtask` against `long-animation-frame`) and a figure **1 ms** over the
+  ceiling, against #698's 6.6 ms over. `live-mark` co-failed again, making it
+  **two of four** rather than two of three.
 
 **The pattern, read honestly rather than smoothed into "it's just flaky."**
-All three sub-tests that failed assert the same thing — zero main-thread
+Every sub-test that has failed asserts the same thing — zero main-thread
 tasks over `PRODUCT_SPEC.md` §28's 50 ms ceiling across three consecutive
-market-stream bursts the test itself furnishes over a mocked socket — on
-three **different** populations (furnished ~30, real 516, band-filtered).
-That the specific sub-test varies while the assertion shape does not is
-the same shape this repository has already recorded once for a different
-spec (`overview-degraded-grid.spec.ts`, above): a length- or timing-
-sensitive test surfacing different concrete symptoms under contention
-rather than one broken assertion. `live-mark`'s co-failure in two of three
-occurrences, always the identical sub-test, is suggestive of shared
+market-stream bursts the test itself furnishes over a mocked socket —
+across three **different** populations (furnished ~30, real 516,
+band-filtered), with the furnished-population sub-test now the one
+repeat. That the specific sub-test varies while the assertion shape does
+not is the same shape this repository has already recorded once for a
+different spec (`overview-degraded-grid.spec.ts`, above): a length- or
+timing-sensitive test surfacing different concrete symptoms under
+contention rather than one broken assertion. **The fourth occurrence is
+the weakest evidence yet for anything but contention**: 1 ms over a 50 ms
+ceiling, on the one run of four whose own job log shows `Browser
+journeys` running 18m15s against this workflow's own documented 69–73 s —
+a run already identified, independently, as under unusual contention
+before this specific test was read. `live-mark`'s co-failure in half of
+all occurrences, always the identical sub-test, is suggestive of shared
 underlying machinery (both specs drive the mocked feed's burst delivery
 and read `PerformanceObserver` timing) but is not itself proof of one.
 
@@ -6958,12 +6997,19 @@ by name — recorded here as the correction rather than repeated silently.
 a property of the CI runner at the moment it ran, not of the product; the
 same ceiling has never been breached on a settled local machine with a
 real GPU (Story 6.7's own 16.7 ms median, `docs/GAPS.md`'s own earlier
-entry on that story). **Three occurrences is still far short of this
+entry on that story). **Four occurrences is still far short of this
 repository's own n = 24 floor** for telling a measured flake rate from a
 regression, and — the one solid piece of evidence available without a
-database — **zero application code changed across all three**, which is
+database — **zero application code changed across all four**, which is
 the strongest argument available that this is CI-runner variance in a
 50 ms-ceiling test rather than anything introduced by Epic 7's own work.
+The fourth occurrence adds a second, independent piece of evidence this
+entry did not have before: the SAME run's own job log shows `Browser
+journeys` taking 18m15s against this workflow's own documented 69–73 s
+(this file's own separate entry on that), so the runner this specific
+failure happened on was already measurably, unusually slow before this
+test was ever read — contention named by a second, independent channel
+rather than only inferred from the failure itself.
 
 **Re-measure**: the first person with a local PostgreSQL reachable
 (`pnpm db && pnpm migrate && pnpm universe`) should run `pnpm e2e
@@ -7234,3 +7280,57 @@ to it) causes any confusion about which run's answer they are hearing.
 **Owner: a person with a screen reader, before Epic 11 hands this surface to
 an agent** — the same owner and the same condition every entry in this
 section has carried since the first one.
+
+## AC 5b — the confidence mark beside the band chip, in greyscale — was never photographed, on two compounding grounds rather than one
+
+**Added 2026-11-24 by Task 7.3.4, Story 7.3's own close.** AC 5 named a
+measured check: with `ConfidenceMark` and `AnomalyBadge` both drawn for
+real, confirm by looking — not by arguing — that the two are
+distinguishable by shape and stroke alone, in greyscale, at all four
+widths. `ANOMALY.md` §0 and this repository's own standing lesson (_four
+greyscale simulations once passed against a chart that was wrong_) are
+exactly why "I read both stylesheets and the shapes clearly differ" is not
+the check AC 5b asks for, however correct the reasoning — only a rendered
+screen, actually looked at, is.
+
+**Two reasons it could not be taken here, and they are independent —
+closing one would not have closed the other.** First: no Docker on this
+machine (the whole session's own standing constraint), so no database, so
+`AnomalyBadge` never draws a real band — CI's and every fresh store's own
+permanent `0 of 3 factors` state renders no chip at all, for the same
+reason Epic 5's own composite score needs stored daily closes it does not
+have here. Second, and the one that would hold even with a database: **no
+screen in this product yet draws the two in one ROW**, which is AC 5b's
+own literal word. Today's `/securities/NVDA` stacks them as vertical
+siblings — `InvestigationChecklist` then `AbnormalMove`,
+`SecurityExplorer.tsx`'s own render order — roughly 12px apart, which is
+close but is a column, not a row. The one-row arrangement is Epic 8's
+evidence panel, unbuilt.
+
+**What was checked instead, and what it does and does not establish.**
+Read from `AnomalyBadge.module.css` and `ConfidenceMark.module.css`
+directly: every band state draws a fixed-`min-width` (`6rem`) rectangular
+box — filled for `elevated`/`high`/`extreme`, bordered for `normal` — and
+`ConfidenceMark` draws no box, no border and no `min-width` at all, a
+`the-confidence-mark-spends-no-fill-and-no-colour`-enforced structural
+fact rather than a stylistic one. That is a real, mechanically-held
+guarantee about the two components' SHAPES in isolation. It is **not** a
+confirmation that the two, rendered together at a real width with a real
+level and a real band, read as distinguishable to a person looking at
+them — stylesheets do not compose the way a reader's eye does, and this
+repository's own greyscale lesson exists because a reasoned argument and a
+looked-at screen have disagreed before.
+
+**Re-measure**: the first developer with a populated local store
+(`pnpm backfill` against stored daily closes is enough for the excess
+factor alone — `ANOMALY.md` §0's own note that a composite score draws on
+an ordinary laptop) presses `Investigate` on a security with a real,
+non-`normal` composite band, photographs `/securities/<symbol>` at all
+four widths in `grayscale(1)`, and states plainly whether the stacked
+mark-then-chip pair reads as two different facts or as one ambiguous
+ramp. The literal one-row AC 5b condition is a second, later re-measure,
+against Epic 8's evidence panel once it exists.
+
+**Owner: Epic 8**, whose evidence panel is the first surface that will
+ever put the two in one row — until then, the column arrangement above is
+the nearest re-measure available and is itself unwatched.
