@@ -478,3 +478,32 @@ describe("a second press's stale claim (Task 7.3.3, AC 11)", () => {
     );
   });
 });
+
+describe("an inapplicable row (Task 7.3.5, AC 3)", () => {
+  const INAPPLICABLE: ChecklistState = {
+    ...COMPLETED,
+    steps: COMPLETED.steps.map((step) => ({
+      ...step,
+      claim: "Sector comparison — it is the sector benchmark itself",
+      confidence: undefined,
+    })),
+  };
+
+  it("draws the inapplicability's own sentence, with NO confidence mark at all", () => {
+    render(
+      <InvestigationChecklist
+        checklist={INAPPLICABLE}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(
+      screen.getByText(/it is the sector benchmark itself/u).textContent,
+    ).toBe("Sector comparison — it is the sector benchmark itself");
+    // No `ConfidenceMark` at all — not even a dimmed or stale one. `because`
+    // is a structural fact, never evidence, and AC 3's own refusal to let
+    // it collapse onto `UNKNOWN` means there is no level to draw here.
+    expect(screen.queryByText("Confidence:")).toBeNull();
+  });
+});

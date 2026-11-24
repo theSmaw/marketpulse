@@ -7,7 +7,15 @@
 // that story rewriting this file.
 
 import type { WireInvestigationEvent } from "./investigation-event.js";
-import type { Confidence } from "@marketpulse/shared";
+import {
+  FINDING_TYPE_FOR_TOOL,
+  TOOL_INAPPLICABILITIES,
+  TOOL_NAMES,
+  inapplicableClaim,
+  type Confidence,
+  type ToolInapplicability,
+  type ToolName,
+} from "@marketpulse/shared";
 
 export type ChecklistStepStatus = "queued" | "running" | "completed";
 
@@ -180,6 +188,20 @@ export function withInvestigationId(
   return { ...state, investigationId };
 }
 
+/** `investigation-event.ts`'s own `isConfidence` idiom, one vocabulary over:
+ * the wire duplicates `ToolName` as a bare `string` (it is a fact about
+ * JSON, not about the domain object), so this reducer narrows it before
+ * using it as a typed index. */
+function isToolName(value: string): value is ToolName {
+  return (TOOL_NAMES as readonly string[]).includes(value);
+}
+
+/** Same idiom, for `WireToolOutcome`'s `because` field on an `inapplicable`
+ * outcome. */
+function isToolInapplicability(value: string): value is ToolInapplicability {
+  return (TOOL_INAPPLICABILITIES as readonly string[]).includes(value);
+}
+
 function updateStep(
   steps: readonly ChecklistStepView[],
   stepId: string,
@@ -249,23 +271,56 @@ export function applyInvestigationEvent(
       // story's own finer-grained UI (a step with more than one tool call).
       return state;
 
-    case "TOOL_CALL_COMPLETED":
-      // **Corrected 2026-11-23 (Task 7.3.1): the outcome's reader has
-      // arrived, and it is not here.** This case used to say *this event's
-      // `outcome` is Story 7.3's own future reader*, which was true and is
-      // now misleading in a way that would send the next author to the wrong
-      // file: the reader is the **backend's** own `toFinding`, which derives
-      // a claim from the tool's TYPED output before the erasure to
-      // `JsonValue` — invariant 1, since a browser assembling a sentence from
-      // a wire record would be a second producer of a figure nobody can
-      // eyeball.
+    case "TOOL_CALL_COMPLETED": {
+      // **Corrected 2026-11-23 (Task 7.3.1), and corrected again 2026-11-24
+      // (Task 7.3.5), on two different mistakes about the same case.** The
+      // first correction was right about `ok`/`refused`: the reader for
+      // those is the **backend's** own `toFinding`, which derives a claim
+      // from the tool's TYPED output before the erasure to `JsonValue` —
+      // invariant 1, since a browser assembling a sentence from a wire
+      // record would be a second producer of a figure nobody can eyeball.
+      // That part is unchanged: `ok` and `refused` still change nothing
+      // here, because what they draw is `FINDING_CREATED`'s own claim,
+      // arriving on its own event a moment later.
       //
-      // This checklist still changes nothing here, for a narrower reason than
-      // the old comment gave: what it draws is `FINDING_CREATED`'s claim,
-      // which arrives on its own event a moment later. The step is already
-      // `running` since `STEP_STARTED`, and this event exists for a later
-      // story's finer-grained UI (a step with more than one tool call).
-      return state;
+      // **What was wrong is `inapplicable`.** Story 7.3's own Gate 1 settled
+      // "the row draws the inapplicability's own sentence with no
+      // confidence mark at all" — and `inapplicable` mints no `Finding` at
+      // all (AC 3's own refusal to let *the question does not arise*
+      // collapse onto `UNKNOWN`), so there is no `FINDING_CREATED` coming
+      // for this row, ever. The claim has to be built HERE, from this
+      // event's own closed, already-known `because` word — never a figure,
+      // never invariant 1's concern, because nothing was measured.
+      if (event.outcome.kind !== "inapplicable") return state;
+
+      const tool = isToolName(event.tool) ? event.tool : undefined;
+      const because = isToolInapplicability(event.outcome.because)
+        ? event.outcome.because
+        : undefined;
+      // Defensive rather than reachable in practice: both come off this
+      // product's OWN wire, and `tool` is validated by `STEP_STARTED` three
+      // events earlier for the same step. A sentence this bundle cannot
+      // build is a silent no-op — the same shape as a confidence level it
+      // does not recognise (`investigation-event.ts`'s own decoder case) —
+      // rather than a thrown error over a cosmetic sentence.
+      if (tool === undefined || because === undefined) return state;
+
+      return {
+        ...state,
+        steps: updateStep(state.steps, event.stepId, (step) => ({
+          ...step,
+          claim: inapplicableClaim(FINDING_TYPE_FOR_TOOL[tool], because),
+          // **Explicit, not merely the default** — a stale carried-forward
+          // claim (Task 7.3.3) can bring a REAL confidence level with it
+          // (`SUPPORTED`, say), and spreading `...step` alone would leave
+          // that stale confidence sitting beside this run's own claim,
+          // which has none. Caught by this task's own test before it
+          // reached a browser.
+          confidence: undefined,
+          stale: false,
+        })),
+      };
+    }
 
     case "FINDING_CREATED":
       // **Keyed on the FINDING's own `stepId`**, which is the one home for

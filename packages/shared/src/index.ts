@@ -797,8 +797,10 @@ export type {
 // a 72-character ceiling.
 export {
   FINDING_SUBJECTS,
+  TOOL_INAPPLICABILITY_CLAIMS,
   TOOL_REFUSAL_CLAIMS,
   breadthClaim,
+  inapplicableClaim,
   refusalClaim,
 } from "./finding-claim.js";
 export type {
