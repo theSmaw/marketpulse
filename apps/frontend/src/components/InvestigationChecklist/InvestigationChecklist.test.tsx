@@ -5,7 +5,7 @@
 // the live region's own content. Shape-level verification (dashed vs. ring,
 // in greyscale) is this component's own stories file and the browser suite.
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { ChecklistState } from "../../investigations/index.js";
@@ -253,7 +253,18 @@ describe("InvestigationChecklist", () => {
   });
 });
 
-describe("the claim (Task 7.3.1)", () => {
+describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
+  /** The claim line of the one completed row in {@link COMPLETED}. The whole
+   * line rather than the sentence alone, because the mark and the claim share
+   * one `<p>` — which is the structure under test. */
+  const claimLine = () => {
+    const line = screen
+      .getAllByText(/Traded at 184\.52/u)
+      .find((element) => element.tagName === "P");
+    if (line === undefined) throw new Error("expected a claim line");
+    return line;
+  };
+
   it("draws the claim as a second line on a row that has one", () => {
     render(
       <InvestigationChecklist
@@ -263,9 +274,52 @@ describe("the claim (Task 7.3.1)", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Traded at 184.52 on 12,480 shares in the latest bar"),
-    ).toBeTruthy();
+    expect(claimLine().textContent).toContain(
+      "Traded at 184.52 on 12,480 shares in the latest bar",
+    );
+  });
+
+  it("leads the claim with the confidence mark, spoken in its long form and separated by a real space", () => {
+    // **The space is the assertion, and it is the defect this product has
+    // already repaired twice** (`ScoreBand`'s figure, `AbnormalMove`'s
+    // percentile cell): the separation on screen is a flex `gap`, which a
+    // screen reader cannot see, so without the explicit `{" "}` a listener
+    // hears `SUPPORTEDTraded at 184.52…`. Asserted as the CONCATENATION the
+    // whole line hands a screen reader rather than per element.
+    render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(claimLine().textContent).toBe(
+      "Confidence: SUPPORTED Traded at 184.52 on 12,480 shares in the latest bar",
+    );
+  });
+
+  it("draws the claim with no mark where the confidence is one this bundle does not know", () => {
+    // A reachable, correct state rather than a defect: the decoder drops an
+    // unrecognised level without dropping the claim with it, so the claim is
+    // what the reader came for and the mark is absent rather than guessed.
+    render(
+      <InvestigationChecklist
+        checklist={{
+          ...COMPLETED,
+          steps: COMPLETED.steps.map((step) => ({
+            ...step,
+            confidence: undefined,
+          })),
+        }}
+        announcement=""
+        pastCoverThreshold={false}
+      />,
+    );
+
+    expect(claimLine().textContent).toBe(
+      "Traded at 184.52 on 12,480 shares in the latest bar",
+    );
   });
 
   it("draws NOTHING where a row has no claim — absent rather than empty", () => {
@@ -307,14 +361,33 @@ describe("the claim (Task 7.3.1)", () => {
       ),
     ).toHaveLength(0);
 
-    const claim = screen.getByText(
-      "Traded at 184.52 on 12,480 shares in the latest bar",
-    );
+    const claim = claimLine();
     expect(claim.tagName).toBe("P");
     expect(claim.getAttribute("tabindex")).toBeNull();
     expect(claim.getAttribute("role")).toBeNull();
-    // A click handler is not readable from the DOM, so the tag is the
-    // assertion: a `<p>` React rendered with no `onClick` has no listener,
-    // and a `<button>` or a `[tabindex]` would have failed the query above.
+
+    // **And nothing inside the claim line either, which is the half the
+    // confidence mark added** (Task 7.3.2). The mark is three `<span>`s; a
+    // next author reaching for *click the mark to see the evidence* would add
+    // the first interactive element this row has ever had.
+    expect(
+      claim.querySelectorAll(
+        "a, button, input, select, textarea, [tabindex], [role]",
+      ),
+    ).toHaveLength(0);
+
+    // A click handler is not readable from the DOM — React delegates at the
+    // root and sets no attribute — so what is asserted instead is that
+    // clicking and keying every element in the row leaves the markup
+    // byte-identical. That catches the handler a next author would actually
+    // write (one that opens or focuses something) and not one that only calls
+    // out; the tags above are the rest of the claim.
+    const before = container.innerHTML;
+    for (const element of container.querySelectorAll("*")) {
+      fireEvent.click(element);
+      fireEvent.keyDown(element, { key: "Enter" });
+    }
+
+    expect(container.innerHTML).toBe(before);
   });
 });

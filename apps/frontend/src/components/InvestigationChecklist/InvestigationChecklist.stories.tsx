@@ -1,3 +1,5 @@
+import type { Confidence } from "@marketpulse/shared";
+import { CLAIM_CEILING, CONFIDENCE_LEVELS } from "@marketpulse/shared";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import type { ChecklistState } from "../../investigations/index.js";
@@ -194,6 +196,58 @@ const wholePipelineQueued: ChecklistState = {
     claim: undefined,
     confidence: undefined,
   })),
+};
+
+/**
+ * **The probe target AC 6's ceiling was taken against — the worst case, not an
+ * edge case.**
+ *
+ * Every row completed, every claim exactly `CLAIM_CEILING` characters, and all
+ * four confidence levels drawn including the one with no producer in this epic.
+ * The tail is `·` rather than words so that the line is at the ceiling **by
+ * construction** and cannot drift if that constant moves: the longest claim the
+ * six shipped `toFinding` functions can actually produce is 66 characters
+ * (`Market correlation — the benchmark’s history crosses a price break`,
+ * measured over the full cross-product of `FINDING_TYPES` and
+ * `TOOL_REFUSAL_CLAIMS` at Task 7.3.2), and this story pads that to the bound
+ * so the probe measures the worst line the mint will ever permit rather than
+ * the worst one it happens to emit today.
+ *
+ * Refusal claims are the longest sentences this product draws and a zero-bar
+ * store refuses every step, which is why the empty store is the measurement's
+ * worst case — and why these six rows, rather than `WholePipeline`'s, are what
+ * `pnpm probe` was pointed at.
+ */
+const atTheCeiling = (level: Confidence): string =>
+  "Market correlation — the benchmark’s history crosses a price break".padEnd(
+    CLAIM_CEILING,
+    `·${level.slice(0, 1).toLowerCase()}`,
+  );
+
+const ceilingClaims: ChecklistState = {
+  ...wholePipeline,
+  steps: wholePipeline.steps.map((step, index) => {
+    const level =
+      CONFIDENCE_LEVELS[index % CONFIDENCE_LEVELS.length] ?? "UNKNOWN";
+    return {
+      ...step,
+      id: `step-${String(index + 1)}`,
+      description: step.description ?? "Calculate return correlation",
+      status: "completed" as const,
+      durationMs: 1,
+      claim: atTheCeiling(level),
+      confidence: level,
+    };
+  }),
+  terminal: true,
+};
+
+export const ClaimsAtTheCeiling: Story = {
+  args: {
+    checklist: ceilingClaims,
+    announcement: "",
+    pastCoverThreshold: false,
+  },
 };
 
 export const Queued: Story = {

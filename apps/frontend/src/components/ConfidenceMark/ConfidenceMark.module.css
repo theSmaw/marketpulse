@@ -1,0 +1,103 @@
+/*
+ * The confidence mark: a 12px leading rule whose STROKE carries the level, and
+ * the level's own word beside it.
+ *
+ * **No `background`, no border box, no `min-width`, and no colour at all** —
+ * the four levels differ only in the rule's stroke style and weight, and the
+ * ink is `--ink-secondary` on every one of them. That is not a preference: this
+ * mark sits about 12px from `AnomalyBadge`'s filled amber lozenge from Epic 8
+ * onward, and the two must be distinguishable at a glance rather than by their
+ * labels. `pnpm invariants` holds it in two entries rather than this comment.
+ *
+ * Nothing here is composed from `AnomalyBadge.module.css` or `Badge.module.css`
+ * and nothing imports them — see `ConfidenceMark.tsx`'s header.
+ */
+
+.mark {
+  composes: microLabel from "../../styles/type.module.css";
+  display: inline-flex;
+  align-items: center;
+
+  /*
+   * **The gap is for the eye and the `{" "}` in the markup is for the
+   * listener**, and they are two separate mechanisms for one separation — a
+   * flex `gap` is invisible to a screen reader, which is the defect this
+   * product has already repaired twice (`ScoreBand`'s figure, `AbnormalMove`'s
+   * percentile cell). An anonymous flex item holding only white space is not
+   * rendered (CSS Flexbox §4), so the markup's space costs no layout and this
+   * `gap` is the whole visible separation.
+   */
+  gap: var(--space-4);
+  color: var(--ink-secondary);
+}
+
+/*
+ * The rule. A zero-height box with one border edge rather than a `<hr>` or a
+ * background strip: a background would be the one declaration this mark is
+ * forbidden to carry, and a border is the only property with a `style` axis to
+ * spend — which is the whole encoding.
+ *
+ * `currentColor` rather than a token, for `.stateMark`'s own reason one layer
+ * up: the rule belongs to the run of text it annotates and must not shout over
+ * it. It is a keyword rather than a colour literal, so it spends nothing the
+ * invariant counts.
+ *
+ * `--space-12` is the 12px the design decision names, taken from the spacing
+ * grid rather than written as a length — the same rule `Marker.module.css`
+ * follows for its own 8px dot.
+ */
+.rule {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--space-12);
+  block-size: 0;
+  border-block-start: var(--border-width) solid currentColor;
+
+  /* A zero-height box aligns its own centre nowhere useful beside 11px type;
+     one pixel up puts the stroke against the word's x-height rather than under
+     its baseline. `.stateMark`'s own hand-nudge, one shape over. */
+  transform: translateY(-1px);
+}
+
+/*
+ * --- The four strokes ---
+ *
+ * Declared after `.rule` in this file on purpose: `composes` is not involved,
+ * these classes land beside it through `cx()`, and which declaration wins is
+ * decided by STYLESHEET ORDER rather than by which rule it was written in.
+ *
+ * The ladder runs solid → solid → dashed → dotted, with weight carrying the
+ * step `style` cannot: `CONFIRMED` and `SUPPORTED` are both solid and would
+ * otherwise be one treatment.
+ */
+
+/* Reserved, no producer in this epic — see `ConfidenceMark.tsx`. */
+.confirmed {
+  border-block-start-width: calc(var(--border-width) * 2);
+}
+
+/* The base stroke, spelled out rather than left to `.rule` alone, so all four
+   levels read as four declarations in one ladder and a reader does not have to
+   notice an absence to find the second one. */
+.supported {
+  border-block-start-style: solid;
+}
+
+/* **Dashed already means "not yet" in this product** — the chart's coverage
+   edge, and this very checklist's own queued glyph. */
+.possible {
+  border-block-start-style: dashed;
+}
+
+.unknown {
+  border-block-start-style: dotted;
+}
+
+/* The level's word. It carries `microLabel` through `.mark` above (one
+   `composes` for the whole mark rather than one per part) and needs nothing of
+   its own beyond refusing to be squeezed: at 390 the claim beside it wraps and
+   the word must not. */
+.word {
+  flex: none;
+  white-space: nowrap;
+}
