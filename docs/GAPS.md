@@ -6979,6 +6979,73 @@ a red run of either is to check whether the failing PR touched any
 application code at all before treating the failure as news, and to stop
 at that check rather than re-running CI to make the signal go away.
 
+## A full `e2e` run took 17.0 minutes against this workflow's own documented 69–73 s, with zero test failures
+
+**Added 2026-11-24, found on Task 7.3.2's PR (#705, run `45342893692`), by
+investigating rather than waiting it out.** `verify.yml`'s own comment above
+the `Browser journeys` step states the measured figure: `69.2-72.6 s here
+against 62-64 s locally`. This run's `Browser journeys` step was still
+executing after 17 minutes — **14–15× that figure** — with no `timeout-
+minutes` on the job to bound it, so left alone it would have run toward
+GitHub's own 360-minute default.
+
+**It was not a hang, and the distinction matters.** Rather than re-running
+blindly (this repository's `retries: 0` policy, named above), the run was
+cancelled specifically to force its logs to become available — `gh run
+view --job --log` refuses to return anything for a job still `in_progress`
+— and the recovered log showed the suite had been making steady, if slow,
+progress the entire time: test 38 by 06:48:54 (1.5 minutes in), test 295 by
+07:02:04 (just over 14 minutes in), finishing at 07:04:17 with
+`20 skipped\n326 passed (17.0m)` **and zero failures**, moments after the
+cancellation request landed. The job's own step list confirms every prior
+step (install, build, migrate, start the pair) completed in its ordinary
+time; only `Browser journeys` itself ran long, uniformly across its whole
+length rather than stalling at one point.
+
+**The `FATAL: role "root" does not exist` lines flooding the postgres
+service's own log (visible at container teardown, one roughly every 10 s
+for the run's whole duration) are a red herring, not the cause** — they
+are `--health-cmd pg_isready`'s own unauthenticated probe, which does not
+need to authenticate to report the server as accepting connections; the
+same lines appear on every run of this exact service configuration and
+are not new.
+
+**What this means for the diagnosis, stated at the strength the evidence
+supports.** With zero failures across 326 executed tests and no single
+test individually slow in a way that points at one spec, the only
+candidate is runner-level contention — GitHub's shared `ubuntu-latest`
+pool having a noisy neighbour on this particular run — which is exactly
+the shape `CLAUDE.md`'s own flake-rate guidance describes for a different
+spec (`overview-degraded-grid.spec.ts`, this file's own earlier entries):
+a property of the moment the runner ran rather than of the product. One
+occurrence is far short of any n that could separate "this specific runner
+instance was unusually slow" from "this workflow has gotten slower,"
+and nothing in this change (two new `pnpm invariants` entries, a CSS
+component, a markdown doc edit) plausibly explains a 14× wall-clock
+regression in a job whose own work is unchanged in kind.
+
+**The repair taken: re-queue the cancelled run, record what was found, and
+move on** — not a code change, because nothing in the evidence points at
+one. The cancellation itself is the one dated **cost** of this incident:
+326 tests that had already passed were discarded and had to run again.
+
+**Re-measure**: if a `Browser journeys` step on this repository's own
+`e2e` job is observed running past roughly 5 minutes again, pull `gh run
+view --job <id> --log` only after cancelling (it cannot be read while
+`in_progress`) and check **which** test index the log had reached against
+elapsed wall-clock time, rather than assuming either a hang or a flake —
+a log reaching a late test index at a slow, steady rate is this incident
+repeating; one stuck at an unchanging index for minutes is a genuine hang
+and a different investigation. Add `timeout-minutes` to the `e2e` job if
+this recurs enough to warrant bounding it rather than relying on a human
+noticing.
+
+**Owner: the first task that sees this pattern a second time** — a single
+occurrence with zero test failures is not evidence of a regression in this
+workflow, and the correct response found here (investigate via cancellation
+rather than wait indefinitely or re-run reflexively) is the one to repeat
+rather than escalate from on one data point.
+
 ## `CLAIM_CEILING` is a measurement of the PRODUCERS, not the probe figure AC 6 asks for
 
 **Added 2026-11-23 by Task 7.3.1, which set the constant and is recording
