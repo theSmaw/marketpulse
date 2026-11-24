@@ -103,6 +103,31 @@ const staleClaim: ChecklistState = {
   })),
 };
 
+/** **AC 3's own case** (Task 7.3.5): `compare_securities` answers
+ * `inapplicable` for `XLK` itself — the question does not arise, which
+ * mints no `Finding` at all. The row still draws a sentence saying why,
+ * with no confidence mark — never the silence this story's own Phase 3
+ * verification found shipped instead. */
+const inapplicable: ChecklistState = {
+  symbol: "XLK",
+  investigationId: "inv-1",
+  steps: [
+    {
+      id: "step-4",
+      description: "Compare against sector benchmark",
+      status: "completed",
+      startedAt: "2026-11-24T14:00:00.000Z",
+      completedAt: "2026-11-24T14:00:00.000Z",
+      durationMs: 0,
+      claim: "Sector comparison — it is the sector benchmark itself",
+      confidence: undefined,
+      stale: false,
+    },
+  ],
+  terminal: true,
+  connectionLost: false,
+};
+
 const dropped: ChecklistState = {
   symbol: "NVDA",
   investigationId: "inv-1",
@@ -337,6 +362,15 @@ export const Completed: Story = {
 export const Stale: Story = {
   args: {
     checklist: staleClaim,
+    announcement: "",
+    pastCoverThreshold: false,
+  },
+};
+/** AC 3: the inapplicability's own sentence, no confidence mark at all —
+ * compare against `Completed` above, which has one. */
+export const Inapplicable: Story = {
+  args: {
+    checklist: inapplicable,
     announcement: "",
     pastCoverThreshold: false,
   },

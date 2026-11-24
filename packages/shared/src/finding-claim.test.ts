@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { CLAIM_CEILING, FINDING_TYPES } from "./finding.js";
 import {
   FINDING_SUBJECTS,
+  TOOL_INAPPLICABILITY_CLAIMS,
   TOOL_REFUSAL_CLAIMS,
   breadthClaim,
+  inapplicableClaim,
   refusalClaim,
 } from "./finding-claim.js";
-import { TOOL_REFUSALS } from "./investigation.js";
+import { TOOL_INAPPLICABILITIES, TOOL_REFUSALS } from "./investigation.js";
 
 import type { WireMarketBreadth } from "./market-stream-protocol.js";
 
@@ -128,6 +130,45 @@ describe("refusalClaim", () => {
     for (const phrase of Object.values(TOOL_REFUSAL_CLAIMS)) {
       expect(phrase).not.toMatch(/\d/u);
     }
+  });
+});
+
+describe("inapplicableClaim (Task 7.3.5)", () => {
+  it("is the question that does not arise, an em dash, and why not", () => {
+    expect(inapplicableClaim("RELATIVE_MOVE", "is-benchmark")).toBe(
+      "Sector comparison — it is the sector benchmark itself",
+    );
+    expect(inapplicableClaim("RETURN_CORRELATION", "is-the-market-proxy")).toBe(
+      "Market correlation — it is the market benchmark itself",
+    );
+  });
+
+  it("fits the claim ceiling for EVERY type/inapplicability pair", () => {
+    for (const type of FINDING_TYPES) {
+      for (const because of TOOL_INAPPLICABILITIES) {
+        const claim = inapplicableClaim(type, because);
+        expect(
+          claim.length,
+          `${type} / ${because} is ${String(claim.length)} characters`,
+        ).toBeLessThanOrEqual(CLAIM_CEILING);
+      }
+    }
+  });
+
+  it("has no terminal stop, and carries no figure — this is a structural fact, never a measurement", () => {
+    for (const type of FINDING_TYPES) {
+      for (const because of TOOL_INAPPLICABILITIES) {
+        expect(inapplicableClaim(type, because).endsWith(".")).toBe(false);
+      }
+    }
+    for (const phrase of Object.values(TOOL_INAPPLICABILITY_CLAIMS)) {
+      expect(phrase).not.toMatch(/\d/u);
+    }
+  });
+
+  it("keeps every inapplicability phrase distinct", () => {
+    const phrases = Object.values(TOOL_INAPPLICABILITY_CLAIMS);
+    expect(new Set(phrases).size).toBe(phrases.length);
   });
 });
 

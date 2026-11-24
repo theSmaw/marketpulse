@@ -8,6 +8,7 @@ import {
   resetForNewRun,
   withConnectionLost,
   withInvestigationId,
+  type ChecklistState,
 } from "./investigation-checklist-state.js";
 
 const BASE: WireInvestigationEvent & { type: "INVESTIGATION_STARTED" } = {
@@ -343,9 +344,12 @@ describe("applyInvestigationEvent — FINDING_CREATED (Task 7.3.1)", () => {
     expect(state.steps[0]?.confidence).toBeUndefined();
   });
 
-  it("leaves a row with NO claim where no finding ever arrives — an inapplicable step", () => {
-    // AC 3's one exception, at the reducer: `inapplicable` mints no finding,
-    // so no event is emitted and the row completes with nothing to say.
+  it("leaves a row with NO claim if TOOL_CALL_COMPLETED is skipped entirely — the narrower, hypothetical case", () => {
+    // Not the real wire sequence for an inapplicable step (that always sends
+    // `TOOL_CALL_COMPLETED` first — see the next describe block for the
+    // realistic path, added 2026-11-24 by Task 7.3.5), but still a real
+    // property worth holding: `STEP_COMPLETED` alone never invents a claim
+    // out of nothing.
     const state = applyInvestigationEvent(started(), {
       type: "STEP_COMPLETED",
       seq: 2,
@@ -523,5 +527,154 @@ describe("resetForNewRun (Task 7.3.3, AC 11)", () => {
     expect(state.steps[0]?.claim).toBeUndefined();
     expect(state.steps[0]?.confidence).toBeUndefined();
     expect(state.steps[0]?.stale).toBe(false);
+  });
+});
+
+describe("TOOL_CALL_COMPLETED's inapplicable sentence (Task 7.3.5, closing AC 3's own gap)", () => {
+  // Story 7.3's own Gate 1: "the row draws the inapplicability's own
+  // sentence with no confidence mark at all." Phase 3's integrated check
+  // found this had never actually been built — `inapplicable` mints no
+  // `Finding`, so no `FINDING_CREATED` ever arrives, and nothing else had
+  // ever read `TOOL_CALL_COMPLETED`'s own `outcome`.
+  const startedCompareSecurities = () =>
+    applyInvestigationEvent(optimisticChecklist("NVDA"), {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      description: "Compare against sector benchmark",
+      tool: "compare_securities",
+      startedAt: "2026-11-24T14:00:00.000Z",
+    });
+
+  it("sets the claim from the outcome's own `because`, with no confidence at all", () => {
+    const state = applyInvestigationEvent(startedCompareSecurities(), {
+      type: "TOOL_CALL_COMPLETED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 0,
+      outcome: { kind: "inapplicable", because: "is-benchmark" },
+    });
+
+    expect(state.steps[0]?.claim).toBe(
+      "Sector comparison — it is the sector benchmark itself",
+    );
+    expect(state.steps[0]?.confidence).toBeUndefined();
+    // The row is still `running` — exactly as `FINDING_CREATED` arrives
+    // before `STEP_COMPLETED` for an evidenced finding, this is before it
+    // too, which is the orchestrator's own real event order.
+    expect(state.steps[0]?.status).toBe("running");
+  });
+
+  it("survives the step's own STEP_COMPLETED", () => {
+    let state = applyInvestigationEvent(startedCompareSecurities(), {
+      type: "TOOL_CALL_COMPLETED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 0,
+      outcome: { kind: "inapplicable", because: "no-sector" },
+    });
+    state = applyInvestigationEvent(state, {
+      type: "STEP_COMPLETED",
+      seq: 3,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      status: "completed",
+      durationMs: 0,
+    });
+
+    expect(state.steps[0]?.status).toBe("completed");
+    expect(state.steps[0]?.claim).toBe(
+      "Sector comparison — no sector to compare against",
+    );
+    expect(state.steps[0]?.confidence).toBeUndefined();
+  });
+
+  it("does nothing for an `ok` or `refused` outcome — those are FINDING_CREATED's", () => {
+    const beforeOk = startedCompareSecurities();
+    const afterOk = applyInvestigationEvent(beforeOk, {
+      type: "TOOL_CALL_COMPLETED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 5,
+      outcome: { kind: "ok", value: { excessPoints: -3.1 } },
+    });
+    expect(afterOk).toStrictEqual(beforeOk);
+
+    const afterRefused = applyInvestigationEvent(beforeOk, {
+      type: "TOOL_CALL_COMPLETED",
+      seq: 2,
+      investigationId: "inv-1",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 5,
+      outcome: { kind: "refused", reason: "mixed-basis" },
+    });
+    expect(afterRefused).toStrictEqual(beforeOk);
+  });
+
+  it("replaces a second press's stale claim with THIS run's own inapplicability — not left looking current, and not blanked either", () => {
+    // The interaction Task 7.3.3's `resetForNewRun` and this task's own fix
+    // both touch: a row carrying a PREVIOUS run's real claim forward,
+    // `stale: true`, whose outcome THIS run is `inapplicable`. Neither
+    // "keep showing the old claim as current" (the bug Task 7.3.3 fixed for
+    // the no-TOOL_CALL_COMPLETED case) nor "blank it to nothing" is right —
+    // the row gets THIS run's own honest sentence.
+    const stale: ChecklistState = {
+      symbol: "NVDA",
+      investigationId: undefined,
+      steps: [
+        {
+          id: undefined,
+          description: undefined,
+          status: "queued",
+          startedAt: undefined,
+          completedAt: undefined,
+          durationMs: undefined,
+          claim: "Sector comparison — −3.10 pts against XLK over 5 min",
+          confidence: "SUPPORTED",
+          stale: true,
+        },
+      ],
+      terminal: false,
+      connectionLost: false,
+    };
+
+    let state = applyInvestigationEvent(stale, {
+      type: "STEP_STARTED",
+      seq: 1,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      description: "Compare against sector benchmark",
+      tool: "compare_securities",
+      startedAt: "2026-11-24T14:00:00.000Z",
+    });
+    expect(state.steps[0]).toMatchObject({
+      status: "running",
+      stale: true,
+      claim: "Sector comparison — −3.10 pts against XLK over 5 min",
+    });
+
+    state = applyInvestigationEvent(state, {
+      type: "TOOL_CALL_COMPLETED",
+      seq: 2,
+      investigationId: "inv-2",
+      stepId: "step-1",
+      tool: "compare_securities",
+      durationMs: 0,
+      outcome: { kind: "inapplicable", because: "is-benchmark" },
+    });
+
+    expect(state.steps[0]).toMatchObject({
+      claim: "Sector comparison — it is the sector benchmark itself",
+      confidence: undefined,
+      stale: false,
+    });
   });
 });

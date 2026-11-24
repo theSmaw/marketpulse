@@ -1,7 +1,7 @@
 import { formatCount } from "./price-format.js";
 
 import type { FindingType } from "./finding.js";
-import type { ToolRefusal } from "./investigation.js";
+import type { ToolInapplicability, ToolRefusal } from "./investigation.js";
 import type { WireMarketBreadth } from "./market-stream-protocol.js";
 
 /**
@@ -149,6 +149,49 @@ export const TOOL_REFUSAL_CLAIMS = {
  */
 export const refusalClaim = (type: FindingType, refusal: ToolRefusal): string =>
   `${FINDING_SUBJECTS[type]} — ${TOOL_REFUSAL_CLAIMS[refusal]}`;
+
+/**
+ * **Why a comparison tool mints no `Finding` at all, in the claim's own
+ * register** (Task 7.3.5, closing a gap Phase 3's own integrated check
+ * found: Gate 1 settled "the row draws the inapplicability's own sentence
+ * with no confidence mark at all," and nothing had actually built it).
+ *
+ * A **total record over the same closed union** `TOOL_INAPPLICABILITIES`
+ * already is, so a fourth word is a compile error naming the missing
+ * member rather than an `undefined` reaching a reader's row — the same
+ * guard {@link TOOL_REFUSAL_CLAIMS} holds one layer over.
+ *
+ * ## Why this is NOT a `Finding`, and the sentence is not a claim in the
+ * ## domain sense either
+ *
+ * `compare_securities` and `calculate_rolling_correlation` answer
+ * `inapplicable` for the eleven sector SPDRs, the four market proxies and
+ * SPY itself — *the question does not arise*, which is a permanent,
+ * structural fact rather than evidence of anything, and Story 7.3's own
+ * Gate 1 refused to let it collapse onto `confidence: "UNKNOWN"` (that
+ * means *not enough evidence*, a different claim). So this sentence never
+ * reaches `createEvidencedFinding`/`createUnevidencedFinding` — it is a
+ * plain string the checklist draws in the claim's own slot with no
+ * confidence mark, never a `Finding`.
+ */
+export const TOOL_INAPPLICABILITY_CLAIMS = {
+  "no-sector": "no sector to compare against",
+  "is-benchmark": "it is the sector benchmark itself",
+  "is-the-market-proxy": "it is the market benchmark itself",
+} satisfies Record<ToolInapplicability, string>;
+
+/**
+ * **An inapplicable step's whole sentence** — the question that does not
+ * arise, an em dash, and why not. `Sector comparison — it is the sector
+ * benchmark itself`. Never a terminal stop, matching {@link refusalClaim}'s
+ * own register exactly, because a reader meeting the two side by side
+ * (a refused row above an inapplicable one) should read one voice.
+ */
+export const inapplicableClaim = (
+  type: FindingType,
+  because: ToolInapplicability,
+): string =>
+  `${FINDING_SUBJECTS[type]} — ${TOOL_INAPPLICABILITY_CLAIMS[because]}`;
 
 /**
  * **The breadth claim's own short grammar, built from the counted figures the
