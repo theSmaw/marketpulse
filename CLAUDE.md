@@ -590,8 +590,9 @@ keyboard-focus guard's viewport-height exclusion as the real rule, which
 Story 7.3 inherits rather than re-opening. `docs/GAPS.md` carries both
 gaps and the layout decision with figures.
 
-**Story 7.3 (Findings, Evidence, & Confidence) shipped 2026-11-24, in four
-tasks.** Every completed row of `Investigate`'s checklist now draws a
+**Story 7.3 (Findings, Evidence, & Confidence) shipped 2026-11-24, in five
+tasks — the fifth found by Phase 3's own integrated check, the same day.**
+Every completed row of `Investigate`'s checklist now draws a
 real `Finding` — a one-line claim and a `ConfidenceMark` reading
 `SUPPORTED`/`POSSIBLE`/`UNKNOWN` (`CONFIRMED` reserved, no producer until
 Epic 9's filings) — closing invariant 5's own standing rule (confidence
@@ -611,7 +612,15 @@ rather than only the last-completed step's sentence; the checklist is a
 `<ul>`/`<li>`. `pnpm invariants` holds **97**. A real, pre-existing wire
 bug was found and fixed in the same story: `INVESTIGATION_FAILED` had
 carried a backend case with no frontend decoder since Task 7.2.1, so a
-thrown tool was silently dropped and read as a dead connection.
+thrown tool was silently dropped and read as a dead connection. **A
+second real defect was found by Phase 3's own end-to-end check against
+`STORY.md`, after all four decomposed tasks had closed**: AC 3's own
+settled decision — an `inapplicable` comparison step (an ETF investigating
+its own sector benchmark, or `SPY` against the market proxy it is) draws a
+sentence saying why, with no confidence mark — had never actually been
+built, because an earlier task's own record wrongly asserted a prior
+story already shipped it. Task 7.3.5 closed it the same day, before the
+story was presented as complete.
 **What no gated machine and no person has ever seen**: a `Finding`'s
 claim against a real deployment or a populated store — CI's zero-bar
 store refuses five of six steps for ever — and neither this story's

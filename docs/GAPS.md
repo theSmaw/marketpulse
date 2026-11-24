@@ -6743,23 +6743,36 @@ the story number, because a step's outcome word could equally arrive on the
 checklist row itself before a finding exists.
 
 **Discharged 2026-11-24 by Story 7.3, found while sweeping this entry at
-Task 7.3.4's own close rather than claimed in advance.** The condition named
-above fired, named by the surface rather than guessed at by a story number
-exactly as it was written to be: every completed row now draws a second
-line — the claim — for both `ok` and `refused`, and draws **nothing** for
-`inapplicable`, which `ChecklistStepView.claim`'s own docblock states as a
-deliberate three-way split rather than one case collapsed into another.
-`XLK`'s own `compare_securities` step (`inapplicable`, `because:
-"is-benchmark"`) now shows a bare completed tick with no second line; an
-equity with a thin window (`refused`) shows the tick **and** a sentence
-("Measure price anomaly — too little history to rank it"). The two are no
-longer byte-identical, which is this entry's own stated re-measure. **What
-this does NOT claim**: the distinction is implicit (a line present against a
-line absent) rather than an explicit word naming `inapplicable` by name, and
-whether that implicit shape reads as clearly as a stated word to someone who
-has not read this document is the kind of question the standing
-screen-reader item already asks for every other surface in this product —
-unconfirmed here too, for the same reason.
+Task 7.3.4's own close rather than claimed in advance — and the discharge
+itself was INCOMPLETE for a few hours, corrected the same day by
+Task 7.3.5.** The condition named above fired, named by the surface
+rather than guessed at by a story number exactly as it was written to be.
+**What Task 7.3.4 first recorded here was the weaker half**: every
+completed row drew a second line — the claim — for both `ok` and
+`refused`, and drew **nothing** for `inapplicable`, so the two kinds were
+at least no longer byte-identical (an equity with a thin window showed a
+tick and a refusal sentence; `XLK`'s own `compare_securities` step showed
+a bare tick). That was recorded as an _implicit_ distinction — a line
+present against a line absent — with the explicit word still missing.
+
+**Task 7.3.5, the same day, found that gap too — Phase 3's own integrated
+check against `STORY.md`'s AC 3, which this entry's own earlier correction
+had not been read against.** Gate 1's actual decision was never "nothing
+for `inapplicable`" — it was "the row draws the inapplicability's own
+sentence with no confidence mark at all," which Task 7.3.1's own record
+had WRONGLY claimed already existed ("Story 7.2 already ships" it), when
+Story 7.2's own Task 7.2.4 had explicitly deferred it by name. Fixed in
+the same task: `XLK`'s `compare_securities` step now reads `Sector
+comparison — it is the sector benchmark itself`, an explicit sentence with
+zero confidence mark, built from a new, closed `TOOL_INAPPLICABILITY_
+CLAIMS` record mirroring `TOOL_REFUSAL_CLAIMS`'s own shape. The two rows
+are now distinguishable by an explicit sentence, not merely by a line's
+presence.
+
+**What this still does NOT claim**: whether this explicit sentence reads
+clearly to a listener who has not read this document is the standing
+screen-reader item's own question, asked again — unconfirmed, for the
+same reason as every other entry in that section.
 
 ## Four of the pipeline's six steps can never draw a figure on a gated machine, and the fifth draws an `ok` whose every count is zero
 

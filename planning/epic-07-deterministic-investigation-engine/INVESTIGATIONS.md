@@ -522,8 +522,16 @@ not a type but the frame: the evidence travels **inline** on the same event.
 `refused` → `UNKNOWN`, always. `inapplicable` → **no finding at all** (AC 3's
 one exception, and the reason the tool contract's `mintFinding` may answer
 `undefined`): _the question does not arise_ is a different, permanent fact
-from _not enough evidence_, so the row draws the inapplicability sentence
-Story 7.2 already ships. `ok` below the tool's own **shipped** sufficiency
+from _not enough evidence_. ~~so the row draws the inapplicability sentence
+Story 7.2 already ships~~ — **false, corrected 2026-11-24 by Task 7.3.5.**
+Story 7.2 never shipped any such sentence — its own Task 7.2.4 explicitly
+deferred it, in as many words, to "the first surface that draws a step's
+own outcome." This sentence was WRONG for the whole of Task 7.3.1–7.3.4's
+own record, undetected by any of their own unit tests (each asserted
+`claim === undefined` for `inapplicable`, consistent with "nothing shown"
+and never checking for a sentence), and found only by Phase 3's own
+integrated check against `STORY.md`'s AC 3. §12.5 carries the real fix.
+`ok` below the tool's own **shipped** sufficiency
 floor → `POSSIBLE`; above it → `SUPPORTED`. `CONFIRMED` has no producer
 anywhere in this epic and is reserved for Epic 9's filings, documented exactly
 as `INVESTIGATION_STATUSES`' `awaiting_user` already is.
@@ -756,7 +764,40 @@ marker, margin and padding) — so a browse-mode screen reader can reach
 each step's description, claim and confidence together as one of six
 reachable items rather than as an undifferentiated run of paragraphs.
 
-### 12.5 What is owed, and what no screen reader has heard
+### 12.5 A real gap found by Phase 3's own integrated check, and fixed the same day: `inapplicable` drew nothing
+
+**Task 7.3.5, 2026-11-24.** Gate 1's own settled decision for AC 3 was "the
+row draws the inapplicability's own sentence with no confidence mark at
+all" — and the shipped product, for the whole of Tasks 7.3.1 through 7.3.4,
+drew a bare completed tick with **nothing** beside it. §11.2's own account
+had asserted this sentence "Story 7.2 already ships," which was simply
+false: Story 7.2's own Task 7.2.4 explicitly deferred it by name to "the
+first surface that draws a step's own outcome," and nothing in any of this
+story's own four tasks' unit tests caught the gap, because every one of
+them asserted `claim === undefined` for the `inapplicable` case — true
+either way, whether the row shows nothing or shows a sentence with no
+confidence mark (confidence stays absent in both).
+
+**Found only by Phase 3's own integrated verification** — re-reading
+`STORY.md`'s thirteen acceptance criteria against the merged codebase, one
+by one, rather than trusting each task's own closing record. The fix: a
+new `TOOL_INAPPLICABILITY_CLAIMS` in `packages/shared/src/finding-claim.ts`
+(a total record over `ToolInapplicability`, mirroring `TOOL_REFUSAL_CLAIMS`'
+own shape exactly) and `inapplicableClaim`, wired into
+`investigation-checklist-state.ts`'s `TOOL_CALL_COMPLETED` case — the one
+reducer arm that had been a no-op for every outcome kind since Task 7.3.1's
+own "corrected" comment there. `compare_securities` on `XLK` now draws
+`Sector comparison — it is the sector benchmark itself`, with zero
+`ConfidenceMark`.
+
+**A second real bug, found by this task's own test rather than a person
+looking at a screen**: the first draft set the new claim but did not
+explicitly clear `confidence`, so a second-press row carrying a stale, real
+confidence level forward (§12.2's own `stale` mechanism) kept that
+confidence sitting beside the new inapplicability sentence — fixed by an
+explicit `confidence: undefined` rather than relying on the object spread.
+
+### 12.6 What is owed, and what no screen reader has heard
 
 **AC 5b — the confidence mark and the band chip, together, in greyscale —
 could not be taken as the criterion asks.** Two compounding reasons: no
