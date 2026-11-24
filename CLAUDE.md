@@ -590,6 +590,38 @@ keyboard-focus guard's viewport-height exclusion as the real rule, which
 Story 7.3 inherits rather than re-opening. `docs/GAPS.md` carries both
 gaps and the layout decision with figures.
 
+**Story 7.3 (Findings, Evidence, & Confidence) shipped 2026-11-24, in four
+tasks.** Every completed row of `Investigate`'s checklist now draws a
+real `Finding` — a one-line claim and a `ConfidenceMark` reading
+`SUPPORTED`/`POSSIBLE`/`UNKNOWN` (`CONFIRMED` reserved, no producer until
+Epic 9's filings) — closing invariant 5's own standing rule (confidence
+and provenance are part of the model, not prose) with a real surface for
+the first time in this epic. `Finding`/`Evidence` live in
+`packages/shared/src/finding.ts`, a two-arm union mirroring
+`AnomalyScore`'s own real-`Symbol`/non-empty-tuple/two-mint-site pattern,
+now at **eight** sites — `CLAUDE.md`'s own TypeScript section documents
+the convention and the one variant (`InvestigationId`'s string-literal
+brand) that is deliberately NOT it. The confidence mark spends **zero
+colour** and shares no component with `AnomalyBadge`, held by two new
+`pnpm invariants` entries; pressing `Investigate` a second time now
+carries a prior run's claims forward, dimmed, rather than blanking six
+real findings (`resetForNewRun`, mirroring `bar-series-view.ts`'s own
+`stale` idiom); the terminal live region is a confidence-count summary
+rather than only the last-completed step's sentence; the checklist is a
+`<ul>`/`<li>`. `pnpm invariants` holds **97**. A real, pre-existing wire
+bug was found and fixed in the same story: `INVESTIGATION_FAILED` had
+carried a backend case with no frontend decoder since Task 7.2.1, so a
+thrown tool was silently dropped and read as a dead connection.
+**What no gated machine and no person has ever seen**: a `Finding`'s
+claim against a real deployment or a populated store — CI's zero-bar
+store refuses five of six steps for ever — and neither this story's
+confidence-count summary nor its `<ul>`/`<li>` restructuring has been
+heard by a real screen reader, `docs/GAPS.md`'s twelfth entry in that
+standing section. AC 5b (the confidence mark beside a real band chip, in
+greyscale) could not be measured at all: no database on any machine this
+story was built on, and no screen yet puts the two in one row — Epic 8's
+evidence panel is the first that will.
+
 ### What a user can see today
 
 Five routes, a **one-row masthead** carrying the navigation and the market
@@ -2311,6 +2343,7 @@ Files not listed are either obvious or documented where they live.
 - **`exactOptionalPropertyTypes` is on**, so "absent" and "present as `undefined`" are different types. A constructor with an optional parameter has to branch and build the object two ways. This is the setting behaving correctly, not friction to route around.
 - **A domain object that cannot be constructed without its explanation is a NAMED convention, now at eight sites in three variants** — written down 2026-11-23 (Task 7.3.1) because the next author copying it was repeatedly copying the shape without the two parts that make it work. Four rules, and `packages/shared/src/composite-score.ts`' header carries the full argument for all of them: a **real `Symbol`**, never a `declare const` (a branded _object_ has to be constructed, a declared symbol has no runtime value, so the only mint would be an `as unknown as` that checks none of the fields beside it — produced rather than reasoned about, in that module's first draft); a **non-empty tuple** `[T, ...T[]]` for the explanation, so an unexplained value is **untypeable** rather than merely untested; the absent arm is a **different type with no member at all**, never an empty array or a nullable field, because a constant and a branch are one step from the defect the type exists to forbid; and **exactly two mint sites**, each held by a `pnpm invariants` entry with a break (`two-mint-sites-for-an-anomaly-score`, `two-mint-sites-for-a-finding`), because the brand closes every route in except a **cast** and the check is what closes that one.
 - **And say what the brand does NOT prove, every time, in the type's own docblock.** It is a compile error about **which module minted the value** — never that the value is right. That the contribution is `round(w × u / 100)`, or that a `claim` states the figure its evidence was read from, is a **test**. Two halves, and they are not the same half; `composite-score.test.ts` and `finding.test.ts` each hold a named test for the negative. One further asymmetry worth knowing before copying: the brand **dies at `JSON.parse`** and whether it is restored is a decision, not a default — `readAnomalyScore` re-mints after re-adding the published contributions (a claim about the **value**, stronger than the brand), and `finding.ts` deliberately has **no reader at all**, because the browser declares its own wire shape and never reconstitutes the domain object. The second case means the guarantee is a **backend** guarantee, which that module says in as many words.
+- **One variant in this tree is NOT this convention, and copying it would copy a weaker guarantee believing it the same one** (noted 2026-11-24, Task 7.3.4). `packages/shared/src/investigation.ts`'s `InvestigationId`/`StepId` are `string & { readonly __brand: "InvestigationId" }` — a string-literal tag, not a real `Symbol`, and every one of the four rules above fails it: `"anything" as InvestigationId` is a legal assertion anywhere in the codebase, there is no non-empty-tuple or absent-arm shape to speak of, and there is no mint site to count because there is nothing a `pnpm invariants` entry could anchor on. It is **forgeable**, deliberately accepted for an id that only ever needs to round-trip through a URL and a wire frame and is never computed from anything a caller could get wrong — the four rules exist to stop a **constructed value** reaching a reader unchecked, which an opaque identifier was never at risk of. Reach for the real-`Symbol` shape for a value with an explanation to protect; reach for this one only for an id with none.
 
 ### Lint and format
 
