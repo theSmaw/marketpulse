@@ -81,7 +81,7 @@ right; say so plainly rather than inventing a visible effect.
   `Finding`'s. `exactOptionalPropertyTypes`: no optional fields in V1.
 - **The event.** `WORKSPACE_COMMAND` gains its payload in `InvestigationEvent`
   (`packages/shared/src/investigation.ts`): `{ type: "WORKSPACE_COMMAND",
-  stepId, command: WorkspaceCommand }`, carrying `stepId` (unlike
+stepId, command: WorkspaceCommand }`, carrying `stepId` (unlike
   `FINDING_CREATED`, which has `Finding.stepId` as its one home — a
   `WorkspaceCommand` has no such field). Appended **after** the peer step's
   `STEP_COMPLETED`.
@@ -103,7 +103,7 @@ right; say so plainly rather than inventing a visible effect.
   set only), or anchor a sibling invariant on a named second export. Do not
   ship two undeclared classes of registry member.
 - **The permission check.** `permitWorkspaceCommand(command, capability,
-  layout): { kind: "permitted" } | { kind: "refused"; because: ... }`
+layout): { kind: "permitted" } | { kind: "refused"; because: ... }`
   (`because`, matching `ToolOutcome`'s `inapplicable` arm — not `reason`).
   Two conjuncts: the command's `type` is in the producer's declared
   capability set, AND every target symbol resolves to a placement in
@@ -134,9 +134,9 @@ right; say so plainly rather than inventing a visible effect.
      over the pipeline's call sites, not a test over today's one producer
      (`a-ranked-score-list-is-one-cohort`'s own lesson: a test over today's
      fixtures is green with the partition deleted).
-  Per this repository's own rule: write the file the next story would write,
-  confirm the check passes wrongly first, then fix, then confirm red, then
-  delete the plant file.
+     Per this repository's own rule: write the file the next story would write,
+     confirm the check passes wrongly first, then fix, then confirm red, then
+     delete the plant file.
 - **One ADR, next number after 0050.** Title along the lines of "the first
   `WorkspaceCommand`: where it lives, why it carries no coordinates, which
   stream carries it, and what permission-checking means before there is an
@@ -149,11 +149,11 @@ right; say so plainly rather than inventing a visible effect.
   stale tab); and the permission stage shipping as a capability allowlist,
   **identity-blind by decision**, stated plainly in the decision text (not a
   footnote) as sufficient only while every producer is deterministic backend
-  code in this repository, with the reversal trigger: *the first producer of
+  code in this repository, with the reversal trigger: _the first producer of
   a `WorkspaceCommand` that is not deterministic backend code in this
-  repository*. Give ADR 0048 a dated amendment noting Decision 2's own
-  reversal trigger (*"the first consumer of the graph model that is not a
-  browser"*) fired at this task, without rewriting 0048's decision text.
+  repository_. Give ADR 0048 a dated amendment noting Decision 2's own
+  reversal trigger (_"the first consumer of the graph model that is not a
+  browser"_) fired at this task, without rewriting 0048's decision text.
 
 ## Done when
 

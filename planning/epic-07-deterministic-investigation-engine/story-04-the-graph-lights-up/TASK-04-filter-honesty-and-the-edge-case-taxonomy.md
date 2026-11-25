@@ -17,7 +17,7 @@ Filter the graph to a sector that hides some of an investigation's
 highlighted peers: the population note gains a third clause stating how many
 are hidden, with a `Show all` link that clears both the sector and band cuts
 (reusing the existing control, never a new one). Filter to a sector that
-hides *all* of the highlighted peers: no de-emphasis is drawn at all, and the
+hides _all_ of the highlighted peers: no de-emphasis is drawn at all, and the
 note says why. Investigate an untracked security, or one with no related
 securities at all: a plain, honest sentence, never a drawn error and never a
 blank, confident-looking highlight.
@@ -30,7 +30,7 @@ blank, confident-looking highlight.
   two renderings — never a second, independently-written string, which this
   region has lost to feed-cadence overwrites three times already per
   `TOPOLOGY.md`) gains a third clause: `"52 of 61 highlighted peers are
-  outside this filter."` — rendered only when its own data is present (ADR
+outside this filter."` — rendered only when its own data is present (ADR
   0029: zero hidden peers → no clause; no highlight → no clause). The
   clause's presence must survive a live band update overwriting
   `textContent` — the same collision class this region has met at §8.3, §9.1,
@@ -42,7 +42,7 @@ blank, confident-looking highlight.
   - Explicitly refused: auto-widening or auto-clearing the reader's filter so
     peers become visible, and a badge on the Sector/Band control triggers
     (already a header seven pixels short at 1024px with three controls; a
-    fourth thing reporting a *different* feature's state is two subjects in
+    fourth thing reporting a _different_ feature's state is two subjects in
     one speaker).
 - **The edge-case taxonomy, each a named `Done when` below:**
   1. An untracked security (no graph node, no placement) — refused with its

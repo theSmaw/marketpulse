@@ -152,7 +152,7 @@ two, would ever see the literal reading. Separately, `use-investigation.ts`'s
 SSE subscription and all its state live inside a hook mounted by
 `/securities/:symbol`; navigating to `/` unmounts it and aborts the
 fetch — the investigation keeps running server-side, but the browser
-loses both the stream and the *id* needed to re-attach.
+loses both the stream and the _id_ needed to re-attach.
 
 ### The four decisions put to the Product Owner
 
@@ -160,7 +160,7 @@ loses both the stream and the *id* needed to re-attach.
   It arrives when the peer-comparison step completes and persists until
   the reader clears it (AC 8's gestures), a later investigation's command
   supersedes it, or the channel it depends on dies — never until the
-  investigation's own *completion*, which would close the window before
+  investigation's own _completion_, which would close the window before
   any reader could navigate to see it. AC 7 and AC 8 are rewritten above
   to say this plainly rather than leaving the original, unsatisfiable
   wording standing.
@@ -250,7 +250,7 @@ independent of anything this story decided.** It said the topology's
 Story 6.8 shipped filtering as a **draw-time mask**, not merely a
 filter-blind layout — an excluded equity draws no ink and is not
 hit-testable. The layout stays filter-blind (unchanged, correct); the
-*drawing* does not. AC 4 is rewritten to state the real consequence (an
+_drawing_ does not. AC 4 is rewritten to state the real consequence (an
 honestly invisible highlight, counted in the population note) rather
 than a claim that was never true of the code it was describing.
 

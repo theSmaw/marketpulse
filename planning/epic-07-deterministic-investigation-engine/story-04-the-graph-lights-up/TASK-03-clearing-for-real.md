@@ -33,7 +33,7 @@ peer sets with nothing on screen saying which is whose.
   `the-topology-walk-reads-no-band`'s own reasoning and its own `pnpm break`
   planting exactly that defect (a highlight-keyed sort of a cluster's
   members is the same shape of sensible-sounding mistake `the-topology-walk-
-  reads-no-band` was written to forbid).
+reads-no-band` was written to forbid).
 - **Clear on any terminal investigation event** — read from
   `isTerminalEventType` (already includes `INVESTIGATION_COMPLETED` and
   `INVESTIGATION_FAILED`), never a hand-maintained list of two event names —

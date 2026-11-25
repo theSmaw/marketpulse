@@ -24,7 +24,7 @@ highlighted set, named in the accompanying note.
 - **The cross-route holder, in `App.tsx`.** `App.tsx` already sits outside
   `<Routes>` and already threads `liveFeed`/`marketFeed`/`onLiveSymbols` into
   both routes for exactly this reason. Add a holder for `{ investigationId,
-  command }`, filled via `useInvestigation` reporting each decoded
+command }`, filled via `useInvestigation` reporting each decoded
   `WORKSPACE_COMMAND` upward through a new callback prop (mirroring
   `onLiveSymbols`'s existing shape) — **never** lifting the checklist itself,
   which stays pinned to the security page per Story 7.1's own decision.
@@ -35,8 +35,8 @@ highlighted set, named in the accompanying note.
   called from `MarketOverview`'s own effect reading the `App.tsx` holder.
   **Do not** pass the command as an ordinary prop to `MarketTopology` — that
   would be a fifth evaluation of the declined `React.memo` boundary's
-  reversal trigger (*"the first prop this region takes that changes at feed
-  cadence"*), and while a `WorkspaceCommand` does not change at feed cadence,
+  reversal trigger (_"the first prop this region takes that changes at feed
+  cadence"_), and while a `WorkspaceCommand` does not change at feed cadence,
   the imperative route keeps the boundary closed by construction rather than
   reopened. Write the fifth evaluation down in the component's own docblock
   alongside the prior four.
@@ -64,8 +64,8 @@ highlighted set, named in the accompanying note.
     flagged**: Story 6.8 already ships a de-emphasised treatment for a
     landmark whose sector is filtered out, described as "structurally
     unconfusable with the existing hollow `unscored` state." Run `pnpm probe
-    / --within "Market topology"` at all four widths with *filtered-landmark*,
-    *not-a-peer*, and *unscored* all visible at once, against a store that
+/ --within "Market topology"` at all four widths with _filtered-landmark_,
+    _not-a-peer_, and _unscored_ all visible at once, against a store that
     has run the composite pass (so real bands are drawn — CI's zero-bar store
     draws every equity `unscored` and hides this collision entirely). If the
     three are not visually distinguishable, this story's visual approach
@@ -74,7 +74,7 @@ highlighted set, named in the accompanying note.
   - Instant both ways — arrival and clearing (no fade, no decay, no
     transition), for consistency with every other state change this renderer
     already draws (selection, filter, band update) and because "a fact
-    arriving decays" is about a *mark* fading while the fact remains, not a
+    arriving decays" is about a _mark_ fading while the fact remains, not a
     rule about disappearance.
 - **The note.** The region's existing population note names the subject and
   the relation (e.g. "Highlighting NVDA's 73 Technology peers"), through the
