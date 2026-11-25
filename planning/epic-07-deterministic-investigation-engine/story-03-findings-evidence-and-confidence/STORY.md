@@ -1,10 +1,19 @@
 # Story 7.3 — Findings, Evidence, & Confidence
 
-**Status:** Decomposed into four tasks at Gate 1 — 2026-11-21, after six
-parallel shaping passes (business-analyst, technical-analyst, ux-architect,
-information-architect, designer, technical-architect) plus one tester pass.
-See "Resolved at Gate 1" below for every decision taken; nothing there is
-open.
+**Status:** Complete — accepted by the Product Owner 2026-11-25. Decomposed
+into four tasks at Gate 1 — 2026-11-21, after six parallel shaping passes
+(business-analyst, technical-analyst, ux-architect, information-architect,
+designer, technical-architect) plus one tester pass; see "Resolved at Gate
+1" below for every decision taken, none of it reopened. A fifth task
+(7.3.5) was added during Phase 3's own integrated verification — re-reading
+every acceptance criterion below against the merged codebase found that
+AC 3 had never actually been built, despite Task 7.3.1's own record
+asserting it was; fixed the same day, before Gate 2. Twelve of thirteen
+acceptance criteria are fully met; AC 5b (a measured, photographed
+greyscale comparison of the confidence mark beside a real band chip) could
+not be taken on this machine — no database reachable, and no screen in
+this product yet draws the two in one row — and is owned by Epic 8, with
+the interim reasoning and re-measure in `docs/GAPS.md`. PRs #704–#708.
 **Epic:** [Epic 7 — Deterministic Investigation Engine](../EPIC.md)
 **Depends on:** 7.2
 **Epic scope covered:** The `Finding` and `Evidence` domain objects; the
