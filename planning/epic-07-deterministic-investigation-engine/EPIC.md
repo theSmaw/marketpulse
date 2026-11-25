@@ -657,3 +657,26 @@ graph and layout are, and stay, a function of the curated universe alone
 amendment to that ADR). An agent acting on "what the reader currently sees"
 would need the address bar's own query string, not anything this epic's
 model can answer by itself.
+
+## Amended 2026-11-25 at Story 7.4's Gate 1 — line 599's own instruction rests on a misreading, and the check it describes does not exist yet
+
+**The instruction above — "confirm it still reaches your new file" — is
+wrong about what `no-renderer-type-in-the-graph-model` checks.** Its own
+corpus is `CORPUS = "packages/shared/src"` (`scripts/check-invariants.mjs`),
+which walks that package's own import closure. A server-side file importing
+`topology.ts` from `apps/backend/src/` is **outside that corpus by
+construction** — the check was never going to see it, reach it, or fail on
+it, whatever the new file does. Following the instruction literally produces
+a confident "confirmed" against something that was never true, which is
+exactly this file's own standing rule about a claim reading identically
+whether the mechanism is there or not.
+
+The invariant itself is unchanged and still correct — it protects the
+**model** from naming a renderer, which matters more now that a server
+consumer exists, not less. What does not exist, and what Story 7.4's Task
+7.4.1 is building, is a **different** check: that the server's own answer
+about where a node is comes from `buildTopologyLayout` and nowhere else — a
+corpus clause over `apps/backend/src/**` refusing any arithmetic on a
+topology layout constant outside a call to the shared builder. That is the
+check this epic's own no-coordinates design (§ "Handed here by Story 6.1's
+close") actually needs, and it did not exist until this story wrote it.
