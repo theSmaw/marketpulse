@@ -117,6 +117,46 @@ export interface TopologyPalette {
    * fill and the gridline, which is what a complement wants: present, and no
    * longer the thing being looked at.
    *
+   * ## It is the SECOND reader of `--chart-seam`, and that is disclosed
+   * ## rather than discovered
+   *
+   * {@link correlationEdge} already spends this token, so at 1440 — the one
+   * width where the measured-edge layer is not suppressed — a quietened
+   * equity body and the dashed correlation edges running through it are
+   * **literally the same colour**. That is a real co-tenancy and it is
+   * accepted on two channels neither of which is ink:
+   *
+   *   * **shape** — a filled 8 px disc against a 1 px dashed line, which is
+   *     the same distinction `membershipEdge` already relies on against the
+   *     node bodies it joins (and it is louder here: those edges are
+   *     `--chart-grid`, a step *below* this one);
+   *   * **the halo** — every node body is stroked at `lineWidth: 2` in
+   *     `--surface-raised` before it is filled, so a quietened node carries a
+   *     1 px white rim that separates it from any edge crossing it. That rim
+   *     is why the token can be shared at all: the collision an edge and a
+   *     node of one colour would otherwise have is *where they touch*, and
+   *     they never touch.
+   *
+   * **Probed rather than argued, and the result is a qualified pass** (Task
+   * 7.4.2, `pnpm probe --story
+   * components-markettopology--highlighted-peers-measured` at 1440 — the one
+   * story in this workshop that sets both a highlight and a measured pass,
+   * added at this task's own review precisely because the first two could not
+   * show this). A quietened disc stays readable **as a disc**: the halo rim
+   * and solid-against-dashed carry it exactly as claimed above, and no node
+   * disappears into an edge crossing it. What the same picture also shows,
+   * and is recorded rather than smoothed: a de-emphasised cluster's
+   * **interior** reads as pale texture rather than as discrete nodes at 1×,
+   * because the bodies and the mesh between them are now one value. That is
+   * the complement behaving as asked — these are the securities the command
+   * did not name — but it is a real cost of sharing the token and it is a
+   * cost only at 1440, since the layer is suppressed at the other three
+   * widths.
+   *
+   * The reversal trigger is a condition: **the first treatment that removes a
+   * quietened node's halo, or the first correlation edge drawn at a node's
+   * own ink width.**
+   *
    * **A value step and no alpha**, {@link landmarkMuted}'s own two
    * constraints: the difference survives `grayscale(1)` intact on luminance
    * alone, and the mark stays fully opaque so nothing shows through a

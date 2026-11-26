@@ -1632,19 +1632,24 @@ export function MarketTopology({
         )}
         {/*
          * **What a deterministic step has asked this graph to point at** (Task
-         * 7.4.2) — top-RIGHT inside the frame, written imperatively, and off
-         * screen entirely until a command arrives.
+         * 7.4.2) — the second row of the `.notes` column above, written
+         * imperatively, and off screen entirely until a command arrives.
          *
-         * ## Why it is a corner, and why that one
+         * ## Under the filter note, which is where the probe put it
          *
-         * `.readout` holds the bottom-left and `.filterNote` the top-left, so
-         * this takes the remaining end of the top edge rather than competing
-         * with either. The graph is drawn as a centred ellipse, so a corner is
-         * the emptiest ground this picture has — the same argument
-         * `.filterNote`'s own docblock makes, and the same consequence: it is
-         * absolutely positioned, so it takes no room in `.frame`'s box and
-         * `MARKET-OVERVIEW.md` §1.4's displacement trigger does not fire on a
-         * region whose height three stories have measured and asserted.
+         * It was drafted at the top-RIGHT corner — the one corner `.readout`
+         * (bottom-left) and `.filterNote` (top-left) leave free, capped at
+         * half the frame so the two could not meet. That is true at 1440,
+         * 1024 and 768 and **false at 390**, where the frame's content box is
+         * 308 px: the note wrapped to three lines and covered the filter
+         * note's text and its `Show all` link. Beneath it, in one column, the
+         * two cannot overlap at any width by construction rather than by
+         * measurement — and the measurement was the thing that was wrong.
+         *
+         * The column is absolutely positioned, so neither note takes room in
+         * `.frame`'s box and `MARKET-OVERVIEW.md` §1.4's displacement trigger
+         * does not fire on a region whose height three stories have measured
+         * and asserted.
          *
          * ## Rendered in every state, hidden by an attribute
          *

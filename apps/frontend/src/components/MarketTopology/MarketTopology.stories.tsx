@@ -663,6 +663,30 @@ export const HighlightedPeersNarrowed: Story = {
 };
 
 /**
+ * **The highlight over a MEASURED correlation pass** (Task 7.4.2, added at
+ * this task's own review) — the one state where the de-emphasis ink's
+ * co-tenancy is real.
+ *
+ * `TopologyPalette.equityMuted` and `TopologyPalette.correlationEdge` are the
+ * same token (`--chart-seam`, 1.70:1), and at 1440 the measured-edge layer is
+ * not suppressed — so a quietened equity body and the dashed edges running
+ * through it are literally the same colour. The two stories above default to
+ * `NO_MEASUREMENT` and therefore **cannot** show it, which is why this third
+ * one exists rather than an argument in a docblock. What to look at: whether
+ * the quiet discs stay readable as nodes against the mesh, which rests on
+ * shape and on the 1 px `--surface-raised` halo every body carries — never on
+ * ink, because there is no ink difference to rest on.
+ */
+export const HighlightedPeersMeasured: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+    relationships: MEASURED,
+  },
+  render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
+};
+
+/**
  * The four market proxies and nothing else — **four diamonds, zero edges**.
  *
  * See {@link MARKET_PROXIES}: `SPY` sits at the origin and the other three in

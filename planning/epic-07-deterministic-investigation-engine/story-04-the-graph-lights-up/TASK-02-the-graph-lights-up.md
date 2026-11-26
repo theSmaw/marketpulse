@@ -173,9 +173,17 @@ links, each the shape this tree already uses for the same kind of fact.
   reducer (which has a `WORKSPACE_COMMAND` case that returns its input
   unchanged, deliberately: this event is a side channel). The shape follows
   `onLiveSymbols`/`onLiveFocus`' established division — the hook answers a
-  value, the route reports it upward from an effect — because a callback
-  **parameter** on the hook would have to be stable or it would re-run the
-  subscription.
+  value, the route reports it upward from an effect. **Corrected at this
+  task's review**: the first wording here said a callback parameter "would
+  have to be stable or it would re-run the subscription", and that mechanism
+  does not exist — this hook has **no subscription effect**, the stream is
+  started imperatively from `start()` through a `runInvestigation` whose
+  `useCallback` deps are genuinely `[]`. The real cost of a callback
+  parameter is a **stale closure**: it would be captured on the first render
+  and never updated, correct only through a ref this hook would then own. Same
+  conclusion, honest mechanism — and it is exactly the shape of claim this
+  repository names (_a claim about a mechanism reads identically whether the
+  mechanism is there or not_), caught by a reviewer going to check it.
 - **It is NOT subject-pinned**, unlike the checklist, and that is the one
   asymmetry worth knowing: navigating is how a reader reaches the screen that
   draws this, so a command withdrawn on a symbol change would be a feature
@@ -296,3 +304,62 @@ the real handle — not a route, and not a real investigation. And no screen
 reader has heard the clause, which is Gate 1's own decision (no announcement;
 the fact lives in the structural sentence, read on demand) rather than an
 omission — `docs/GAPS.md`'s standing screen-reader section is where that sits.
+
+## Amended by this task's own review — 2026-11-26: three corrections, one of which needed a third Storybook state to answer
+
+An independent review of PR #713 found no correctness defect in the shipped
+behaviour and three things wrong with what the code **says about itself**. All
+three are the same class — a claim that reads identically whether it is true or
+not — and the third needed a measurement to settle rather than an edit.
+
+**1. A stale JSX comment described the layout the probe had already killed.**
+The comment above the highlight note still said _top-RIGHT inside the frame_
+and carried the rejected corner-opposite reasoning, in the same commit that
+moved the note into the `.notes` column because that arrangement covered a
+control at 390. Rewritten to describe what is there, keeping the rejected
+draft as the reason the column exists.
+
+**2. `--chart-seam` has a SECOND reader on this canvas and the docblock did not
+say so.** `TopologyPalette.correlationEdge` already spends it, so at 1440 —
+the one width where the measured-edge layer is not suppressed — a quietened
+equity body and the dashed edges running through it are **literally the same
+colour**. The original docblock disposed of `--chart-grid`'s collision and was
+silent about this one. Worse, **neither new story could have shown it**: both
+defaulted to `NO_MEASUREMENT`, which is CI's state and draws no edge at all,
+so the one state where the risk is real was never probed.
+
+Disclosed now in `equityMuted`'s own docblock and in `TOPOLOGY.md` §11, with a
+third story (`HighlightedPeersMeasured`, `relationships: MEASURED` — 1,860
+pairs, the real retained count) and a probe at 1440 to answer it rather than
+argue it:
+
+> **Qualified pass.** A quietened disc stays readable **as a disc** — the 2 px
+> `--surface-raised` halo every body is stroked with means an edge and a node
+> of one colour never touch, and solid-against-dashed carries the rest. No
+> node disappears into an edge crossing it. **What the same picture also
+> shows**: a de-emphasised cluster's _interior_ reads as pale texture rather
+> than as discrete nodes at 1×, because the bodies and the mesh between them
+> are now one value. Compared against the highlighted cluster in the same
+> frame, where the bodies are visibly darker than the mesh and read as nodes
+> on a ground.
+
+That is the complement behaving as asked — these are the securities the
+command did not name — and it is a real cost of sharing the token, at one
+width only. Recorded with a reversal trigger (_the first treatment that
+removes a quietened node's halo, or the first correlation edge drawn at a
+node's own ink width_) rather than smoothed into a clean pass.
+
+**3. The reason given for returning a value rather than taking a callback
+named a mechanism that does not exist.** Three places said a callback
+parameter _"would have to be stable or it would re-run the subscription"_.
+There is no subscription effect in `use-investigation.ts` at all: the stream
+is started imperatively from `start()`, through a `runInvestigation` whose
+`useCallback` deps are genuinely `[]`. An unstable callback would be captured
+**stale** by that closure and would need a ref to be correct. Same conclusion,
+honest mechanism; corrected in the hook's docblock and above.
+
+Re-verified after all three: `pnpm verify` green, `100 invariants hold.`,
+`50 components, 50 stories files.` (the third story is a new export in an
+existing file, so that count does not move — written as `51` here first and
+corrected by reading the run's own output, which is the same discipline the
+three corrections above are about).

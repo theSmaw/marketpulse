@@ -1354,6 +1354,25 @@ declared achromatic steps are quieter than the equity fill: `--chart-seam`
 hairline 501 of these nodes sit on. The direction of a value step is a property
 of the base it departs from, not of the token.
 
+**`--chart-seam` has a SECOND reader on this canvas and it is disclosed here
+rather than discovered later.** `TopologyPalette.correlationEdge` already
+spends it (§5), so at **1440** — the one width where the measured-edge layer
+is not suppressed — a quietened equity body and the dashed edges running
+through it are literally the same colour. Accepted on two channels, neither of
+them ink: **shape** (a filled 8 px disc against a 1 px dashed line, the same
+distinction the membership hairline already relies on, and louder here because
+those edges are a step below this one) and **the halo** (every body is stroked
+2 px in `--surface-raised` before it is filled, so an edge and a node of one
+colour never touch). Probed at 1440 against a measured pass — a third
+Storybook state added at this task's review, because the first two defaulted
+to `never-measured` and therefore could not show it. **Qualified pass**: a
+quietened disc stays readable as a disc and no node disappears into an edge
+crossing it, but a de-emphasised cluster's **interior** reads as pale texture
+rather than as discrete nodes at 1×, since the bodies and the mesh between
+them are now one value. Reversal trigger, a condition: _the first treatment
+that removes a quietened node's halo, or the first correlation edge drawn at a
+node's own ink width._
+
 **The two de-emphases do not collide, probed rather than argued** (`pnpm probe
 --story components-markettopology--highlighted-peers-narrowed`, four widths):
 a filtered landmark is a **small dark square** (0.6× ink, `--ink-secondary`) and

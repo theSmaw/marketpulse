@@ -200,9 +200,18 @@ export interface UseInvestigationResult {
    *
    * `onLiveSymbols`/`onLiveFocus`' established shape, which is the route's:
    * the hook answers a value and `SecurityExplorer` reports it upward from an
-   * effect. A callback parameter here would have to be stable or it would
-   * re-run the subscription, which is the defect `liveSymbols`' own `useMemo`
-   * comment records one route over.
+   * effect.
+   *
+   * **A callback parameter here would be captured STALE, which is a different
+   * mechanism from the one this comment first claimed and is worth stating
+   * correctly** (corrected at this task's own review). There is no
+   * subscription effect in this hook to re-run — the stream is started
+   * imperatively from `start()`, through a `runInvestigation` whose
+   * `useCallback` deps are genuinely `[]` — so an unstable callback would not
+   * re-subscribe anything; it would be closed over on the first render and
+   * never updated, and making it correct would mean this hook owning a ref to
+   * keep it fresh. Same conclusion, and a better one: a value needs no ref at
+   * all, and the route already has the effect to report it from.
    *
    * **It is never set back to `undefined`.** A command is superseded by a
    * later one and cleared by a reader's own gesture or a terminal event —
