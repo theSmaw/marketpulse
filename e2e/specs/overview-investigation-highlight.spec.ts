@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { expectNothingFailedToRender } from "../support/app.js";
 import { backendOrigin } from "../support/pair.js";
@@ -39,9 +39,12 @@ const EXPLORER = "/securities/NVDA";
 /** The peer-comparison step, by the sentence its own tool owns. */
 const COMPARE_STEP = "Compare against sector benchmark";
 
-test("Investigate on a security page lights the graph up on the landing page", async ({
-  page,
-}) => {
+/**
+ * **Run an investigation on `/securities/NVDA` and arrive on `/` with its
+ * highlight in force** — the journey the first test asserts, as a helper the
+ * clearing tests start from (Task 7.4.3).
+ */
+async function highlightOnTheOverview(page: Page): Promise<void> {
   await page.goto(EXPLORER);
 
   const region = page.getByRole("region", { name: "Abnormal-move indicators" });
@@ -67,6 +70,91 @@ test("Investigate on a security page lights the graph up on the landing page", a
 
   await page.getByRole("link", { name: "Market Overview" }).click();
   await expect(page).toHaveURL(/\/$/u);
+  await expect(highlightNote(page)).toBeVisible();
+}
+
+/** The drawn note, in the state where it says a highlight is in force. */
+function highlightNote(page: Page) {
+  return page
+    .getByRole("region", { name: "Market topology" })
+    .locator('[data-topology-highlight="active"]');
+}
+
+/** The graph's own text equivalent, by its one stable opening. */
+function structuralSentence(page: Page) {
+  return page
+    .getByRole("region", { name: "Market topology" })
+    .getByText(/A graph of every security we track/u);
+}
+
+/**
+ * **A point on the canvas that hit-tests to a node, and one that does not** —
+ * found by sweeping rather than guessed (`overview-market-topology-hover.
+ * spec.ts`' own technique, in its smallest form: move the pointer and ask the
+ * readout plate what it found).
+ *
+ * **Guessed coordinates were the first draft and they were wrong**, which is
+ * this repository's own *look at the page* rule arriving on a spec: the centre
+ * of the canvas box is not the hub's own screen position (`fitView` fits the
+ * elliptical layout to the box, and the two centres do not coincide), so a
+ * click there hit nothing and cleared the highlight — reading as a defect in
+ * the feature rather than in the assertion. The one thing a drawn canvas
+ * cannot tell a spec is where it drew, so both points are discovered.
+ */
+async function canvasPoints(page: Page): Promise<{
+  readonly node: { readonly x: number; readonly y: number };
+  readonly clear: { readonly x: number; readonly y: number };
+}> {
+  const found = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const readout = document.querySelector('[data-readout="ticker"]');
+    if (canvas === null || readout === null) return null;
+
+    const box = canvas.getBoundingClientRect();
+    let node: { x: number; y: number } | null = null;
+    let clear: { x: number; y: number } | null = null;
+
+    for (let y = 4; y < box.height; y += 5) {
+      for (let x = 4; x < box.width; x += 5) {
+        if (node !== null && clear !== null) break;
+        if (document.elementFromPoint(box.left + x, box.top + y) !== canvas)
+          continue;
+
+        canvas.dispatchEvent(
+          new PointerEvent("pointermove", {
+            clientX: box.left + x,
+            clientY: box.top + y,
+            bubbles: true,
+          }),
+        );
+
+        const at = { x: box.left + x, y: box.top + y };
+        if (readout.textContent === "") clear ??= at;
+        else node ??= at;
+      }
+    }
+
+    canvas.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+    return node === null || clear === null ? null : { node, clear };
+  });
+
+  if (found === null) {
+    throw new Error(
+      "the sweep found no pair of points — one on a node, one clear of every node",
+    );
+  }
+
+  return found;
+}
+
+test("Investigate on a security page lights the graph up on the landing page", async ({
+  page,
+}) => {
+  // **The journey itself is `highlightOnTheOverview`** (Task 7.4.3), which
+  // the two clearing tests below start from — one copy of *press Investigate,
+  // wait for the step the command is sequenced behind, navigate*, so the
+  // three cannot drift apart about what *a highlight is in force* means.
+  await highlightOnTheOverview(page);
 
   const topology = page.getByRole("region", { name: "Market topology" });
   await expect(topology).toBeVisible();
@@ -86,6 +174,81 @@ test("Investigate on a security page lights the graph up on the landing page", a
   await expect(
     topology.getByText(/A graph of every security we track/u),
   ).toContainText("Highlighting NVDA and the");
+
+  await expectNothingFailedToRender(page);
+});
+
+// **The way back out — Task 7.4.3, Story 7.4's AC 8.**
+//
+// This is the only level that can prove any of it. The gestures live in
+// `renderer-canvas.ts`, which jsdom cannot mount (no 2d context), and the
+// *holder* lives in `App.tsx`, two routes away from the region that draws the
+// consequence — so "the reader's press reached the thing that holds the
+// command" is a claim about a real browser or about nothing.
+test("Escape clears the highlight, and the holder stops holding it", async ({
+  page,
+}) => {
+  await highlightOnTheOverview(page);
+
+  const canvas = page
+    .getByRole("region", { name: "Market topology" })
+    .locator("canvas");
+
+  // **`press` rather than a click**, deliberately: a click on empty canvas is
+  // the OTHER gesture under test, so using one here would prove nothing about
+  // the key. Playwright focuses the element first, which is the state Story
+  // 6.4's own keyboard spec reaches by `Tab`.
+  await canvas.press("Escape");
+
+  await expect(highlightNote(page)).toHaveCount(0);
+  await expect(structuralSentence(page)).not.toContainText("Highlighting");
+
+  // **And now the half that is about the HOLDER rather than the canvas.**
+  // Leaving `/` and coming back re-mounts `MarketOverview`, whose effect
+  // re-applies whatever `App` is holding — so a holder that still held the
+  // withdrawn command would put the highlight back here, under a reader who
+  // dismissed it. That is the defect this task's own prompt named, and this
+  // is the only assertion in the repository that can see it.
+  await page.getByRole("link", { name: "Security Explorer" }).click();
+  await expect(page).toHaveURL(/\/securities$/u);
+  await page.getByRole("link", { name: "Market Overview" }).click();
+  await expect(page).toHaveURL(/\/$/u);
+
+  await expect(
+    page.getByRole("region", { name: "Market topology" }),
+  ).toBeVisible();
+  await expect(highlightNote(page)).toHaveCount(0);
+  await expect(structuralSentence(page)).not.toContainText("Highlighting");
+
+  await expectNothingFailedToRender(page);
+});
+
+test("a click on empty canvas clears it, and a click on a node does not", async ({
+  page,
+}) => {
+  await highlightOnTheOverview(page);
+
+  const { node, clear } = await canvasPoints(page);
+
+  // **A node first, and the highlight survives it** — selecting one of the
+  // peers must not be the gesture that destroys the picture it was read from.
+  await page.mouse.move(node.x, node.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  // The plate's anchor proves the click landed on a node at all, rather than
+  // the highlight surviving a press that hit nothing.
+  await expect(
+    page.getByRole("region", { name: "Market topology" }).getByRole("link"),
+  ).toHaveCount(1);
+  await expect(highlightNote(page)).toBeVisible();
+
+  // Then empty canvas, which is the mouse reader's own way out.
+  await page.mouse.move(clear.x, clear.y);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  await expect(highlightNote(page)).toHaveCount(0);
+  await expect(structuralSentence(page)).not.toContainText("Highlighting");
 
   await expectNothingFailedToRender(page);
 });

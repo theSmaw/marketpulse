@@ -1359,11 +1359,16 @@ rather than discovered later.** `TopologyPalette.correlationEdge` already
 spends it (§5), so at **1440** — the one width where the measured-edge layer
 is not suppressed — a quietened equity body and the dashed edges running
 through it are literally the same colour. Accepted on two channels, neither of
-them ink: **shape** (a filled 8 px disc against a 1 px dashed line, the same
-distinction the membership hairline already relies on, and louder here because
-those edges are a step below this one) and **the halo** (every body is stroked
+them ink: **shape** (a filled 8 px disc against a dashed line, 1–2 px across
+the three strength bands, the same distinction the membership hairline already
+relies on, and louder here because those edges are a step below this one) and
+**the halo, for a filled quietened body only** (every filled body is stroked
 2 px in `--surface-raised` before it is filled, so an edge and a node of one
-colour never touch). Probed at 1440 against a measured pass — a third
+colour never touch — **absent for the hollow `unscored` quietening**, CI's and
+every fresh store's permanent population, whose own renderer comment is
+explicit that a halo separates a fill from a neighbour and this mark has no
+fill; shape and the edge's own end-clearance carry that case alone). Probed at
+1440 against a measured pass — a third
 Storybook state added at this task's review, because the first two defaulted
 to `never-measured` and therefore could not show it. **Qualified pass**: a
 quietened disc stays readable as a disc and no node disappears into an edge
@@ -1395,3 +1400,51 @@ graph scale**, and at 390 the graph is small enough that the note is doing most
 of the work. That is recorded as an honest limit of the chosen treatment rather
 than as a defect of it; the word channel is what carries the fact at every
 width.
+
+### 11.1 And the region reports ONE fact outward now, which is new for this surface (Task 7.4.3, 2026-11-26)
+
+**The sixth treatment got its way out, and the mechanism is the part a later
+reader on this canvas must not rediscover.** Story 7.4's AC 8 clears a
+highlight on **Story 6.4's own two gestures, verbatim** — `Escape`, and a
+click on empty canvas — with no new affordance and no second word for
+_dismiss this_. What that forced is a channel this region has never had: a
+prop that carries a fact **outward**.
+
+Three things about it are load-bearing.
+
+**`onKeyDown`'s _not ours to swallow_ guard WIDENED rather than moved.**
+`Escape` over this canvas was ours only while something was selected; it is
+now ours while **either** a selection or a highlight is in force, and a
+highlight-only clearance deliberately runs none of the focus work (there is no
+anchor to lose, so focus stays exactly where the reader put it). An `Escape`
+over a plain, unhighlighted graph still reaches whatever is above this region
+untouched.
+
+**A click clears only on EMPTY canvas**, never on a node. A click that lands
+on one of the highlighted peers is a reader choosing a security, and taking
+the picture away as a side effect would make selecting a peer the one gesture
+that destroys the thing it was read from.
+
+**The renderer reports; it does not clear.** `onClearHighlight` is a
+**request**, which is the one asymmetry with `onSelect` beside it: a selection
+is the renderer's own state, so `onSelect` fires after it has already moved,
+while a highlight arrives from outside through `setHighlight` and the renderer
+holds only the set it was told to draw. So the gesture reaches
+`MarketTopology`'s one clearing path (`applyHighlight`, which the handle
+method is now also a call to) and nothing can leave the drawn set, the note
+and the accessible sentence disagreeing about whether a highlight is in force.
+The component clears **whether or not anybody above is listening** — the prop
+is optional, every Storybook story omits it — and then tells the holder,
+because a command still in `App`'s state is re-applied on that route's next
+re-render and would put the highlight back under a reader who dismissed it.
+That last half is why the e2e assertion leaves `/` and comes back: it is the
+only instrument that can see it.
+
+**One invariant was added for this surface**, a sibling rather than a
+widening: `the-topology-walk-reads-no-highlight` keeps `walk.ts` blind to the
+drawn set. `the-topology-walk-reads-no-band`'s argument is cadence; this one's
+is **whose position it is** — a highlight arrives from another screen, from a
+run this reader may not have started, and is withdrawn by a dead channel with
+no gesture at all, so a walk ordered by it would move a keyboard reader
+because a different page finished a step. Both have their own `pnpm break`,
+planted in different functions so neither can land the other's defect.

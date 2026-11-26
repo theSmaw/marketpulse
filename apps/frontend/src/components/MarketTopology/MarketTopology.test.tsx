@@ -4014,4 +4014,134 @@ describe("the highlight channel — Task 7.4.2", () => {
     expect(live).toHaveLength(1);
     expect(live[0]?.textContent).toBe("");
   });
+
+  // **The reader's own way out — Task 7.4.3**, Story 7.4's AC 8.
+  //
+  // What this level proves is the half that is a decision: that the gesture
+  // clears this region's own ink and words **and** reports upward, in that
+  // order, and that it does neither when there is nothing in force. WHICH
+  // gesture reaches it — `Escape`, a click on empty canvas, and not a click on
+  // a node — lives in `renderer-canvas.ts`, which jsdom cannot mount at all,
+  // and is asserted in `overview-investigation-highlight.spec.ts`.
+  describe("clearing, on the reader's own gesture — Task 7.4.3", () => {
+    /** The renderer option the gesture arrives through. */
+    const gesture = (): (() => void) => {
+      const options = mountCanvasTopology.mock.calls[0]?.[1] as
+        TopologyRendererOptions | undefined;
+      const handler = options?.onClearHighlight;
+      if (handler === undefined) {
+        throw new Error("the renderer was mounted with no clearing channel");
+      }
+      return handler;
+    };
+
+    it("takes the ink, the note and the clause off, and tells the holder", () => {
+      const ref = createRef<MarketTopologyHandle>();
+      const cleared = vi.fn();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+          onHighlightCleared={cleared}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+      expect(note().dataset.topologyHighlight).toBe("active");
+
+      act(() => {
+        gesture()();
+      });
+
+      // The same three writes the handle's own clearing makes, because it is
+      // the same function — `applyHighlight`, one path, two callers.
+      expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
+      expect(note().dataset.topologyHighlight).toBe("none");
+      expect(note().textContent).toBe("");
+      expect(sentence().textContent).not.toContain("Highlighting");
+      // And the holder is told, which is what stops `MarketOverview`'s own
+      // effect putting the command straight back on its next render.
+      expect(cleared).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports NOTHING when no highlight is in force", () => {
+      // `Escape` over an unhighlighted graph must not withdraw a command the
+      // holder is holding but this screen has not drawn yet (the universe
+      // still loading) — that would delete a highlight the reader never saw.
+      const cleared = vi.fn();
+
+      renderWithContext(
+        <MarketTopology
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+          onHighlightCleared={cleared}
+        />,
+      );
+
+      act(() => {
+        gesture()();
+      });
+
+      expect(cleared).not.toHaveBeenCalled();
+      expect(lastSetHighlight).not.toHaveBeenCalled();
+    });
+
+    it("clears the picture even where nothing above is listening", () => {
+      // The prop is optional — three routes and every Storybook story render
+      // this region without it — and a gesture whose visible effect depended
+      // on it being wired is this repository's own named trap: a claim about
+      // a mechanism that reads identically whether the mechanism is there or
+      // not.
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+      act(() => {
+        gesture()();
+      });
+
+      expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
+      expect(note().dataset.topologyHighlight).toBe("none");
+    });
+
+    it("does not re-mount the renderer, so a reader's pan and zoom survive it", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+          onHighlightCleared={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+      act(() => {
+        gesture()();
+      });
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
+  });
 });

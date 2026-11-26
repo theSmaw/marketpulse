@@ -688,6 +688,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     onHover,
     onSelect,
     onCorrelationLayer,
+    onClearHighlight,
   } = options;
 
   const canvas = document.createElement("canvas");
@@ -1480,9 +1481,27 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // **Nothing to clear is not ours to swallow.** An `Escape` over a graph
       // with no selection belongs to whatever is above this region, and
       // `ChartReading.tsx` records the same guard for the same reason.
-      if (selected === null) return;
+      //
+      // **A highlight is a second thing to clear, since Task 7.4.3**, so the
+      // guard widened rather than moved: the key is ours when either is in
+      // force, and an `Escape` over a plain, unhighlighted graph with nothing
+      // selected still reaches whatever is above this region untouched.
+      if (selected === null && highlighted === null) return;
 
       event.preventDefault();
+
+      // **The highlight first, and it is independent of the selection.** A
+      // reader can have one, the other or both, and `Escape` is the one way
+      // out of each — Story 7.4's AC 8 reusing Story 6.4's gesture verbatim
+      // rather than inventing a second word for *dismiss this*. Reported
+      // rather than applied: see `onClearHighlight`'s own docblock.
+      if (highlighted !== null) onClearHighlight?.();
+
+      // **Nothing below this line runs for a highlight-only clearance**, which
+      // is the point of the guard rather than an oversight: there is no
+      // anchor to lose focus from and no selection to clear, so focus stays
+      // exactly where the reader put it.
+      if (selected === null) return;
       // **Focus first, then clear.** Clearing unmounts the anchor React
       // rendered for the selection, and an element removed while it holds
       // focus drops focus to the body. Moving focus back to the canvas keeps
@@ -2311,10 +2330,19 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // and `Escape` (Task 6.4.3) is the keyboard's. `nodeAt` answering `null`
     // is that gesture, so no separate branch is needed for it.
     const box = canvas.getBoundingClientRect();
-    setSelectedNode(
-      nodeAt(event.clientX - box.left, event.clientY - box.top),
-      "pointer",
-    );
+    const hit = nodeAt(event.clientX - box.left, event.clientY - box.top);
+
+    // **And it clears a highlight too, since Task 7.4.3** — the same gesture,
+    // the same meaning (*I am done with this*), reported rather than applied
+    // (`onClearHighlight`'s own docblock).
+    //
+    // **Only on empty canvas.** A click that lands ON a node is a reader
+    // choosing a security, and taking the highlight away as a side effect
+    // would make selecting one of the highlighted peers the one gesture that
+    // destroys the picture it was read from.
+    if (hit === null && highlighted !== null) onClearHighlight?.();
+
+    setSelectedNode(hit, "pointer");
   };
 
   /**

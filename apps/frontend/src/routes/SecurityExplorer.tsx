@@ -26,7 +26,7 @@ import {
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import { useInvestigation } from "../investigations/index.js";
-import type { WorkspaceHighlightCommand } from "../investigations/index.js";
+import type { WorkspaceHighlightState } from "../investigations/index.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
@@ -136,11 +136,18 @@ export interface SecurityExplorerProps {
    * screen, and a reader reaching that screen is exactly the gesture that
    * unmounts this one, so a withdrawal here would make the feature
    * unreachable by construction. And it is never called with *nothing*: what
-   * clears a highlight is a reader's own gesture, a terminal event or a later
-   * command (Story 7.4's AC 8, Task 7.4.3), none of which is this route
-   * going away.
+   * clears a highlight is a reader's own gesture, a later command, or the run
+   * itself becoming unaccounted for (Story 7.4's AC 8), none of which is this
+   * route going away.
+   *
+   * **It takes the STATE rather than the command since Task 7.4.3**, which is
+   * how the third of those reaches the holder: a run whose stream ends with
+   * no terminal event reports `{ kind: "withdrawn", investigationId }`
+   * through this same callback, and `applyWorkspaceHighlight` clears only
+   * what that run placed. A second callback for the withdrawal was the
+   * alternative and is what this product's own record says gets forgotten.
    */
-  readonly onWorkspaceCommand?: (command: WorkspaceHighlightCommand) => void;
+  readonly onWorkspaceCommand?: (state: WorkspaceHighlightState) => void;
 }
 
 export function SecurityExplorer({
@@ -356,7 +363,14 @@ export function SecurityExplorer({
   //
   // **Guarded on there being one**, so a fresh mount with no run of its own
   // does not report an absence over a command still in force from a previous
-  // one. What clears a highlight is Story 7.4's AC 8 and Task 7.4.3's.
+  // one — `undefined` here is *this hook has nothing to say*, never *clear
+  // what you are holding*.
+  //
+  // **It reports the WITHDRAWAL as well, since Task 7.4.3**, and the guard
+  // above is exactly what makes that safe: a withdrawal is a value with an
+  // investigation id in it, so it travels through this same effect and
+  // `App`'s reducer clears only the command that run placed. The absence of
+  // a cleanup is unchanged and is still the point.
   useEffect(() => {
     if (investigation.highlight === undefined) return;
     onWorkspaceCommand?.(investigation.highlight);

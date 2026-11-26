@@ -344,6 +344,33 @@ export interface TopologyRendererOptions {
         source: TopologySelectionSource,
       ) => void)
     | undefined;
+
+  /**
+   * **The reader has asked for the highlight to go** (Task 7.4.3) — `Escape`,
+   * or a click on empty canvas, while a highlight is in force.
+   *
+   * ## A request, not a report, and the asymmetry with {@link onSelect} is
+   * ## deliberate
+   *
+   * A selection is **this renderer's own state**, so `onSelect` fires after it
+   * has already moved. A highlight is not: it is a command that arrived from
+   * outside, through {@link TopologyRenderer.setHighlight}, and this renderer
+   * holds only the set it was told to draw. So this says *the reader pressed
+   * the key* and changes nothing — the caller clears through the one path that
+   * already exists, which keeps the set, the note and the accessible sentence
+   * from ever disagreeing about whether a highlight is in force.
+   *
+   * **Only while there is one**, so an `Escape` over an unhighlighted graph is
+   * not reported at all — see `onKeyDown`'s own *not ours to swallow* guard,
+   * which this clause extends rather than replaces: the key is now ours when
+   * either a selection or a highlight is in force.
+   *
+   * It carries no investigation id and names nothing that produced the
+   * command, which is `no-second-affordance-on-a-topology-node`'s line and
+   * this directory's own rule: what produced a highlight is the route's
+   * business.
+   */
+  readonly onClearHighlight?: (() => void) | undefined;
 }
 
 /** A mounted renderer. */

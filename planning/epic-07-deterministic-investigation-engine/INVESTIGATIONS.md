@@ -831,3 +831,112 @@ completed row, surviving a second press rather than being blanked by one.
 evidenced finding) is not rendered anywhere, rejecting a finding and
 asking a follow-up both need a model this epic does not run, and nothing
 here has been confirmed against a real screen reader or a real deployment.
+
+## 13. Story 7.4, Task 7.4.3 — what ends a highlight, and the one place the ACs disagree with themselves
+
+Task 7.4.2 made invariant 2's one command **arrive**. This task is what makes
+it **end**, which is AC 8 — and it is the first thing in this epic whose whole
+subject is a lifetime rather than a figure.
+
+### 13.1 The holder learned an id, and the id is load-bearing rather than tidy
+
+`WorkspaceHighlightCommand` gained `investigationId` and moved into its own
+module (`apps/frontend/src/investigations/workspace-highlight.ts`) beside the
+two functions that decide what `App`'s holder becomes. The id is a plain
+`string`, not `InvestigationId` — this directory's standing rule for a fact
+that arrived over a wire, and `CLAUDE.md`'s own note that that brand is
+deliberately forgeable, so importing it would buy a claim this layer cannot
+make.
+
+**The reachable case it exists for**, which position alone cannot answer: a run
+on `NVDA` places a command; the reader navigates to another security, which
+unmounts the hook and deliberately leaves the command standing (Story 7.4's AC
+7 — navigating is how a reader reaches the screen that draws it); the reader
+starts a second run whose stream dies before placing anything. That second
+run's withdrawal must leave `NVDA`'s highlight exactly where it is.
+`applyWorkspaceHighlight` is three lines and `workspace-highlight.test.ts`
+proves both directions.
+
+**Supersession needs no id comparison at all** and does not have one: a
+`commanded` arm replaces the holder wholesale, because order is the producer's
+(`useInvestigation`'s `runIdRef` guard drops a superseded run's events before
+they reach the value) and because a merge is the one state AC 8 forbids — the
+note names one subject and counts one set, so a union of two investigations'
+peers would be a picture nothing on screen could explain.
+
+### 13.2 The hook answers a two-arm STATE, not a command
+
+`useInvestigation().highlight` is now `{ kind: "commanded", command }` or
+`{ kind: "withdrawn", investigationId }`, reported upward through the same
+single callback `SecurityExplorer` already had. Two fields would have been two
+things a route must remember to report, and the one that gets forgotten is
+always the clearing — which is this task's entire subject.
+
+`undefined` still means _this hook has nothing to say_ and must never be read
+as _clear what you are holding_: the route's reporting effect keeps its guard,
+and its deliberate absence of a cleanup is unchanged.
+
+### 13.3 A reader's gesture, and the half of it that is about the HOLDER
+
+`Escape` and a click on empty canvas — Story 6.4's own gestures, verbatim.
+`TOPOLOGY.md` §11.1 carries the renderer and component mechanics (the widened
+_not ours to swallow_ guard, why the renderer reports rather than clears, why
+a click on a node does not clear, and the one clearing path both callers go
+through).
+
+What belongs here is the reason the report travels all the way to `App`: the
+region clears its own ink and words immediately, so the gesture works with
+nobody listening — but `MarketOverview`'s effect re-applies the holder's value
+whenever it changes, so a holder still holding a dismissed command puts the
+highlight **back** on that route's next re-render. That is this repository's
+own named trap (_a claim about a mechanism reads identically whether the
+mechanism is there or not_), and the only instrument that can see it is a real
+browser leaving `/` and coming back, which
+`overview-investigation-highlight.spec.ts` now does.
+
+**A reload clears it with nothing written for the purpose** — ordinary React
+state in a module nothing persists — which is Story 7.4's out-of-scope line
+(_persisting a highlight past the investigation's own session_) holding
+structurally rather than by a rule anybody keeps.
+
+### 13.4 A dead channel withdraws it; a finished run does not — and that is where AC 8 contradicts itself
+
+`highlightOutlivesChannelEnd(lastEventType)` is the whole decision, in one
+expression, reading `isTerminalEventType` rather than any list of names (so
+Story 7.5's cancellation is covered with no change). The stream's **last
+word** tells the two endings apart, because a terminal event is always last —
+the SSE route ends the response after it:
+
+- **The run finished** → the highlight survives. A finished run is the most
+  settled state its claim can have, and ADR 0029's false-impression rule is
+  not engaged by backing that is known and complete.
+- **Unaccounted for** — the stream threw, or ended with no terminal event →
+  withdrawn, at the stream's own end, with no timer and no threshold: the same
+  instant the checklist starts saying _investigation state unknown_, which is
+  the earliest moment this browser knows anything.
+
+**`STORY.md`'s AC 8 asks for the opposite of the first of those, and its own
+Gate 1 record asks for exactly what shipped.** The measurement decides which
+is reachable: at Story 7.2's p50 of 32.0 ms, with the command emitted after
+step 4 of 6, clearing on a terminal event makes the highlight unobservable
+everywhere and turns this story's own merged headline journey red.
+`docs/GAPS.md` carries it with the figures and an owner — the Product Owner, at
+Story 7.4's close, as a one-line decision.
+
+### 13.5 The two new mechanical guards, and what no person has seen
+
+`pnpm invariants` holds **102**. `the-topology-walk-reads-no-highlight` keeps
+the keyboard walk blind to the drawn set (`TOPOLOGY.md` §11.1 for why it is a
+sibling of the band check rather than a widening of it), and
+`a-highlight-command-is-minted-only-where-the-wire-is-decoded` is the frontend
+sibling of Task 7.4.1's backend mint check: `WorkspaceHighlightCommand` has no
+brand (correctly — ADR 0051 Decision 1), so a surface can hand-build a peer
+set nobody measured and nothing permitted, and the drawn result is
+indistinguishable from the honest one. Both have a `pnpm break`, and both
+plants were confirmed to **compile and pass every test** before the check was
+written — `tsc -b` clean and all 24 `walk.test.ts` assertions green on the
+sorted-by-highlight plant, `pnpm typecheck` clean on the hand-minted command.
+
+**What no person has seen**: nobody has watched a highlight clear on a
+deployed backend, or at 390 on a real phone. `LIVE-REHEARSAL.md` still carries
+no row for this epic, owed by Story 7.7.
