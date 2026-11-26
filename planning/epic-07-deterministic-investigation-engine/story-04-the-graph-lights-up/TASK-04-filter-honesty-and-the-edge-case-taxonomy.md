@@ -1,8 +1,12 @@
 # Task 7.4.4 — Filter honesty and the edge-case taxonomy
 
-**Status:** Not started
+**Status:** In progress — 2026-11-26
 **Story:** [7.4 The Graph Lights Up](STORY.md)
-**Depends on:** 7.4.2, 7.4.3
+**Depends on:** 7.4.2 (complete, PR #713), 7.4.3 (complete, PR #715 — read
+its amendment below: `WorkspaceHighlightCommand` now carries
+`investigationId`, and the outward-clear channel this task's own filter
+logic must not fight is `renderer-canvas.ts`'s `onClearHighlight` report-up
+pattern, not a prop read directly off `App`)
 
 ## Objective
 
@@ -104,6 +108,54 @@ outside this filter."` — rendered only when its own data is present (ADR
    surface (not assumed), and `docs/GAPS.md` gains an entry only if that
    confirmation fails.
 9. `pnpm verify` and the relevant e2e specs are green.
+
+## Amended by this task's own Gate — 2026-11-26: what 7.4.1–7.4.3 already discharged, and what is genuinely left
+
+The original Work/Done-when sections above were written at Gate 1, before
+any of the first three tasks existed, and already correctly anticipated that
+most of the edge-case taxonomy would be built in 7.4.1 rather than here —
+re-confirmed now against the actual shipped code rather than assumed:
+
+**Already shipped, verify rather than rebuild:**
+
+- Done-when 4 (half): an untracked security sends no command —
+  `related-securities.ts`'s `untrackedRefusal` reuse, confirmed in 7.4.1's
+  own review. **Not yet shipped**: "the security page states the absence" —
+  nothing on `/securities/:symbol` today says why `Investigate`'s
+  related-securities answer is absent for an untracked subject. This is the
+  one real piece of Done-when 4 this task still owes.
+- Done-when 5: a zero-peers security (`QQQ`/`DIA`/`IWM`) sends no command —
+  shipped in 7.4.1, confirmed by its own review's test-reading. Nothing left
+  here.
+- Done-when 6: "not yet measured" vs. "measured as none" for correlation —
+  shipped in 7.4.1 as two distinct `RelatedSecuritiesAnswer` states. Nothing
+  left here.
+
+**Genuinely this task's own work, none of it built yet:**
+
+- The filter interaction in full (third population-note clause, `Show all`,
+  the whole-set-hidden case) — Done-when 1–3.
+- Done-when 4's other half: the security-page sentence for an untracked
+  subject.
+- Done-when 7: the large-highlight probe at scale, now that a highlight can
+  actually be drawn (it could not be, before 7.4.2).
+- Done-when 8: the screen-reader decision confirmed against Story 7.2's real
+  result surface.
+- The keyboard-affordance `Clear` link in the note — **note this now has a
+  real clearing mechanism to call**: 7.4.3 shipped `onClearHighlight`
+  (renderer → `MarketTopology` → `MarketOverview` → `App`), which already
+  clears on `Escape`/empty-canvas-click. This task's `Clear` link should
+  invoke the **same** path (not a second one) — clicking it should behave
+  exactly like the reader pressing Escape, including clearing the `App`
+  holder so a later unrelated re-render doesn't resurrect the dismissed
+  highlight (7.4.3's own review found and fixed exactly this class of bug
+  once already; reuse its mechanism rather than inventing a parallel one).
+- A second small item 7.4.3 left named but unresolved: its review flagged
+  that the command's `investigationId` is minted from `decoded.event.
+investigationId` while the withdrawal reads `started.id` — both are correct
+  and documented, but this task's filter/clear logic should read whichever
+  of the two is actually in scope at the point it needs an id, not introduce
+  a third source.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
