@@ -522,7 +522,7 @@
  * `justify-items: start` so each note is as wide as its own content rather
  * than as wide as the column; `max-inline-size` on the column, so the cap is
  * stated once for both rather than twice. The children carry no positioning
- * of their own, and a `display: none` highlight note takes no row and no gap.
+ * of their own, and a `hidden` highlight note takes no row and no gap.
  *
  * `pointer-events: none` on the column and `auto` on `.filterNote` alone: the
  * column is an empty box over a canvas whose `pointerleave` blanks the readout
@@ -644,8 +644,9 @@
    * `.filterNote`'s own reason, arriving one row down the same column now that
    * this note carries a control: the way back from a highlight is a `Clear`
    * button in it, and a button nothing can click is not a button. The
-   * paragraph's own `display: none` state is what keeps that from mattering
-   * while no command is in force.
+   * paragraph's own `hidden` attribute is what keeps that from mattering
+   * while no command is in force — and `hidden` rather than a rule here is
+   * deliberate; see this rule's own docblock.
    */
   pointer-events: auto;
   color: var(--ink-primary);

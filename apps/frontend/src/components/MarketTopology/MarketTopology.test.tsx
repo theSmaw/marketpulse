@@ -4456,6 +4456,84 @@ describe("the highlight channel — Task 7.4.2", () => {
       expect(text).toContain("Every other equity is drawn quieter.");
     });
 
+    // **The reader's own selection is pinned through a band batch, and the
+    // note has to be measured against the set THAT produced** (Task 7.4.4's
+    // own review finding).
+    //
+    // `renderer-canvas.ts`' `setBands` calls `renarrow(selected?.node.symbol)`
+    // — a live update must not take the node a reader is looking at away from
+    // them — so its drawn set can hold one band-excluded node that
+    // `narrowTopology(criterion, pinned: null)` does not. With a band cut, a
+    // selection, and that selected node the only drawn member of the
+    // highlight, the renderer drew de-emphasis while the note said *nothing
+    // highlighted is drawn here*: a dimmed market under a sentence claiming
+    // nothing was dimmed. Deployment-only — CI and every laptop have no bands
+    // at all — and real.
+    it("measures the cut against the PINNED drawn set on a batch, as the renderer does", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?band=extreme")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      // The reader selects the subject, which the renderer then pins.
+      act(() => {
+        select({
+          node: {
+            symbol: toTicker("NVDA"),
+            label: "NVIDIA Corporation",
+            kind: "equity",
+            cluster: "technology",
+          },
+          treatment: "normal",
+        });
+      });
+
+      // A batch in which the selection is NOT `extreme` — so the criterion
+      // excludes it and the pin is the only reason it is drawn — with one
+      // other security `extreme` so the cut is applied rather than refused.
+      act(() => {
+        ref.current?.setBands(
+          new Map([
+            [toTicker("NVDA"), "normal"],
+            [toTicker("XOM"), "extreme"],
+          ]),
+        );
+      });
+
+      const text = sentence().textContent;
+      // Something highlighted IS drawn — the pinned subject — so the note must
+      // not claim the opposite, and the de-emphasis claim stands because the
+      // renderer really did quieten the complement.
+      expect(text).not.toContain(
+        "None of the highlighted securities are inside this filter",
+      );
+      expect(text).toContain("Every other equity is drawn quieter.");
+      expect(filterNoteLine()).not.toContain("nothing is quietened");
+    });
+
+    /** Drive the renderer's own selection channel. */
+    function select(selected: TopologyHoverTarget): void {
+      const options = mountCanvasTopology.mock.calls[0]?.[1] as
+        TopologyRendererOptions | undefined;
+      const onSelect = options?.onSelect;
+      if (onSelect === undefined)
+        throw new Error(
+          "the renderer was mounted without the onSelect channel",
+        );
+      onSelect(selected, "pointer");
+    }
+
     /** The filter note's drawn line, by the attribute it publishes. */
     function filterNoteLine(): string {
       return (

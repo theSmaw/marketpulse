@@ -655,13 +655,31 @@ export function SecurityExplorer({
                * one place that holds both halves, which is `stored`'s own
                * reasoning four hundred lines up.
                *
-               * `GET /securities` serves the universe, so a resolved answer
-               * that does not hold this symbol is the whole of *untracked* —
-               * `/securities/ZZZZ` produces one, and so does a security Task
-               * 2.3.9 moved to `untracked` rather than deleting. The backend's
-               * `get_related_securities` refuses exactly this case and sends no
-               * `WORKSPACE_COMMAND` at all, so nothing on `/` reacts; the
-               * component's own prop docblock is why that needs a word.
+               * **Two conditions, and the second one is the whole of it: the
+               * row's own `status`.** `GET /securities` deliberately does NOT
+               * filter on `status` (`securities.ts`' own
+               * `listSecurities`/`findSecurity` note — filtering there would
+               * turn *we stopped tracking this symbol* into *no such symbol*),
+               * so the deployed store's two real untracked rows — `PSKY` and
+               * `WBD`, Task 2.3.9 — are served and **found**. Presence alone is
+               * therefore the wrong question, and asking it was this task's own
+               * first draft: the backend's refusal is keyed on membership in
+               * `buildTopologyGraph(UNIVERSE)`, the curated file those two were
+               * **deleted** from, so investigating `PSKY` today sends no command
+               * and a presence-keyed check would have said nothing about it —
+               * precisely the state this sentence exists to prevent.
+               *
+               * `status !== "active"` is `UNIVERSE.md` §12.2's own predicate
+               * applied where it belongs: this is a computation about *the
+               * market we track now* rather than a read of something we stored.
+               * `found?.status !== "active"` covers both refusals the backend
+               * can make, in that one expression: a symbol with no row at all
+               * (`/securities/ZZZZ`, where the optional chain answers
+               * `undefined`) and a row we no longer track. It is written as a
+               * chain rather than as two conjuncts because
+               * `@typescript-eslint/prefer-optional-chain` refuses the longer
+               * form; the two cases are both asserted, separately, in this
+               * route's own tests.
                *
                * **Keyed on `view.state === "loaded"` rather than on `found`
                * alone**, deliberately: `found` is `undefined` for the 174–277 ms
@@ -670,7 +688,9 @@ export function SecurityExplorer({
                * impression as drawing its figure before the name arrives
                * (Story 4.7's own mover-row defect).
                */
-              subjectUntracked={view.state === "loaded" && found === undefined}
+              subjectUntracked={
+                view.state === "loaded" && found?.status !== "active"
+              }
             />
             <AbnormalMove
               symbol={symbol}

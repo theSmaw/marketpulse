@@ -840,7 +840,7 @@ export function MarketTopology({
       : // **`highlight: null`** — see the HIGHLIGHT-BLIND note on
         // `trailingClauses` below: a render may not read `appliedHighlight`,
         // and the three imperative writers supply the clause afterwards.
-        filterAccount(topology.graph, filter, EMPTY_TREATMENTS, null);
+        filterAccount(topology.graph, filter, EMPTY_TREATMENTS, null, null);
 
   /**
    * **Every clause the accessible sentence carries beyond its own structure,
@@ -938,6 +938,11 @@ export function MarketTopology({
           filter,
           highlight,
           correlationClause,
+          // **The selection, because `setHighlight` does not re-narrow at
+          // all** (Task 7.4.4's review) — the renderer's drawn set is
+          // whatever the last `renarrow` left, and on a store with bands
+          // that call pinned the selection.
+          selectedSymbol(chosen),
         );
       }
     },
@@ -990,6 +995,7 @@ export function MarketTopology({
           filter,
           appliedHighlight.current,
           correlationClause,
+          selectedSymbol(chosen),
         );
       },
       markBurst: () => renderer.current?.markBurst(),
@@ -1458,6 +1464,7 @@ export function MarketTopology({
       filter,
       appliedHighlight.current,
       correlationClause,
+      selectedSymbol(chosen),
     );
   }, [bands, topology, filter, correlationClause]);
 
@@ -1494,6 +1501,11 @@ export function MarketTopology({
       // highlight's clause would be un-said by the next thing a reader did.
       appliedHighlight.current,
       correlationClause,
+      // **`null`, which is `setFilter`'s own `renarrow(null)`** (Task 7.4.4's
+      // review). This effect is the reader's press: they asked for a
+      // different picture, and the renderer clears a selection the new
+      // criterion excludes rather than pinning it.
+      null,
     );
   }, [topology, filter, correlationClause]);
 
@@ -1850,7 +1862,7 @@ export function MarketTopology({
               /*
                * **Focus goes where `Escape` already puts it** (Task 7.4.4).
                * This press removes the element holding focus — the paragraph
-               * goes `display: none` the instant the command clears — and
+               * gains `hidden` the instant the command clears — and
                * `Region`'s own dropped-focus backstop does not fire for it, for
                * the reason Task 6.4.4 measured one element over: the removal is
                * driven by this component's own imperative write rather than by
@@ -2560,10 +2572,16 @@ function applyAnomalyBands(
   highlight: TopologyHighlight | null,
   /** The measured-edge clause, which no batch changes. See `correlationClause`. */
   correlationClause: string,
+  /**
+   * **The reader's selection, because this is the BATCH case** (Task 7.4.4's
+   * review) — `renderer-canvas.ts`' `setBands` calls `renarrow(selected)`, and
+   * the note's own cut has to be measured against the set that produced.
+   */
+  pinned: Ticker | null,
 ): void {
   writers.renderer.current?.setBands(treatments);
 
-  const account = filterAccount(graph, filter, treatments, highlight);
+  const account = filterAccount(graph, filter, treatments, highlight, pinned);
 
   if (writers.sentence.current !== null) {
     // **The trailing clauses are re-appended here**, because this write
@@ -2619,19 +2637,41 @@ function filterAccount(
    * clause knows whether any de-emphasis was drawn at all.
    */
   highlight: TopologyHighlight | null,
+  /**
+   * **The reader's own selection, exactly where the renderer pins it** (Task
+   * 7.4.4's own review finding) — `null` for a reader-driven press, the
+   * selected symbol for a live band batch.
+   *
+   * ~~`pinned: null`, deliberately: the counts this sentence states are the
+   * criterion's own answer~~ — **that is still true and is now true by the
+   * function's own shape rather than by this argument**, which is what made
+   * the repair small. `narrowTopology` computes `tracked`, `inSector` and
+   * `matched` from the criterion alone and `pinned` reaches **only**
+   * `TopologyNarrowing.graph`; until this task nothing here read that field,
+   * so the argument looked like it governed the figures and did not.
+   *
+   * What it governs is the **drawn set the highlight's cut is measured
+   * against**, and that has to be the renderer's own or the two disagree.
+   * `renderer-canvas.ts` calls `renarrow(selected)` on a band batch and
+   * `renarrow(null)` on a filter press, for a stated reason (a live update
+   * must not take the node a reader is looking at away from them; a reader
+   * who pressed a filter asked for a different picture). Passing `null` here
+   * unconditionally left one reachable disagreement: a band cut, a selection,
+   * and that selected node the only drawn member of the highlight — the
+   * renderer draws de-emphasis and the note said *nothing highlighted is
+   * drawn here*. Deployment-only (CI and every laptop have no bands) and
+   * real. The two callers that correspond to the renderer's two cases pass
+   * what it passes.
+   */
+  pinned: Ticker | null,
 ): TopologyAccount {
   if (filter === undefined) return NO_ACCOUNT;
 
-  // **`pinned: null`**, deliberately: the counts this sentence states are
-  // the criterion's own answer, never the criterion plus whichever node the
-  // reader happens to have selected. The renderer draws that one extra node
-  // (`narrowTopology`'s own docblock) and the selection itself is what says
-  // why it is there.
   const narrowing = narrowTopology(
     graph,
     topologyCriterion(filter),
     treatments,
-    null,
+    pinned,
   );
 
   /*
@@ -2675,8 +2715,33 @@ interface TopologyAccount {
   readonly quietened: boolean;
 }
 
-/** Stable, for a component with no `filter` prop — every story, most tests. */
+/**
+ * **Stable, for a component with no `filter` prop — every story, most tests.**
+ *
+ * `quietened: true` is the picture that component draws: with no criterion
+ * there is nothing to hide a highlighted peer, so the complement really is
+ * drawn quieter and the clause saying so is correct. **It is not a reading of
+ * the renderer's own answer**, though, and that is the one place these two can
+ * still differ: a command naming nothing this universe tracks — or nothing but
+ * landmarks, which `SPY`'s own related set is — makes the renderer skip the
+ * de-emphasis while this says it happened. Unreachable on the real route,
+ * where `MarketOverview` always passes a `filter`; reachable in Storybook,
+ * where the `Highlighted` wrapper omits it. Recorded rather than guarded,
+ * because the guard is the prop and every real caller already passes it.
+ */
 const NO_ACCOUNT: TopologyAccount = { words: null, quietened: true };
+
+/**
+ * **The symbol the renderer would pin, read off the one ref that holds it**
+ * (Task 7.4.4's review) — a helper rather than three copies of the same
+ * optional chain, because the three callers that need it are exactly the three
+ * that must not disagree with `renderer-canvas.ts`' own `renarrow(selected)`.
+ */
+function selectedSymbol(
+  chosen: RefObject<TopologyHoverTarget | null>,
+): Ticker | null {
+  return chosen.current?.node.symbol ?? null;
+}
 
 /** Write the drawn population line, or empty it. One home, two callers. */
 function writeFilterLine(
@@ -2710,8 +2775,16 @@ function writeTopologyFilterNote(
   filter: TopologyFilter | undefined,
   highlight: TopologyHighlight | null,
   correlationClause: string,
+  /**
+   * **The reader's selection, or `null` for a press** (Task 7.4.4's review) —
+   * see `filterAccount`'s own parameter. The reader-cadence effect passes
+   * `null`, mirroring `setFilter`'s `renarrow(null)`; a command arriving
+   * passes the selection, because `setHighlight` does not re-narrow at all and
+   * the renderer's drawn set is whatever the last batch left.
+   */
+  pinned: Ticker | null,
 ): void {
-  const account = filterAccount(graph, filter, treatments, highlight);
+  const account = filterAccount(graph, filter, treatments, highlight, pinned);
 
   writeFilterLine(writers.filterLine, account);
 

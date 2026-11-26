@@ -7580,8 +7580,8 @@ than the ring around it. A person could not tell which cluster was Technology
 from the 390 screenshot, nor that any cut had been made.
 
 **A second, smaller finding from the same sitting, true at every width.** 73
-nodes at full strength in one cluster read as *this sector is the subject*
-rather than as *these are this security's peers* — a reader cannot find
+nodes at full strength in one cluster read as _this sector is the subject_
+rather than as _these are this security's peers_ — a reader cannot find
 `NVDA`, which is drawn as an ordinary member of its own highlighted set by
 Gate 1's own decision (a selection disc or a sixth mark would both lie about
 what the reader did). That is the encoding working as designed; it is recorded
@@ -7597,7 +7597,7 @@ did not own it. What is certain either way is that the note is correct and
 legible at 390 (two wrapped lines, measured: `notes` 372×42, and 372×92 with
 a filter clause beside it).
 
-**Not mechanisable as a check.** *Does a reader see the peers* is the fourth
+**Not mechanisable as a check.** _Does a reader see the peers_ is the fourth
 design test, and the one instrument is a person in front of the screen —
 `TOPOLOGY.md` §11.2 carries the full account and the screenshots' own figures.
 Nothing below `pnpm e2e` can reach the canvas at all, and a browser spec can
@@ -7611,3 +7611,53 @@ is discharged by that change.
 **Owner: the Product Owner**, as a design decision at Story 7.4's close or the
 first story that revisits this canvas's small-viewport behaviour — the same
 owner the two earlier fit-scale suppressions were settled by.
+
+## `overview-market-topology-live-mark.spec.ts` fails about one run in five, on `main`, and the `e2e` required check is where that lands
+
+**Measured 2026-11-26 by Task 7.4.4**, which met it twice in two full-suite
+runs and then took the control this repository's own rule asks for rather
+than attributing it to the branch.
+
+**The figures, interleaved on one settled machine.** The spec was run
+`--repeat-each=12` on the task's branch and then, with `apps/frontend/src`
+checked out from `main` and nothing else changed, twelve more times:
+
+| Tree       | Failures | Rate |
+| ---------- | -------- | ---- |
+| the branch | 3 / 12   | 25%  |
+| `main`     | 2 / 12   | 17%  |
+
+Those are one distribution — the Wilson 95% intervals (8.9–53% and 4.7–41%)
+overlap almost entirely — so **the flake is pre-existing and nothing on the
+branch caused it**. The first reading that prompted this was 2 failures of 8
+on the branch at a load average of 21 against 0 of 8 on `main` at 17, which is
+exactly the misleading pair `CLAUDE.md`'s own _before attributing a flake to a
+branch_ passage warns about: two draws from one distribution, read as a
+regression, at an n that cannot separate them.
+
+**Which assertion, and why it is load-shaped.** The failing expectation is the
+last one — `expect(await settledCanvasImage(page)).toBe(atRest)`, _the loop
+stops on its own and the canvas returns to exactly the pre-burst picture_.
+`settledCanvasImage` polls for two consecutive identical reads, so a decay
+loop that stalls can settle on a **partially faded** frame and compare it
+against a baseline it will never equal. The 600 ms wait before it is measured
+against a 900 ms `--motion-duration-decay` plus however long the frame loop
+actually took, which is the quantity under contention.
+
+**Not repaired here, deliberately.** This task changed nothing the spec
+exercises — it sets no highlight, and `topologyHighlightDrawsAnything(null, …)`
+returns on its first line so the drawn partition is byte-identical — and
+repairing a flaky assertion in somebody else's spec on the way past is the
+kind of unreviewed change this repository's own rules are against. What it
+needs is the wait replaced by a poll with a real deadline, or the comparison
+tolerant of the last frame of a decay.
+
+**Re-measure:** `pnpm e2e overview-market-topology-live-mark.spec.ts -g "a live burst produces one decaying" --repeat-each=12`,
+with the load average read **before** the run. Count failures per execution
+and state the worker count — the rate is a property of both.
+
+**Owner: the next story that touches this spec or the live-mark loop**, and
+until then every full `pnpm e2e` run has roughly a one-in-five chance of a red
+`e2e` check that is nobody's defect. That is work owed under this project's
+own _pipeline jobs never go red_ rule, which is why it is written down rather
+than left as a thing people re-run.

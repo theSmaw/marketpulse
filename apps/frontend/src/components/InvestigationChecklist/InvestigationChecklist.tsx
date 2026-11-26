@@ -113,7 +113,17 @@ export interface InvestigationChecklistProps {
   readonly pastCoverThreshold: boolean;
   /**
    * **Is the security on screen one this product tracks?** (Task 7.4.4) —
-   * `true` only once `GET /securities` has answered and does not hold it.
+   * `true` only once `GET /securities` has answered, and for **two** reasons
+   * rather than one: no row at all, or a row whose `status` is not `active`.
+   *
+   * **The second reason is the one that matters and the first draft of this
+   * prop did not have it.** `GET /securities` does not filter on `status`, by
+   * an explicit decision of its own, so the deployed store's two real untracked
+   * rows (`PSKY` and `WBD`) are served and found — while the backend's refusal
+   * is keyed on the **curated file**, which those two were deleted from. A
+   * presence-only check is therefore silent on the only untracked securities
+   * that actually exist. `SecurityExplorer.tsx`'s own call site carries the
+   * full account.
    *
    * It exists for one sentence, and only this component can draw it in the
    * right place: `get_related_securities` refuses an untracked subject outright

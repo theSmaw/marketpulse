@@ -1468,15 +1468,44 @@ its peers are hidden, how many it named, and whether **any highlighted
 EQUITY** is drawn at all. `renderer-canvas.ts`' `regroupAnomalyTreatments`
 reads the third and passes `null` instead of the set where it is false, so
 the de-emphasis pass does not run; `topologyFilterWords` reads all three and
-says what happened. One policy, two readers, and the ink and the sentence
-cannot disagree because neither computes it.
+says what happened. One policy, two readers, and neither computes it.
+
+**That is not quite "cannot disagree", and the gap was real** — found on
+review, repaired, and worth stating because the obvious phrasing overclaims.
+One policy is not enough; the two readers also have to be looking at the
+**same drawn set**. `renderer-canvas.ts` calls `renarrow(selected)` on a band
+batch — a live update must not take the node a reader is looking at away from
+them — and `renarrow(null)` on a filter press, where the reader asked for a
+different picture. `filterAccount` passed `null` unconditionally, so with a
+band cut, a selection, and that selected node the only drawn member of the
+highlight, the renderer drew de-emphasis while the note read _nothing
+highlighted is drawn here_: a dimmed market under a sentence saying nothing
+was dimmed. Deployment-only, since CI and every laptop have no bands at all.
+
+**The repair is one argument, and it cost nothing because of a property of
+`narrowTopology` nobody had needed before**: `pinned` reaches
+`TopologyNarrowing.graph` and **only** that — `tracked`, `inSector` and
+`matched` are computed from the criterion alone. So `filterAccount` can take
+the renderer's own `pinned`, measure the cut against the set the renderer
+really drew, and leave the stated population exactly what it was (the
+criterion's own answer, never the criterion plus whichever node the reader
+selected — Task 6.8.2's decision, now held by the function's shape rather
+than by the argument, and asserted on all four figures in `filter.test.ts`).
+The three callers map onto the renderer's own two cases: a batch and an
+arriving command pass the selection, the reader-cadence press passes `null`.
+
+**One place they can still differ, recorded rather than guarded**: a
+component rendered with no `filter` prop at all — every Storybook story,
+most tests, no route — takes `NO_ACCOUNT`'s `quietened: true`, which is right
+for every real case and wrong for a command naming nothing but landmarks. The
+guard is the prop, and `MarketOverview` always passes it.
 
 **An EQUITY, and that conjunct is the whole substance of the rule.** A
 Technology equity's `sector_membership` peers include `XLK`, and a landmark
 is drawn in **every** narrowed state (`keepEquities` keeps every non-equity)
 while being excluded from this encoding entirely (Story 6.3's own exclusion
-set, which this treatment is the fourth to respect). So *the sector ETF is
-still on screen* must not be what licenses dimming the market. The **subject**
+set, which this treatment is the fourth to respect). So _the sector ETF is
+still on screen_ must not be what licenses dimming the market. The **subject**
 counts where it is drawn, because it is an ordinary member of the highlighted
 set and a reader looking at it is looking at the thing the set is related to.
 
@@ -1491,10 +1520,10 @@ The accessible sentence on this surface has three writers (React's own commit,
 `applyAnomalyBands` on every live batch, and the reader-cadence effect) and
 this region has lost a clause to that collision three times. A clause riding
 `topologyFilterWords`' own return survives by construction;
-`MarketTopology.test.tsx`'s *the collision, a FIFTH time* is the assertion.
+`MarketTopology.test.tsx`'s _the collision, a FIFTH time_ is the assertion.
 What **did** cross the module boundary is one **boolean** —
 `topologyHighlightWords(highlight, quietened)` — because that builder's own
-tail sentence (*Every other equity is drawn quieter.*) is a claim about ink
+tail sentence (_Every other equity is drawn quieter._) is a claim about ink
 and stops being true in exactly this state.
 
 **Three absences rather than one**, `ADR 0029` as every clause in that builder
@@ -1508,7 +1537,7 @@ note is saying why the picture did not change, not counting.
 **The way back is the control the note already had.** `Show all` clears both
 cuts in one press, unchanged; no badge was added to the `Sector`/`Band`
 triggers (a header already seven pixels short at 1024, and a fourth thing
-reporting a *different* feature's state is two subjects in one speaker), and
+reporting a _different_ feature's state is two subjects in one speaker), and
 nothing auto-widens or auto-clears a reader's own filter so peers become
 visible — an investigation does not get to move the reader's controls.
 
@@ -1556,7 +1585,7 @@ drawn nodes, ~14% of the graph**.
 set.** The Technology ring is visibly solid where the other ten have receded;
 the separation is unambiguous at a glance and nothing changed hue. What a
 reader cannot do is find `NVDA` — 73 nodes at full strength in one cluster say
-*this sector is the subject*, not *these are this security's peers*, and the
+_this sector is the subject_, not _these are this security's peers_, and the
 subject is drawn as an ordinary member of the set by Gate 1's own decision.
 That is the encoding working as designed and is worth knowing before anybody
 reads the picture as pointing at one node.
@@ -1577,10 +1606,21 @@ and says it accurately. Recorded rather than repaired: this is the same
 fit-scale wall Story 6.6 already met for labels and Story 6.5 met for the
 correlation layer (both suppressed below the threshold), and whether the
 de-emphasis should be suppressed there too — leaving the note alone to carry
-it — is a design question this task did not own. `docs/GAPS.md` has no entry
-for it because the honest state is *the note is correct at every width*; what
-is unproven is whether a reader at 390 is better served by a picture that
-changes illegibly or by one that does not change.
+it — is a design question this task did not own. **`docs/GAPS.md` carries it**
+— _The highlight's de-emphasis is illegible at 390_ — with the Product Owner
+as owner and the cluster-not-peer-set reading beside it. What is unproven
+there is whether a reader at 390 is better served by a picture that changes
+illegibly or by one that does not change; the note itself is correct and
+legible at every width, which is what keeps this a shortfall in one channel
+rather than an absence.
+
+**This paragraph claimed the opposite for one commit** — _`docs/GAPS.md` has
+no entry for it_ — while the entry was being added in the same change, and
+that is worth a line rather than a silent correction: this is the maintained
+subject document and it **wins** where a task file disagrees, so a false claim
+here is the one most likely to be believed later. Found by a reviewer reading
+the two documents against each other, which is the only instrument there is
+for it.
 
 **The two filter states were photographed in the same sitting.** The partial
 cut (`?band=high,extreme`, 53 of 73 hidden) draws 20 surviving peers at full

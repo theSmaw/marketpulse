@@ -644,7 +644,19 @@ describe("narrowTopology — the band cut", () => {
       normalOne.symbol,
     );
     // The count is the criterion's, never the criterion plus the pin.
+    //
+    // **Widened at Task 7.4.4 to EVERY figure, because something now depends
+    // on it.** `MarketTopology.tsx`'s `filterAccount` passes the renderer's
+    // own `pinned` so the highlight's cut is measured against the set the
+    // renderer actually drew — and it may do that only because `pinned`
+    // reaches `graph` and nothing else. A `pinned` that moved `inSector` or
+    // `tracked` would make the note's stated population the
+    // criterion-plus-selection, which is the decision this test's own first
+    // clause exists to refuse.
     expect(pinned.matched).toBe(loose.matched);
+    expect(pinned.tracked).toBe(loose.tracked);
+    expect(pinned.inSector).toBe(loose.inSector);
+    expect(pinned.bandRefused).toBe(loose.bandRefused);
     expect(topologyEquityCount(pinned.graph)).toBe((loose.matched ?? 0) + 1);
     // And the pinned node is in its cluster's members, so an arrow key can
     // still step away from it — `walk.ts`' `step` answers `null` for a symbol
@@ -917,7 +929,7 @@ describe("topologyFilterWords — the highlighted peers a cut hides", () => {
     expect(words?.line).not.toContain("outside this filter");
   });
 
-  it("agrees its verb with a single hidden peer", () => {
+  it("agrees its NOUN and its verb with a single hidden peer", () => {
     const one: TopologyHighlight = {
       subject: "XOM",
       symbols: ["NVDA"],
@@ -933,7 +945,14 @@ describe("topologyFilterWords — the highlighted peers a cut hides", () => {
 
     // `XOM` is Energy and drawn, so the set draws something and this is the
     // partial arm with exactly one hidden peer.
-    expect(words?.line).toContain("1 of 1 highlighted peers is outside");
+    //
+    // **This assertion enshrined `1 of 1 highlighted peers is outside` until
+    // this task's own review** — the verb agreed and the noun did not, which
+    // is the defect Story 6.8 fixed twice on this surface and a test written
+    // around the output rather than around the grammar is how it came back.
+    expect(words?.line).toContain("1 of 1 highlighted peer is outside");
+    expect(words?.line).not.toContain("peers is");
+    expect(words?.clause).toContain("1 of the 1 highlighted peer is outside");
   });
 
   it("applies no clause to an address this page did not understand", () => {

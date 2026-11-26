@@ -181,8 +181,8 @@ it, so the ink and the sentence cannot disagree.
 
 **The `drawsAnything` conjunct is about equities and that is the substance.** A
 Technology command names `XLK`, a landmark is drawn in every narrowed state,
-and landmarks are outside this encoding entirely — so *the sector ETF is still
-on screen* must not license dimming 21 Energy equities for a reader looking at
+and landmarks are outside this encoding entirely — so _the sector ETF is still
+on screen_ must not license dimming 21 Energy equities for a reader looking at
 nothing the command named.
 
 **It fires with no filter at all, which was not the case this was written
@@ -204,7 +204,7 @@ why the picture did not change rather than counting.
 
 **One boolean crossed the module boundary and it had to.**
 `topologyHighlightWords(highlight, quietened)` — that builder's tail,
-*Every other equity is drawn quieter.*, is a claim about ink and is false in
+_Every other equity is drawn quieter._, is a claim about ink and is false in
 exactly the whole-set-hidden state. Leaving it standing would have put the
 contradiction two sentences apart in one spoken string.
 
@@ -290,22 +290,118 @@ comparison that produced them — not a 61-ticker announcement on `/`.
 Verified rather than rebuilt, per this file's own Gate amendment: shipped in
 7.4.1 and unchanged here.
 
+### Found by independent review, and fixed in one round — 2026-11-26
+
+Six findings. The first is the one that matters most, because it is about
+this record rather than about the code.
+
+**The `pnpm verify` figures first reported here were FALSE for the tree that
+was pushed.** `verify` ran green — and then this file, `TOPOLOGY.md` and
+`docs/GAPS.md` were appended to, and `format:check` went red on all three
+(Prettier's `_emphasis_`, one indent). `verify` chains and stops at the first
+failure, so `invariants`, `coverage:check`, `test`, `test:scripts` and
+`test:process` **never ran on the tree that carried the claim**. The figures
+below are re-taken from a single run after `pnpm format`, replacing the old
+ones rather than patching them. The lesson is narrow and worth writing down:
+**the documents a task writes are part of the tree `verify` checks**, so a
+close that appends to them after the gate has to re-run it.
+
+**The untracked sentence did not fire for the only untracked securities that
+exist.** `subjectUntracked` was keyed on presence in `GET /securities`'
+response — but that route deliberately does **not** filter on `status`
+(`securities.ts` says so in as many words: filtering there would turn _we
+stopped tracking this symbol_ into _no such symbol_), while the backend's
+refusal is keyed on membership in `buildTopologyGraph(UNIVERSE)`, the curated
+file `PSKY` and `WBD` were **deleted** from. So on the deployed store today,
+investigating `PSKY` sent no command and said nothing — exactly the state the
+sentence exists to prevent — and this file's own prop docblock claimed the
+opposite. Now `found === undefined || found.status !== "active"`, which is
+`UNIVERSE.md` §12.2's predicate applied where it belongs, with a route-level
+test using a **found row with `status: "untracked"`** rather than an unknown
+symbol. Proved non-vacuous: reverting to the presence-only check turns that
+one test red and leaves the `ZZZZ` test green, which is the whole finding.
+
+**The one-policy claim overclaimed, and the gap was reachable** —
+`TOPOLOGY.md` §11.2 carries the full account. One policy is not enough; the
+two readers also have to be looking at the same **drawn set**, and the
+renderer pins the reader's selection through a band batch where
+`filterAccount` passed `pinned: null`. Repaired rather than documented away,
+because it turned out to cost one argument: `pinned` reaches
+`TopologyNarrowing.graph` and nothing else, so the stated population is
+unchanged by construction. Four figures are now asserted equal with and
+without a pin, and the component test that proves the repair goes red when
+the batch call site is reverted to `null`.
+
+**`TOPOLOGY.md` §11.2 denied a `docs/GAPS.md` entry that exists** — the
+maintained subject document, which wins where this file disagrees, saying
+_`docs/GAPS.md` has no entry for it_ in the same change that added one.
+Corrected, with a line saying it happened.
+
+**`1 of 1 highlighted peers is outside this filter`** — verb agreed, noun did
+not, which is the defect class Story 6.8 already paid for twice on this exact
+surface (`1 are high`). Both halves are now keyed on the hidden count, and
+the test that enshrined the wrong output was asserting the output rather than
+the grammar — it now asserts both and refuses `peers is`.
+
+**Two stale comments** still described the attribute-keyed `display: none`
+the `hidden` attribute replaced, and `NO_ACCOUNT.quietened`'s own
+over-claim — unreachable on the real route, reachable in Storybook — is now
+stated in its docblock rather than silent.
+
 ### What was run
 
-- `pnpm verify` — **green**, `102 invariants hold.`, 786 + 1,559 + 2,120 unit
-  tests, 21 script tests, 63 process tests, no `Unhandled Errors` block.
-- `pnpm e2e overview-investigation-highlight.spec.ts` — 6 passed, including
-  the two new tests.
-- `pnpm e2e overview-market-topology-filter.spec.ts overview-market-topology.spec.ts
-  overview-market-topology-keyboard.spec.ts overview-market-topology-degraded.spec.ts
-  security-investigate.spec.ts` — 34 passed.
-- The whole `pnpm e2e` suite once at the end.
-- `pnpm probe --story components-markettopology--highlighted-peers`,
-  `--highlighted-peers-partly-hidden` and `--highlighted-peers-narrowed`.
-- **Two mutations, to prove the new assertions are not vacuous**: forcing
-  `hiddenPeerWords` to return `null` turned 3 `filter.test.ts` tests and 2
-  `MarketTopology.test.tsx` tests red; forcing `quietened: true` turned 2
-  `MarketTopology.test.tsx` tests red. Both restored.
+**Every figure below is from a single run after the review's fixes landed,
+re-taken rather than patched** — the first version of this section reported a
+`verify` that had been green on an earlier tree and had never run on the one
+that was pushed.
 
-No `pnpm invariants` entry was added, so no `pnpm break` is owed — the count
-is unchanged at 102.
+- **`pnpm verify` — green, exit 0, every step reached.** The chain prints
+  itself at the head of the run and all eleven steps ran:
+  `check-quiet → build → lint → format:check → stories → env:check → links →
+invariants → coverage:check → test → test:scripts → test:process`.
+  - `50 components, 50 stories files.`
+  - `683 documents, 2085 cross-file links, 39 anchor links, 0 broken.`
+  - `102 invariants hold.` — unchanged, so no `pnpm break` is owed.
+  - `backfill coverage: this system stores 1m, 1d; the scheduled run fills 1d, 1m.`
+  - `packages/shared` `Test Files 38 passed (38)` / `Tests 786 passed (786)`
+  - `apps/backend` `Test Files 85 passed (85)` / `Tests 1559 passed (1559)`
+  - `apps/frontend` `Test Files 112 passed (112)` / `Tests 2125 passed (2125)`
+  - `test:scripts` `ℹ tests 21`, `ℹ pass 21`, `ℹ fail 0`
+  - `test:process` `Test Files 3 passed (3)` / `Tests 63 passed (63)`
+  - **No `Unhandled Errors` block in any of the four runs** — read rather
+    than inferred from the exit code.
+- **The whole `pnpm e2e` suite**, at a load average of 10.6 before the run:
+  **336 passed, 16 skipped, 1 failed (7.6m)**. The one failure is
+  `overview-market-topology-live-mark.spec.ts`, and it is **pre-existing and
+  not this branch's** — measured rather than asserted, with the control this
+  repository's own rule asks for:
+
+  | Tree                                                             | Failures, `--repeat-each=12`, one settled machine |
+  | ---------------------------------------------------------------- | ------------------------------------------------- |
+  | this branch                                                      | 3 / 12 (25%)                                      |
+  | `main`, `apps/frontend/src` checked out and nothing else changed | 2 / 12 (17%)                                      |
+
+  One distribution — the Wilson intervals overlap almost entirely. The first
+  reading was 2 of 8 on the branch at load 21 against 0 of 8 on `main` at 17,
+  which is exactly the misleading pair `CLAUDE.md` warns about and is why the
+  n = 12 rotation was taken instead of a verdict. The failing assertion is
+  _the loop stops on its own_ against a 600 ms wait on a 900 ms decay, and
+  this task changed nothing the spec exercises (it sets no highlight, and
+  `topologyHighlightDrawsAnything(null, …)` returns on its first line, so the
+  drawn partition is byte-identical). `docs/GAPS.md` carries the figures and
+  an owner, because a required check failing one run in five is work owed.
+
+- `pnpm probe --story components-markettopology--highlighted-peers`,
+  `--highlighted-peers-partly-hidden` and `--highlighted-peers-narrowed`, at
+  all four widths.
+
+**Five mutations, to prove the new assertions are not vacuous.** Each was
+applied, run, and reverted:
+
+| Mutation                                                                         | Red                                                                                                                                     |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `hiddenPeerWords` returns `null` always                                          | 3 `filter.test.ts`, 2 `MarketTopology.test.tsx`                                                                                         |
+| `quietened: true` unconditionally                                                | 2 `MarketTopology.test.tsx`                                                                                                             |
+| `subjectUntracked` back to presence-only                                         | 1 `SecurityExplorer.test.tsx` — **the `status: "untracked"` row**, with the unknown-symbol test still green, which is the whole finding |
+| the batch call site back to `pinned: null`                                       | 1 `MarketTopology.test.tsx`                                                                                                             |
+| (the noun fix) the old assertion enshrined the defect; it now refuses `peers is` | —                                                                                                                                       |

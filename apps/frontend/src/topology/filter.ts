@@ -690,12 +690,20 @@ function hiddenPeerWords(
 
   const hidden = String(cut.hidden);
   const peers = String(cut.peers);
+  // **The NOUN agrees as well as the verb, which the first draft got half
+  // right** — `1 of 1 highlighted peers is outside this filter` was reachable
+  // the first time a reader narrowed away a single-peer command, and it is
+  // the identical defect class Story 6.8 already paid for twice on this exact
+  // surface (`1 are high`, in two separate builders, `docs/GAPS.md`). Both
+  // halves are keyed on the **hidden** count, which is what the noun is
+  // counting; `peers` is the denominator and never the subject.
+  const noun = cut.hidden === 1 ? "highlighted peer" : "highlighted peers";
   const verb = cut.hidden === 1 ? "is" : "are";
 
   return {
-    line: `${hidden} of ${peers} highlighted peers ${verb} outside this filter`,
+    line: `${hidden} of ${peers} ${noun} ${verb} outside this filter`,
     clause:
-      ` ${hidden} of the ${peers} highlighted peers ${verb} outside this` +
+      ` ${hidden} of the ${peers} ${noun} ${verb} outside this` +
       ` filter. Show all returns the whole market.`,
   };
 }
