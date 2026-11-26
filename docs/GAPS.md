@@ -2268,6 +2268,33 @@ duration over 12 s. Read the sets for **disjointness** rather than the counts
 for a total: three disjoint singletons and one triple is the signature of a
 ceiling family, and three identical sets would be a regression.
 
+**Fired on a required CI check, 2026-11-26, on Story 7.4's own Task 7.4.4 PR
+(#716) — recorded as a new occurrence rather than fixed in passing, per this
+file's own route-rather-than-repair-in-passing rule.** Verbatim:
+
+```
+Error: expect(received).toEqual(expected) // deep equality
+- Array [ "XLK", "XLC", "XLY", "XLI", "XLF", "XLV", "XLB", "XLP", "XLE" ]
++ Array []
+  > 581 |   expect(await tickersIn(ranked)).toEqual([
+  at e2e/specs/overview-nothing-to-open.spec.ts:581:35
+```
+
+Identical shape to this entry's own founding sighting — eleven expected
+tickers, `Array []` received, same assertion, same line. `verify` and
+`database` were both green on this head; only `e2e` failed, with `1 failed,
+20 skipped, 332 passed (11.9m)`. Confirmed structurally unrelated before
+re-running: the PR's diff touches only
+`apps/frontend/src/{topology,components/MarketTopology,routes/SecurityExplorer*}`
+and a new, unrelated e2e spec
+(`overview-investigation-highlight.spec.ts`) — nothing under
+`e2e/support/universe.ts`'s importers, and this spec "furnishes its own frame
+and routes its own socket" exactly as the entry above already states. Owner
+and repair are unchanged from Task 4.7.6's own diagnosis above
+(`expect.poll`/`await expect` on the first row rather than a non-retrying
+`expect` over `evaluateAll`) — still not taken, for the same reason: it is
+this spec's own assertion, not this task's or this story's to fix in passing.
+
 ## The search surface's axe passes judge whichever ten rows ONE hard-coded query happens to match — and typing a different letter finds a real contrast violation today
 
 **Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
