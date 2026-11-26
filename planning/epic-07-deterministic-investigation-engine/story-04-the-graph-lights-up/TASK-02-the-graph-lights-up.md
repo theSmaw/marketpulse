@@ -1,8 +1,10 @@
 # Task 7.4.2 — The graph lights up
 
-**Status:** Not started
+**Status:** In progress — 2026-11-26
 **Story:** [7.4 The Graph Lights Up](STORY.md)
-**Depends on:** 7.4.1
+**Depends on:** 7.4.1 (complete, PR #711 — read its amendments below before
+starting; the shipped shape differs from this task's original draft in two
+load-bearing ways)
 
 ## Objective
 
@@ -99,6 +101,61 @@ command }`, filled via `useInvestigation` reporting each decoded
    it does.
 5. Landmarks never participate in the highlight encoding, proven by a test.
 6. `pnpm verify` and the relevant e2e specs are green.
+
+## Amended by Task 7.4.1 — 2026-11-26: the shipped wire shape differs from this task's draft in two load-bearing ways
+
+Task 7.4.1 shipped (PR #711, fixed up in a reviewed follow-up commit
+`cf235073`) a real `packages/shared/src/workspace-command.ts` and a real
+`WORKSPACE_COMMAND` event payload. Read both before writing any frontend
+code — this task's own text above still describes the shape as originally
+briefed, not as built.
+
+1. **The event carries an `outcome`, not a bare `command`.** `InvestigationEvent`'s
+   `WORKSPACE_COMMAND` member is `{ type, seq, investigationId, stepId,
+outcome: WorkspaceCommandOutcome }`, where `WorkspaceCommandOutcome` is
+   `{ kind: "permitted"; command: WorkspaceCommand } | { kind: "refused";
+because: WorkspaceCommandRefusal }` — mirroring `TOOL_CALL_COMPLETED`'s own
+   field name. This is because Gate 1 requires a refused command to be an
+   observable, countable outcome on the wire, which a field typed
+   `command: WorkspaceCommand` cannot express. **The `App.tsx` holder and the
+   `useInvestigation` callback this task's Work section describes must carry
+   `outcome`, not `command`**, and must do something sensible with a
+   `refused` arm (the simplest correct behaviour: treat it exactly like "no
+   command yet" — no highlight, no error surfaced on `/`, since the refusal
+   belongs to the investigation surface that asked, per `STORY.md`'s own
+   Resolved-at-Gate-1 record of the degraded-state table). The frontend
+   decoder (`apps/frontend/src/investigations/investigation-event.ts`)
+   already parses both arms — read it rather than re-deriving the shape.
+2. **The subject is NOT a member of `symbols`, and this task's "What the
+   user can see" sentence above is wrong about that.** `HighlightNodesCommand`
+   is `{ type: "highlightNodes"; symbols: readonly [Ticker, ...Ticker[]];
+relations: readonly [TopologyEdgeKind, ...TopologyEdgeKind[]]; subject:
+Ticker }`, with `subject` **structurally excluded** from `symbols` and
+   validated as such at the decode boundary (`readWorkspaceCommand` refuses a
+   command where `subject` appears in its own `symbols`). So: **the highlighted
+   set this task draws is `{subject} ∪ command.symbols`, not `command.symbols`
+   alone** — draw the subject exactly as any other member of the set (no
+   distinct treatment, which the Work section already correctly says), but
+   construct the set to include it explicitly rather than assuming the wire
+   already does.
+3. **`relation` (singular) is `relations` (plural, non-empty), in
+   `TOPOLOGY_EDGE_KINDS` declaration order.** The common case is a set
+   spanning more than one relation kind at once (Story 6.5/6.6's own measured
+   ~82–84% same-cluster-overlap figure means a technology equity's highlight
+   routinely mixes `sector_membership` and `return_correlation`), so the
+   note this task builds must read `command.relations` as a list and phrase
+   accordingly (e.g. "sector peers and correlated securities" rather than
+   assuming one word covers it) — `get_related_securities`' own per-symbol
+   `RelatedSecurity.relations` field (server-side, not on the wire) is where
+   a future per-node phrasing would come from if ever needed; this task does
+   not need it for the set-level note and complement treatment Gate 1
+   settled on.
+
+None of this changes what this task visually builds (complement
+de-emphasis, the note, the `setHighlight`/`clearHighlight` imperative
+pair, the fifth `React.memo` evaluation) — it changes the exact field names
+and the one assembly step (`{subject} ∪ symbols`) the implementation must
+get right against the real wire shape rather than the drafted one.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
