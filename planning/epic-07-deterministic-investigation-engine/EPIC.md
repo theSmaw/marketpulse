@@ -596,9 +596,28 @@ this package's own import closure and refuses `sigma`, `graphology`, a canvas
 or DOM type, a colour literal or a `var(--token)` read, with a `pnpm break`
 behind it. **Its reversal trigger is this epic arriving**: _"the first
 consumer of the graph model that is not a browser."_ When you write the first
-server-side import of `topology.ts`, re-read that invariant's corpus-walk and
-confirm it still reaches your new file — the check is what makes this
+server-side import of `topology.ts`, ~~re-read that invariant's corpus-walk and
+confirm it still reaches your new file~~ — the check is what makes this
 decision true, and a stated invariant nothing checks quietly stops being true.
+
+**Amended 2026-11-26 by Task 7.4.1: the struck instruction rests on a
+misreading of that check's own scope, and it would have produced a false
+all-clear.** `no-renderer-type-in-the-graph-model`'s corpus is its own `CORPUS`
+constant in `scripts/check-invariants.mjs` — `packages/shared/src` and that
+module's import **closure** — so it **cannot** reach a file under
+`apps/backend/src`, and "confirm it still reaches your new file" has no
+affirmative answer to find. Confirmed by reading that constant rather than
+inferred from the claim. What the backend's first server-side reader needed was
+a **new** check, which Task 7.4.1 wrote:
+**`the-server-places-a-node-only-through-the-shared-layout`** — no file under
+`apps/backend/src` names a topology layout constant
+(`TOPOLOGY_RING_RADIUS_X`/`_Y`, `TOPOLOGY_NODE_FOOTPRINT`,
+`TOPOLOGY_CLUSTER_DENSITY`, `TOPOLOGY_GOLDEN_ANGLE`) or rolls its own
+trigonometry, so the server's one answer about where a node is comes from
+`buildTopologyLayout`. Two `pnpm break` entries behind it, one per clause,
+because a constant respelled locally and a bearing re-derived from scratch are
+written by different authors. The sentence above is otherwise unchanged and its
+reasoning is why the repair happened at all.
 
 **No edge carries a strength today, by design.** `TopologyEdge` has no
 `weight` field, because a membership is not a measurement — if

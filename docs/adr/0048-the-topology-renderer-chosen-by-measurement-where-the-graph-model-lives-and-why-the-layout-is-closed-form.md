@@ -615,3 +615,55 @@ expressed as distance rather than as ink") already covers this case too: a
 filter that wanted to _re-flow_ the market into the filtered subset's own
 shape would be exactly that consumer, and would reopen Decision 3 as a
 whole rather than only its filter-blind half.
+
+---
+
+## Amended 2026-11-26 by Task 7.4.1 — Decision 2's reversal trigger fired, was re-evaluated in full, and the decision stands
+
+**Decision 2's own trigger is _"the first consumer of the graph model that is
+not a browser"_, and it fired at Story 7.4.** `apps/backend/src/
+related-securities.ts` is that consumer: a server-side answerer reading
+`buildTopologyGraph(UNIVERSE)` and merging the stored nightly correlation
+generation through `withCorrelationEdges`, called by the investigation
+orchestrator to build the first `WorkspaceCommand` this product produces
+([ADR 0051](0051-the-first-workspace-command-where-it-lives-why-it-carries-no-coordinates-which-stream-carries-it-and-what-permission-checking-means.md)).
+`apps/backend/src/workspace-command-permission.ts` is the second, reading
+`buildTopologyLayout(...).placements`.
+
+**The decision text above is unchanged and the decision stands.** What was
+re-evaluated, and what it cost:
+
+- **Nothing in the model needed changing to serve a non-browser consumer, and
+  that was the whole point of the decision.** `buildTopologyGraph` is pure and
+  total over a `readonly Security[]`; the backend hands it the same curated
+  `UNIVERSE` the frontend's own `graph-source.ts` hands it over the wire, and
+  the answers agree because the function is the same function. No graphology
+  `Graph`, no `HTMLElement`, no colour literal had to be unpicked, because none
+  was ever there.
+- **`TopologyLayout.placements` being a sorted ARRAY rather than a `Map` paid
+  off exactly as its own docblock predicted.** That note says _"a layout
+  crosses a wire in Epic 7 … and `JSON.stringify(new Map())` is `{}`"_. It
+  turns out the layout itself does **not** cross the wire — ADR 0051 Decision 2
+  keeps every coordinate off it, and both ends re-derive — but the permission
+  stage still reads `placements` as data it iterates and the prediction's
+  reasoning held one layer in.
+- **One claim this epic's own `EPIC.md` made about this ADR was FALSE and is
+  corrected rather than inherited.** `EPIC.md` instructed the first server-side
+  importer to _"re-read that invariant's corpus-walk and confirm it still
+  reaches your new file"_ — and `no-renderer-type-in-the-graph-model`'s corpus
+  is `packages/shared/src` and that module's import **closure**, so it cannot
+  reach `apps/backend/src` at all and there was no affirmative answer to find.
+  Confirmed by reading the check's own `CORPUS` constant rather than inferred.
+  `EPIC.md` carries the dated amendment, and the backend's first reader got a
+  **new** check instead:
+  `the-server-places-a-node-only-through-the-shared-layout`, two `pnpm break`
+  entries behind it. Decision 2's claim was never wrong; what was wrong was the
+  belief that an existing mechanism covered the new file.
+- **Decision 3 is spent rather than re-opened.** Its closed-form,
+  weight-blind, filter-blind layout is precisely what lets a
+  `WorkspaceCommand` name symbols and carry no coordinates: two processes, one
+  pure function, one compiled-in universe, byte-identical placements. The
+  trigger quoted in the 2026-11-11 amendment above — _the first consumer that
+  needs two securities' measured relationship expressed as distance rather than
+  as ink_ — was evaluated a **fifth** time here and did **not** fire: the
+  highlight is a set of symbols, and distance plays no part in it.

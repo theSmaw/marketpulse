@@ -7227,4 +7227,185 @@ export const BREAKS = [
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "the-confidence-mark-spends-no-fill-and-no-colour",
   },
+  // ## Task 7.4.1's three. TWO for the layout check, because its two clauses
+  // ## catch different authors — `the-topology-layout-is-built-from-the-whole-
+  // ## universe`'s own precedent, for the same reason: a multi-clause guard
+  // ## proved by one plant is a guard with an unproven clause, and
+  // ## `CLAUDE.md`'s own 2026-10-16 rule is to check WHICH clause failed.
+  {
+    name: "a-layout-constant-respelled-on-the-server",
+    proves:
+      "`the-server-places-a-node-only-through-the-shared-layout` goes red " +
+      "when a backend file spells a topology layout constant for itself.\n\n" +
+      "**The plant is the defect Story 7.4's own AC 2 invites.** That " +
+      'criterion says the highlight *"respects `TOPOLOGY_NODE_FOOTPRINT` ' +
+      'when deciding how close is close"*, and the obvious server-side ' +
+      "reading of it is a proximity test in the permission stage — where " +
+      "the layout is already in hand. A next author with no import to " +
+      "reach for writes the figure down, which is a SECOND home for a " +
+      "constant `packages/shared/src/topology-layout.ts` owns, and the two " +
+      "then drift at the next ring re-derivation.\n\n" +
+      "**Nothing else sees it.** `tsc -b` is happy: 16 is a number. No " +
+      "test can see it either — the only assertion a unit test can make " +
+      "about a position is one it computed from the same wrong constant, " +
+      "and `pnpm e2e` draws from the BROWSER's own layout, so a " +
+      "server-side disagreement lands the highlight beside the right node " +
+      "with every photograph looking plausible. That silence is the whole " +
+      "reason ADR 0051 keeps coordinates off the wire.\n\n" +
+      "**The plant APPENDS beside the found line and keeps it** (2026-10-" +
+      "16's rule), so the registry's own `find` survives its own break.",
+    file: "apps/backend/src/workspace-command-permission.ts",
+    find: "  const placed = new Set<string>(",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const TOPOLOGY_NODE_FOOTPRINT = 16;\n" +
+      "  void TOPOLOGY_NODE_FOOTPRINT;\n" +
+      "  const placed = new Set<string>(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-server-places-a-node-only-through-the-shared-layout",
+  },
+  {
+    name: "a-coordinate-computed-on-the-server",
+    proves:
+      "The SECOND clause of " +
+      "`the-server-places-a-node-only-through-the-shared-layout` — the " +
+      "trigonometry one — goes red on a hand-rolled position, which names " +
+      "no constant at all and would therefore pass the first clause.\n\n" +
+      "**Why this is a separate break rather than a second line in the one " +
+      "above.** The two defects come from different authors. The first is " +
+      "somebody who knows the shared constant exists and cannot import it; " +
+      "this one is somebody re-deriving a bearing from scratch, which " +
+      "imports nothing and spells nothing — `topology-layout.ts`'s own " +
+      "`fromTwelve` is eleven characters of arithmetic and is exactly what " +
+      "gets re-typed. A single plant would have left this clause " +
+      "unproven, which is a clause that has never failed.\n\n" +
+      "**Nothing else sees it**, for the reason the entry above gives: a " +
+      "server-side coordinate is checkable only against another " +
+      "server-side coordinate.",
+    file: "apps/backend/src/workspace-command-permission.ts",
+    find: "  for (const symbol of command.symbols) {",
+    replace:
+      "  // pnpm break: reverted automatically\n" +
+      "  const bearing = Math.atan2(1, 1);\n" +
+      "  void bearing;\n" +
+      "  for (const symbol of command.symbols) {",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-server-places-a-node-only-through-the-shared-layout",
+  },
+  {
+    name: "a-producer-that-mints-its-own-permission",
+    proves:
+      "`a-permitted-command-is-minted-only-by-the-permission-stage` goes red " +
+      "on a `WorkspaceCommand` producer that builds its own " +
+      '`{ kind: "permitted" }` outcome instead of returning ' +
+      "`permitWorkspaceCommand(...)` — invariant 2's second stage skipped.\n\n" +
+      "**The plant is the defect Epic 10's author writes, and it is the one " +
+      "this check was added for because the argument against needing a check " +
+      "at all was FALSE.** `workspace-command-pipeline.ts`' first draft " +
+      'claimed a producer skipping the permission stage "would have to ' +
+      "construct that union member by hand, and `tsc -b` is what makes it " +
+      'visible". It does not: `WorkspaceCommandOutcome` is a plain ' +
+      "structural union with **no brand** — correctly, since a command has no " +
+      "explanation to protect (ADR 0051 Decision 1) — so " +
+      '`{ kind: "permitted", command }` compiles anywhere. Proved rather ' +
+      "than argued on review: the same plant was written as a whole second " +
+      "producer module and `pnpm typecheck` was **completely clean** on it, " +
+      "while this check named the file. Story 7.4's AC 6 promises " +
+      "`pnpm invariants` confirms no call site bypasses the pipeline, so the " +
+      "claim is now checked rather than owned as a gap.\n\n" +
+      "**Nothing else sees it.** `tsc -b` is clean, as above. `pnpm test` " +
+      "passes: a hand-minted permitted outcome is INDISTINGUISHABLE from a " +
+      "permission-checked one on the wire — that is the whole point of the " +
+      "`permitted` arm carrying the command — so every *the event carries the " +
+      "command* assertion stays green, which is `CLAUDE.md`'s own " +
+      "pass-through lesson arriving on a gate. And `pnpm e2e` passes because " +
+      "CI's store has zero bars, and in any case a highlight drawn on the " +
+      "wrong node still draws.\n\n" +
+      "**The plant is a second producer in THIS file rather than a new one**, " +
+      "because the harness performs a find/replace in a committed file and " +
+      "cannot create one — the defect is identical either way (a producer " +
+      "minting its own permission), and the corpus clause is what makes the " +
+      "new-file version red too, demonstrated by hand on review. It " +
+      "**prepends above the found line and keeps it** (2026-10-16's rule), so " +
+      "the registry's own `find` survives its own break, and it reuses " +
+      "`Ticker`/`WorkspaceCommandOutcome`, already imported as types here, so " +
+      "the plant needs no second edit.",
+    file: "apps/backend/src/workspace-command-pipeline.ts",
+    find: "export function createHighlightPeersProducer(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function createAgentChosenProducer(\n" +
+      "  chosen: () => readonly Ticker[],\n" +
+      "): WorkspaceCommandProducer {\n" +
+      "  return {\n" +
+      '    afterTool: "get_market_breadth",\n' +
+      "    propose: (subjectSymbols) => {\n" +
+      "      const [subject] = subjectSymbols;\n" +
+      "      const [first, ...rest] = chosen();\n" +
+      "      if (subject === undefined || first === undefined) {\n" +
+      "        return Promise.resolve(undefined);\n" +
+      "      }\n" +
+      "      const outcome: WorkspaceCommandOutcome = {\n" +
+      '        kind: "permitted",\n' +
+      "        command: {\n" +
+      '          type: "highlightNodes",\n' +
+      "          symbols: [first, ...rest],\n" +
+      '          relations: ["sector_membership"],\n' +
+      "          subject,\n" +
+      "        },\n" +
+      "      };\n" +
+      "      return Promise.resolve(outcome);\n" +
+      "    },\n" +
+      "  };\n" +
+      "}\n" +
+      "\n" +
+      "export function createHighlightPeersProducer(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-permitted-command-is-minted-only-by-the-permission-stage",
+  },
+  {
+    name: "an-analytical-tool-reached-outside-the-pipeline",
+    proves:
+      "`the-analytical-tool-registry-is-one-class` goes red on an " +
+      "`AnalyticalTool` factory that exists and is wired into " +
+      "`investigationTools` by nothing.\n\n" +
+      "**The plant is the defect this task was literally commissioned to " +
+      "write.** Task 7.4.1's own brief described " +
+      '`get_related_securities` as *"a real `AnalyticalTool` reached from ' +
+      '`runSteps` without being one of the six `toRunnableTool(` calls"* — ' +
+      "a second, undeclared class of registry member. It is not one, for " +
+      "three structural reasons `related-securities.ts`' header gives, the " +
+      "first of which is fatal: `FINDING_TYPE_FOR_TOOL` is " +
+      "`satisfies Record<ToolName, FindingType>`, a TOTAL map checked in " +
+      "both directions by `finding.test.ts`, so a tool in `TOOL_NAMES` " +
+      "that makes no claim needs a `FindingType` with no real producer. The " +
+      "next author reaching for a second orchestrator-called tool has none " +
+      "of that in front of them.\n\n" +
+      "**Nothing else sees it.** `tsc -b` is happy — the factory " +
+      "typechecks and nothing requires it to be called. `pnpm test` is " +
+      "happy: no runner instruments `index.ts`, which is where the array " +
+      "lives. And `the-checklist-seeds-one-row-per-tool` is happy too, " +
+      "which is the interesting half: that check counts " +
+      "`toRunnableTool(` calls against the client's seeded row count, and " +
+      "an unwired factory changes neither. The two checks fail in " +
+      "different directions and neither subsumes the other.\n\n" +
+      "**The plant APPENDS a factory above the found line and keeps it** " +
+      "(2026-10-16's rule), so the registry's own `find` survives its own " +
+      "break. It reuses `AnalyticalTool`, already imported as a type in " +
+      "this file, so the plant needs no second edit.",
+    file: "apps/backend/src/tool-volume-ratio.ts",
+    find: "export function createVolumeRatioTool(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function createOrphanTool(): AnalyticalTool<\n" +
+      "  VolumeRatioInput,\n" +
+      "  VolumeRatioReading\n" +
+      "> {\n" +
+      "  return createVolumeRatioTool();\n" +
+      "}\n" +
+      "\n" +
+      "export function createVolumeRatioTool(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-analytical-tool-registry-is-one-class",
+  },
 ];
