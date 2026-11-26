@@ -367,3 +367,106 @@ describe("readInvestigationEvent — INVESTIGATION_FAILED (the B2 repair)", () =
     ).toMatchObject({ kind: "unreadable" });
   });
 });
+
+// --------------------------------------------------------------------------
+// Task 7.4.1 — invariant 2's own event
+// --------------------------------------------------------------------------
+
+describe("readInvestigationEvent — WORKSPACE_COMMAND", () => {
+  const frame = (outcome: unknown) => ({
+    type: "WORKSPACE_COMMAND",
+    seq: 9,
+    investigationId: "inv-1",
+    stepId: "step-4",
+    outcome,
+  });
+
+  const PERMITTED = {
+    kind: "permitted",
+    command: {
+      type: "highlightNodes",
+      symbols: ["AMD", "XLK"],
+      relations: ["sector_membership", "return_correlation"],
+      subject: "NVDA",
+    },
+  };
+
+  it("decodes a permitted highlight", () => {
+    expect(readInvestigationEvent(frame(PERMITTED))).toStrictEqual({
+      kind: "event",
+      event: {
+        type: "WORKSPACE_COMMAND",
+        seq: 9,
+        investigationId: "inv-1",
+        stepId: "step-4",
+        outcome: PERMITTED,
+      },
+    });
+  });
+
+  it("decodes the REFUSED arm rather than dropping it", () => {
+    // A refusal is ADR 0029's first-class, countable outcome; a decoder that
+    // dropped it would make the one thing the permission stage exists to
+    // produce invisible above the server's own stderr.
+    expect(
+      readInvestigationEvent(
+        frame({ kind: "refused", because: "symbol-has-no-placement" }),
+      ),
+    ).toMatchObject({
+      kind: "event",
+      event: {
+        outcome: { kind: "refused", because: "symbol-has-no-placement" },
+      },
+    });
+  });
+
+  it("refuses a refusal spelled `reason` rather than `because`", () => {
+    expect(
+      readInvestigationEvent(
+        frame({ kind: "refused", reason: "symbol-has-no-placement" }),
+      ),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+
+  it("refuses an EMPTY highlight — a fully-formed claim about zero nodes", () => {
+    expect(
+      readInvestigationEvent(
+        frame({ ...PERMITTED, command: { ...PERMITTED.command, symbols: [] } }),
+      ),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+
+  it("refuses a highlight with no relations — one the note cannot explain", () => {
+    expect(
+      readInvestigationEvent(
+        frame({
+          ...PERMITTED,
+          command: { ...PERMITTED.command, relations: [] },
+        }),
+      ),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+
+  it("refuses an unknown command type inside a permitted outcome", () => {
+    expect(
+      readInvestigationEvent(
+        frame({
+          ...PERMITTED,
+          command: { ...PERMITTED.command, type: "openPriceChart" },
+        }),
+      ),
+    ).toMatchObject({ kind: "unreadable" });
+  });
+
+  it("refuses an outcome kind it does not know", () => {
+    expect(readInvestigationEvent(frame({ kind: "deferred" }))).toMatchObject({
+      kind: "unreadable",
+    });
+  });
+
+  it("never throws on anything in the outcome slot", () => {
+    for (const outcome of [undefined, null, 7, "permitted", [], {}]) {
+      expect(() => readInvestigationEvent(frame(outcome))).not.toThrow();
+    }
+  });
+});

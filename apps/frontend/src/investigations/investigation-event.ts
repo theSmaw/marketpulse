@@ -46,6 +46,14 @@ export const KNOWN_INVESTIGATION_EVENT_TYPES = [
   "STEP_COMPLETED",
   "INVESTIGATION_COMPLETED",
   "INVESTIGATION_FAILED",
+  // **Nine since 2026-11-25 (Task 7.4.1).** Invariant 2's own event. It is
+  // decoded and validated here and **drawn by nothing yet** — the highlight
+  // itself is Task 7.4.2's — which is deliberate rather than an omission: a
+  // type the backend serialises and this bundle has no case for decodes as
+  // `unsupported` and is dropped without a word, which is the defect
+  // `every-serialised-event-type-has-a-decoder-case` exists to refuse and
+  // which it caught once already (`INVESTIGATION_FAILED`, above).
+  "WORKSPACE_COMMAND",
 ] as const;
 
 export type KnownInvestigationEventType =
@@ -156,7 +164,49 @@ export type WireInvestigationEvent =
       readonly status: "failed";
       readonly failedAt: string;
       readonly stepCount: number;
+    })
+  /**
+   * **Invariant 2's own event** (Task 7.4.1) — a typed instruction to a
+   * surface rather than a figure about the market, and the first of those this
+   * product has ever carried.
+   *
+   * **Declared as the wire's own shape, not the domain's**, exactly as this
+   * module's header requires: the backend's `WorkspaceCommand` holds `Ticker`s
+   * and a `TopologyEdgeKind` union, and both are plain strings here. The
+   * browser re-narrows them where it uses them — a symbol against the universe
+   * it has already fetched, a relation against the vocabulary it imports — and
+   * Task 7.4.2 is the first reader that needs either.
+   *
+   * **The outcome's refused arm is decoded too**, not skipped. A refusal is
+   * ADR 0029's first-class, countable outcome, and a decoder that dropped it
+   * would make the one thing the permission stage exists to produce invisible
+   * to everything above the server's own stderr.
+   *
+   * `relations` is plural — see `packages/shared/src/workspace-command.ts` for
+   * why the set of kinds travels rather than one dominant kind.
+   */
+  | (WireEventBase & {
+      readonly type: "WORKSPACE_COMMAND";
+      readonly stepId: string;
+      readonly outcome: WireWorkspaceCommandOutcome;
     });
+
+/** A command, as it travels. See the event member above for the duplication
+ * rule this follows. */
+export interface WireHighlightNodesCommand {
+  readonly type: "highlightNodes";
+  readonly symbols: readonly string[];
+  readonly relations: readonly string[];
+  readonly subject: string;
+}
+
+/** The permission stage's answer, as it travels. */
+export type WireWorkspaceCommandOutcome =
+  | {
+      readonly kind: "permitted";
+      readonly command: WireHighlightNodesCommand;
+    }
+  | { readonly kind: "refused"; readonly because: string };
 
 /** What a decode produced — `market-stream-protocol.ts`'s own three-member
  * shape, carried over rather than re-invented. */
@@ -392,9 +442,77 @@ export function readInvestigationEvent(
       };
     }
 
+    case "WORKSPACE_COMMAND": {
+      const { stepId, outcome } = raw;
+      const decodedOutcome = readWorkspaceCommandOutcome(outcome);
+      if (!isNonEmptyString(stepId) || decodedOutcome === undefined) {
+        return { kind: "unreadable", reason: "malformed WORKSPACE_COMMAND" };
+      }
+      return {
+        kind: "event",
+        event: {
+          type,
+          seq,
+          investigationId,
+          stepId,
+          outcome: decodedOutcome,
+        },
+      };
+    }
+
     default:
       return { kind: "unsupported", type };
   }
+}
+
+/**
+ * The permission stage's outcome, read off a frame.
+ *
+ * **An empty `symbols` array is `undefined` here**, which is the browser's own
+ * half of the guarantee the backend holds in a non-empty tuple: an empty
+ * highlight is a fully-formed claim about zero nodes (ADR 0029), and a
+ * malformed frame carrying one must not reach a reader as *nothing is
+ * related*. `relations` is held to the same rule for the same reason — a
+ * highlight the note cannot explain is a highlight with no sentence.
+ *
+ * `because`, never `reason`, mirroring `readToolOutcome` above it and the
+ * shared type both sides read: a flattened frame fails to decode here rather
+ * than rendering as a refusal of an unnamed kind.
+ */
+function readWorkspaceCommandOutcome(
+  raw: unknown,
+): WireWorkspaceCommandOutcome | undefined {
+  if (!isRecord(raw)) return undefined;
+  const { kind } = raw;
+
+  if (kind === "refused") {
+    return typeof raw.because === "string"
+      ? { kind: "refused", because: raw.because }
+      : undefined;
+  }
+
+  if (kind !== "permitted") return undefined;
+
+  const command = raw.command;
+  if (!isRecord(command)) return undefined;
+
+  const { type, symbols, relations, subject } = command;
+  if (type !== "highlightNodes") return undefined;
+  if (!isNonEmptyString(subject)) return undefined;
+  if (!Array.isArray(symbols) || symbols.length === 0) return undefined;
+  if (!symbols.every((value) => isNonEmptyString(value))) return undefined;
+  if (!Array.isArray(relations) || relations.length === 0) return undefined;
+  if (!relations.every((value) => isNonEmptyString(value))) return undefined;
+
+  return {
+    kind: "permitted",
+    command: {
+      type,
+      symbols,
+      relations,
+      subject,
+    },
+  };
 }
 
 function readToolOutcome(raw: unknown): WireToolOutcome | undefined {

@@ -1,6 +1,8 @@
 import { toWireFinding } from "./finding.js";
+import { toWireWorkspaceCommandOutcome } from "./workspace-command.js";
 import { asInstant, asIs, toWire } from "./wire-serialiser.js";
 import type { Finding } from "./finding.js";
+import type { WorkspaceCommandOutcome } from "./workspace-command.js";
 import type { JsonValue, WireFields } from "./wire-serialiser.js";
 import type {
   ExcessFactorRefusal,
@@ -524,7 +526,15 @@ export interface Investigation {
  * constructed without its evidence. §33 carries a dated amendment recording
  * the deviation. The word stays reserved for the story where evidence can
  * be **pinned with no attached finding**, which is Epic 8's workspace.
- * `WORKSPACE_COMMAND` is still Story 7.4's. */
+ * ~~`WORKSPACE_COMMAND` is still Story 7.4's.~~
+ *
+ * **Amended 2026-11-25 (Task 7.4.1): NINE of the ten carry a payload, and
+ * `EVIDENCE_ADDED` is the one that does not.** `WORKSPACE_COMMAND` ships here
+ * — invariant 2's own event, carrying a {@link WorkspaceCommandOutcome} rather
+ * than a bare command, so the permission stage's refusal is a wire fact rather
+ * than a log line. The struck sentence is left standing because it is the
+ * condition that fired, exactly as worded: a tool that produces one now
+ * exists. */
 export const INVESTIGATION_EVENT_TYPES = [
   "INVESTIGATION_STARTED",
   "STEP_STARTED",
@@ -575,10 +585,11 @@ interface InvestigationEventBase {
  * names only in {@link INVESTIGATION_EVENT_TYPES} — their payload shape
  * is each one's own story's to add, as a new member of this union.
  *
- * **Amended 2026-11-18 (Task 7.2.1) and again 2026-11-23 (Task 7.3.1): this
- * union has EIGHT members.** `INVESTIGATION_FAILED` became the seventh and
- * `FINDING_CREATED` the eighth; the two names still carrying no payload
- * (`EVIDENCE_ADDED`, `WORKSPACE_COMMAND`) each have their condition stated at
+ * **Amended 2026-11-18 (Task 7.2.1), again 2026-11-23 (Task 7.3.1) and again
+ * 2026-11-25 (Task 7.4.1): this union has NINE members.**
+ * `INVESTIGATION_FAILED` became the seventh, `FINDING_CREATED` the eighth and
+ * `WORKSPACE_COMMAND` the ninth; the one name still carrying no payload
+ * (`EVIDENCE_ADDED`) has its condition stated at
  * {@link INVESTIGATION_EVENT_TYPES}. The count is corrected rather than the
  * paragraph rewritten, because its subject — *a name in the vocabulary is not
  * yet a shape on the wire* — is unchanged and is the thing a reader needs. */
@@ -639,6 +650,48 @@ export type InvestigationEvent =
       readonly stepId: StepId;
       readonly status: "completed";
       readonly durationMs: number;
+    })
+  /**
+   * **Added 2026-11-25 (Task 7.4.1).** Invariant 2's own event, and the first
+   * one in this product carrying a typed instruction to a surface rather than a
+   * figure about the market.
+   *
+   * **It carries a top-level `stepId`, unlike `FINDING_CREATED` two members
+   * up, and the asymmetry is deliberate rather than an inconsistency.** A
+   * `Finding` has its own `stepId` field, so a second copy on the envelope
+   * would be a second answer to one question. A {@link WorkspaceCommand} has no
+   * such field and must not gain one: a command is *a thing to do to a
+   * surface*, and which step occasioned it is a fact about this run rather than
+   * about the command — Epic 10's model-driven producer will mint the identical
+   * command object from a different step.
+   *
+   * **The payload is an OUTCOME, not a bare command, and that is this task's
+   * own departure from its draft shape.** Story 7.4's Gate 1 requires that *a
+   * refused command is an observable, countable outcome, never a silent drop*
+   * (ADR 0029's rule, arriving on the permission stage). A field typed
+   * `command: WorkspaceCommand` can only express the permitted half, so the
+   * refusal would have had to live in a log — observable to an operator reading
+   * stderr and to nobody else. `outcome` mirrors `TOOL_CALL_COMPLETED`'s own
+   * field name two members up, which is the established envelope idiom in this
+   * very union.
+   *
+   * **Emitted after the occasioning step's own `STEP_COMPLETED`**, which is the
+   * opposite placement from `FINDING_CREATED`'s and for a stated reason: a
+   * finding is *what that step measured* and belongs inside the step's own
+   * frame, while a command is *what follows from it* and must not appear to a
+   * reader before the step it follows has finished.
+   *
+   * **No event at all where there is nothing to highlight.** A subject with no
+   * related securities under any kind (`QQQ`, `DIA`, `IWM` today) and an
+   * untracked subject both produce silence here rather than an empty payload —
+   * `HighlightNodesCommand.symbols`' non-empty tuple makes the first
+   * untypeable, and the second is a refusal the tool answers before a command
+   * exists to permit.
+   */
+  | (InvestigationEventBase & {
+      readonly type: "WORKSPACE_COMMAND";
+      readonly stepId: StepId;
+      readonly outcome: WorkspaceCommandOutcome;
     })
   | (InvestigationEventBase & {
       readonly type: "INVESTIGATION_COMPLETED";
@@ -854,6 +907,22 @@ const stepCompletedFields: WireFields<
   durationMs: asIs,
 };
 
+/**
+ * `WORKSPACE_COMMAND`'s own map (Task 7.4.1). The outcome goes through
+ * {@link toWireWorkspaceCommandOutcome} rather than `asIs`, because its
+ * `permitted` arm holds a domain object with a type to project — a spread here
+ * would be the one thing `wire-serialiser.ts` exists to make impossible.
+ */
+const workspaceCommandFields: WireFields<
+  Extract<InvestigationEvent, { type: "WORKSPACE_COMMAND" }>
+> = {
+  type: asIs,
+  seq: asIs,
+  investigationId: asIs,
+  stepId: asIs,
+  outcome: toWireWorkspaceCommandOutcome,
+};
+
 const investigationCompletedFields: WireFields<
   Extract<InvestigationEvent, { type: "INVESTIGATION_COMPLETED" }>
 > = {
@@ -898,17 +967,20 @@ export const toWireInvestigationEvent = (
       return toWire(findingCreatedFields, event);
     case "STEP_COMPLETED":
       return toWire(stepCompletedFields, event);
+    case "WORKSPACE_COMMAND":
+      return toWire(workspaceCommandFields, event);
     case "INVESTIGATION_COMPLETED":
       return toWire(investigationCompletedFields, event);
     case "INVESTIGATION_FAILED":
       return toWire(investigationFailedFields, event);
     default: {
-      // Exhaustive over the eight members this product emits —
+      // Exhaustive over the nine members this product emits —
       // `INVESTIGATION_FAILED` became the seventh on 2026-11-18 (Task
-      // 7.2.1) and `FINDING_CREATED` the eighth on 2026-11-23 (Task
-      // 7.3.1). A ninth (`EVIDENCE_ADDED`, `WORKSPACE_COMMAND`) fails the
-      // build here the day its own story gives it a payload, naming the
-      // member rather than leaving it silently unserialisable.
+      // 7.2.1), `FINDING_CREATED` the eighth on 2026-11-23 (Task 7.3.1)
+      // and `WORKSPACE_COMMAND` the ninth on 2026-11-25 (Task 7.4.1). The
+      // tenth (`EVIDENCE_ADDED`, whose condition is Epic 8's workspace)
+      // fails the build here the day its own story gives it a payload,
+      // naming the member rather than leaving it silently unserialisable.
       const unhandled: never = event;
       return unhandled;
     }

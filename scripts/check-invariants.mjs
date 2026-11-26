@@ -12659,6 +12659,379 @@ const INVARIANTS = [
       }
     },
   },
+
+  // ## Task 7.4.1's two: where the server thinks a node is, and the one class
+  // ## of thing an `AnalyticalTool` is
+  {
+    id: "the-server-places-a-node-only-through-the-shared-layout",
+    claim:
+      "No file under `apps/backend/src` names a topology layout constant " +
+      "(`TOPOLOGY_RING_RADIUS_X`/`_Y`, `TOPOLOGY_NODE_FOOTPRINT`, " +
+      "`TOPOLOGY_CLUSTER_DENSITY`, `TOPOLOGY_GOLDEN_ANGLE`) or rolls its " +
+      "own trigonometry — the server's only answer about where a node is " +
+      "comes from `buildTopologyLayout`, and a second arithmetic for it " +
+      "would make the server's coordinates and the browser's disagree with " +
+      "nothing failing.",
+    check() {
+      // **Task 7.4.1, and the check `no-renderer-type-in-the-graph-model`
+      // was mistakenly credited with.** That check's own corpus is
+      // `packages/shared/src` and its import closure — read
+      // `scripts/check-invariants.mjs`'s `CORPUS` constant inside it — so it
+      // **does not reach `apps/backend/src` at all**, and `EPIC.md` line
+      // 599's instruction to "confirm it still reaches your new file" rests
+      // on a misreading of that scope. `EPIC.md` carries a dated amendment
+      // there. This is the cover the backend never had.
+      //
+      // ## Why this matters more than it looks
+      //
+      // ADR 0048 Decision 3 keeps the layout closed-form, weight-blind and
+      // filter-blind specifically so **two processes agree about where a node
+      // is from one input**. `WorkspaceCommand` carries no coordinates for
+      // exactly that reason: the server permission-checks against
+      // `buildTopologyLayout(...).placements` and the browser draws from its
+      // own call of the same function. A backend file that computed a
+      // position itself — a ring radius, a wedge bearing, a footprint
+      // clearance — would be a second coordinate system, and the failure is
+      // silent: a highlight lands beside the right node, every structural
+      // assertion stays green, and nothing on any screen says so. It is
+      // `no-random-in-the-shared-model`'s own argument, with the arrow turned
+      // at the other process.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // To place a node you need its geometry, and the geometry is those
+      // constants. Nothing in `apps/backend/src` has any legitimate reason to
+      // name one: the whole of the server's business with the layout is
+      // reading `placements` off it. The trigonometry clause is the second
+      // door — a hand-rolled `fromTwelve` would import nothing and name no
+      // constant, so the arithmetic itself is what gives it away.
+      //
+      // ## If you have tripped the trigonometry clause on something that is
+      // ## NOT a node position, read this and not the topology prose above
+      //
+      // The clause is deliberately broad — any `Math.sin`/`cos`/`atan2`/
+      // `hypot` under `apps/backend/src` — because the defect it catches names
+      // nothing and imports nothing, so there is no narrower anchor. That
+      // means it will also catch a legitimate unrelated use: a distance in a
+      // statistic, a great-circle anything, a trig identity inside a
+      // correlation or a regression. **The resolution is not to widen this
+      // check's exemptions one call site at a time**, which is how a guard
+      // becomes decorative. It is one of:
+      //
+      //   - put the arithmetic in `packages/shared/src`, beside the quantity
+      //     it belongs to, where this corpus does not reach and the module's
+      //     own tests can see it (the right answer for anything a browser
+      //     might also want to compute);
+      //   - or, if it genuinely must live in the backend, **narrow this clause
+      //     to the files that read a layout** rather than exempting yours —
+      //     and say in the same change which files those are, so the next
+      //     person reads a rule rather than a list of past exceptions.
+      //
+      // Either way the thing being protected is unchanged: the server must
+      // have exactly one answer about where a node is, and it must be
+      // `buildTopologyLayout`'s.
+      const directory = resolve(REPO_ROOT, "apps/backend/src");
+
+      const files = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.test\.ts$/u.test(path))
+        .map(({ path, text }) => ({
+          path: relative(REPO_ROOT, path),
+          text: withoutTrailingComments(text),
+        }));
+
+      // **The anchor.** A grep that matches nothing looks exactly like a grep
+      // that passes, and this check is vacuous on a backend that never asks
+      // where a node is. Task 7.4.1's permission stage is the first reader.
+      if (!files.some(({ text }) => text.includes("buildTopologyLayout("))) {
+        throw new InvariantFailure(
+          "No file under `apps/backend/src` calls `buildTopologyLayout(` — " +
+            "so nothing on the server reads a node's position at all and " +
+            "this check is vacuous. Either the one reader (the workspace-" +
+            "command permission stage, Task 7.4.1) was removed, or the " +
+            "shared builder was renamed; repoint this in the same change.",
+        );
+      }
+
+      const CLAUSES = [
+        {
+          as: "a topology layout constant",
+          pattern:
+            /\bTOPOLOGY_(?:RING_RADIUS_[XY]|NODE_FOOTPRINT|CLUSTER_DENSITY|GOLDEN_ANGLE)\b/u,
+        },
+        {
+          as: "hand-rolled trigonometry",
+          pattern: /\bMath\.(?:sin|cos|atan2|hypot)\(/u,
+        },
+      ];
+
+      const offenders = [];
+
+      for (const { path, text } of files) {
+        for (const [index, line] of text.split("\n").entries()) {
+          const clause = CLAUSES.find(({ pattern }) => pattern.test(line));
+          if (clause === undefined) continue;
+          offenders.push(
+            `${path}:${String(index + 1)}  ${clause.as}\n        ${line.trim()}`,
+          );
+        }
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) under \`apps/backend/src\` ` +
+            "compute a node's position rather than reading one:\n      " +
+            offenders.join("\n      ") +
+            "\n    The server's one legitimate answer about where a node is " +
+            "is `buildTopologyLayout(buildTopologyGraph(UNIVERSE))" +
+            ".placements`, which is byte-identical to the browser's own " +
+            "call over the same input — that agreement is what lets a " +
+            "`WorkspaceCommand` carry symbols and no coordinates (ADR 0051, " +
+            "ADR 0048 Decision 3). A second arithmetic here lands a " +
+            "highlight beside the right node with nothing failing anywhere.",
+        );
+      }
+    },
+  },
+  {
+    id: "a-permitted-command-is-minted-only-by-the-permission-stage",
+    claim:
+      '`kind: "permitted"` appears in exactly one shipped file under ' +
+      "`apps/backend/src` — `workspace-command-permission.ts` — so every " +
+      "`WorkspaceCommand` that reaches a reader has been through invariant " +
+      "2's permission stage, and no producer can mint a permitted outcome " +
+      "for itself.",
+    check() {
+      // **Task 7.4.1, added on Story 7.4's own review, and it exists because
+      // the claim it replaces was FALSE.**
+      //
+      // `workspace-command-pipeline.ts`'s first draft argued that no check was
+      // needed here, on the grounds that a producer skipping the permission
+      // stage "would have to construct that union member by hand, and
+      // `tsc -b` is what makes it visible". It does not.
+      // `WorkspaceCommandOutcome` is a plain structural union with **no
+      // brand** — correctly, because a command has no explanation to protect
+      // (ADR 0051 Decision 1, and `CLAUDE.md`'s own note that the mint-site
+      // convention is for a constructed value with an explanation) — so
+      // `{ kind: "permitted", command }` compiles anywhere with zero error.
+      // `scripted-agent-provider.test.ts` writes exactly that literal and
+      // `tsc` has never complained. That is a claim about a mechanism reading
+      // identically whether the mechanism is there or not, which is the
+      // failure `CLAUDE.md` names and which this repository has already paid
+      // for twice (ADR 0030 §7b, `LIVE-REHEARSAL.md`'s claimed marking).
+      //
+      // Story 7.4's **AC 6** promises in as many words that `pnpm invariants`
+      // confirms no new call site bypasses the full validate →
+      // permission-check → execute → record pipeline, and it is the clause
+      // Gate 1 accepted the identity-blind permission check ON. So it is
+      // checked rather than owned as a gap.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **The literal `kind: "permitted"`.** To hand a reader a command you
+      // must produce that discriminant, and the union has no other arm that
+      // executes. A next author — Epic 10's model-driven producer is the
+      // concrete one — writes a second producer in a new file and returns
+      // `{ kind: "permitted", command }` from it, because that is the shape
+      // `WorkspaceCommandProducer.propose` asks for and the quickest way to
+      // satisfy it. A grep over the pipeline module's own nine-line
+      // composition would have been green on exactly that defect, which is
+      // why the corpus is the tree.
+      //
+      // ## Why TESTS are excluded, stated rather than assumed
+      //
+      // A test legitimately furnishes a permitted outcome — that is how the
+      // orchestrator's own emission is asserted at all, and a check that
+      // forbade it would forbid testing this feature. The guarantee is about
+      // SHIPPED code: nothing a reader's browser can receive was minted
+      // outside the gate.
+      const MINT = "apps/backend/src/workspace-command-permission.ts";
+      const directory = resolve(REPO_ROOT, "apps/backend/src");
+
+      const files = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.test\.ts$/u.test(path))
+        .map(({ path, text }) => ({
+          path: relative(REPO_ROOT, path),
+          text: withoutTrailingComments(text),
+        }));
+
+      // Both spellings a formatter can produce — Prettier wraps a long
+      // `return { kind: "permitted", … }` onto its own line, and a rotted
+      // anchor is what `every-break-can-still-land` cannot see.
+      const PERMITTED = /kind:\s*"permitted"/u;
+
+      const minting = files.filter(({ text }) => PERMITTED.test(text));
+
+      if (!minting.some(({ path }) => path === MINT)) {
+        throw new InvariantFailure(
+          `No \`kind: "permitted"\` in \`${MINT}\` — the permission stage no ` +
+            "longer mints the outcome it exists to mint, so this check has " +
+            "nothing to anchor on and would pass vacuously over a tree where " +
+            "nobody permits anything. If the stage moved, repoint this in the " +
+            "same change: a grep that matches nothing looks exactly like a " +
+            "grep that passes.",
+        );
+      }
+
+      const elsewhere = minting.filter(({ path }) => path !== MINT);
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} shipped file(s) besides \`${MINT}\` ` +
+            'mint a `kind: "permitted"` workspace-command outcome:\n      ' +
+            elsewhere.map(({ path }) => path).join("\n      ") +
+            "\n    Invariant 2's pipeline is validate → permission-check → " +
+            "execute → record, and a producer that builds its own permitted " +
+            "outcome has skipped the second stage — so a command naming a " +
+            "security with no placement reaches a browser and lands a " +
+            "highlight on nothing, with no error raised anywhere. " +
+            "`WorkspaceCommandOutcome` carries no brand (deliberately — ADR " +
+            "0051 Decision 1), so `tsc -b` cannot see this and this check is " +
+            "the only thing that can. Return " +
+            "`permitWorkspaceCommand(command, capability, layout)` instead; " +
+            "if your producer needs a capability set of its own, declare a " +
+            "second one beside `ORCHESTRATOR_CAPABILITY` rather than widening " +
+            "it.",
+        );
+      }
+    },
+  },
+  {
+    id: "the-analytical-tool-registry-is-one-class",
+    claim:
+      "Every `): AnalyticalTool<` factory under `apps/backend/src` is " +
+      "referenced by a `toRunnableTool(` call inside `index.ts`'s own " +
+      "`investigationTools` array, and the two counts are equal — so an " +
+      "`AnalyticalTool` IS a pipeline step, full stop, and there is exactly " +
+      "one class of registry member.",
+    check() {
+      // **Task 7.4.1, and it collapses a concern rather than declaring a
+      // second class.** Story 7.4's own task file asked either to widen
+      // `the-checklist-seeds-one-row-per-tool` to assert a partition
+      // (*pipeline-step* vs *orchestrator-called*) or to anchor a sibling —
+      // and the better answer turned out to be to make the partition
+      // unnecessary: `get_related_securities` is deliberately **not** an
+      // `AnalyticalTool` at all (`related-securities.ts`' own header gives
+      // the three structural reasons, the first of which is that
+      // `FINDING_TYPE_FOR_TOOL` is a total map and a tool producing no claim
+      // has no honest entry in it). So the registry has one class, and this
+      // is the check that keeps it that way.
+      //
+      // ## What it catches that `the-checklist-seeds-one-row-per-tool` does
+      // ## not
+      //
+      // That check counts `toRunnableTool(` calls against the client's seeded
+      // row count — it is blind to a tool FACTORY that exists and is wired to
+      // nothing. A seventh `): AnalyticalTool<` reached from somewhere other
+      // than the array is the shape this refuses: a tool that paints no row,
+      // mints no finding, and is nevertheless typed as the thing that does
+      // both. The two checks therefore fail in different directions and
+      // neither subsumes the other.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **`): AnalyticalTool<`** — the function's own RETURN-TYPE annotation,
+      // which is `a-tool-reads-no-clock`'s anchor and chosen there for the
+      // same reason: `analytical-tool.ts` itself names `AnalyticalTool<` as a
+      // generic parameter's type (`toRunnableTool`'s own `tool:` parameter),
+      // which is the contract describing the shape rather than a file
+      // BUILDING one.
+      const BACKEND = "apps/backend/src/index.ts";
+      const directory = resolve(REPO_ROOT, "apps/backend/src");
+
+      const factories = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.test\.ts$/u.test(path))
+        .flatMap(({ path, text }) =>
+          [
+            ...withoutComments(text).matchAll(
+              /export function (\w+)\s*\([\s\S]*?\)\s*:\s*AnalyticalTool</gu,
+            ),
+          ].map((match) => ({
+            path: relative(REPO_ROOT, path),
+            name: match[1] ?? "",
+          })),
+        );
+
+      if (factories.length === 0) {
+        throw new InvariantFailure(
+          "No `export function …(): AnalyticalTool<` under " +
+            "`apps/backend/src` — this product's own first tool, " +
+            "`tool-security-snapshot.ts`, no longer declares one either. If " +
+            "the convention for building a tool changed, repoint this check " +
+            "with it: a grep that matches nothing looks exactly like a grep " +
+            "that passes.",
+        );
+      }
+
+      const backend = withoutComments(
+        readAnchored(resolve(REPO_ROOT, BACKEND)),
+      );
+
+      const ARRAY = /const investigationTools = \[/u.exec(backend);
+      if (ARRAY === null) {
+        throw new InvariantFailure(
+          `No \`const investigationTools = [\` in \`${BACKEND}\`. The ` +
+            "pipeline's own membership is read from that array; if it " +
+            "moved, repoint this check with it.",
+        );
+      }
+
+      // From the array's own `[` to its balanced `]`, so a `toRunnableTool(`
+      // or a factory call elsewhere in this 2,000-line module is not counted
+      // — `the-checklist-seeds-one-row-per-tool`'s own matcher.
+      const from = backend.indexOf("[", ARRAY.index);
+      let depth = 0;
+      let to = backend.length;
+      for (let index = from; index < backend.length; index += 1) {
+        const character = backend[index];
+        if (character === "[") depth += 1;
+        else if (character === "]") {
+          depth -= 1;
+          if (depth === 0) {
+            to = index;
+            break;
+          }
+        }
+      }
+      const array = backend.slice(from, to);
+
+      const unwired = factories.filter(
+        ({ name }) => !new RegExp(`\\b${name}\\s*\\(`, "u").test(array),
+      );
+
+      if (unwired.length > 0) {
+        throw new InvariantFailure(
+          `${String(unwired.length)} \`AnalyticalTool\` factory(ies) are ` +
+            "not wired into `investigationTools`:\n      " +
+            unwired
+              .map(({ path, name }) => `${path}  ${name}()`)
+              .join("\n      ") +
+            "\n    An `AnalyticalTool` IS a pipeline step — it paints a " +
+            "checklist row and mints a `Finding` through " +
+            "`FINDING_TYPE_FOR_TOOL`, which is a TOTAL map over `ToolName`. " +
+            "A factory typed as one and reached from somewhere else is a " +
+            "second, undeclared class of registry member: it needs a " +
+            "`ToolName` it has no row for and a `FindingType` with no real " +
+            "producer. If what you are building answers a question for the " +
+            "ORCHESTRATOR rather than for a reader, give it its own small " +
+            "interface — `related-securities.ts` is the shipped precedent " +
+            "and its header carries the three reasons.",
+        );
+      }
+
+      const wired = (array.match(/\btoRunnableTool\(/gu) ?? []).length;
+      if (wired !== factories.length) {
+        throw new InvariantFailure(
+          `\`investigationTools\` holds ${String(wired)} ` +
+            `\`toRunnableTool(\` call(s) against ${String(factories.length)} ` +
+            "`AnalyticalTool` factory(ies) under `apps/backend/src`. The " +
+            "two must be equal: more calls than factories means one tool is " +
+            "wired twice and runs twice, and fewer means a factory reaches " +
+            "the pipeline through something other than the adapter, which " +
+            "is the undeclared second class this check refuses.",
+        );
+      }
+    },
+  },
 ];
 
 const failures = [];

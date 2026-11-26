@@ -385,8 +385,27 @@ export function applyInvestigationEvent(
       // home that story would then have to find.
       return { ...state, terminal: true };
 
+    case "WORKSPACE_COMMAND":
+      // **The checklist's state is unchanged by a workspace command, and that
+      // is a decision rather than a stub** (Task 7.4.1).
+      //
+      // A command is an instruction to a DIFFERENT surface — `/`'s topology —
+      // and Story 7.4's Gate 1 settled where it is held: lifted into
+      // `App.tsx`, outside `<Routes>`, mirroring the existing `onLiveSymbols`
+      // upward callback, because the checklist itself stays pinned to the
+      // security page per Story 7.1's own decision. Holding it here as well
+      // would be a second home for one fact, and the checklist draws no row
+      // for it: the command is not a step, has no outcome a reader grades, and
+      // adding one would make `INVESTIGATION_STEP_COUNT` disagree with the
+      // pipeline (`the-checklist-seeds-one-row-per-tool`).
+      //
+      // The case exists rather than falling to `default` so this reducer stays
+      // exhaustive: a tenth event type is a compile error here, which is the
+      // only form of that reminder nobody can forget.
+      return state;
+
     default: {
-      // Exhaustive over the eight members `WireInvestigationEvent` has today.
+      // Exhaustive over the nine members `WireInvestigationEvent` has today.
       const unhandled: never = event;
       return unhandled;
     }
