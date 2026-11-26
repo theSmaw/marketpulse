@@ -1,8 +1,10 @@
 # Task 7.4.3 — Clearing, for real
 
-**Status:** Not started
+**Status:** In progress — 2026-11-26
 **Story:** [7.4 The Graph Lights Up](STORY.md)
-**Depends on:** 7.4.2
+**Depends on:** 7.4.2 (complete, PR #713 — read its amendment below before
+starting; the shipped design has no investigation id to key supersession on,
+which this task needs to add)
 
 ## Objective
 
@@ -48,7 +50,10 @@ reads-no-band` was written to forbid).
 - **Supersession** — a later `WORKSPACE_COMMAND` (a different investigation
   id) replaces the current highlight wholesale. Keyed on investigation id;
   the most recently started investigation wins if two are somehow concurrent,
-  mirroring `useInvestigation`'s own `runIdRef` supersession rule.
+  mirroring `useInvestigation`'s own `runIdRef` supersession rule. **See this
+  task's own amendment below — the id this bullet assumes does not exist yet
+  on the shipped command, and adding it is this task's own first piece of
+  work, not a given.**
 - **Clear on unmount** — no highlight survives a reload or outlives the
   browser session (already stated as out of scope for persistence in
   STORY.md; this task is what actually makes that true rather than assumed).
@@ -69,6 +74,53 @@ reads-no-band` was written to forbid).
    which two peer sets are simultaneously highlighted.
 6. A reload clears the highlight (no persistence past the session).
 7. `pnpm verify` and the relevant e2e specs are green.
+
+## Amended by Task 7.4.2 — 2026-11-26: carried forward from its own independent review, two things this task needs that the shipped design does not yet have
+
+Task 7.4.2 shipped (PR #713) `WorkspaceHighlightCommand = { subject, symbols,
+relations }` — **no investigation id anywhere**, by design: the invariant
+`no-second-affordance-on-a-topology-node` (`scripts/check-invariants.mjs`)
+forbids the word "investigat" appearing anywhere under
+`apps/frontend/src/topology/` or `apps/frontend/src/components/MarketTopology/`,
+and the id correctly does not live there. `App.tsx`'s holder and
+`use-investigation.ts`'s returned value are **outside** that invariant's
+corpus, so the id is not forbidden there — it simply was not added, because
+7.4.2's own supersession (one producer, sequential SSE events, a `runIdRef`
+guard that drops a superseded run's events before they reach `setHighlight`)
+is correct without one **for a single investigation hook on a single
+security page**. Two things follow for this task:
+
+1. **Add `investigationId: InvestigationId` to `WorkspaceHighlightCommand`
+   and to `App.tsx`'s holder, before building anything else.** AC 8's two
+   hardest clauses — clear on any terminal event, clear on channel death —
+   need to answer _"is the terminal event / dead channel I'm looking at the
+   one that produced the highlight I'm holding?"_, which position alone
+   cannot answer once more than one producer or one tab is in the picture.
+   This is cheap now (one field, one assignment) and expensive to retrofit
+   once clearing logic is built against a positional assumption. Keep the id
+   **out** of `TopologyHighlight`/`MarketTopology.tsx`/`renderer-canvas.ts` —
+   the invariant above still applies to those files; the id lives in the
+   holder and the clearing logic that reads it, one layer up from the canvas.
+2. **A real mechanical gap exists on the frontend that this task should
+   close.** `a-permitted-command-is-minted-only-by-the-permission-stage`
+   (Task 7.4.1) is backend-only (`apps/backend/src`); nothing stops a future
+   frontend author from hand-constructing `{ subject, symbols, relations }`
+   and feeding it to `setHighlight` directly, bypassing the decoded,
+   validated wire value entirely — the same shape of gap 7.4.1's own review
+   found and fixed on the backend side. Add a sibling `pnpm invariants` entry
+   anchored on the **construction** of a `WorkspaceHighlightCommand` (it
+   should be minted in exactly one place — `use-investigation.ts`'s own
+   decode-and-report path), **not** on a count of `setHighlight` call sites:
+   this task legitimately adds more call sites (the Escape handler, the
+   empty-canvas click, the terminal-event clear, the channel-death clear all
+   need to call `setHighlight(null)` or equivalent), so a call-site count
+   would be a check this task has to fight rather than one that helps it.
+   Give it its own `pnpm break`.
+
+Neither of these changes what this task visually does — they change what the
+supersession and clearing logic can safely key on, and close a real,
+previously-unflagged gap on the frontend's side of the same class of defect
+Task 7.4.1's review already found once on the backend's.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
