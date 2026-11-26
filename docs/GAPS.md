@@ -7347,3 +7347,75 @@ against Epic 8's evidence panel once it exists.
 **Owner: Epic 8**, whose evidence panel is the first surface that will
 ever put the two in one row — until then, the column arrangement above is
 the nearest re-measure available and is itself unwatched.
+
+## `packages/shared/src/topology.ts` carries a literal NUL byte, and every plain `grep` over it — human or scripted — silently finds nothing
+
+Found 2026-11-26, incidentally, while independently verifying Task 7.4.1's
+fix-up commit: a `grep -r "TOPOLOGY_EDGE_KINDS" packages/shared/src` returned
+**nothing**, even though that constant is declared at `topology.ts:106` in
+plain sight. `file` reports the source as `data` rather than text, because
+Story 6.5's own correlation-pair key (`` `${from}\u0000${to}` ``, landed by
+`1a616de3`) writes a **raw** NUL byte inside the template literal at offset
+26588 rather than the `\0` escape sequence — and `grep` without `-a` treats any
+file containing one as binary and refuses to search it at all, with no error
+and no warning.
+
+**This is exactly the failure mode this file's own first rule describes —**
+_"a grep that matches nothing looks exactly like a grep that passes."_ —
+arriving on the file that states that rule the most often. `pnpm invariants`
+and every `pnpm break` are unaffected, because they `readFileSync(path,
+"utf8")` rather than shelling out to `grep`; what is affected is every
+**human** sweep of this file (a renumbering check, a "grep for every `Story
+N.M`" hand-off sweep, a plain reading pass) and any **future** script-based
+invariant written the obvious way, with `grep` rather than a Node read. The
+immediate, concrete near-miss: Task 7.4.1's own verification agent hit this
+directly while checking that `TOPOLOGY_EDGE_KINDS` is correctly re-exported —
+and caught it only because the expected match count was known in advance and
+zero was visibly wrong, which will not be true of a sweep with no prior
+expectation.
+
+**Re-measure:** `grep -c "TOPOLOGY_EDGE_KINDS" packages/shared/src/topology.ts`
+returns nothing (treated as binary, by design) where `grep -ac` returns the
+real count; `file packages/shared/src/topology.ts` reports a `data`/non-text
+verdict until repaired.
+
+**Owner: the next person touching `topology.ts`.** The fix is mechanical and
+cheap — replace the raw byte with the `\0` escape (`` `${from}\0${to}` ``),
+which produces the identical runtime string and makes the file plain UTF-8
+text again; `return-correlation-selection.ts`'s own key, built from the same
+pair, should be checked for the same byte while there. Not fixed here because
+it is unrelated to the change that found it and this file's own rule is to
+route rather than repair in passing.
+
+## `readWorkspaceCommand` accepts every member of `WORKSPACE_COMMAND_TYPES` but hard-codes `type: "highlightNodes"` in its return — silently relabelling rather than rejecting the day a second command type exists
+
+Found 2026-11-26 during Task 7.4.1's independent verification. The decoder's
+own `type` check validates the incoming value against the whole shared
+vocabulary, which today has exactly one member
+(`WORKSPACE_COMMAND_TYPES = ["highlightNodes"]`) — but the object it
+constructs afterward spells the literal `"highlightNodes"` rather than
+narrowing on the value it just checked. Harmless while the union has one
+member: every value that passes validation **is** `"highlightNodes"`. The day
+invariant 2's own named examples (`focusSymbols`, `openPriceChart`,
+`compareSymbols`, `setTimeWindow`, `pinEvidence`) grow the vocabulary to two or
+more, a command that validates as the new type would be **silently relabelled**
+to `highlightNodes` rather than rejected — the same shape of defect
+`relations`' pre-fix ordering bug was (a claim the type does not actually
+back), traded from a loud, reachable failure to a quiet one, because
+`HighlightNodesCommand` would remain a structurally legal
+`WorkspaceCommand` regardless of which arm actually matched. In practice the
+`relations`-are-real-edge-kinds and `subject`-not-in-`symbols` conjuncts would
+reject most differently-shaped payloads today, which is why this is a named,
+owned condition rather than a fix made now rather than a defect blocking
+anything.
+
+**Re-measure:** add a second member to `WORKSPACE_COMMAND_TYPES`, construct a
+command of that shape, and confirm `readWorkspaceCommand` returns it
+relabelled as `highlightNodes` rather than returning `undefined` or the real
+shape.
+
+**Owner: the story that adds the second `WorkspaceCommandType`** (Epic 10's by
+name, per invariant 2's own example list) — the repair is a discriminated
+switch over the validated `type` rather than a single return statement, and
+should land in the same change that adds the second member, not before it is
+needed.
