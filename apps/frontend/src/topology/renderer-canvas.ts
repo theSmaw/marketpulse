@@ -65,7 +65,10 @@ import { isTopologyClick } from "./click-gesture.js";
 import { CORRELATION_EDGE_WIDTH, edgeStrength } from "./edge-strength.js";
 import type { TopologyCorrelationStrength } from "./edge-strength.js";
 import { narrowTopology, narrowTopologyGraph } from "./filter.js";
-import { topologyHighlightTreatment } from "./highlight.js";
+import {
+  topologyHighlightDrawsAnything,
+  topologyHighlightTreatment,
+} from "./highlight.js";
 import {
   clampNodeScale,
   fitView,
@@ -923,6 +926,32 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     bodyQuiet = [];
     bodyUnscoredQuiet = [];
 
+    /**
+     * **The de-emphasis is OFF where the reader's own cut hides everything the
+     * command named** (Task 7.4.4) — Gate 1's filter rule reaching the one loop
+     * that decides what an equity looks like.
+     *
+     * Dimming the whole visible market with nothing relevant on screen is a
+     * **false claim with a true cause**: every conjunct of it is correct (the
+     * command named 61 peers, none of them is in this picture, so all 501 drawn
+     * equities are in the complement) and what a reader meets is a market that
+     * has gone quiet for no reason they can see. The honest answer is the
+     * picture they had before the command, plus the note saying why — which is
+     * `topologyFilterWords`' own third clause, computed from the **same**
+     * policy function so the ink and the sentence cannot disagree.
+     *
+     * **`drawnSymbols` rather than `isDrawn`**, deliberately: the policy is
+     * `topology/highlight.ts`' and is provable without a canvas, and `null`
+     * there means the same thing it means here.
+     */
+    const inForce = topologyHighlightDrawsAnything(
+      highlighted,
+      graph,
+      drawnSymbols,
+    )
+      ? highlighted
+      : null;
+
     for (const drawable of nodesByKind.get("equity") ?? []) {
       // **An excluded equity is in no group at all** (Task 6.8.1) — it draws
       // no ink, which is Gate 1's hide-rather-than-dim decision arriving at
@@ -946,7 +975,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
       // provable: jsdom has no 2d context, so nothing below `pnpm e2e` can
       // reach this closure at all.
       const quiet =
-        topologyHighlightTreatment(drawable.node, treatment, highlighted) ===
+        topologyHighlightTreatment(drawable.node, treatment, inForce) ===
         "quiet";
 
       if (treatment === "unscored") {

@@ -650,14 +650,49 @@ export const HighlightedPeers: Story = {
  * meanings, that is a defect this story is where somebody sees.
  *
  * Every highlighted node is honestly **invisible** here — the reader's cut
- * hides them and a highlight adds nothing on top of a hidden node. The count
- * that says so is Task 7.4.4's.
+ * hides them and a highlight adds nothing on top of a hidden node. ~~The count
+ * that says so is Task 7.4.4's.~~
+ *
+ * **Amended at Task 7.4.4, and this story's picture CHANGED**: the cut hides
+ * the *whole* highlighted set, so there is now **no de-emphasis drawn at all**
+ * — dimming 21 Energy equities with nothing the command named on screen is a
+ * false claim with a true cause. What to look at is the note, which says why,
+ * and the fact that the ten muted benchmark squares Story 6.8 draws for the
+ * filtered-out sectors are now the *only* de-emphasised treatment here. The
+ * collision this story was built to expose is therefore checked at
+ * {@link HighlightedPeersPartlyHidden} instead, where both treatments really
+ * are on screen together.
  */
 export const HighlightedPeersNarrowed: Story = {
   args: {
     universe: WHOLE_UNIVERSE,
     bands: measuredDistributionWithUnscoredBands(),
     filter: readTopologyFilter("?sector=energy"),
+  },
+  render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
+};
+
+/**
+ * **A cut that hides SOME of the highlighted set** (Task 7.4.4) — the state
+ * the population note's third clause is written for, and the one that puts
+ * Story 6.8's muted landmarks and this task's quietened equities on screen
+ * together.
+ *
+ * `?band=high,extreme` over the real measured distribution: ~25% of the
+ * universe is drawn, so a Technology command's own peers are mostly cut and the
+ * de-emphasis **is** in force for the handful that survive. The note reads
+ * *N of M highlighted peers are outside this filter* beside the population it
+ * already states, with `Show all` as the one way back.
+ *
+ * What to look at: whether the two-clause note is readable at all at 390,
+ * where the frame's content box is 308 px and both notes are stacked in one
+ * column.
+ */
+export const HighlightedPeersPartlyHidden: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+    filter: readTopologyFilter("?band=high,extreme"),
   },
   render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
 };

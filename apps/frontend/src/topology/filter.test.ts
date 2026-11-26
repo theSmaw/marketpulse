@@ -29,6 +29,8 @@ import {
   topologyScoredCount,
   topologySectorPath,
 } from "./filter.js";
+import { topologyHighlightCut } from "./highlight.js";
+import type { TopologyHighlight } from "./highlight.js";
 import type { TopologyAnomalyTreatment } from "./renderer.js";
 
 // **The sector filter's three pure halves, over the REAL recorded universe**
@@ -124,10 +126,28 @@ function wordsFor(
   filter: ReturnType<typeof readTopologyFilter>,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment> = NO_BANDS,
   graph: TopologyGraph = GRAPH,
+  /** The command in force, or none — Task 7.4.4's third clause. */
+  highlight: TopologyHighlight | null = null,
 ): { readonly line: string; readonly clause: string } | null {
+  const narrowing = narrowTopology(
+    graph,
+    topologyCriterion(filter),
+    treatments,
+    null,
+  );
+
+  // The component's own derivation, verbatim (`MarketTopology.tsx`'s
+  // `filterAccount`): `null` where nothing is cut, which is the identity
+  // return `narrowTopology` makes for an unnarrowed criterion.
+  const drawn =
+    narrowing.graph === graph
+      ? null
+      : new Set<string>(narrowing.graph.nodes.map((node) => node.symbol));
+
   return topologyFilterWords(
-    narrowTopology(graph, topologyCriterion(filter), treatments, null),
+    narrowing,
     filter,
+    highlight === null ? null : topologyHighlightCut(highlight, graph, drawn),
   );
 }
 
@@ -624,7 +644,19 @@ describe("narrowTopology — the band cut", () => {
       normalOne.symbol,
     );
     // The count is the criterion's, never the criterion plus the pin.
+    //
+    // **Widened at Task 7.4.4 to EVERY figure, because something now depends
+    // on it.** `MarketTopology.tsx`'s `filterAccount` passes the renderer's
+    // own `pinned` so the highlight's cut is measured against the set the
+    // renderer actually drew — and it may do that only because `pinned`
+    // reaches `graph` and nothing else. A `pinned` that moved `inSector` or
+    // `tracked` would make the note's stated population the
+    // criterion-plus-selection, which is the decision this test's own first
+    // clause exists to refuse.
     expect(pinned.matched).toBe(loose.matched);
+    expect(pinned.tracked).toBe(loose.tracked);
+    expect(pinned.inSector).toBe(loose.inSector);
+    expect(pinned.bandRefused).toBe(loose.bandRefused);
     expect(topologyEquityCount(pinned.graph)).toBe((loose.matched ?? 0) + 1);
     // And the pinned node is in its cluster's members, so an arrow key can
     // still step away from it — `walk.ts`' `step` answers `null` for a symbol
@@ -795,6 +827,232 @@ describe("topologyFilterWords — the two-clause grammar", () => {
 
     expect(words?.line).toContain("is tracked");
     expect(words?.line).not.toContain("extreme");
+  });
+});
+
+// **The third clause — what a cut is doing to an investigation's highlight**
+// (Task 7.4.4, Done-when 1 and 2).
+describe("topologyFilterWords — the highlighted peers a cut hides", () => {
+  const technologyEquities = GRAPH.nodes
+    .filter((node) => node.kind === "equity" && node.cluster === "technology")
+    .map((node) => String(node.symbol))
+    .filter((symbol) => symbol !== "NVDA");
+
+  /** The real Technology-equity command — `XLK` plus every sector-mate. */
+  const TECHNOLOGY: TopologyHighlight = {
+    subject: "NVDA",
+    symbols: [SECTOR_ETFS.technology, ...technologyEquities],
+    relations: ["sector_membership"],
+  };
+
+  it("says nothing where a highlight is in force and the cut hides none of it", () => {
+    // ADR 0029's rule, which every other clause in this builder follows: *0 of
+    // 61 highlighted peers are hidden* is a figure on screen for the state a
+    // reader is in every time they have narrowed to the sector they are
+    // looking at.
+    const words = wordsFor(
+      readTopologyFilter("?sector=technology"),
+      NO_BANDS,
+      GRAPH,
+      TECHNOLOGY,
+    );
+
+    expect(words?.line).not.toContain("highlighted");
+    expect(words?.clause).not.toContain("highlighted");
+    // And it is byte-identical to the same criterion with no command at all.
+    expect(words).toStrictEqual(
+      wordsFor(readTopologyFilter("?sector=technology")),
+    );
+  });
+
+  it("says nothing at all where no criterion is named, command or no command", () => {
+    expect(wordsFor(readTopologyFilter(""), NO_BANDS, GRAPH, TECHNOLOGY)).toBe(
+      null,
+    );
+  });
+
+  it("counts the hidden peers where SOME of the set is drawn", () => {
+    // One Technology equity kept beside the Energy cut, which is the only
+    // shape that reaches the partial arm with a real criterion: the subject
+    // itself is drawn, so the de-emphasis around it is a true claim and the
+    // note states how much of the set the reader cannot see.
+    const kept = narrowTopologyGraph(GRAPH, "energy");
+    const subject = GRAPH.nodes.find((node) => node.symbol === "NVDA");
+    if (subject === undefined) throw new Error("the fixture has no NVDA");
+    const withSubject: TopologyGraph = {
+      ...kept,
+      nodes: [...kept.nodes, subject],
+    };
+
+    const words = topologyFilterWords(
+      narrowTopology(GRAPH, { sector: "energy", bands: [] }, NO_BANDS, null),
+      readTopologyFilter("?sector=energy"),
+      topologyHighlightCut(
+        TECHNOLOGY,
+        GRAPH,
+        new Set(withSubject.nodes.map((node) => String(node.symbol))),
+      ),
+    );
+
+    const hidden = String(technologyEquities.length);
+    const peers = String(TECHNOLOGY.symbols.length);
+    expect(words?.line).toContain(
+      `${hidden} of ${peers} highlighted peers are outside this filter`,
+    );
+    expect(words?.clause).toContain(
+      `${hidden} of the ${peers} highlighted peers are outside this filter.`,
+    );
+    // The way out is the control this note already carries, never a new one.
+    expect(words?.clause).toContain("Show all returns the whole market.");
+    // The population half is untouched beside it.
+    expect(words?.line).toContain("Energy");
+  });
+
+  it("says why nothing was quietened where the cut hides the WHOLE set — Done-when 2", () => {
+    const words = wordsFor(
+      readTopologyFilter("?sector=energy"),
+      NO_BANDS,
+      GRAPH,
+      TECHNOLOGY,
+    );
+
+    expect(words?.line).toContain(
+      "nothing highlighted is drawn here, so nothing is quietened",
+    );
+    expect(words?.clause).toContain(
+      "None of the highlighted securities are inside this filter, so nothing" +
+        " is drawn quieter.",
+    );
+    // **A different sentence rather than a bigger figure**, because it is a
+    // different fact: the renderer draws no de-emphasis at all here, so the
+    // note is saying why the picture did not change rather than counting.
+    expect(words?.line).not.toContain("outside this filter");
+  });
+
+  // **The noun and the verb agree with DIFFERENT counts, at all four
+  // combinations** — the third landing of this defect class on this surface
+  // and the second on this one sentence.
+  //
+  // Story 6.8 paid for `1 are high` in two separate builders. This task's own
+  // first draft agreed the verb and left the noun (`1 of 1 highlighted peers
+  // is`); its first repair keyed **both** on the hidden count and broke the
+  // commoner case the other way (`1 of 4 highlighted peer is`). Each fix was
+  // green on the case in front of it. So this table drives the real builder
+  // over the real recorded universe at every combination, including the one
+  // nothing covered before — **one hidden out of several**, which is what a
+  // reader meets far more often than a single-peer command.
+  //
+  // The subject of each arm is a **drawn** security, so the partial clause is
+  // reached rather than the whole-set refusal, and the hidden peers are
+  // chosen out of another sector by name rather than by count.
+  describe("the noun belongs to the denominator and the verb to the count", () => {
+    /** Equities in a sector, excluding any the caller is already using. */
+    const inSector = (sector: Sector, take: number): readonly string[] =>
+      GRAPH.nodes
+        .filter((node) => node.kind === "equity" && node.cluster === sector)
+        .slice(0, take)
+        .map((node) => String(node.symbol));
+
+    const cases = [
+      {
+        name: "one hidden of one — the single-peer command",
+        hidden: 1,
+        drawn: 0,
+        reads: "1 of 1 highlighted peer is outside this filter",
+        spoken: "1 of 1 highlighted peer is outside this filter.",
+      },
+      {
+        name: "one hidden of four — the case nothing covered, and the one a reader meets",
+        hidden: 1,
+        drawn: 3,
+        reads: "1 of 4 highlighted peers is outside this filter",
+        spoken: "1 of the 4 highlighted peers is outside this filter.",
+      },
+      {
+        name: "three hidden of four",
+        hidden: 3,
+        drawn: 1,
+        reads: "3 of 4 highlighted peers are outside this filter",
+        spoken: "3 of the 4 highlighted peers are outside this filter.",
+      },
+    ] as const;
+
+    for (const { name, hidden, drawn, reads, spoken } of cases) {
+      it(name, () => {
+        // `XOM`'s own sector is drawn, so the subject is on screen and the
+        // partial arm is reached; the hidden peers are Technology.
+        const highlight: TopologyHighlight = {
+          subject: "XOM",
+          symbols: [
+            ...inSector("technology", hidden),
+            ...inSector("energy", drawn + 1).filter(
+              (symbol) => symbol !== "XOM",
+            ),
+          ].slice(0, hidden + drawn),
+          relations: ["sector_membership"],
+        };
+
+        const words = wordsFor(
+          readTopologyFilter("?sector=energy"),
+          NO_BANDS,
+          GRAPH,
+          highlight,
+        );
+
+        expect(words?.line).toContain(reads);
+        expect(words?.clause).toContain(spoken);
+      });
+    }
+
+    // **The grammar, not the strings.** The table above would still pass with
+    // the noun keyed on the wrong count if somebody updated its expectations
+    // to match — which is how this defect came back twice. These two refuse
+    // the ungrammatical pairings outright, whatever the figures are.
+    it("never pairs a plural noun with a singular denominator, or the reverse", () => {
+      for (const { hidden, drawn } of cases) {
+        const highlight: TopologyHighlight = {
+          subject: "XOM",
+          symbols: [
+            ...inSector("technology", hidden),
+            ...inSector("energy", drawn + 1).filter(
+              (symbol) => symbol !== "XOM",
+            ),
+          ].slice(0, hidden + drawn),
+          relations: ["sector_membership"],
+        };
+
+        const words = wordsFor(
+          readTopologyFilter("?sector=energy"),
+          NO_BANDS,
+          GRAPH,
+          highlight,
+        );
+        const said = `${String(words?.line)} ${String(words?.clause)}`;
+
+        // `1 highlighted peers` and `4 highlighted peer` are each wrong, and
+        // each is what one of the two broken drafts produced.
+        expect(said, said).not.toMatch(/\b1 highlighted peers\b/u);
+        expect(said, said).not.toMatch(/\b(?!1\b)\d+ highlighted peer\b/u);
+        // And the determiner never doubles up on a one-peer population.
+        expect(said, said).not.toContain("of the 1 ");
+      }
+    });
+  });
+
+  it("applies no clause to an address this page did not understand", () => {
+    // An unrecognised parameter applies NO cut (`topologyCriterion`), so
+    // nothing is hidden and the sentence is the mistyped-address one alone.
+    for (const search of ["?sector=Energy", "?band=HIGH"]) {
+      const words = wordsFor(
+        readTopologyFilter(search),
+        NO_BANDS,
+        GRAPH,
+        TECHNOLOGY,
+      );
+
+      expect(words?.line, search).toContain("the whole market is drawn");
+      expect(words?.line, search).not.toContain("highlighted");
+    }
   });
 });
 

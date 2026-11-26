@@ -81,6 +81,8 @@ export type { TopologyPressGesture } from "./click-gesture.js";
 
 export {
   TOPOLOGY_RELATION_WORDS,
+  topologyHighlightCut,
+  topologyHighlightDrawsAnything,
   topologyHighlightSet,
   topologyHighlightTreatment,
   topologyHighlightWords,
@@ -88,6 +90,7 @@ export {
 } from "./highlight.js";
 export type {
   TopologyHighlight,
+  TopologyHighlightCut,
   TopologyHighlightTreatment,
 } from "./highlight.js";
 

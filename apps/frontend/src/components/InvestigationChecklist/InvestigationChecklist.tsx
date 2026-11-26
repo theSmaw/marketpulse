@@ -111,12 +111,42 @@ export interface InvestigationChecklistProps {
    * milliseconds must be told, not timed, that it never crossed the
    * floor. */
   readonly pastCoverThreshold: boolean;
+  /**
+   * **Is the security on screen one this product tracks?** (Task 7.4.4) —
+   * `true` only once `GET /securities` has answered, and for **two** reasons
+   * rather than one: no row at all, or a row whose `status` is not `active`.
+   *
+   * **The second reason is the one that matters and the first draft of this
+   * prop did not have it.** `GET /securities` does not filter on `status`, by
+   * an explicit decision of its own, so the deployed store's two real untracked
+   * rows (`PSKY` and `WBD`) are served and found — while the backend's refusal
+   * is keyed on the **curated file**, which those two were deleted from. A
+   * presence-only check is therefore silent on the only untracked securities
+   * that actually exist. `SecurityExplorer.tsx`'s own call site carries the
+   * full account.
+   *
+   * It exists for one sentence, and only this component can draw it in the
+   * right place: `get_related_securities` refuses an untracked subject outright
+   * (`related-securities.ts`' `untrackedRefusal`, Task 7.4.1), so **no
+   * `WORKSPACE_COMMAND` is ever sent** and `/`'s topology does not react at
+   * all. Without a word here that absence is indistinguishable from the
+   * feature being broken, which is ADR 0029's rule arriving at a refusal rather
+   * than at a figure: an absence is a stated fact, never silence.
+   *
+   * **A boolean the route derives rather than a response field**, because the
+   * route already holds both halves — the universe answer and the symbol off
+   * the address — and the backend's own refusal reaches no surface. The
+   * reversal trigger is a condition: *the first refusal on this path a reader
+   * needs told apart from another one.*
+   */
+  readonly subjectUntracked: boolean;
 }
 
 export function InvestigationChecklist({
   checklist,
   announcement,
   pastCoverThreshold,
+  subjectUntracked,
 }: InvestigationChecklistProps) {
   return (
     <>
@@ -154,9 +184,55 @@ export function InvestigationChecklist({
           ))}
         </ul>
       )}
+      {/*
+       * **Why `Investigate`'s related-securities answer is absent for an
+       * untracked subject** (Task 7.4.4, Done-when 4's second half).
+       *
+       * ## Conditional on BOTH facts, which is ADR 0029 rather than tidiness
+       *
+       * `checklist === undefined` is a reader who has never pressed anything,
+       * and a sentence about a step's outcome there would be an account of a
+       * run that has not happened. `subjectUntracked === false` is every other
+       * security — all 516 of them — where the step answers normally. So this
+       * renders in exactly one state, and it is the state whose only other
+       * evidence is a graph on a different route that visibly did nothing.
+       *
+       * ## It names the capability, not the tool
+       *
+       * A reader has no idea `get_related_securities` exists, and the
+       * vocabulary a sentence here may spend is the one the screen already
+       * uses: *related securities* is what `/`'s own highlight note says
+       * (`topologyHighlightWords`), and *tracked universe* is what this
+       * product's own universe surfaces say. It states no repair, because there
+       * is none a reader can take — the curated file is the only thing that
+       * changes it.
+       *
+       * ## Not a `role="alert"`, and not in the live region above
+       *
+       * It is a standing fact about the security on screen rather than an
+       * event, and the live region above has exactly one subject (the run's own
+       * progress). A reader meets this by reading the panel, which is where the
+       * run's own result is.
+       */}
+      {checklist !== undefined && subjectUntracked && (
+        <p className={cx(styles.untracked)} data-investigation="untracked">
+          {UNTRACKED_SUBJECT_SENTENCE}
+        </p>
+      )}
     </>
   );
 }
+
+/**
+ * **One home, read by this component and by its own test** (Task 7.4.4).
+ *
+ * Exported so the sentence is asserted by identity rather than re-typed, which
+ * is the mistake a second copy of a string makes the day one of them is
+ * reworded.
+ */
+export const UNTRACKED_SUBJECT_SENTENCE =
+  "This security is not in the tracked universe, so there are no related" +
+  " securities to compare it against or to highlight on the market topology.";
 
 function Row({
   step,
