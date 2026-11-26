@@ -11,6 +11,7 @@ import { NotFound } from "./routes/NotFound.js";
 import { PATHS, ROUTE_PATTERNS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
 import { useBackendHealth } from "./use-backend-health.js";
+import type { WorkspaceHighlightCommand } from "./investigations/index.js";
 import { useLiveFeed } from "./market/index.js";
 import { useMarketFeed } from "./use-market-feed.js";
 import styles from "./App.module.css";
@@ -174,6 +175,49 @@ export function App() {
   // ordinary state: a screen about no single security receives no `return`
   // frame.
   const [liveFocus, setLiveFocus] = useState<string | undefined>(undefined);
+
+  // **What a run has asked the workspace to draw** (Task 7.4.2) — the FOURTH
+  // fact this file holds that two routes must agree about and neither owns,
+  // and the first one that is not about the market.
+  //
+  // ## Why it is here and not in a store
+  //
+  // Story 7.4's Gate 1: `liveFeed`, `marketFeed` and `liveSymbols` are already
+  // this shape, so lifting a command into the host is a **fourth instance of
+  // an existing mechanism** rather than ADR 0023's state-library reversal
+  // trigger (*the first piece of state two features must agree about that
+  // neither owns*) firing. The producer is the Security Explorer's own
+  // investigation; the executor is the market topology on `/`; `App` is the
+  // one element that outlives the navigation between them, because it renders
+  // `<Routes>` rather than living inside one.
+  //
+  // **The checklist itself is NOT lifted** — Story 7.1's own decision, and it
+  // stays pinned to the security page. What travels is one typed command.
+  //
+  // ## The bound this accepts, stated rather than discovered
+  //
+  // A command that arrives **after** the reader has already navigated away is
+  // lost: `use-investigation.ts` aborts its stream on unmount, and the run
+  // keeps going server-side with nothing in this browser listening. Accepted
+  // as a currently-vacuous bound at Story 7.2's measured p50 of 32.0 ms for
+  // the whole six-step pipeline — the command lands before a reader's hand has
+  // left the button. **Reversal trigger, as a condition**: the first step
+  // whose measured p95 duration exceeds the time a reader takes to reach `/`
+  // from a security page.
+  //
+  // ## `undefined` is *nothing has been commanded*, and nothing clears it yet
+  //
+  // A refused command never reaches here at all (`use-investigation.ts`'
+  // `WorkspaceHighlightCommand` carries the permitted arm alone, which is
+  // Gate 1's degraded-state decision: the refusal belongs to the surface that
+  // asked). What CLEARS a highlight — a reader's own gesture, a terminal
+  // investigation event, the channel dying, or a later command superseding it
+  // — is Story 7.4's AC 8 and Task 7.4.3's; this holder is where all four will
+  // land, which is why it is a `useState` here rather than a value derived
+  // inside either route.
+  const [workspaceCommand, setWorkspaceCommand] = useState<
+    WorkspaceHighlightCommand | undefined
+  >(undefined);
   const liveFeed = useLiveFeed({
     symbols: liveSymbols,
     // `exactOptionalPropertyTypes` is on, so *absent* and *present as
@@ -280,6 +324,14 @@ export function App() {
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
                     marketFeed={marketFeed}
+                    /* The executor of invariant 2's one command (Task
+                       7.4.2). `exactOptionalPropertyTypes` is on, so
+                       *absent* and *present as `undefined`* are different
+                       types — but here they are the same claim (*nothing has
+                       been commanded*) and the prop is declared to accept
+                       either, unlike `liveFocus` above, whose hook
+                       distinguishes them. */
+                    workspaceCommand={workspaceCommand}
                   />
                 }
               />
@@ -302,6 +354,7 @@ export function App() {
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
                     onLiveFocus={setLiveFocus}
+                    onWorkspaceCommand={setWorkspaceCommand}
                   />
                 }
               />
@@ -321,6 +374,7 @@ export function App() {
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
                     onLiveFocus={setLiveFocus}
+                    onWorkspaceCommand={setWorkspaceCommand}
                   />
                 }
               />

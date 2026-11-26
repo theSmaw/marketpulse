@@ -16,7 +16,10 @@ export {
   useInvestigation,
   CONNECTION_LOST_SENTENCE,
 } from "./use-investigation.js";
-export type { UseInvestigationResult } from "./use-investigation.js";
+export type {
+  UseInvestigationResult,
+  WorkspaceHighlightCommand,
+} from "./use-investigation.js";
 
 export type {
   ChecklistState,

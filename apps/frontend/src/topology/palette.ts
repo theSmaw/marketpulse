@@ -85,6 +85,51 @@ export interface TopologyPalette {
    * ETF carries no band at all.
    */
   readonly landmarkMuted: string;
+  /**
+   * **An equity a highlight has left out — `--chart-seam`** (Task 7.4.2).
+   *
+   * Gate 1's complement de-emphasis: a `highlightNodes` command dims the
+   * equities outside its set and adds **zero** new ink to the ones inside it,
+   * because both of this canvas's budgets are measurably exhausted (the
+   * 0–13 CSS px radius budget across five existing node treatments, and the
+   * whole palette on chrome, price and the anomaly ramp).
+   *
+   * ## It is NOT {@link landmarkMuted}, and the reason is a measurement
+   *
+   * Reusing that field was the obvious move and it is **backwards**. A
+   * landmark's own ink is `--ink-primary` (#181c23, 17.08:1 against the panel
+   * ground), so `--ink-secondary` (#43474f, **9.32:1**) is a step *quieter*
+   * for it. An equity's ink is `--chart-volume` (#848995, **3.51:1**) — so the
+   * same token on an equity is a step **louder** than an ordinary node, and a
+   * de-emphasised equity would be the most emphatic mark in its own cluster.
+   * The direction of a value step is a property of the base it departs from,
+   * not of the token.
+   *
+   * ## `--chart-seam` rather than `--chart-grid`, also measured
+   *
+   * Exactly two declared achromatic steps are quieter than the equity fill
+   * against `--surface-raised`: `--chart-seam` (#c4c6cf, **1.70:1**) and
+   * `--chart-grid` (#e2e4ed, **1.27:1**). The second is the membership
+   * hairline's own ink — 501 of those lines run *through* these nodes, so a
+   * node drawn in it would be indistinguishable from the web it sits in, and
+   * 1.27:1 is the band this repository's own greyscale rule calls *hue is the
+   * entire difference* at 1.04:1. So this is the one step between the equity
+   * fill and the gridline, which is what a complement wants: present, and no
+   * longer the thing being looked at.
+   *
+   * **A value step and no alpha**, {@link landmarkMuted}'s own two
+   * constraints: the difference survives `grayscale(1)` intact on luminance
+   * alone, and the mark stays fully opaque so nothing shows through a
+   * quietened node.
+   *
+   * **WCAG 1.4.11's 3:1 floor does not fire**, for `correlationEdge`'s own
+   * recorded reason: that floor is about identifying a **control**, and a node
+   * this command has declared irrelevant is not one. The highlight is not
+   * carried by ink alone either — the region draws a sentence naming the
+   * subject and the kinds of relationship, which is the *word* channel this
+   * product's standing rule asks for.
+   */
+  readonly equityMuted: string;
   /** The 501 equity → sector-ETF edges. `--chart-grid`. */
   readonly membershipEdge: string;
   /** The eleven SPY → sector-ETF edges. `--chart-reference`. */
@@ -396,6 +441,7 @@ export function topologyPalette(): TopologyPalette {
     sectorEtf: tokens["--ink-primary"],
     marketProxy: tokens["--ink-primary"],
     landmarkMuted: tokens["--ink-secondary"],
+    equityMuted: tokens["--chart-seam"],
     membershipEdge: tokens["--chart-grid"],
     hubEdge: tokens["--chart-reference"],
     correlationEdge: tokens["--chart-seam"],

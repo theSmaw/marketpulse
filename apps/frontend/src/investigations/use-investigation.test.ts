@@ -99,6 +99,29 @@ const findingCreated = (stepId: string, claim: string, confidence: string) => ({
   finding: { stepId, claim, confidence },
 });
 
+/**
+ * Invariant 2's own event, permitted (Task 7.4.2) — the shipped wire shape:
+ * an `outcome` with two arms, `relations` plural, and `subject` deliberately
+ * NOT a member of its own `symbols`.
+ */
+const workspaceCommand = (outcome: Record<string, unknown>) => ({
+  type: "WORKSPACE_COMMAND",
+  seq: 3,
+  investigationId: "inv-1",
+  stepId: "step-1",
+  outcome,
+});
+
+const PERMITTED = {
+  kind: "permitted",
+  command: {
+    type: "highlightNodes",
+    symbols: ["AAPL", "MSFT"],
+    relations: ["sector_membership", "return_correlation"],
+    subject: "NVDA",
+  },
+};
+
 const INVESTIGATION_COMPLETED = {
   type: "INVESTIGATION_COMPLETED",
   seq: 4,
@@ -545,5 +568,137 @@ describe("useInvestigation", () => {
       result.current.start();
     });
     expect(result.current.checklist?.steps[0]?.status).toBe("queued");
+  });
+  it("surfaces a PERMITTED workspace command, and holds it through a symbol change — Task 7.4.2", async () => {
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result, rerender } = renderHook(
+      ({ symbol }: { symbol: string }) => useInvestigation(symbol),
+      { initialProps: { symbol: "NVDA" } },
+    );
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    expect(result.current.highlight).toBeUndefined();
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(STEP_STARTED);
+      stream.push(workspaceCommand(PERMITTED));
+    });
+
+    await waitFor(() => {
+      expect(result.current.highlight).toStrictEqual({
+        subject: "NVDA",
+        symbols: ["AAPL", "MSFT"],
+        relations: ["sector_membership", "return_correlation"],
+      });
+    });
+
+    // **NOT subject-pinned, unlike the checklist** (AC 7). Navigating is how a
+    // reader reaches the screen that draws this, so a command withdrawn on a
+    // symbol change would be a feature with no reachable state.
+    rerender({ symbol: "AAPL" });
+
+    expect(result.current.checklist).toBeUndefined();
+    expect(result.current.highlight?.subject).toBe("NVDA");
+  });
+
+  it("surfaces NOTHING for a REFUSED workspace command, and raises no error — Task 7.4.2", async () => {
+    // Gate 1's degraded-state decision: a refusal is a first-class, countable
+    // outcome on the wire and on the server's own record of the run, and it
+    // belongs to the surface that ASKED. Nothing on `/` may draw an error
+    // about a command a reader never issued, so this is byte-identical to
+    // "no command yet".
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(STEP_STARTED);
+      stream.push(
+        workspaceCommand({
+          kind: "refused",
+          because: "symbol-has-no-placement",
+        }),
+      );
+      stream.push(stepCompleted(4));
+      stream.push(INVESTIGATION_COMPLETED);
+      stream.end();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.terminal).toBe(true);
+    });
+
+    expect(result.current.highlight).toBeUndefined();
+    // The run itself is unaffected: the refusal is not a failure.
+    expect(result.current.checklist?.connectionLost).toBe(false);
+    expect(result.current.checklist?.steps[0]).toMatchObject({
+      status: "completed",
+      durationMs: 4,
+    });
+  });
+
+  it("a later command supersedes an earlier one", async () => {
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(workspaceCommand(PERMITTED));
+      stream.push(
+        workspaceCommand({
+          kind: "permitted",
+          command: {
+            type: "highlightNodes",
+            symbols: ["XOM"],
+            relations: ["sector_membership"],
+            subject: "CVX",
+          },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.highlight?.subject).toBe("CVX");
+    });
+    expect(result.current.highlight?.symbols).toStrictEqual(["XOM"]);
   });
 });

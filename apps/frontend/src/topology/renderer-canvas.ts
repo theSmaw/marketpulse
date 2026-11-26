@@ -65,6 +65,7 @@ import { isTopologyClick } from "./click-gesture.js";
 import { CORRELATION_EDGE_WIDTH, edgeStrength } from "./edge-strength.js";
 import type { TopologyCorrelationStrength } from "./edge-strength.js";
 import { narrowTopology, narrowTopologyGraph } from "./filter.js";
+import { topologyHighlightTreatment } from "./highlight.js";
 import {
   clampNodeScale,
   fitView,
@@ -640,6 +641,29 @@ interface DrawableLabel {
 }
 
 /**
+ * Whether two highlight sets are the same claim — **by membership, never by
+ * identity** (Task 7.4.2).
+ *
+ * `setFilter`'s own field-by-field comparison, with the same reasoning: the
+ * caller's set is derived from a command it holds, so a render that re-derives
+ * it hands a fresh `Set` with identical members, and re-partitioning 501
+ * equities for an answer that cannot differ is the shape every update channel
+ * in this module already refuses. Size first, so the common case (a set
+ * arriving where none was in force) answers on one comparison.
+ */
+function sameHighlight(
+  current: ReadonlySet<string> | null,
+  next: ReadonlySet<string> | null,
+): boolean {
+  if (current === null || next === null) return current === next;
+  if (current.size !== next.size) return false;
+
+  for (const symbol of next) if (!current.has(symbol)) return false;
+
+  return true;
+}
+
+/**
  * Mount Candidate B.
  *
  * Everything that does not change between frames — placements resolved against
@@ -855,6 +879,39 @@ export const mountCanvasTopology: TopologyRendererFactory = (
   let ringHigh: DrawableNode[] = [];
   let ringExtreme: DrawableNode[] = [];
 
+  /**
+   * **The securities a `highlightNodes` command named, or `null` for none**
+   * (Task 7.4.2) — `{subject} ∪ symbols`, assembled by the caller
+   * (`topologyHighlightSet`) and handed here as one set.
+   *
+   * `null` rather than an empty set, for `drawnSymbols`' own reason one block
+   * up: the state every page is in until a command arrives has to be
+   * byte-identical to the picture this renderer drew before this task existed,
+   * and `null` is what {@link topologyHighlightTreatment} reads as *nothing is
+   * quiet* rather than as *everything is*.
+   */
+  let highlighted: ReadonlySet<string> | null = null;
+
+  /**
+   * **The complement — the equities a highlight has left out** (Task 7.4.2).
+   *
+   * Two more arrays rather than a per-frame `filter`, which is this closure's
+   * standing arrangement: the partition is recomputed when something actually
+   * changes it ({@link renarrow}'s three callers plus `setHighlight`), and a
+   * frame walks flat arrays. `bodyQuiet` is the `normal`/`elevated`/`high`
+   * bodies and `bodyUnscoredQuiet` is the hollow outline — the same two shapes
+   * at a quieter ink, so a quietened node keeps whether it is filled or
+   * hollow, which is the channel `unscored` carries its own claim on.
+   *
+   * **There is no `bodyExtremeQuiet`, structurally** — a measured `extreme` is
+   * never dimmed ({@link topologyHighlightTreatment}'s third rule), and the
+   * absence of the array is what makes that unrepresentable here rather than
+   * guarded against. The `elevated`/`high` rings are likewise untouched: they
+   * are drawn in their own pass from arrays this partition does not split.
+   */
+  let bodyQuiet: DrawableNode[] = [];
+  let bodyUnscoredQuiet: DrawableNode[] = [];
+
   const regroupAnomalyTreatments = (): void => {
     bodyDefault = [];
     bodyExtreme = [];
@@ -862,18 +919,37 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     ringElevated = [];
     ringHigh = [];
     ringExtreme = [];
+    bodyQuiet = [];
+    bodyUnscoredQuiet = [];
 
     for (const drawable of nodesByKind.get("equity") ?? []) {
       // **An excluded equity is in no group at all** (Task 6.8.1) — it draws
       // no ink, which is Gate 1's hide-rather-than-dim decision arriving at
       // the one loop that decides what an equity looks like.
+      //
+      // **A highlight adds nothing on top of a filtered-out node** (Task
+      // 7.4.2, Work item 3) for exactly this reason: a node the reader's own
+      // cut has removed never reaches the quiet/full decision below, so there
+      // is no path by which de-emphasis ink lands on something invisible or
+      // by which a highlight un-hides it.
       if (!isDrawn(drawable.node.symbol)) continue;
 
       const treatment: TopologyAnomalyTreatment =
         bands.get(drawable.node.symbol) ?? "normal";
 
+      // **The policy is `topology/highlight.ts`' and this is a lookup** (Task
+      // 7.4.2). Its `kind !== "equity"` conjunct is redundant *here* — this
+      // loop reads `nodesByKind.get("equity")` and nothing else, so the
+      // fifteen landmarks are excluded by construction as well as by rule —
+      // and it is kept there rather than inlined because that is where it is
+      // provable: jsdom has no 2d context, so nothing below `pnpm e2e` can
+      // reach this closure at all.
+      const quiet =
+        topologyHighlightTreatment(drawable.node, treatment, highlighted) ===
+        "quiet";
+
       if (treatment === "unscored") {
-        bodyUnscored.push(drawable);
+        (quiet ? bodyUnscoredQuiet : bodyUnscored).push(drawable);
         continue;
       }
 
@@ -883,7 +959,7 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         continue;
       }
 
-      bodyDefault.push(drawable);
+      (quiet ? bodyQuiet : bodyDefault).push(drawable);
       if (treatment === "elevated") ringElevated.push(drawable);
       else if (treatment === "high") ringHigh.push(drawable);
       // "normal" draws in bodyDefault alone — no ring.
@@ -1818,6 +1894,22 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         palette.landmarkMuted,
         FILTERED_LANDMARK_INK_SCALE,
       ],
+      // **The equities a highlight has left out** (Task 7.4.2) — the same
+      // circle at the same size, one value step quieter. A sixth entry in this
+      // loop rather than a pass of its own, for the fifth entry's reason: what
+      // differs is one of the three values the loop already takes.
+      //
+      // **Size is deliberately NOT the second channel here, unlike the muted
+      // landmark above.** That treatment spends 0.6× because its population is
+      // eleven marks a reader still has to TARGET — walking out of a narrowed
+      // sector goes through them — so it must stay legible as a thing. This
+      // population is ~500 marks whose entire purpose is to recede, node size
+      // encodes KIND on this canvas (Story 6.6 refused it for anything
+      // quantitative), and `clampNodeScale`'s floor already puts an equity at
+      // 4 px, which 0.6× would take to 2.4. The second channel is the region's
+      // own sentence instead, which is the *word* this product's standing rule
+      // names beside shape, sign and glyph.
+      ["circle", bodyQuiet, palette.equityMuted, 1],
     ] as const) {
       if (drawables.length === 0) continue;
 
@@ -1854,12 +1946,25 @@ export const mountCanvasTopology: TopologyRendererFactory = (
     // No halo: a halo exists to separate a filled mark from a touching
     // neighbour, and this mark has no fill to separate. One thin achromatic
     // stroke is the whole treatment — "we don't know", never "calm" (AC 4).
-    if (bodyUnscored.length > 0) {
+    //
+    // **Two passes since Task 7.4.2**, because a highlight quietens the ink
+    // and `strokeStyle` is a property of the context: an unscored equity a
+    // command left out keeps its hollow circle — which is the channel this
+    // treatment carries *we don't know* on — and spends
+    // `palette.equityMuted` for it. On CI and every fresh store this is the
+    // only visible consequence a highlight has at all, because no composite
+    // generation ever runs there and all 501 equities are unscored for ever.
+    for (const [drawables, colour] of [
+      [bodyUnscored, palette.anomalyUnscored],
+      [bodyUnscoredQuiet, palette.equityMuted],
+    ] as const) {
+      if (drawables.length === 0) continue;
+
       context.lineWidth = ANOMALY_UNSCORED_STROKE_WIDTH;
-      context.strokeStyle = palette.anomalyUnscored;
+      context.strokeStyle = colour;
       context.beginPath();
 
-      for (const drawable of bodyUnscored) {
+      for (const drawable of drawables) {
         const at = worldToScreen(view, drawable.x, drawable.y);
         const half = (drawable.ink * nodeScale) / 2;
         context.moveTo(at.x + half, at.y);
@@ -2353,6 +2458,26 @@ export const mountCanvasTopology: TopologyRendererFactory = (
         setSelectedNode(null, "filter");
       }
 
+      invalidate();
+    },
+    setHighlight: (symbols) => {
+      // **A no-op for the set already in force — compared by MEMBERSHIP and
+      // never by identity**, which is `setFilter`'s own rule one subject over
+      // and for a sharper version of its reason: the caller holds a command
+      // that arrived over a wire, and a route that re-derived the set on a
+      // render would hand a fresh `Set` with the same 74 members. Clearing a
+      // highlight that is not in force is a no-op by the same comparison.
+      if (sameHighlight(highlighted, symbols)) return;
+
+      highlighted = symbols;
+      // **Only the anomaly groups, never `renarrow`.** A highlight is not a
+      // cut: it changes how an equity is drawn and nothing about which
+      // equities are drawn, hit-testable or walkable. So the edge arrays, the
+      // label partition, the walk graph and the hit array are all untouched —
+      // which is what makes `one of the reader's peers is filtered out of
+      // view` an honestly invisible highlight (`STORY.md`'s AC 4) rather than
+      // a second cut fighting the reader's own.
+      regroupAnomalyTreatments();
       invalidate();
     },
     markBurst: () => {

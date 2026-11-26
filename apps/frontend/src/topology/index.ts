@@ -79,6 +79,18 @@ export {
 } from "./click-gesture.js";
 export type { TopologyPressGesture } from "./click-gesture.js";
 
+export {
+  TOPOLOGY_RELATION_WORDS,
+  topologyHighlightSet,
+  topologyHighlightTreatment,
+  topologyHighlightWords,
+  topologyRelationWords,
+} from "./highlight.js";
+export type {
+  TopologyHighlight,
+  TopologyHighlightTreatment,
+} from "./highlight.js";
+
 export { topologyPalette } from "./palette.js";
 export type { TopologyPalette } from "./palette.js";
 
