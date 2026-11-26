@@ -500,10 +500,58 @@
 }
 
 /*
+ * **The notes' own column — top-left inside the frame** (Task 7.4.2).
+ *
+ * ## It exists because two notes at opposite corners OVERLAPPED at 390
+ *
+ * Found with `pnpm probe --story …--highlighted-peers-narrowed`, and by
+ * nothing else: this task's first draft put the highlight note at top-RIGHT,
+ * capped at half the frame, which is clear of `.filterNote` at 1440, 1024 and
+ * 768 and **covers it at 390**, where the frame's content box is 308 px and
+ * the filter note's own line needs every pixel of it. The highlight note's
+ * three wrapped lines landed over the filter note's text and over its `Show
+ * all` link — a control occluded by a paragraph, which is strictly worse than
+ * either note being absent.
+ *
+ * So the two notes are **one stack in one corner** rather than two corners.
+ * A grid column with a gap cannot overlap at any width by construction, which
+ * is the property an opposite-corner arrangement can only have by
+ * measurement — and the measurement was false at the width this product tests
+ * last.
+ *
+ * `justify-items: start` so each note is as wide as its own content rather
+ * than as wide as the column; `max-inline-size` on the column, so the cap is
+ * stated once for both rather than twice. The children carry no positioning
+ * of their own, and a `display: none` highlight note takes no row and no gap.
+ *
+ * `pointer-events: none` on the column and `auto` on `.filterNote` alone: the
+ * column is an empty box over a canvas whose `pointerleave` blanks the readout
+ * plate, and the one thing in it that must stay clickable is the way back from
+ * a filter.
+ */
+.notes {
+  position: absolute;
+  inset-block-start: var(--space-8);
+  inset-inline-start: var(--space-8);
+  display: grid;
+  gap: var(--space-8);
+  justify-items: start;
+  max-inline-size: calc(100% - 2 * var(--space-8));
+  pointer-events: none;
+}
+
+/*
  * **What this region is narrowed to, and the way back** (Task 6.8.1) — drawn
  * only while a filter is in force, top-left inside the frame.
  *
  * ## Absolute, for the same reason the plate is
+ *
+ * **Amended 2026-11-26 (Task 7.4.2): the absolute positioning moved up to
+ * `.notes`**, which is the column this paragraph is now the first row of. The
+ * argument below is unchanged and is now the column's — nothing in this
+ * region's own box grew, so `MARKET-OVERVIEW.md` §1.4's displacement trigger
+ * still does not fire — and the position this note draws at while no
+ * highlight is in force is identical to the one it has had since Task 6.8.1.
  *
  * This region shares a grid row with `Sector performance` and `Movers` at two
  * of the four widths, and `MARKET-OVERVIEW.md` §1.4's displacement trigger has
@@ -530,12 +578,55 @@
  * real securities.
  */
 .filterNote {
-  position: absolute;
-  inset-block-start: var(--space-8);
-  inset-inline-start: var(--space-8);
   box-sizing: border-box;
   margin: 0;
-  max-inline-size: calc(100% - 2 * var(--space-8));
+  max-inline-size: 100%;
+  padding: var(--space-4) var(--space-8);
+  /*
+   * **Restored, because `.notes` disables it for the stack** (Task 7.4.2) —
+   * the paragraph's own reason is unchanged and is two paragraphs up: the only
+   * thing in it besides eight words is a link, and a link nothing can click is
+   * not a link.
+   */
+  pointer-events: auto;
+  color: var(--ink-primary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+  /* See `.readout`: 80%, measured, and a mitigation rather than a fix. */
+  background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
+  border: 1px solid var(--rule-hairline);
+}
+
+/*
+ * **What a deterministic step has asked this graph to point at** (Task 7.4.2)
+ * — the second row of `.notes`, drawn only while a command is in force.
+ *
+ * ## Under the filter note rather than opposite it
+ *
+ * See `.notes`: the first draft put this at the other end of the top edge and
+ * `pnpm probe` found it covering the filter note and its `Show all` link at
+ * 390. Beneath it, in one column, the two cannot overlap at any width.
+ *
+ * It inherits the column's own translucency argument — it covers canvas, and
+ * `.readout`'s own measured table is why 80% — and it takes no pointer
+ * events, unlike `.filterNote`: there is nothing in it but words. A
+ * highlight's way back is the reader's own `Escape` or a click on empty
+ * canvas (Task 7.4.3), never a control in this note.
+ *
+ * ## `display: none` while nothing is highlighted
+ *
+ * The paragraph is rendered in every state — whether a command is in force is
+ * a fact React cannot see, `MarketTopology.tsx`'s own account — so the state
+ * is carried on `data-topology-highlight` and this rule is what keeps an empty
+ * bordered box off a graph nobody has asked anything of. Switched on an
+ * attribute rather than a class for `.readout`'s own two reasons: one
+ * imperative write per change, and a value a browser spec can read where it
+ * cannot read a hashed class name.
+ */
+.highlightNote {
+  box-sizing: border-box;
+  margin: 0;
+  max-inline-size: 100%;
   padding: var(--space-4) var(--space-8);
   color: var(--ink-primary);
   font-size: var(--font-size-micro);
@@ -543,6 +634,10 @@
   /* See `.readout`: 80%, measured, and a mitigation rather than a fix. */
   background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
   border: 1px solid var(--rule-hairline);
+}
+
+.highlightNote[data-topology-highlight="none"] {
+  display: none;
 }
 
 /*

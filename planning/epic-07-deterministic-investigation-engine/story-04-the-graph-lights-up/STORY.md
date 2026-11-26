@@ -1,8 +1,9 @@
 # Story 7.4 — The Graph Lights Up
 
-**Status:** In progress — 2026-11-25, Task 7.4.1 started. Four Gate-1 open
-questions resolved by the Product Owner; see "Resolved at Gate 1" for the
-argument behind each change to the acceptance criteria below.
+**Status:** In progress — 2026-11-26, Task 7.4.1 complete (PR #711) and
+Task 7.4.2 started. Four Gate-1 open questions resolved by the Product Owner;
+see "Resolved at Gate 1" for the argument behind each change to the
+acceptance criteria below.
 **Epic:** [Epic 7 — Deterministic Investigation Engine](../EPIC.md)
 **Depends on:** 7.2
 **Epic scope covered:** `get_related_securities`, `highlight_graph_nodes`

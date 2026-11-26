@@ -42,6 +42,7 @@ import {
   unusualActivity,
   type LiveFeedView,
 } from "../market/index.js";
+import type { WorkspaceHighlightCommand } from "../investigations/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import { useRelationships } from "../use-relationships.js";
 import { useSecurities } from "../use-securities.js";
@@ -100,12 +101,30 @@ export interface MarketOverviewProps {
    * `checking` is what an absent answer looks like.
    */
   readonly marketFeed?: MarketFeedView | undefined;
+  /**
+   * **The one `WorkspaceCommand` this product produces, as `App` holds it**
+   * (Task 7.4.2) — invariant 2's typed instruction, arriving at the trusted,
+   * pre-existing component that executes it.
+   *
+   * `App` owns it for the reason recorded there: it is the one element that
+   * outlives the navigation from the security page that produced the command
+   * to the screen that draws it. **This route does not execute it either** —
+   * it hands it to `MarketTopologyHandle.setHighlight` from an effect, which
+   * is where every imperative command to that region goes.
+   *
+   * Optional for `liveFeed`'s reason: three of the five routes are rendered
+   * without it and a story renders this route with nothing at all.
+   * `undefined` is *nothing has been commanded*, which is the state every
+   * session is in until a reader runs something.
+   */
+  readonly workspaceCommand?: WorkspaceHighlightCommand | undefined;
 }
 
 export function MarketOverview({
   liveFeed,
   onLiveSymbols,
   marketFeed,
+  workspaceCommand,
 }: MarketOverviewProps = {}) {
   const overview = liveFeed?.overview;
   const observations = liveFeed?.observations ?? EMPTY_OBSERVATIONS;
@@ -388,6 +407,36 @@ export function MarketOverview({
   useEffect(() => {
     topology.current?.setObservations(observations);
   }, [observations]);
+
+  /**
+   * **The graph lights up** (Task 7.4.2) — the first moment in this product
+   * where starting an investigation on one page visibly changes another.
+   *
+   * `setBands`', `markBurst`'s and `setObservations`' exact shape, and the
+   * fourth reason for it is this one's own: a command is a **command**, aimed
+   * at an imperative resource this route does not own, and
+   * `MarketTopology.tsx`'s declined `React.memo` boundary stays closed by
+   * construction only while that region takes no prop of this kind at all —
+   * its module docblock's fifth evaluation.
+   *
+   * **It fires on mount, which is the ordinary case rather than an edge
+   * one.** A reader presses `Investigate` on `/securities/NVDA` and arrives
+   * here seconds later, so the command is always older than this route. The
+   * handle is attached and the renderer mounted before this effect runs
+   * (React runs a child's effects before its parent's), and `MarketTopology`
+   * holds what it is told and re-applies it to a canvas that mounts later —
+   * so the first frame a reader ever sees already carries the highlight.
+   *
+   * **`undefined` is passed as `null`, not skipped.** This region's
+   * `setHighlight` is the one home for *what is highlighted*, and clearing is
+   * the same call — so a holder that goes back to `undefined` (Task 7.4.3's
+   * subject: a reader's gesture, a terminal event, a dead channel) reaches the
+   * renderer through this same line rather than through a second one somebody
+   * has to remember to write.
+   */
+  useEffect(() => {
+    topology.current?.setHighlight(workspaceCommand ?? null);
+  }, [workspaceCommand]);
 
   /*
    * **The two movers lists, derived once per frame — the route's third memo

@@ -33,6 +33,7 @@ import type { Bar, SecurityLastClose, Ticker } from "@marketpulse/shared";
 import type {
   TopologyAnomalyTreatment,
   TopologyFilterCriterion,
+  TopologyHighlight,
   TopologyRendererOptions,
   TopologyHoverTarget,
   TopologyRenderer,
@@ -113,6 +114,9 @@ let lastMarkBurst = vi.fn();
 /** Same reason as {@link lastDestroy}, for `setFilter` (Task 6.8.1). */
 let lastSetFilter = vi.fn();
 
+/** Same reason as {@link lastDestroy}, for `setHighlight` (Task 7.4.2). */
+let lastSetHighlight = vi.fn();
+
 function createFakeRenderer(): TopologyRenderer {
   const frames = 1;
   lastDestroy = vi.fn();
@@ -120,12 +124,14 @@ function createFakeRenderer(): TopologyRenderer {
   lastFocus = vi.fn();
   lastMarkBurst = vi.fn();
   lastSetFilter = vi.fn();
+  lastSetHighlight = vi.fn();
   return {
     kind: "canvas",
     resize: vi.fn(),
     reset: vi.fn(),
     setBands: lastSetBands,
     setFilter: lastSetFilter,
+    setHighlight: lastSetHighlight,
     markBurst: lastMarkBurst,
     focus: lastFocus,
     framesDrawn: () => frames,
@@ -3699,4 +3705,313 @@ describe("the band filter channel — Task 6.8.2", () => {
       }
     ).filter;
   }
+});
+
+// **The highlight channel — Task 7.4.2**, which is invariant 2's one command
+// reaching a drawn surface.
+//
+// What this level can and cannot see is the same division every other channel
+// in this file lives under: jsdom has no 2d context, so what is provable here
+// is **which calls this component makes, when, and what it writes in words**.
+// Whether the complement is legibly quieter than the highlighted set — and
+// whether it is distinguishable from `unscored` and from a filtered-out
+// landmark — is `pnpm probe`'s, and the collision check is recorded in the
+// task file rather than asserted here.
+describe("the highlight channel — Task 7.4.2", () => {
+  beforeEach(() => {
+    mountCanvasTopology.mockReset();
+    mountCanvasTopology.mockImplementation(fakeMount);
+  });
+
+  const UNIVERSE = securitiesFixtureView("full");
+  const universe = () => UNIVERSE;
+
+  const HIGHLIGHT: TopologyHighlight = {
+    subject: "NVDA",
+    symbols: ["AAPL", "MSFT"],
+    relations: ["sector_membership", "return_correlation"],
+  };
+
+  /** The structural sentence, by its one stable opening. */
+  const sentence = (): HTMLElement =>
+    screen.getByText(/^A graph of every security we track/u);
+
+  /** The drawn note's own paragraph, which is on the page in every state. */
+  const note = (): HTMLElement => {
+    const found = document.querySelector("[data-topology-highlight]");
+    if (found === null) throw new Error("the highlight note is not rendered");
+    return found as HTMLElement;
+  };
+
+  it("draws nothing and says nothing before any command has arrived", () => {
+    renderWithContext(
+      <MarketTopology
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(note().dataset.topologyHighlight).toBe("none");
+    expect(note().textContent).toBe("");
+    expect(sentence().textContent).not.toContain("Highlighting");
+    expect(lastSetHighlight).not.toHaveBeenCalled();
+  });
+
+  it("hands the renderer `{subject} ∪ symbols` and states it in BOTH renderings", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+
+    // The subject is NOT a member of `symbols` on the wire, and it IS a
+    // member of the drawn set — the one assembly step this task had to get
+    // right against the shipped shape rather than the drafted one.
+    const handed = lastSetHighlight.mock.calls[0]?.[0] as ReadonlySet<string>;
+    expect([...handed].toSorted()).toStrictEqual(["AAPL", "MSFT", "NVDA"]);
+
+    expect(note().dataset.topologyHighlight).toBe("active");
+    expect(note().textContent).toBe(
+      "Highlighting NVDA and 2 related securities — sector peers and correlated securities",
+    );
+    expect(sentence().textContent).toContain(
+      "Highlighting NVDA and the 2 related securities it is joined to",
+    );
+  });
+
+  it("clears through the same call, and takes its note off screen", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+    act(() => {
+      ref.current?.setHighlight(null);
+    });
+
+    expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
+    expect(note().dataset.topologyHighlight).toBe("none");
+    expect(note().textContent).toBe("");
+    expect(sentence().textContent).not.toContain("Highlighting");
+  });
+
+  it("replays a command that arrived BEFORE the topology mounted — Done-when 4", () => {
+    // The ordinary case: a reader presses `Investigate` and reaches `/` while
+    // the universe request is still in flight, so the command is older than
+    // the renderer. `loading` renders no canvas at all, and the handle is
+    // attached regardless — so the command has to be HELD and applied at
+    // mount rather than dropped on the floor.
+    const ref = createRef<MarketTopologyHandle>();
+
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={LOADING_UNIVERSE}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+
+    expect(canvas()).toBeNull();
+    expect(mountCanvasTopology).not.toHaveBeenCalled();
+
+    rerender(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    // The renderer was told, by the mount effect, with the set it was holding.
+    const handed = lastSetHighlight.mock.calls[0]?.[0] as ReadonlySet<string>;
+    expect(lastSetHighlight).toHaveBeenCalledTimes(1);
+    expect([...handed].toSorted()).toStrictEqual(["AAPL", "MSFT", "NVDA"]);
+    // And the note, which had no paragraph to be written into while loading.
+    expect(note().dataset.topologyHighlight).toBe("active");
+    expect(note().textContent).toContain("Highlighting NVDA");
+  });
+
+  it("re-applies the held command to a FRESH renderer, as a retry mounts one", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+
+    // A new `securities` array is a new `topology` identity, which re-runs the
+    // mount effect and starts a renderer with no highlight of its own.
+    rerender(
+      <MarketTopology
+        ref={ref}
+        universe={securitiesFixtureView("full")}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(2);
+    expect(lastSetHighlight).toHaveBeenCalledTimes(1);
+    expect([
+      ...(lastSetHighlight.mock.calls[0]?.[0] as ReadonlySet<string>),
+    ]).toContain("NVDA");
+  });
+
+  it("keeps the highlight's clause through a live band update — the two-writers collision, a fourth time", () => {
+    // The named risk, one clause further on: the sentence has THREE writers
+    // now, and a clause only one of them knows about is deleted by the next
+    // batch 6.8–16.1 times a minute.
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=technology")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+    act(() => {
+      ref.current?.setBands(new Map([[toTicker("NVDA"), "high"]]));
+    });
+
+    const text = sentence().textContent;
+    expect(text).toContain("1 is high");
+    expect(text).toContain("Narrowed to Technology");
+    expect(text).toContain("Highlighting NVDA");
+    // The drawn note survives the batch too — it has one writer, and nothing
+    // in `applyAnomalyBands` reaches it.
+    expect(note().textContent).toContain("Highlighting NVDA");
+  });
+
+  it("keeps the highlight's clause through a reader's own press", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+
+    rerender(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        filter={readTopologyFilter("?sector=energy")}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const text = sentence().textContent;
+    expect(text).toContain("Narrowed to Energy");
+    expect(text).toContain("Highlighting NVDA");
+  });
+
+  it("never re-mounts the renderer across interleaved setHighlight and setBands calls — the declined memo boundary's FIFTH evaluation", () => {
+    const ref = createRef<MarketTopologyHandle>();
+
+    const { rerender } = renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    const renderer = mountCanvasTopology.mock.results[0]?.value as
+      TopologyRenderer | undefined;
+
+    for (const treatment of ["elevated", "high", "extreme"] as const) {
+      act(() => {
+        ref.current?.setBands(new Map([[toTicker("NVDA"), treatment]]));
+      });
+      act(() => {
+        ref.current?.setHighlight({ ...HIGHLIGHT, relations: [treatment] });
+      });
+      rerender(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+    }
+
+    expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+    expect(mountCanvasTopology.mock.results[0]?.value).toBe(renderer);
+    expect(lastDestroy).not.toHaveBeenCalled();
+    expect(lastSetHighlight).toHaveBeenCalledTimes(3);
+  });
+
+  it("speaks nothing — the fact is in the structural sentence, read on demand", () => {
+    // Gate 1's own decision: no screen-reader announcement, and no extension
+    // of the existing selection-announcement region, which has exactly one
+    // subject by design.
+    const ref = createRef<MarketTopologyHandle>();
+
+    renderWithContext(
+      <MarketTopology
+        ref={ref}
+        universe={universe()}
+        relationships={NO_MEASUREMENT}
+        onRetry={() => undefined}
+      />,
+    );
+
+    act(() => {
+      ref.current?.setHighlight(HIGHLIGHT);
+    });
+
+    const live = document.querySelectorAll('[role="status"]');
+    expect(live).toHaveLength(1);
+    expect(live[0]?.textContent).toBe("");
+  });
 });

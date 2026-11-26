@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 
 import { SECTOR_ETFS } from "@marketpulse/shared";
@@ -14,11 +15,19 @@ import {
   securitiesFixtureRetryingView,
   securitiesFixtureView,
 } from "../../fixtures/securities.js";
-import type { TopologyAnomalyTreatment } from "../../topology/index.js";
+import { readTopologyFilter } from "../../topology/index.js";
+import type {
+  TopologyAnomalyTreatment,
+  TopologyHighlight,
+} from "../../topology/index.js";
 import type { RelationshipsView } from "../../use-relationships.js";
 import type { SecuritiesView } from "../../use-securities.js";
 import { toSecuritiesView } from "../../use-securities.js";
 import { MarketTopology } from "./MarketTopology.js";
+import type {
+  MarketTopologyHandle,
+  MarketTopologyProps,
+} from "./MarketTopology.js";
 
 // The market topology, in the states the universe can be in — **and the
 // workshop is the only place any of this is reachable** (Task 6.1.2).
@@ -447,6 +456,79 @@ const MEASURED_NOTHING: RelationshipsView = {
 const MEASUREMENT_FAILED: RelationshipsView = { state: "failed" };
 
 /**
+ * **The real measured distribution with a tenth of it unscored** (Task 7.4.2).
+ *
+ * The one state that puts all five node treatments on screen at once, which is
+ * what the highlight stories below need: a quietened `normal`, a quietened
+ * `unscored` (hollow), full-strength `elevated`/`high` rings, and the
+ * `extreme` fill a de-emphasis must never touch. `measuredDistributionBands`
+ * alone never writes `unscored` — the real distribution it records had none —
+ * and Task 6.3.1's own measured session DID (11 of 496 "too short a
+ * baseline"), so a mixed map is a reachable state rather than an invented one.
+ */
+function measuredDistributionWithUnscoredBands(): ReadonlyMap<
+  Ticker,
+  TopologyAnomalyTreatment
+> {
+  const bands = new Map(measuredDistributionBands());
+  const unscoredEnd = Math.round(EQUITY_SYMBOLS.length * 0.1);
+
+  for (const symbol of EQUITY_SYMBOLS.slice(0, unscoredEnd))
+    bands.set(symbol, "unscored");
+
+  return bands;
+}
+
+/**
+ * **A `highlightNodes` command's own payload, as a real one is shaped** (Task
+ * 7.4.2) — `NVDA`'s sector peers and its benchmark ETF.
+ *
+ * Read off the fixture body rather than typed, so the story's picture is the
+ * real cluster rather than a handful of symbols somebody chose, and
+ * **`subject` is excluded from `symbols`** exactly as the wire's own validator
+ * requires: `topologyHighlightSet` is what puts it back, and a story that
+ * included it here would be asserting a shape the backend refuses.
+ */
+const HIGHLIGHT: TopologyHighlight = {
+  subject: "NVDA",
+  symbols: [
+    SECTOR_ETFS.technology,
+    ...securitiesFixtureBody("full")
+      .securities.filter(
+        (security) =>
+          security.kind === "equity" &&
+          security.sector === "technology" &&
+          security.symbol !== "NVDA",
+      )
+      .map((security) => security.symbol),
+  ],
+  relations: ["sector_membership", "return_correlation"],
+};
+
+/**
+ * **A highlight reaches this region imperatively and there is no prop for it**
+ * — `MarketTopology.tsx`'s module docblock, fifth evaluation.
+ *
+ * So a story cannot be an `args` entry the way `bands` is: this wrapper is the
+ * workshop's stand-in for `MarketOverview`'s own effect, holding the handle and
+ * calling `setHighlight` once after mount. It is deliberately NOT a reason to
+ * add a `highlight` prop — the whole point of the imperative route is that this
+ * region's prop surface is not where a command lands.
+ */
+function Highlighted({
+  highlight,
+  ...props
+}: MarketTopologyProps & { readonly highlight: TopologyHighlight }) {
+  const handle = useRef<MarketTopologyHandle>(null);
+
+  useEffect(() => {
+    handle.current?.setHighlight(highlight);
+  }, [highlight]);
+
+  return <MarketTopology ref={handle} {...props} />;
+}
+
+/**
  * **The box, because the workshop is not a layout** (Task 6.2.1).
  *
  * `.frame` is `block-size: 100%` since the `--topology-height` constant was
@@ -532,6 +614,76 @@ export const AnomalyBandsAllUnscored: Story = {
  */
 export const AnomalyBandsAllExtreme: Story = {
   args: { universe: WHOLE_UNIVERSE, bands: allExtremeBands() },
+};
+
+/**
+ * **A deterministic step's own `highlightNodes` command, drawn** (Task 7.4.2)
+ * — the complement de-emphasis Story 7.4's Gate 1 settled, over a universe
+ * carrying all five node treatments at once.
+ *
+ * What to look at, which is this story's whole job: whether a quietened equity
+ * (`--chart-seam`, 1.70:1) reads as *receded* rather than as *broken*, and
+ * whether it is tellable apart from the hollow `unscored` outline
+ * (`--ink-disabled`, 4.48:1) beside it. The `extreme` fill and the
+ * `elevated`/`high` rings must be at full strength throughout — a relevance
+ * judgement never overwrites a measurement.
+ */
+export const HighlightedPeers: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+  },
+  render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
+};
+
+/**
+ * **A highlight over a market the reader has already narrowed** (Task 7.4.2) —
+ * the state the technical architect flagged, and the one the collision check
+ * is taken against.
+ *
+ * `?sector=energy` with the highlight naming a **Technology** subject, which
+ * is a real reachable state (a highlight is drawn regardless of the reader's
+ * own cut, `STORY.md`'s AC 4) and the only one that puts both de-emphasised
+ * treatments on screen together: the ten muted benchmark squares Story 6.8
+ * draws for a filtered-out sector, and the quietened circles this task draws
+ * for an equity no command named. If those two read as one treatment with two
+ * meanings, that is a defect this story is where somebody sees.
+ *
+ * Every highlighted node is honestly **invisible** here — the reader's cut
+ * hides them and a highlight adds nothing on top of a hidden node. The count
+ * that says so is Task 7.4.4's.
+ */
+export const HighlightedPeersNarrowed: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+    filter: readTopologyFilter("?sector=energy"),
+  },
+  render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
+};
+
+/**
+ * **The highlight over a MEASURED correlation pass** (Task 7.4.2, added at
+ * this task's own review) — the one state where the de-emphasis ink's
+ * co-tenancy is real.
+ *
+ * `TopologyPalette.equityMuted` and `TopologyPalette.correlationEdge` are the
+ * same token (`--chart-seam`, 1.70:1), and at 1440 the measured-edge layer is
+ * not suppressed — so a quietened equity body and the dashed edges running
+ * through it are literally the same colour. The two stories above default to
+ * `NO_MEASUREMENT` and therefore **cannot** show it, which is why this third
+ * one exists rather than an argument in a docblock. What to look at: whether
+ * the quiet discs stay readable as nodes against the mesh, which rests on
+ * shape and on the 1 px `--surface-raised` halo every body carries — never on
+ * ink, because there is no ink difference to rest on.
+ */
+export const HighlightedPeersMeasured: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+    relationships: MEASURED,
+  },
+  render: (args) => <Highlighted {...args} highlight={HIGHLIGHT} />,
 };
 
 /**

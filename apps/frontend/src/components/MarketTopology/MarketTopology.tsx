@@ -30,6 +30,8 @@ import {
   topologyCriterion,
   topologyFilterNames,
   topologyFilterWords,
+  topologyHighlightSet,
+  topologyHighlightWords,
   topologyPalette,
   topologySource,
 } from "../../topology/index.js";
@@ -37,6 +39,7 @@ import type {
   TopologyAnomalyTreatment,
   TopologyFilter,
   TopologyFilterCriterion,
+  TopologyHighlight,
   TopologyHoverTarget,
   TopologyRenderer,
 } from "../../topology/index.js";
@@ -118,6 +121,35 @@ import styles from "./MarketTopology.module.css";
 // draws a mark on every live batch. `MarketTopology.test.tsx`'s own
 // producer-side account (interleaving `setBands` and `markBurst` calls
 // across repeated re-renders) is where this is held.
+//
+// **Evaluated a FIFTH time, and it did NOT fire, when Task 7.4.2 made a
+// deterministic step's own `highlightNodes` command reach the graph.** The
+// shape that would have fired it is the obvious one — a `highlight` prop the
+// route re-passes — and it was declined for the same reason the three
+// evaluations above were, plus one of its own.
+//
+// The reason that is the same: `setHighlight` is a method on
+// `MarketTopologyHandle`, reached exactly as `setBands`, `markBurst` and
+// `setObservations` already are, called from `MarketOverview.tsx`'s own effect
+// over the command `App.tsx` holds. The mount effect's deps are still
+// `[topology, probe, sentenceId]`, this component still takes no prop that
+// changes at feed cadence, and the canvas is never re-mounted by a highlight
+// arriving, changing or clearing — so a reader's pan, zoom and selection
+// survive it.
+//
+// The reason that is its own, and it is why the imperative route is the right
+// one even though the trigger's own condition would not have fired: **a
+// `WorkspaceCommand` does not change at feed cadence at all.** It arrives when
+// a step of a real investigation completes — once, in a session, if ever — so
+// a prop carrying it would have been *safe* by the trigger's wording while
+// quietly making this region's prop surface the place the next author reaches
+// for the fact that DOES move. Keeping it imperative is what leaves the
+// boundary closed **by construction** rather than by a fifth argument about
+// cadence; the trigger is unchanged and still unmet.
+//
+// (The producer-side account for this one is in `MarketTopology.test.tsx`'s
+// own highlight channel: `setHighlight` interleaved with `setBands` across
+// re-renders, with the mount count and the renderer's identity asserted.)
 
 export interface MarketTopologyProps {
   /** The universe, in whichever state `use-securities.ts` has it. */
@@ -330,6 +362,37 @@ export interface MarketTopologyHandle {
    * facts are correct the instant something IS selected.
    */
   setObservations(observations: ReadonlyMap<string, Bar>): void;
+
+  /**
+   * **Draw a `highlightNodes` command — or clear one** (Task 7.4.2).
+   *
+   * The securities the command named are drawn at full strength and every
+   * other equity recedes (`topology/highlight.ts`' complement de-emphasis);
+   * the fifteen landmarks never participate, a measured `extreme` is never
+   * dimmed, and a node the reader's own filter already hides stays hidden.
+   * Instant both ways, no fade.
+   *
+   * **One nullable argument rather than a `setHighlight`/`clearHighlight`
+   * pair**, which is a judgement this task took and is worth the sentence:
+   * there is exactly one *what is highlighted* in this component and this
+   * assigns it, so clearing is the same code path as setting with the same
+   * no-op comparison and the same note write. Two methods would be two paths
+   * to one fact, and the one that gets forgotten is always the clearing —
+   * which is Task 7.4.3's whole subject.
+   *
+   * **The caller hands the whole command, not the drawn set.** The set is
+   * `{subject} ∪ symbols` and is assembled here, once, by
+   * `topologyHighlightSet`; the subject and the relations are what this
+   * component writes the note from. `TopologyRenderer.setHighlight` takes the
+   * set alone, because that is all a draw call can read.
+   *
+   * **A no-op while nothing is mounted** — same contract as every method
+   * above — **but the command is still held**, `setObservations`' own
+   * division: a command that arrives while the universe is still loading, or
+   * before a reader has reached this screen at all, is applied to the
+   * renderer's **first drawn frame** by the mount effect rather than lost.
+   */
+  setHighlight(highlight: TopologyHighlight | null): void;
 }
 
 export function MarketTopology({
@@ -609,6 +672,43 @@ export function MarketTopology({
   const appliedBands = useRef(EMPTY_TREATMENTS);
 
   /**
+   * **The command currently in force, or `null`** (Task 7.4.2) —
+   * {@link appliedBands}' own shape and three of its four reasons.
+   *
+   * It is a ref rather than state or a prop because of what reads it: the
+   * renderer (through `setHighlight`), the note's own line, and the two
+   * sentence writers below — all of which run in an **effect or an imperative
+   * handle call**, never during a render. A prop would be the module
+   * docblock's declined `React.memo` boundary reopened by the author rather
+   * than by the trigger; state would put a render between a command arriving
+   * and the canvas drawing it, for a value no rendered element depends on.
+   *
+   * **It outlives the renderer, which is the point.** A command that arrives
+   * while the universe is still loading — or before the reader has navigated
+   * to this screen at all, which is the ordinary case — is held here and
+   * applied by the mount effect to the first frame the canvas ever draws.
+   */
+  const appliedHighlight = useRef<TopologyHighlight | null>(null);
+
+  /**
+   * **The highlight note's own line** (Task 7.4.2) — {@link filterLine}'s
+   * idiom, one element over, and with one writer rather than two.
+   *
+   * React declares **no children and a constant attribute** for the paragraph
+   * this points at, so its diff never finds a reason to touch the node: the
+   * text and the `data-topology-highlight` state are both written by
+   * {@link writeTopologyHighlightNote}, from the one handle method. That is
+   * also why the element is rendered unconditionally rather than behind a
+   * flag — whether a highlight is in force is a fact a render cannot see
+   * (it lives in a ref), so the *presence* question `narrowedAtAll` answers
+   * for the filter note has no equivalent here, and the attribute carries it
+   * instead. The plate's own `data-topology-readout` is the precedent,
+   * including the reason: a browser spec can read an attribute and cannot
+   * read a hashed class name.
+   */
+  const highlightNote = useRef<HTMLParagraphElement>(null);
+
+  /**
    * **Built once, read by both the mount effect and the drawn sentence
    * below** (Task 6.2.4). `topologySource` is a pure, memoised function —
    * the same `securities` array gives back the same `{ graph, layout }` by
@@ -700,8 +800,22 @@ export function MarketTopology({
    * the reading order — what is drawn, then what was measured — so the
    * narrowing qualifies the structural sentence it follows rather than the
    * edge population.
+   *
+   * **Through {@link trailingClausesOf} since Task 7.4.2, and
+   * HIGHLIGHT-BLIND** — `filterWords`' own band-blind arrangement, for the
+   * same two reasons: a render may not read {@link appliedHighlight} (the
+   * React Compiler's `refs` rule), and the clause is a function of a command
+   * that arrives imperatively. `null` here is therefore *this browser has
+   * been told of no command*, which is true of every render until one lands;
+   * the three imperative writers supply it afterwards and React's own diff
+   * never touches the node again, because this string is a pure function of
+   * values that do not move between renders.
    */
-  const trailingClauses = `${filterWords?.clause ?? ""}${correlationClause}`;
+  const trailingClauses = trailingClausesOf(
+    filterWords,
+    null,
+    correlationClause,
+  );
 
   /**
    * **Whether the population note is on screen at all — the one question
@@ -737,6 +851,7 @@ export function MarketTopology({
           topology.graph,
           treatments,
           filter,
+          appliedHighlight.current,
           correlationClause,
         );
       },
@@ -752,6 +867,36 @@ export function MarketTopology({
             plate.current,
             hovered.current ?? chosen.current,
             { observations, lastCloses: lastCloses.current },
+          );
+        }
+      },
+      setHighlight: (highlight) => {
+        appliedHighlight.current = highlight;
+        // **The renderer first, then the words.** The call is a no-op while
+        // nothing is mounted (`renderer.current` is `null` in every state but
+        // `loaded`) and the mount effect applies what is held here when one
+        // starts, so a command that arrives before this screen exists is
+        // drawn on the canvas's first frame rather than dropped.
+        renderer.current?.setHighlight(
+          highlight === null ? null : topologyHighlightSet(highlight),
+        );
+        writeTopologyHighlightNote(highlightNote, highlight);
+
+        // **The sentence is rebuilt here too, and it is not belt-and-braces.**
+        // The structural sentence has three writers (this component's JSX, a
+        // live batch's `applyAnomalyBands`, and the reader-cadence writer
+        // below) and React's committed string is highlight-blind for the
+        // reason {@link appliedHighlight} gives. Without this, the clause
+        // would appear only on the next live batch — which on CI, on any
+        // laptop with no feed, and out of hours is **never**.
+        if (topology !== null) {
+          writeTopologyFilterNote(
+            { sentence, filterLine },
+            topology.graph,
+            appliedBands.current,
+            filter,
+            highlight,
+            correlationClause,
           );
         }
       },
@@ -961,6 +1106,39 @@ export function MarketTopology({
         },
       });
       renderer.current = mounted;
+
+      /*
+       * **The held command reaches the canvas's FIRST frame** (Task 7.4.2,
+       * Done-when 4) — the ordinary case rather than an edge one: a reader
+       * presses `Investigate` on a security page and arrives here seconds
+       * later, so the command is always older than this renderer.
+       *
+       * **Inside the mount effect rather than a mount OPTION**, which the
+       * filter needed and this does not, and the difference is measurable:
+       * `invalidate()` coalesces into one `requestAnimationFrame`
+       * (`renderer-canvas.ts`' own `pending ??=`), and `measure()` at mount
+       * has just scheduled that frame — so this call lands on the same
+       * pending frame rather than on a later one. There is no state in which
+       * the canvas paints the undimmed market and then dims it.
+       *
+       * It is also what makes a **re-mount** correct: this effect re-runs on
+       * `topology` identity (a retry that lands a fresh universe), and a new
+       * renderer starts with no highlight at all, exactly as it starts with no
+       * bands.
+       */
+      if (appliedHighlight.current !== null) {
+        mounted.setHighlight(topologyHighlightSet(appliedHighlight.current));
+        // **And the note, for the same reason and a second one.** Its
+        // paragraph does not exist in the `loading`, `empty` or `failed`
+        // states, so the handle call that stored this command wrote nothing;
+        // the element is in the tree by the time this effect runs (refs are
+        // attached before effects), which makes this the first moment the
+        // line is writable at all. The accessible clause needs no write
+        // here — React has just committed the highlight-blind sentence and
+        // the reader-cadence writer below, which runs in this same commit,
+        // rebuilds it with the clause.
+        writeTopologyHighlightNote(highlightNote, appliedHighlight.current);
+      }
     } catch (error) {
       // **A throw inside an effect is a render error, and nothing above `App`
       // catches one — the page goes blank.** `CLAUDE.md` records that as a
@@ -1145,6 +1323,7 @@ export function MarketTopology({
       topology.graph,
       bands,
       filter,
+      appliedHighlight.current,
       correlationClause,
     );
   }, [bands, topology, filter, correlationClause]);
@@ -1176,6 +1355,11 @@ export function MarketTopology({
       topology.graph,
       appliedBands.current,
       filter,
+      // **The held command, for `appliedBands`' own reason** (Task 7.4.2): a
+      // press, a settled measurement or a fresh universe all re-commit the
+      // highlight-blind sentence React composed, and without this the
+      // highlight's clause would be un-said by the next thing a reader did.
+      appliedHighlight.current,
       correlationClause,
     );
   }, [topology, filter, correlationClause]);
@@ -1427,17 +1611,67 @@ export function MarketTopology({
        * it covers canvas the same way the plate does; the ring is drawn
        * centred, so the top-left corner is the emptiest ground available.
        */}
-      {narrowedAtAll && (
-        <p className={styles.filterNote} data-topology-filter="narrowed">
-          <span data-topology-filter-line="" ref={filterLine} />{" "}
-          <Link
-            className={styles.filterClear}
-            to={topologyClearPath(filter.search)}
-          >
-            Show all
-          </Link>
-        </p>
-      )}
+      {/*
+       * **One column for both notes, top-left** (Task 7.4.2) — see
+       * `.notes` in the stylesheet, where the measurement is. The two used
+       * to be at opposite corners of the top edge and they OVERLAPPED at
+       * 390, with the highlight's three wrapped lines over the filter's own
+       * `Show all` link.
+       */}
+      <div className={styles.notes}>
+        {narrowedAtAll && (
+          <p className={styles.filterNote} data-topology-filter="narrowed">
+            <span data-topology-filter-line="" ref={filterLine} />{" "}
+            <Link
+              className={styles.filterClear}
+              to={topologyClearPath(filter.search)}
+            >
+              Show all
+            </Link>
+          </p>
+        )}
+        {/*
+         * **What a deterministic step has asked this graph to point at** (Task
+         * 7.4.2) — the second row of the `.notes` column above, written
+         * imperatively, and off screen entirely until a command arrives.
+         *
+         * ## Under the filter note, which is where the probe put it
+         *
+         * It was drafted at the top-RIGHT corner — the one corner `.readout`
+         * (bottom-left) and `.filterNote` (top-left) leave free, capped at
+         * half the frame so the two could not meet. That is true at 1440,
+         * 1024 and 768 and **false at 390**, where the frame's content box is
+         * 308 px: the note wrapped to three lines and covered the filter
+         * note's text and its `Show all` link. Beneath it, in one column, the
+         * two cannot overlap at any width by construction rather than by
+         * measurement — and the measurement was the thing that was wrong.
+         *
+         * The column is absolutely positioned, so neither note takes room in
+         * `.frame`'s box and `MARKET-OVERVIEW.md` §1.4's displacement trigger
+         * does not fire on a region whose height three stories have measured
+         * and asserted.
+         *
+         * ## Rendered in every state, hidden by an attribute
+         *
+         * Whether a command is in force lives in a ref (see
+         * {@link appliedHighlight}), so React cannot answer the presence
+         * question the way `narrowedAtAll` answers it for the filter note. The
+         * element is therefore always in the tree with constant React-declared
+         * attributes and **no children**, and {@link
+         * writeTopologyHighlightNote} owns both its text and its state — the
+         * plate's own standing arrangement, including the reason for an
+         * attribute rather than a class.
+         *
+         * It carries no link and no control: the way back from a highlight is
+         * Task 7.4.3's, and it is the reader's own `Escape` or a click on empty
+         * canvas rather than a new affordance.
+         */}
+        <p
+          className={styles.highlightNote}
+          data-topology-highlight="none"
+          ref={highlightNote}
+        />
+      </div>
       <div className={styles.readout} ref={plate} data-topology-readout="idle">
         <p className={styles.readoutIdle} data-readout="idle">
           {TOPOLOGY_READOUT_IDLE}
@@ -2123,6 +2357,15 @@ function applyAnomalyBands(
    * string would be passing a figure computed against the PREVIOUS batch.
    */
   filter: TopologyFilter | undefined,
+  /**
+   * The command in force, or `null` (Task 7.4.2) — for the criterion's own
+   * reason one parameter up: a batch rewrites the WHOLE sentence, so a clause
+   * it does not know about survives exactly as long as the next batch takes to
+   * arrive. Unlike the criterion this is not a function of the treatments; it
+   * is passed rather than read because this is a plain module function and the
+   * ref it lives in is the component's.
+   */
+  highlight: TopologyHighlight | null,
   /** The measured-edge clause, which no batch changes. See `correlationClause`. */
   correlationClause: string,
 ): void {
@@ -2138,7 +2381,7 @@ function applyAnomalyBands(
     // `trailingClauses`' own note describes.
     writers.sentence.current.textContent =
       topologyAnomalySentence(graph, treatments) +
-      `${account?.clause ?? ""}${correlationClause}`;
+      trailingClausesOf(account, highlight, correlationClause);
   }
 
   // **The drawn note too, silently** (Task 6.8.2). The population a band cut
@@ -2222,6 +2465,7 @@ function writeTopologyFilterNote(
   graph: TopologyGraph,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
   filter: TopologyFilter | undefined,
+  highlight: TopologyHighlight | null,
   correlationClause: string,
 ): void {
   const account = filterAccount(graph, filter, treatments);
@@ -2235,7 +2479,56 @@ function writeTopologyFilterNote(
       ? topologyDrawnSentence(graph)
       : topologyAnomalySentence(graph, treatments);
 
-  writers.sentence.current.textContent = `${structure}${account?.clause ?? ""}${correlationClause}`;
+  writers.sentence.current.textContent = `${structure}${trailingClausesOf(account, highlight, correlationClause)}`;
+}
+
+/**
+ * **Every clause the accessible sentence carries beyond its own structure, as
+ * ONE string** — the render-time `trailingClauses` expression's own
+ * composition, extracted at Task 7.4.2 so the three imperative writers cannot
+ * drift from each other or from React.
+ *
+ * It exists because of the arithmetic of the two-writers problem: with two
+ * clauses and two writers there were four places a clause could be dropped,
+ * and with three clauses and three writers there are nine. One function is one
+ * place.
+ *
+ * **The order is the reading order** — what is drawn, what is highlighted,
+ * what was measured — so each clause qualifies the one before it rather than
+ * the structural sentence at the head.
+ */
+function trailingClausesOf(
+  account: { readonly clause: string } | null,
+  highlight: TopologyHighlight | null,
+  correlationClause: string,
+): string {
+  const highlighted =
+    highlight === null ? "" : topologyHighlightWords(highlight).clause;
+
+  return `${account?.clause ?? ""}${highlighted}${correlationClause}`;
+}
+
+/**
+ * **Write the highlight's own line, or take it off screen** (Task 7.4.2) —
+ * {@link writeFilterLine}'s shape with the presence question folded in,
+ * because unlike the filter note this paragraph is rendered in every state
+ * and a render cannot see whether a command is in force.
+ *
+ * The attribute is the switch (`MarketTopology.module.css` hides the `none`
+ * state outright), which is the plate's own `data-topology-readout` idiom:
+ * one attribute write per change, and a value a browser spec can read where
+ * it cannot read a hashed class name.
+ */
+function writeTopologyHighlightNote(
+  note: RefObject<HTMLParagraphElement | null>,
+  highlight: TopologyHighlight | null,
+): void {
+  if (note.current === null) return;
+
+  note.current.textContent =
+    highlight === null ? "" : topologyHighlightWords(highlight).line;
+  note.current.dataset.topologyHighlight =
+    highlight === null ? "none" : "active";
 }
 
 /**

@@ -424,6 +424,39 @@ export interface TopologyRenderer {
    */
   setFilter(criterion: TopologyFilterCriterion): void;
   /**
+   * **Draw these securities at full strength and quieten the rest** — or
+   * `null` to draw the whole market at full strength again (Task 7.4.2).
+   *
+   * `setBands`' and `setFilter`'s own contract, a third subject over: no
+   * re-mount, no re-layout, the reader's pan, zoom and selection untouched,
+   * and a no-op after `destroy()` or for a set already in force.
+   *
+   * **Symbols only — no relations, no subject and no coordinate.** The
+   * treatment Gate 1 settled is **complement de-emphasis**, which is one
+   * set-level change: dim the equities outside the set, add zero new ink to
+   * the ones inside it. So the set is the whole of what a renderer needs,
+   * and the subject and the kinds of relationship are the NOTE's business —
+   * a parameter here with no draw call behind it would be a field with no
+   * reader, which is `workspace-command.ts`'s own named refusal one layer
+   * out. The caller assembles `{subject} ∪ symbols`
+   * (`topology/highlight.ts`' `topologyHighlightSet`) and hands the union.
+   *
+   * **A symbol this universe does not track quietens nothing**, by
+   * construction rather than by a guard: the set is consulted per drawn node,
+   * so an unmatched member is simply never asked about.
+   *
+   * **Instant both ways** — arrival and clearing, no fade and no decay, for
+   * consistency with every other state change this renderer draws (selection,
+   * filter, band update). *A fact arriving decays* is about a MARK fading
+   * while the fact remains, which this is not: the fact is *these are the
+   * ones*, and it is either in force or it is not.
+   *
+   * **The fifteen landmarks are excluded from the encoding entirely** and a
+   * measured `extreme` is never dimmed — `topologyHighlightTreatment` is the
+   * one home for both rules and for the two beside them.
+   */
+  setHighlight(symbols: ReadonlySet<string> | null): void;
+  /**
    * Play the graph-level live-update mark, decaying (Task 6.7.2, Open
    * Decision 1) — a brief, whole-surface highlight saying *a live batch just
    * arrived*, without re-mounting and without touching `setBands`'s own
