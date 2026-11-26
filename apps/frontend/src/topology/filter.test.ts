@@ -929,30 +929,114 @@ describe("topologyFilterWords — the highlighted peers a cut hides", () => {
     expect(words?.line).not.toContain("outside this filter");
   });
 
-  it("agrees its NOUN and its verb with a single hidden peer", () => {
-    const one: TopologyHighlight = {
-      subject: "XOM",
-      symbols: ["NVDA"],
-      relations: ["sector_membership"],
-    };
+  // **The noun and the verb agree with DIFFERENT counts, at all four
+  // combinations** — the third landing of this defect class on this surface
+  // and the second on this one sentence.
+  //
+  // Story 6.8 paid for `1 are high` in two separate builders. This task's own
+  // first draft agreed the verb and left the noun (`1 of 1 highlighted peers
+  // is`); its first repair keyed **both** on the hidden count and broke the
+  // commoner case the other way (`1 of 4 highlighted peer is`). Each fix was
+  // green on the case in front of it. So this table drives the real builder
+  // over the real recorded universe at every combination, including the one
+  // nothing covered before — **one hidden out of several**, which is what a
+  // reader meets far more often than a single-peer command.
+  //
+  // The subject of each arm is a **drawn** security, so the partial clause is
+  // reached rather than the whole-set refusal, and the hidden peers are
+  // chosen out of another sector by name rather than by count.
+  describe("the noun belongs to the denominator and the verb to the count", () => {
+    /** Equities in a sector, excluding any the caller is already using. */
+    const inSector = (sector: Sector, take: number): readonly string[] =>
+      GRAPH.nodes
+        .filter((node) => node.kind === "equity" && node.cluster === sector)
+        .slice(0, take)
+        .map((node) => String(node.symbol));
 
-    const words = wordsFor(
-      readTopologyFilter("?sector=energy"),
-      NO_BANDS,
-      GRAPH,
-      one,
-    );
+    const cases = [
+      {
+        name: "one hidden of one — the single-peer command",
+        hidden: 1,
+        drawn: 0,
+        reads: "1 of 1 highlighted peer is outside this filter",
+        spoken: "1 of 1 highlighted peer is outside this filter.",
+      },
+      {
+        name: "one hidden of four — the case nothing covered, and the one a reader meets",
+        hidden: 1,
+        drawn: 3,
+        reads: "1 of 4 highlighted peers is outside this filter",
+        spoken: "1 of the 4 highlighted peers is outside this filter.",
+      },
+      {
+        name: "three hidden of four",
+        hidden: 3,
+        drawn: 1,
+        reads: "3 of 4 highlighted peers are outside this filter",
+        spoken: "3 of the 4 highlighted peers are outside this filter.",
+      },
+    ] as const;
 
-    // `XOM` is Energy and drawn, so the set draws something and this is the
-    // partial arm with exactly one hidden peer.
-    //
-    // **This assertion enshrined `1 of 1 highlighted peers is outside` until
-    // this task's own review** — the verb agreed and the noun did not, which
-    // is the defect Story 6.8 fixed twice on this surface and a test written
-    // around the output rather than around the grammar is how it came back.
-    expect(words?.line).toContain("1 of 1 highlighted peer is outside");
-    expect(words?.line).not.toContain("peers is");
-    expect(words?.clause).toContain("1 of the 1 highlighted peer is outside");
+    for (const { name, hidden, drawn, reads, spoken } of cases) {
+      it(name, () => {
+        // `XOM`'s own sector is drawn, so the subject is on screen and the
+        // partial arm is reached; the hidden peers are Technology.
+        const highlight: TopologyHighlight = {
+          subject: "XOM",
+          symbols: [
+            ...inSector("technology", hidden),
+            ...inSector("energy", drawn + 1).filter(
+              (symbol) => symbol !== "XOM",
+            ),
+          ].slice(0, hidden + drawn),
+          relations: ["sector_membership"],
+        };
+
+        const words = wordsFor(
+          readTopologyFilter("?sector=energy"),
+          NO_BANDS,
+          GRAPH,
+          highlight,
+        );
+
+        expect(words?.line).toContain(reads);
+        expect(words?.clause).toContain(spoken);
+      });
+    }
+
+    // **The grammar, not the strings.** The table above would still pass with
+    // the noun keyed on the wrong count if somebody updated its expectations
+    // to match — which is how this defect came back twice. These two refuse
+    // the ungrammatical pairings outright, whatever the figures are.
+    it("never pairs a plural noun with a singular denominator, or the reverse", () => {
+      for (const { hidden, drawn } of cases) {
+        const highlight: TopologyHighlight = {
+          subject: "XOM",
+          symbols: [
+            ...inSector("technology", hidden),
+            ...inSector("energy", drawn + 1).filter(
+              (symbol) => symbol !== "XOM",
+            ),
+          ].slice(0, hidden + drawn),
+          relations: ["sector_membership"],
+        };
+
+        const words = wordsFor(
+          readTopologyFilter("?sector=energy"),
+          NO_BANDS,
+          GRAPH,
+          highlight,
+        );
+        const said = `${String(words?.line)} ${String(words?.clause)}`;
+
+        // `1 highlighted peers` and `4 highlighted peer` are each wrong, and
+        // each is what one of the two broken drafts produced.
+        expect(said, said).not.toMatch(/\b1 highlighted peers\b/u);
+        expect(said, said).not.toMatch(/\b(?!1\b)\d+ highlighted peer\b/u);
+        // And the determiner never doubles up on a one-peer population.
+        expect(said, said).not.toContain("of the 1 ");
+      }
+    });
   });
 
   it("applies no clause to an address this page did not understand", () => {

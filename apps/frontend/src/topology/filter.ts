@@ -690,20 +690,46 @@ function hiddenPeerWords(
 
   const hidden = String(cut.hidden);
   const peers = String(cut.peers);
-  // **The NOUN agrees as well as the verb, which the first draft got half
-  // right** — `1 of 1 highlighted peers is outside this filter` was reachable
-  // the first time a reader narrowed away a single-peer command, and it is
-  // the identical defect class Story 6.8 already paid for twice on this exact
-  // surface (`1 are high`, in two separate builders, `docs/GAPS.md`). Both
-  // halves are keyed on the **hidden** count, which is what the noun is
-  // counting; `peers` is the denominator and never the subject.
-  const noun = cut.hidden === 1 ? "highlighted peer" : "highlighted peers";
+  /*
+   * **The noun and the verb agree with DIFFERENT counts, and that is the
+   * whole of this — `N of M highlighted peers are outside this filter`.**
+   *
+   * The noun belongs to `M`: it names the **population** being drawn from
+   * (*of the four highlighted peers*), never the part of it being described.
+   * The verb belongs to `N`: the subject of the sentence is *N of M*, and one
+   * of four `is` outside while three of four `are`. Four combinations, all
+   * four reachable, and only a rule that separates the two counts gets them
+   * all right:
+   *
+   *   | hidden | peers | reads |
+   *   | ------ | ----- | ----- |
+   *   | 1      | 1     | `1 of 1 highlighted peer is` |
+   *   | 1      | 4     | `1 of 4 highlighted peers is` |
+   *   | 3      | 4     | `3 of 4 highlighted peers are` |
+   *   | 4      | 4     | `4 of 4 highlighted peers are` |
+   *
+   * **This is the THIRD time this defect class has landed on this surface,
+   * and the second time on this one sentence.** Story 6.8 paid for `1 are
+   * high` in two separate builders; this task's own first draft agreed the
+   * verb and left the noun (`1 of 1 highlighted peers is`); its repair then
+   * keyed **both** on `hidden` and broke the commoner case the other way
+   * (`1 of 4 highlighted peer is`). Each fix was green on the case in front
+   * of it and wrong on the one beside it, which is why the test below
+   * asserts the **grammar at every combination** rather than one output
+   * string — a test written around the sentence somebody happened to be
+   * looking at is what let all three through.
+   */
+  const noun = cut.peers === 1 ? "highlighted peer" : "highlighted peers";
   const verb = cut.hidden === 1 ? "is" : "are";
+  // **`the` goes where there is a population to point at.** `1 of the 1
+  // highlighted peer` is grammatical and reads as a typo; with one peer the
+  // clause is simply the line's own sentence.
+  const of = cut.peers === 1 ? "of" : "of the";
 
   return {
     line: `${hidden} of ${peers} ${noun} ${verb} outside this filter`,
     clause:
-      ` ${hidden} of the ${peers} ${noun} ${verb} outside this` +
+      ` ${hidden} ${of} ${peers} ${noun} ${verb} outside this` +
       ` filter. Show all returns the whole market.`,
   };
 }

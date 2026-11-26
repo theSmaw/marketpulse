@@ -339,9 +339,10 @@ Corrected, with a line saying it happened.
 
 **`1 of 1 highlighted peers is outside this filter`** — verb agreed, noun did
 not, which is the defect class Story 6.8 already paid for twice on this exact
-surface (`1 are high`). Both halves are now keyed on the hidden count, and
-the test that enshrined the wrong output was asserting the output rather than
-the grammar — it now asserts both and refuses `peers is`.
+surface (`1 are high`). **And the first repair over-corrected**, which is the
+part worth keeping: keying both halves on the hidden count fixed the
+single-peer case and broke the commoner one, `1 of 4 highlighted peer is`.
+See the round below.
 
 **Two stale comments** still described the attribute-keyed `display: none`
 the `hidden` attribute replaced, and `NO_ACCOUNT.quietened`'s own
@@ -356,7 +357,7 @@ re-taken rather than patched** — the first version of this section reported a
 that was pushed.
 
 - **`pnpm verify` — green, exit 0, every step reached.** The chain prints
-  itself at the head of the run and all eleven steps ran:
+  itself at the head of the run and all twelve steps ran:
   `check-quiet → build → lint → format:check → stories → env:check → links →
 invariants → coverage:check → test → test:scripts → test:process`.
   - `50 components, 50 stories files.`
@@ -405,3 +406,46 @@ applied, run, and reverted:
 | `subjectUntracked` back to presence-only                                         | 1 `SecurityExplorer.test.tsx` — **the `status: "untracked"` row**, with the unknown-symbol test still green, which is the whole finding |
 | the batch call site back to `pinned: null`                                       | 1 `MarketTopology.test.tsx`                                                                                                             |
 | (the noun fix) the old assertion enshrined the defect; it now refuses `peers is` | —                                                                                                                                       |
+
+### The third landing of one defect class, and why two fixes were not enough — 2026-11-26
+
+**A counted sentence on this surface has now been got wrong three times, and
+the second and third were this task's own.** The sequence, because the shape
+of it is the lesson rather than any one string:
+
+| Draft         | Noun keyed on           | Verb keyed on | Right                | Wrong                         |
+| ------------- | ----------------------- | ------------- | -------------------- | ----------------------------- |
+| first         | nothing (always plural) | hidden        | `3 of 4 … peers are` | `1 of 1 highlighted peers is` |
+| the F4 repair | hidden                  | hidden        | `1 of 1 … peer is`   | `1 of 4 highlighted peer is`  |
+| shipped       | **peers**               | **hidden**    | all four             | —                             |
+
+**The rule, stated so a fourth draft cannot get it wrong by accident**: the
+noun names the **population being drawn from** and belongs to the
+denominator; the verb's subject is _N of M_ and belongs to the count. They
+agree with different numbers, and any rule that uses one number for both is
+right on the diagonal and wrong off it.
+
+**Every repair was green on the case in front of it**, which is the real
+finding. The single-peer test had `peers === 1` and the multi-peer test had
+`hidden === peers`, so the whole uncovered region was exactly
+`hidden === 1, peers > 1` — the commonest state a reader meets, and the one
+nothing could see. Found by a reviewer running the real builder against the
+recorded universe rather than by any check here.
+
+**So the test is a table over all four combinations plus a guard that
+asserts the GRAMMAR rather than the output.** The table alone would still
+pass if somebody keyed the noun wrongly and updated its expectations to
+match — which is how this came back twice — so beside it two patterns refuse
+`1 highlighted peers` and `N highlighted peer` outright, whatever the figures
+are. Proved non-vacuous against all three wrong keyings:
+
+| Mutation                                 | Red                                        |
+| ---------------------------------------- | ------------------------------------------ |
+| noun on `hidden` (the reported defect)   | the `1 of 4` arm **and** the grammar guard |
+| noun always plural (the original defect) | the `1 of 1` arm **and** the grammar guard |
+| verb on `peers`                          | the `1 of 4` arm                           |
+
+**And one cosmetic repair beside it**: the spoken clause read `1 of the 1
+highlighted peer is`, grammatical and reading as a typo. The determiner is
+now dropped where there is no population to point at, so the one-peer clause
+is the line's own sentence.
