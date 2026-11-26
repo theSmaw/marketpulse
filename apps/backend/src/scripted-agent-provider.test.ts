@@ -842,6 +842,54 @@ describe("the orchestrator's workspace-command stage", () => {
     });
   });
 
+  // **A producer that throws degrades LOCALLY — the run completes.**
+  it("survives a throwing producer, emits no event, reports it, and finishes the run", async () => {
+    // `propose` reaches a real database read (`generationAsOf`, which throws
+    // rather than swallowing by design). `compare_securities` is step 4 of 6,
+    // so before this was wrapped a transient failure in a purely cosmetic
+    // path aborted market breadth and the rolling correlation too and
+    // terminated the investigation `failed` — directly against `CLAUDE.md`'s
+    // *degrade incrementally and locally*.
+    const store = createInvestigationStore();
+    const warnings: { fields: object; message: string }[] = [];
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-26T14:01:00.000Z"),
+      workspaceCommands: [
+        {
+          afterTool: "compare_securities",
+          propose: () => Promise.reject(new Error("relationships unreachable")),
+        },
+      ],
+      warn: (fields, message) => warnings.push({ fields, message }),
+    });
+
+    const investigation = await provider.runInvestigation(
+      CONTEXT("inv-wc-throws"),
+      [
+        toRunnableTool(
+          peerTool({ kind: "ok", value: { answer: 1 } }),
+          () => undefined,
+          (value) => value,
+          () => undefined,
+        ),
+      ],
+    );
+
+    // The run completed rather than failing.
+    expect(investigation.status).toBe("completed");
+    const types = typesOf(store, "inv-wc-throws");
+    expect(types).toContain("INVESTIGATION_COMPLETED");
+    expect(types).not.toContain("INVESTIGATION_FAILED");
+    // No event at all — a throw is not a refusal. `refused` means *we
+    // declined to execute that*, a statement about the command; a database
+    // that could not be read is a statement about us.
+    expect(types).not.toContain("WORKSPACE_COMMAND");
+    // But it is reported rather than swallowed.
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.message).toMatch(/workspace-command producer failed/u);
+  });
+
   it("threads the investigation's own `asOf` to the producer, never a clock", async () => {
     const store = createInvestigationStore();
     const producer = recordingProducer(HIGHLIGHT);

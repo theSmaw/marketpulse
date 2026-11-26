@@ -413,10 +413,16 @@ const investigationStore = createInvestigationStore();
  * — typechecked data compiled into this process — so the 516-node layout cannot
  * change while the process runs and is not work to repeat per investigation.
  *
- * It is a **memoised function** rather than a module-level constant so nothing
- * is computed on a process that never runs an investigation (`pnpm backfill`,
- * `pnpm baselines` and the migration runner all load this module's siblings),
- * which is Task 4.8.11's lesson about paying for an answer nobody asked for.
+ * It is a **memoised function** rather than a module-level constant so the
+ * ~516-node wedge-and-spiral layout is not computed on a process that serves
+ * HTTP and never runs an investigation — Task 4.8.11's lesson about paying for
+ * an answer nobody asked for. **It is not a claim that this module is cheap to
+ * load**, which the first draft of this comment said and was wrong about:
+ * `createRelatedSecuritiesAnswerer` two declarations below builds its own
+ * membership graph eagerly at module scope, and this file is the server's
+ * entrypoint, so nothing that is not already starting a server evaluates
+ * either. The laziness buys the layout pass specifically, which is the more
+ * expensive of the two.
  *
  * The membership graph is deliberately NOT shared with
  * `createRelatedSecuritiesAnswerer`'s own: that one merges the measured edges
@@ -467,6 +473,10 @@ const investigationProvider = createScriptedAgentProvider({
       layout: topologyLayout,
     }),
   ],
+  // **Where a producer's own failure is reported**, so a highlight path that
+  // could not read the correlation generation degrades locally and visibly
+  // rather than silently. `bind` because Fastify's logger methods read `this`.
+  warn: app.log.warn.bind(app.log),
 });
 
 /**

@@ -92,6 +92,18 @@ describe("readWorkspaceCommand — the validate stage", () => {
     expect(readWorkspaceCommand({ ...valid, subject: "" })).toBeUndefined();
   });
 
+  it("refuses a subject that is a member of its own `symbols`", () => {
+    // `HighlightNodesCommand.subject`'s docblock says *never a member of
+    // `symbols`* and, until this story's review, nothing enforced it. Today's
+    // producer structurally cannot violate it (`neighboursOf` never emits the
+    // subject); a producer handing over parsed JSON — Epic 10's — can, and the
+    // result is a subject highlighted as its own peer under a note saying it
+    // is related to itself.
+    expect(
+      readWorkspaceCommand({ ...valid, symbols: ["BBB", "AAA"] }),
+    ).toBeUndefined();
+  });
+
   it("never throws on anything at all", () => {
     for (const raw of [undefined, null, 7, "highlightNodes", [], {}]) {
       expect(() => readWorkspaceCommand(raw)).not.toThrow();
@@ -136,6 +148,37 @@ describe("the highlight-peers producer", () => {
         subject: "AAA",
       },
     });
+  });
+
+  // **The regression test for a real defect this story's own review found.**
+  it("orders `relations` by TOPOLOGY_EDGE_KINDS, not by the input's symbol sort", async () => {
+    // The first draft built the set as
+    // `[...new Set(related.flatMap((row) => row.relations))]`, which takes
+    // FIRST-SEEN order over a symbol-sorted list. A cross-sector correlated
+    // peer whose ticker sorts before the first sector-mate — `ABBV` before
+    // `BBB`, reachable on the real universe today — therefore produced
+    // `["return_correlation", "sector_membership"]`, reversed from what
+    // `HighlightNodesCommand.relations`' own docblock promises, with the type
+    // and every then-existing test green.
+    const producer = createHighlightPeersProducer({
+      related: answering(
+        reading("NVDA", [
+          { symbol: "ABBV", relations: ["return_correlation"] },
+          { symbol: "BBB", relations: ["sector_membership"] },
+        ]),
+      ),
+      layout: () => layoutWith(["NVDA", "ABBV", "BBB"]),
+    });
+
+    const outcome = await producer.propose([toTicker("NVDA")], ASOF);
+    if (outcome?.kind !== "permitted") throw new Error("expected permitted");
+
+    expect([...outcome.command.relations]).toEqual([
+      "sector_membership",
+      "return_correlation",
+    ]);
+    // And the symbols keep their own sort, which is a separate order.
+    expect([...outcome.command.symbols]).toEqual(["ABBV", "BBB"]);
   });
 
   it("deduplicates the relation set rather than repeating a kind per symbol", async () => {

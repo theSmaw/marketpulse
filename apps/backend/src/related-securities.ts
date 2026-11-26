@@ -69,7 +69,11 @@
 // What no gated machine will ever see is a `return_correlation` row here, for
 // the same reason it has never drawn one.
 
-import { buildTopologyGraph, withCorrelationEdges } from "@marketpulse/shared";
+import {
+  TOPOLOGY_EDGE_KINDS,
+  buildTopologyGraph,
+  withCorrelationEdges,
+} from "@marketpulse/shared";
 
 import { untrackedRefusal } from "./tool-universe.js";
 
@@ -159,15 +163,18 @@ export interface RelatedSecuritiesOptions {
   readonly relationships: Pick<RelationshipsCache, "generationAsOf">;
 }
 
-/** `TOPOLOGY_EDGE_KINDS`' own declaration order, as a sort key. */
-const KIND_ORDER: readonly TopologyEdgeKind[] = [
-  "sector_membership",
-  "index_membership",
-  "return_correlation",
-];
-
-function byKind(left: TopologyEdgeKind, right: TopologyEdgeKind): number {
-  return KIND_ORDER.indexOf(left) - KIND_ORDER.indexOf(right);
+/**
+ * A row's own kinds, in `TOPOLOGY_EDGE_KINDS`' declaration order.
+ *
+ * **It reads the shared constant rather than respelling its members**, which
+ * the first draft of this module did (a local `KIND_ORDER` array with the three
+ * words typed out). The review caught it as a second home with a silent failure
+ * mode: a fourth kind would get `indexOf === -1` and sort ahead of every real
+ * one, with no compile error and no failing test. Filtering the vocabulary is
+ * also cheaper to read than a comparator over an index lookup.
+ */
+function inKindOrder(kinds: ReadonlySet<TopologyEdgeKind>): TopologyEdgeKind[] {
+  return TOPOLOGY_EDGE_KINDS.filter((kind) => kinds.has(kind));
 }
 
 /**
@@ -266,7 +273,7 @@ export function createRelatedSecuritiesAnswerer(
 
       const related: RelatedSecurity[] = [...found.entries()]
         .map(([symbol, kinds]) => {
-          const [first, ...rest] = [...kinds].sort(byKind);
+          const [first, ...rest] = inKindOrder(kinds);
           // Unreachable: `add` never creates an empty set. Narrowed rather
           // than asserted, because the non-empty tuple is the guarantee this
           // type exists to make and a cast here would be the one route round

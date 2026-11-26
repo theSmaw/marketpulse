@@ -4,20 +4,33 @@
 // This is the first implementation of it anywhere in this product, and it is
 // one module on purpose: the four stages are the claim, and a reader checking
 // that no stage is skipped should not have to assemble the answer from four
-// files. **There is deliberately no `pnpm invariants` entry over the stages
-// themselves**, and that is a judgement rather than an omission — the
-// composition is `createHighlightPeersProducer`'s own body, nine lines, and a
-// grep over it would assert the presence of two function names in one file,
-// which a next author bypasses by writing a second producer elsewhere rather
-// than by editing this one. What IS mechanical is the thing that cannot be
-// bypassed: the orchestrator reaches a producer only through
-// `WorkspaceCommandProducer.propose`, whose return type is a
-// `WorkspaceCommandOutcome` — a value only `permitWorkspaceCommand` mints —
-// so a producer that skipped stage 2 would have to construct that union
-// member by hand, and `tsc -b` is what makes it visible. The stated condition
-// for turning this into a real check: **a second `WorkspaceCommandProducer`
-// in this repository**, at which point the composition stops being one body
-// and becomes a convention.
+// files.
+//
+// ## The permission stage is held by `pnpm invariants`, not by the type system
+//
+// **This file's first draft argued the opposite and was wrong about its own
+// code** (corrected on Story 7.4's review, before merge). It claimed a producer
+// skipping stage 2 "would have to construct that union member by hand, and
+// `tsc -b` is what makes it visible". It does not:
+// `WorkspaceCommandOutcome` is a plain structural union with **no brand** —
+// correctly so, since a command has no explanation to protect (ADR 0051
+// Decision 1) — so `{ kind: "permitted", command }` compiles anywhere, with
+// zero error. `scripted-agent-provider.test.ts` writes exactly that literal and
+// `tsc -b` has never complained about it. That is a claim about a mechanism
+// reading identically whether the mechanism is there or not, which is the
+// failure `CLAUDE.md` names and this repository has paid for twice.
+//
+// Story 7.4's **AC 6** promises in as many words that `pnpm invariants`
+// confirms no new call site bypasses the pipeline, and it is the clause Gate 1
+// accepted the identity-blind permission check ON. So it is checked:
+// **`a-permitted-command-is-minted-only-by-the-permission-stage`** refuses
+// `kind: "permitted"` anywhere under `apps/backend/src` outside
+// `workspace-command-permission.ts`, with a `pnpm break` planting a
+// hand-minted outcome in the second producer a next author (Epic 10's) would
+// actually write. A grep over this file's own nine-line composition was the
+// alternative and is strictly weaker — a next author bypasses it by writing a
+// second producer elsewhere rather than by editing this one, which is exactly
+// the file the corpus clause does reach.
 //
 //   1. **validate** — {@link readWorkspaceCommand}, over `unknown`. A real
 //      structural check rather than a cast, even though V1's one producer is
@@ -43,6 +56,11 @@
 // takes a list of {@link WorkspaceCommandProducer}s keyed on the tool whose
 // step they follow, and this module is the one that knows a highlight is made
 // of sector-mates.
+
+import {
+  TOPOLOGY_EDGE_KINDS,
+  WORKSPACE_COMMAND_TYPES,
+} from "@marketpulse/shared";
 
 import {
   ORCHESTRATOR_CAPABILITY,
@@ -86,13 +104,24 @@ export interface WorkspaceCommandProducer {
   ) => Promise<WorkspaceCommandOutcome | undefined>;
 }
 
-const WORKSPACE_COMMAND_TYPE_SET = new Set<string>(["highlightNodes"]);
+/**
+ * **The two shared vocabularies, read rather than respelled.**
+ *
+ * The first draft of this module declared two local `Set`s with the members
+ * typed out, which the review caught as a second home with a silent failure
+ * mode: the day a fourth {@link TopologyEdgeKind} is added — `common industry`
+ * is already named in `PRODUCT_SPEC.md` §10 and refused only on density —
+ * `readWorkspaceCommand` would reject **every** command carrying it, the
+ * highlight would silently stop being emitted, and there would be no compile
+ * error and no failing test anywhere. The `as readonly string[]` cast is
+ * `isConfidence`'s own idiom in `investigation-event.ts`, for the same reason:
+ * `includes` on a tuple of literals will not accept an arbitrary `string`.
+ */
+const isWorkspaceCommandType = (value: string): boolean =>
+  (WORKSPACE_COMMAND_TYPES as readonly string[]).includes(value);
 
-const EDGE_KIND_SET = new Set<string>([
-  "sector_membership",
-  "index_membership",
-  "return_correlation",
-]);
+const isTopologyEdgeKind = (value: string): boolean =>
+  (TOPOLOGY_EDGE_KINDS as readonly string[]).includes(value);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -117,6 +146,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * that is stage 2's second conjunct, deliberately, because *is this shaped like
  * a command* and *may this command be executed against this layout* fail for
  * unrelated reasons and a reader needs to know which.
+ *
+ * **It DOES refuse a subject that is a member of its own `symbols`** (added on
+ * review). `HighlightNodesCommand.subject`'s own docblock says *never a member
+ * of `symbols`* twice and nothing enforced it; today's producer structurally
+ * cannot violate it (`neighboursOf` never emits the subject), but a producer
+ * handing over parsed JSON — Epic 10's — can, and the result is a subject
+ * highlighted as its own peer with a note saying it is related to itself.
  */
 export function readWorkspaceCommand(
   raw: unknown,
@@ -125,7 +161,7 @@ export function readWorkspaceCommand(
 
   const { type, symbols, relations, subject } = raw;
 
-  if (typeof type !== "string" || !WORKSPACE_COMMAND_TYPE_SET.has(type)) {
+  if (typeof type !== "string" || !isWorkspaceCommandType(type)) {
     return undefined;
   }
   if (typeof subject !== "string" || subject.length === 0) return undefined;
@@ -136,11 +172,13 @@ export function readWorkspaceCommand(
   ) {
     return undefined;
   }
+  // The subject is not one of its own peers. See this function's own note.
+  if ((symbols as string[]).includes(subject)) return undefined;
 
   if (!Array.isArray(relations) || relations.length === 0) return undefined;
   if (
     !relations.every(
-      (value) => typeof value === "string" && EDGE_KIND_SET.has(value),
+      (value) => typeof value === "string" && isTopologyEdgeKind(value),
     )
   ) {
     return undefined;
@@ -214,14 +252,25 @@ export function createHighlightPeersProducer(
       // three non-sector-ETF market proxies reach this today.
       if (symbols.length === 0) return undefined;
 
-      const relations = [
-        ...new Set(answer.value.related.flatMap((row) => row.relations)),
-      ];
+      // **In `TOPOLOGY_EDGE_KINDS`' own declaration order, which is what
+      // `HighlightNodesCommand.relations`' docblock promises** — and the first
+      // draft of this line did not deliver it. It was
+      // `[...new Set(related.flatMap((row) => row.relations))]`, which takes
+      // first-seen order over a **symbol-sorted** list: a cross-sector
+      // correlated peer whose ticker sorts before the first sector-mate
+      // (`ABBV` before `BBB`, reachable on the real universe today) produced
+      // `["return_correlation", "sector_membership"]` — reversed from the
+      // documented order, with the type and every then-existing test green.
+      // Filtering the vocabulary itself makes the order a property of the
+      // shared constant rather than of the input's sort, and reads that
+      // constant rather than respelling it.
+      const present = new Set<TopologyEdgeKind>(
+        answer.value.related.flatMap((row) => row.relations),
+      );
+      const relations = TOPOLOGY_EDGE_KINDS.filter((kind) => present.has(kind));
 
       // Stage 1. The candidate is built as `unknown` and read back, so the
-      // validator is on the real path rather than beside it — a producer that
-      // bypassed it would be the defect
-      // `the-workspace-command-pipeline-has-four-stages` refuses.
+      // validator is on the real path rather than beside it.
       const candidate: unknown = {
         type: "highlightNodes",
         symbols,
@@ -259,7 +308,10 @@ export function createHighlightPeersProducer(
  * is the story that gives every one of them a reader — the same condition, not
  * a new one.
  *
- * This is a documentation anchor rather than code because the stage genuinely
- * is the log; a function here would be a second home for `appendEvent`.
+ * There is deliberately **nothing exported for this stage** — the first draft
+ * carried a `WORKSPACE_COMMAND_RECORD_IS_THE_EVENT_LOG = true` to hang this
+ * note on, which the review caught as a value nobody reads: an export is a
+ * promise to a caller, and a constant whose whole purpose is to carry a comment
+ * is the comment with a symbol table entry attached. The stage genuinely is the
+ * log, and a function here would be a second home for `appendEvent`.
  */
-export const WORKSPACE_COMMAND_RECORD_IS_THE_EVENT_LOG = true;

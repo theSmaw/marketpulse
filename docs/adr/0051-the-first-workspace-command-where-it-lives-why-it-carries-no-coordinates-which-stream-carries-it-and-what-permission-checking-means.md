@@ -206,6 +206,16 @@ decoder reads both arms.
 | **execute**          | the browser, against the trusted, pre-existing topology component (Task 7.4.2 draws it)  |
 | **record**           | the investigation's own append-only event log, through `store.appendEvent`               |
 
+**Stages 1 and 2 are each held by something mechanical, which is AC 6's own
+promise.** `a-permitted-command-is-minted-only-by-the-permission-stage` keeps
+`kind: "permitted"` to one shipped backend file, so no producer can mint its
+own permission; and because the producer builds its candidate as `unknown` and
+reads it back through `readWorkspaceCommand`, a command that reached the
+permission stage at all has been through the validator. Nothing mechanical is
+needed for stage 3 (it is the browser's, and `one-home-for-imperative-navigation`
+and the topology's own invariants already govern what it may do) or stage 4 (the
+log is the only writer there is).
+
 **The validate stage is real rather than a cast, even though V1's one producer
 is typed backend code.** Epic 10's producer hands over parsed JSON from a
 model, and a stage written as a no-op now is a stage that does not exist when
@@ -235,12 +245,16 @@ not a new one.
 - **Invariant 2 has a shipped implementation**, and every later producer —
   including the first model-driven one — composes the same four stages against
   the same types rather than inventing a pipeline under pressure.
-- **`pnpm invariants` holds 99**, two more than before this task: the
-  layout-coordinate check above and
+- **`pnpm invariants` holds 100**, three more than before this task:
+  `the-server-places-a-node-only-through-the-shared-layout` (Decision 2's
+  mechanical half),
+  `a-permitted-command-is-minted-only-by-the-permission-stage` (Decision 4's —
+  `kind: "permitted"` appears in exactly one shipped backend file, which is
+  Story 7.4's **AC 6** in as many words), and
   `the-analytical-tool-registry-is-one-class`, which asserts that every
   `): AnalyticalTool<` factory under `apps/backend/src` is wired into
   `investigationTools` through `toRunnableTool(` and that the two counts are
-  equal. Three `pnpm break` entries behind them.
+  equal. Four `pnpm break` entries behind them.
 - **`get_related_securities` is deliberately not an `AnalyticalTool`**, which
   is what let the second check collapse the "two undeclared classes of registry
   member" concern rather than declare a second class. The reason is structural
@@ -296,18 +310,31 @@ not a new one.
   cost two mint sites and an invariant and buy nothing a structural validator
   does not already give, while implying a guarantee about _correctness_ the
   brand cannot make.
-- **A `pnpm invariants` entry over the four stages' own composition.**
+- ~~**A `pnpm invariants` entry over the four stages' own composition.**
   Considered and declined with a stated condition rather than silently: the
-  composition is one nine-line function body, and a grep over it would assert
-  the presence of two function names in one file — which a next author bypasses
-  by writing a **second** producer elsewhere rather than by editing this one.
-  What is mechanical instead is the type: a producer reaches the orchestrator
-  only through `WorkspaceCommandProducer.propose`, whose return type is a
+  composition is one nine-line function body … What is mechanical instead is
+  the type: a producer reaches the orchestrator only through
+  `WorkspaceCommandProducer.propose`, whose return type is a
   `WorkspaceCommandOutcome` that only `permitWorkspaceCommand` mints, so
   skipping stage 2 means hand-constructing that union member and `tsc -b` is
-  what shows it. **Condition for turning it into a real check: a second
-  `WorkspaceCommandProducer` in this repository**, at which point the
-  composition stops being one body and becomes a convention.
+  what shows it.~~ — **WITHDRAWN on this story's own review, before merge,
+  because the second half of it was false.** `WorkspaceCommandOutcome` carries
+  **no brand** — correctly, per Decision 1 — so
+  `{ kind: "permitted", command }` compiles anywhere with zero error, and
+  `scripted-agent-provider.test.ts` writes exactly that literal without `tsc`
+  complaining. Proved rather than argued: the plant was written as a whole
+  second producer module and `pnpm typecheck` was **completely clean** on it.
+  That is a claim about a mechanism reading identically whether the mechanism
+  is there or not — `CLAUDE.md`'s own named failure, which this repository has
+  paid for twice. The replacement is
+  `a-permitted-command-is-minted-only-by-the-permission-stage`, a **corpus**
+  clause over `apps/backend/src` (tests excluded, because a test legitimately
+  furnishes one) rather than a grep over one function body — which also
+  answers the objection the withdrawn text raised against itself: the defect
+  arrives in a **second producer in a new file**, and a corpus reaches that
+  while a single-file grep does not. The struck text is kept because its first
+  half is a correct argument that a narrow grep would have been the wrong
+  check, and because it is the reasoning that review had to overturn.
 
 ## Reversal triggers, as conditions
 
@@ -317,5 +344,3 @@ not a new one.
   on market state the SSE stream cannot carry.
 - **Decision 4** — the first producer of a `WorkspaceCommand` that is not
   deterministic backend code in this repository.
-- **The pipeline check** — a second `WorkspaceCommandProducer` in this
-  repository.

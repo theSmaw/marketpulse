@@ -324,6 +324,11 @@ widening the `default`.
 
 ### Gates
 
+**The figures below are as this task was first presented. A review before merge
+found two required fixes and six smaller ones; what changed is recorded in
+_Amended 2026-11-26 by this task's own review_ at the foot of this file, and the
+`pnpm invariants` count is now **100** rather than 99.**
+
 - `pnpm verify` — **green**, see the transcript below. `pnpm invariants` prints
   **99 invariants hold.** (97 before this task.)
 - `pnpm lint` — green at `--max-warnings 0`. Two real findings were fixed on
@@ -431,6 +436,151 @@ rule has been written down since the first commit and has had no implementation
 until today. Shipping it with a deterministic, boringly predictable producer
 means the pipeline, its permission gate, its refusal path and its audit trail
 are all proven before a language model is allowed anywhere near it.
+
+## Amended 2026-11-26 by this task's own review — two required fixes, six smaller ones, and a claim this record made that was false
+
+An independent review before merge ran every gate afresh (all green,
+invariants 99, all three breaks red-then-restored) and found two required
+fixes. **Both were real, and the first is this task's own worst finding: a
+claim about a mechanism that read identically whether the mechanism was there
+or not** — which is the failure `CLAUDE.md` names and which this repository has
+now paid for three times.
+
+### Required fix 1 — the argument against needing a pipeline check was false, and AC 6 was unmet
+
+`workspace-command-pipeline.ts`' header argued no `pnpm invariants` entry was
+needed over the four stages because a producer skipping the permission stage
+_"would have to construct that union member by hand, and `tsc -b` is what makes
+it visible."_ **It does not.** `WorkspaceCommandOutcome` is a plain structural
+union with **no brand** — correctly so, per ADR 0051 Decision 1 — so
+`{ kind: "permitted", command }` compiles anywhere with zero error. The
+proof is in this task's own test file: `scripted-agent-provider.test.ts` writes
+exactly that literal and `tsc` has never complained about it.
+
+Story 7.4's **AC 6** promises in as many words that `pnpm invariants` confirms
+no new call site bypasses the pipeline, and it is the clause Gate 1 accepted
+the identity-blind permission check **on**. It was therefore unmet rather than
+deferred.
+
+**Fixed with the preferred repair, not the fallback.**
+`a-permitted-command-is-minted-only-by-the-permission-stage` is a **corpus**
+clause over `apps/backend/src` (tests excluded, stated rather than assumed —
+a test legitimately furnishes one, and that is how the orchestrator's emission
+is asserted at all) refusing `kind: "permitted"` in any shipped file but
+`workspace-command-permission.ts`. **Proven by hand first, with the plant the
+reviewer named** — a whole second producer module, `agent-workspace-producer.ts`,
+the file Epic 10's author actually writes:
+
+```
+--- tsc on the plant (should be CLEAN, which is the point) ---
+$ tsc -b
+--- the check ---
+  ✗ a-permitted-command-is-minted-only-by-the-permission-stage
+    1 shipped file(s) besides `apps/backend/src/workspace-command-permission.ts`
+    mint a `kind: "permitted"` workspace-command outcome:
+      apps/backend/src/agent-workspace-producer.ts
+1 of 100 invariants failed.
+```
+
+**`pnpm typecheck` was completely clean on that plant**, which is the whole
+demonstration: the withdrawn claim said `tsc -b` would catch it, and `tsc -b`
+said nothing at all. Plant deleted, `100 invariants hold.` A fourth
+`pnpm break` entry — `a-producer-that-mints-its-own-permission` — carries it;
+the plant there is a second producer **in the pipeline file**, because the
+harness does find/replace in a committed file and cannot create one, and the
+by-hand run above is what proves the new-file version red too.
+
+The stray reference to `the-workspace-command-pipeline-has-four-stages` — a
+check name that exists nowhere in the repository — is gone with the paragraph
+that invented it. ADR 0051's own rejected-alternatives entry is struck rather
+than deleted, because its _first_ half (a grep over one function body would be
+the wrong check) is correct and is why the corpus clause is the right shape.
+
+### Required fix 2 — `relations` did not come out in the order its own docblock promised
+
+`HighlightNodesCommand.relations`' docblock says
+`TOPOLOGY_EDGE_KINDS` declaration order. The producer built it as
+`[...new Set(related.flatMap((row) => row.relations))]` — **first-seen** order
+over a **symbol-sorted** list. A cross-sector correlated peer whose ticker
+sorts before the first sector-mate (`ABBV` before `BBB`, reachable on the real
+universe today) therefore produced
+`["return_correlation", "sector_membership"]` — reversed from the documented
+order, with the type and every then-existing test green. Task 7.4.2's note
+would have been phrased from the wrong leading kind.
+
+Fixed as `TOPOLOGY_EDGE_KINDS.filter((kind) => present.has(kind))`, which makes
+the order a property of the shared constant rather than of the input's sort —
+and resolves the second-home finding below in the same edit. **A regression
+test was added and proven against the old line**: restored, it fails with
+`expected [ 'return_correlation', …(1) ] to deeply equal [ 'sector_membership', …(1) ]`.
+
+### Six smaller fixes, each with a real failure mode
+
+1. **Three local respellings of shared vocabulary are gone.**
+   `related-securities.ts`' `KIND_ORDER` and the pipeline's
+   `WORKSPACE_COMMAND_TYPE_SET`/`EDGE_KIND_SET` each duplicated a constant
+   `@marketpulse/shared` already exports. The consequence was silent and
+   total: the day a fourth `TopologyEdgeKind` is added — `common industry` is
+   already named in `PRODUCT_SPEC.md` §10 and refused only on density —
+   `readWorkspaceCommand` would reject **every** command carrying it, the
+   highlight would stop being emitted, and no compile error and no failing
+   test anywhere would say so. Now `isWorkspaceCommandType`/
+   `isTopologyEdgeKind`/`inKindOrder`, each reading the real constant.
+2. **A throwing producer now degrades locally.** `propose` was `await`ed with
+   no `try`/`catch`, and it reaches a real database read
+   (`generationAsOf`, which throws rather than swallowing **by design**, so a
+   reader of `/market-data/relationships` meets a 503 instead of a body
+   claiming there are no relationships). Since `compare_securities` is step 4
+   of 6, a transient failure in a **purely cosmetic** path aborted market
+   breadth and the rolling correlation too and terminated the run `failed` —
+   directly against `CLAUDE.md`'s _degrade incrementally and locally_. Now
+   wrapped: no event, a `warn` through a seam (`live-bar-writer.ts`' own
+   shape and signature, wired to Fastify's logger in `index.ts`), run
+   continues. A throw is deliberately **not** turned into a `refused` outcome
+   — _we declined to execute that_ is a statement about the command, and a
+   database that could not be read is a statement about us. Tested: the run
+   completes, no `WORKSPACE_COMMAND` is emitted, and the warning is reported.
+3. **`WORKSPACE_COMMAND_RECORD_IS_THE_EVENT_LOG` is deleted.** An export is a
+   promise to a caller, and a constant whose whole purpose was to carry a
+   comment is the comment with a symbol-table entry attached. The note it
+   carried is now the docblock it always was.
+4. **`subject` is never a member of its own `symbols`, and stage 1 now
+   enforces it.** The type's docblock said so twice and nothing checked it.
+   Today's producer structurally cannot violate it; a producer handing over
+   parsed JSON can, and the result is a subject highlighted as its own peer
+   under a note saying it is related to itself.
+5. **A stale comment in `index.ts` is corrected rather than left.** It said
+   the layout is memoised "so nothing is computed on a process that never runs
+   an investigation", while `createRelatedSecuritiesAnswerer` two declarations
+   below builds its membership graph eagerly at module scope. Harmless — this
+   file is the server's entrypoint — but it was a false claim about this
+   module's load cost. It now says what is true: the laziness buys the
+   **layout pass** specifically, the more expensive of the two.
+6. **The layout invariant's trigonometry ban has a documented escape hatch.**
+   The clause is deliberately broad (any `Math.sin`/`cos`/`atan2`/`hypot`
+   under `apps/backend/src`) because the defect it catches names and imports
+   nothing. Its own comment now tells the next person who trips it on an
+   unrelated distance or statistic what to do — move the arithmetic into
+   `packages/shared/src`, or narrow the clause to the files that read a layout
+   **and say which those are** — rather than exempting one call site at a
+   time, which is how a guard becomes decorative.
+
+### Seen and deliberately left
+
+The reviewer's own two no-change calls are recorded here so they read as
+decisions rather than omissions: the unknown-symbol/untracked-symbol collapse
+to one `not-tracked` refusal is this epic's established convention across every
+tool, and the refusal's wire payload naming the failed gate but not the
+offending symbol is a question for Epic 10's audit needs rather than this
+task's.
+
+### Gates, re-run after the fixes
+
+- `pnpm verify` — **green**. `pnpm invariants` prints **100 invariants hold.**
+- All four `pnpm break` entries: `broken → red → restored byte-identical`.
+- Backend suites covering the changed files: **55 passed** (three new tests —
+  the relations-order regression, the subject-in-symbols refusal, and the
+  throwing-producer degradation).
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->

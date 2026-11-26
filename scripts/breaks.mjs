@@ -7293,6 +7293,77 @@ export const BREAKS = [
     expect: "the-server-places-a-node-only-through-the-shared-layout",
   },
   {
+    name: "a-producer-that-mints-its-own-permission",
+    proves:
+      "`a-permitted-command-is-minted-only-by-the-permission-stage` goes red " +
+      "on a `WorkspaceCommand` producer that builds its own " +
+      '`{ kind: "permitted" }` outcome instead of returning ' +
+      "`permitWorkspaceCommand(...)` — invariant 2's second stage skipped.\n\n" +
+      "**The plant is the defect Epic 10's author writes, and it is the one " +
+      "this check was added for because the argument against needing a check " +
+      "at all was FALSE.** `workspace-command-pipeline.ts`' first draft " +
+      'claimed a producer skipping the permission stage "would have to ' +
+      "construct that union member by hand, and `tsc -b` is what makes it " +
+      'visible". It does not: `WorkspaceCommandOutcome` is a plain ' +
+      "structural union with **no brand** — correctly, since a command has no " +
+      "explanation to protect (ADR 0051 Decision 1) — so " +
+      '`{ kind: "permitted", command }` compiles anywhere. Proved rather ' +
+      "than argued on review: the same plant was written as a whole second " +
+      "producer module and `pnpm typecheck` was **completely clean** on it, " +
+      "while this check named the file. Story 7.4's AC 6 promises " +
+      "`pnpm invariants` confirms no call site bypasses the pipeline, so the " +
+      "claim is now checked rather than owned as a gap.\n\n" +
+      "**Nothing else sees it.** `tsc -b` is clean, as above. `pnpm test` " +
+      "passes: a hand-minted permitted outcome is INDISTINGUISHABLE from a " +
+      "permission-checked one on the wire — that is the whole point of the " +
+      "`permitted` arm carrying the command — so every *the event carries the " +
+      "command* assertion stays green, which is `CLAUDE.md`'s own " +
+      "pass-through lesson arriving on a gate. And `pnpm e2e` passes because " +
+      "CI's store has zero bars, and in any case a highlight drawn on the " +
+      "wrong node still draws.\n\n" +
+      "**The plant is a second producer in THIS file rather than a new one**, " +
+      "because the harness performs a find/replace in a committed file and " +
+      "cannot create one — the defect is identical either way (a producer " +
+      "minting its own permission), and the corpus clause is what makes the " +
+      "new-file version red too, demonstrated by hand on review. It " +
+      "**prepends above the found line and keeps it** (2026-10-16's rule), so " +
+      "the registry's own `find` survives its own break, and it reuses " +
+      "`Ticker`/`WorkspaceCommandOutcome`, already imported as types here, so " +
+      "the plant needs no second edit.",
+    file: "apps/backend/src/workspace-command-pipeline.ts",
+    find: "export function createHighlightPeersProducer(",
+    replace:
+      "// pnpm break: reverted automatically\n" +
+      "export function createAgentChosenProducer(\n" +
+      "  chosen: () => readonly Ticker[],\n" +
+      "): WorkspaceCommandProducer {\n" +
+      "  return {\n" +
+      '    afterTool: "get_market_breadth",\n' +
+      "    propose: (subjectSymbols) => {\n" +
+      "      const [subject] = subjectSymbols;\n" +
+      "      const [first, ...rest] = chosen();\n" +
+      "      if (subject === undefined || first === undefined) {\n" +
+      "        return Promise.resolve(undefined);\n" +
+      "      }\n" +
+      "      const outcome: WorkspaceCommandOutcome = {\n" +
+      '        kind: "permitted",\n' +
+      "        command: {\n" +
+      '          type: "highlightNodes",\n' +
+      "          symbols: [first, ...rest],\n" +
+      '          relations: ["sector_membership"],\n' +
+      "          subject,\n" +
+      "        },\n" +
+      "      };\n" +
+      "      return Promise.resolve(outcome);\n" +
+      "    },\n" +
+      "  };\n" +
+      "}\n" +
+      "\n" +
+      "export function createHighlightPeersProducer(",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-permitted-command-is-minted-only-by-the-permission-stage",
+  },
+  {
     name: "an-analytical-tool-reached-outside-the-pipeline",
     proves:
       "`the-analytical-tool-registry-is-one-class` goes red on an " +

@@ -12705,6 +12705,31 @@ const INVARIANTS = [
       // reading `placements` off it. The trigonometry clause is the second
       // door — a hand-rolled `fromTwelve` would import nothing and name no
       // constant, so the arithmetic itself is what gives it away.
+      //
+      // ## If you have tripped the trigonometry clause on something that is
+      // ## NOT a node position, read this and not the topology prose above
+      //
+      // The clause is deliberately broad — any `Math.sin`/`cos`/`atan2`/
+      // `hypot` under `apps/backend/src` — because the defect it catches names
+      // nothing and imports nothing, so there is no narrower anchor. That
+      // means it will also catch a legitimate unrelated use: a distance in a
+      // statistic, a great-circle anything, a trig identity inside a
+      // correlation or a regression. **The resolution is not to widen this
+      // check's exemptions one call site at a time**, which is how a guard
+      // becomes decorative. It is one of:
+      //
+      //   - put the arithmetic in `packages/shared/src`, beside the quantity
+      //     it belongs to, where this corpus does not reach and the module's
+      //     own tests can see it (the right answer for anything a browser
+      //     might also want to compute);
+      //   - or, if it genuinely must live in the backend, **narrow this clause
+      //     to the files that read a layout** rather than exempting yours —
+      //     and say in the same change which files those are, so the next
+      //     person reads a rule rather than a list of past exceptions.
+      //
+      // Either way the thing being protected is unchanged: the server must
+      // have exactly one answer about where a node is, and it must be
+      // `buildTopologyLayout`'s.
       const directory = resolve(REPO_ROOT, "apps/backend/src");
 
       const files = sourceFilesUnder(directory)
@@ -12763,6 +12788,109 @@ const INVARIANTS = [
             "`WorkspaceCommand` carry symbols and no coordinates (ADR 0051, " +
             "ADR 0048 Decision 3). A second arithmetic here lands a " +
             "highlight beside the right node with nothing failing anywhere.",
+        );
+      }
+    },
+  },
+  {
+    id: "a-permitted-command-is-minted-only-by-the-permission-stage",
+    claim:
+      '`kind: "permitted"` appears in exactly one shipped file under ' +
+      "`apps/backend/src` — `workspace-command-permission.ts` — so every " +
+      "`WorkspaceCommand` that reaches a reader has been through invariant " +
+      "2's permission stage, and no producer can mint a permitted outcome " +
+      "for itself.",
+    check() {
+      // **Task 7.4.1, added on Story 7.4's own review, and it exists because
+      // the claim it replaces was FALSE.**
+      //
+      // `workspace-command-pipeline.ts`'s first draft argued that no check was
+      // needed here, on the grounds that a producer skipping the permission
+      // stage "would have to construct that union member by hand, and
+      // `tsc -b` is what makes it visible". It does not.
+      // `WorkspaceCommandOutcome` is a plain structural union with **no
+      // brand** — correctly, because a command has no explanation to protect
+      // (ADR 0051 Decision 1, and `CLAUDE.md`'s own note that the mint-site
+      // convention is for a constructed value with an explanation) — so
+      // `{ kind: "permitted", command }` compiles anywhere with zero error.
+      // `scripted-agent-provider.test.ts` writes exactly that literal and
+      // `tsc` has never complained. That is a claim about a mechanism reading
+      // identically whether the mechanism is there or not, which is the
+      // failure `CLAUDE.md` names and which this repository has already paid
+      // for twice (ADR 0030 §7b, `LIVE-REHEARSAL.md`'s claimed marking).
+      //
+      // Story 7.4's **AC 6** promises in as many words that `pnpm invariants`
+      // confirms no new call site bypasses the full validate →
+      // permission-check → execute → record pipeline, and it is the clause
+      // Gate 1 accepted the identity-blind permission check ON. So it is
+      // checked rather than owned as a gap.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **The literal `kind: "permitted"`.** To hand a reader a command you
+      // must produce that discriminant, and the union has no other arm that
+      // executes. A next author — Epic 10's model-driven producer is the
+      // concrete one — writes a second producer in a new file and returns
+      // `{ kind: "permitted", command }` from it, because that is the shape
+      // `WorkspaceCommandProducer.propose` asks for and the quickest way to
+      // satisfy it. A grep over the pipeline module's own nine-line
+      // composition would have been green on exactly that defect, which is
+      // why the corpus is the tree.
+      //
+      // ## Why TESTS are excluded, stated rather than assumed
+      //
+      // A test legitimately furnishes a permitted outcome — that is how the
+      // orchestrator's own emission is asserted at all, and a check that
+      // forbade it would forbid testing this feature. The guarantee is about
+      // SHIPPED code: nothing a reader's browser can receive was minted
+      // outside the gate.
+      const MINT = "apps/backend/src/workspace-command-permission.ts";
+      const directory = resolve(REPO_ROOT, "apps/backend/src");
+
+      const files = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.test\.ts$/u.test(path))
+        .map(({ path, text }) => ({
+          path: relative(REPO_ROOT, path),
+          text: withoutTrailingComments(text),
+        }));
+
+      // Both spellings a formatter can produce — Prettier wraps a long
+      // `return { kind: "permitted", … }` onto its own line, and a rotted
+      // anchor is what `every-break-can-still-land` cannot see.
+      const PERMITTED = /kind:\s*"permitted"/u;
+
+      const minting = files.filter(({ text }) => PERMITTED.test(text));
+
+      if (!minting.some(({ path }) => path === MINT)) {
+        throw new InvariantFailure(
+          `No \`kind: "permitted"\` in \`${MINT}\` — the permission stage no ` +
+            "longer mints the outcome it exists to mint, so this check has " +
+            "nothing to anchor on and would pass vacuously over a tree where " +
+            "nobody permits anything. If the stage moved, repoint this in the " +
+            "same change: a grep that matches nothing looks exactly like a " +
+            "grep that passes.",
+        );
+      }
+
+      const elsewhere = minting.filter(({ path }) => path !== MINT);
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} shipped file(s) besides \`${MINT}\` ` +
+            'mint a `kind: "permitted"` workspace-command outcome:\n      ' +
+            elsewhere.map(({ path }) => path).join("\n      ") +
+            "\n    Invariant 2's pipeline is validate → permission-check → " +
+            "execute → record, and a producer that builds its own permitted " +
+            "outcome has skipped the second stage — so a command naming a " +
+            "security with no placement reaches a browser and lands a " +
+            "highlight on nothing, with no error raised anywhere. " +
+            "`WorkspaceCommandOutcome` carries no brand (deliberately — ADR " +
+            "0051 Decision 1), so `tsc -b` cannot see this and this check is " +
+            "the only thing that can. Return " +
+            "`permitWorkspaceCommand(command, capability, layout)` instead; " +
+            "if your producer needs a capability set of its own, declare a " +
+            "second one beside `ORCHESTRATOR_CAPABILITY` rather than widening " +
+            "it.",
         );
       }
     },

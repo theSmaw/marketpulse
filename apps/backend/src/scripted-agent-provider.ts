@@ -31,6 +31,7 @@ import type {
   RunningStep,
   Step,
   Ticker,
+  WorkspaceCommandOutcome,
 } from "@marketpulse/shared";
 import type { RunnableTool, ToolContext } from "./analytical-tool.js";
 import type { InvestigationStore } from "./investigation-store.js";
@@ -86,6 +87,18 @@ export interface ScriptedAgentProviderOptions {
    * producers emits no `WORKSPACE_COMMAND` at all rather than an empty one.
    */
   readonly workspaceCommands?: readonly WorkspaceCommandProducer[];
+  /**
+   * **Where a workspace-command producer's own failure goes** —
+   * `live-bar-writer.ts`'s own `warn` seam, same signature, for the same
+   * reason: this process must log that something degraded without the logger
+   * being a thing this module reaches for.
+   *
+   * Optional with a no-op default, because the alternative is editing twenty
+   * existing provider constructions in tests that have no producer and
+   * therefore no failure to report. The one real construction site
+   * (`index.ts`) passes Fastify's own logger, which is where this matters.
+   */
+  readonly warn?: (fields: object, message: string) => void;
 }
 
 function withStep(investigation: Investigation, step: Step): Investigation {
@@ -100,7 +113,15 @@ function withStep(investigation: Investigation, step: Step): Investigation {
 export function createScriptedAgentProvider(
   options: ScriptedAgentProviderOptions,
 ): AgentProvider {
-  const { store, now, workspaceCommands = [] } = options;
+  const {
+    store,
+    now,
+    workspaceCommands = [],
+    warn = () => {
+      // See `ScriptedAgentProviderOptions.warn`. A no-op is correct for a
+      // provider with no producers, which is every construction in a test.
+    },
+  } = options;
 
   async function runInvestigation(
     context: RunInvestigationContext,
@@ -337,10 +358,45 @@ export function createScriptedAgentProvider(
         // `highlightNodes` payload is never produced — ADR 0029, and
         // structurally impossible besides, because `symbols` is a non-empty
         // tuple.
+        //
+        // **A producer that THROWS degrades locally and the run continues**
+        // (added on Story 7.4's review, before merge). `propose` reaches a
+        // real database read — `RelationshipsCache.generationAsOf` throws
+        // rather than swallowing, deliberately, so a reader of
+        // `/market-data/relationships` meets a 503 instead of a body claiming
+        // there are no relationships. Here that obligation inverts: this path
+        // is **purely cosmetic**, and `compare_securities` is step 4 of 6, so
+        // an unwrapped throw took out market breadth and the rolling
+        // correlation too, terminating the whole investigation `failed` over a
+        // highlight nobody asked for. `CLAUDE.md`'s own rule —
+        // *degrade incrementally and locally; a failed analytical tool must
+        // leave the rest of the workspace intact* — applied to the one path in
+        // this loop that is not a finding.
+        //
+        // The throw is **not** turned into a refusal: `refused` means *we
+        // declined to execute that*, a statement about the command, and a
+        // database that could not be read is a statement about us. There is no
+        // third wire arm for it because there is no reader for one — Task
+        // 7.4.2 draws nothing for a command that never arrived, which is
+        // exactly the same picture as a subject with no related securities.
         for (const producer of workspaceCommands) {
           if (producer.afterTool !== queuedStep.tool) continue;
 
-          const outcome = await producer.propose(subjectSymbols, asOf);
+          let outcome: WorkspaceCommandOutcome | undefined;
+          try {
+            outcome = await producer.propose(subjectSymbols, asOf);
+          } catch (error) {
+            warn(
+              {
+                investigationId: id,
+                stepId: queuedStep.id,
+                tool: queuedStep.tool,
+                err: error,
+              },
+              "a workspace-command producer failed; the investigation continues",
+            );
+            continue;
+          }
           if (outcome === undefined) continue;
 
           store.appendEvent(id, {
