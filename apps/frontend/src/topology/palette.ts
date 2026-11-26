@@ -126,16 +126,20 @@ export interface TopologyPalette {
    * **literally the same colour**. That is a real co-tenancy and it is
    * accepted on two channels neither of which is ink:
    *
-   *   * **shape** — a filled 8 px disc against a 1 px dashed line, which is
-   *     the same distinction `membershipEdge` already relies on against the
+   *   * **shape** — a filled 8 px disc against a dashed line (1–2 px,
+   *     `CORRELATION_EDGE_WIDTH`'s own three strength bands), which is the
+   *     same distinction `membershipEdge` already relies on against the
    *     node bodies it joins (and it is louder here: those edges are
    *     `--chart-grid`, a step *below* this one);
-   *   * **the halo** — every node body is stroked at `lineWidth: 2` in
-   *     `--surface-raised` before it is filled, so a quietened node carries a
-   *     1 px white rim that separates it from any edge crossing it. That rim
-   *     is why the token can be shared at all: the collision an edge and a
-   *     node of one colour would otherwise have is *where they touch*, and
-   *     they never touch.
+   *   * **the halo, for a FILLED quietened body only** — every filled node
+   *     body is stroked at `lineWidth: 2` in `--surface-raised` before it is
+   *     filled, so a quietened equity carries a 1 px white rim that
+   *     separates it from any edge crossing it. **This channel is absent for
+   *     the hollow `unscored` quietening** (`renderer-canvas.ts`'s own
+   *     comment: "a halo exists to separate a filled mark from a touching
+   *     neighbour, and this mark has no fill to separate") — CI's and every
+   *     fresh store's permanent population, where shape and the edge's own
+   *     end-clearance are the only two channels carrying it.
    *
    * **Probed rather than argued, and the result is a qualified pass** (Task
    * 7.4.2, `pnpm probe --story

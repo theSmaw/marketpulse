@@ -1359,11 +1359,16 @@ rather than discovered later.** `TopologyPalette.correlationEdge` already
 spends it (§5), so at **1440** — the one width where the measured-edge layer
 is not suppressed — a quietened equity body and the dashed edges running
 through it are literally the same colour. Accepted on two channels, neither of
-them ink: **shape** (a filled 8 px disc against a 1 px dashed line, the same
-distinction the membership hairline already relies on, and louder here because
-those edges are a step below this one) and **the halo** (every body is stroked
+them ink: **shape** (a filled 8 px disc against a dashed line, 1–2 px across
+the three strength bands, the same distinction the membership hairline already
+relies on, and louder here because those edges are a step below this one) and
+**the halo, for a filled quietened body only** (every filled body is stroked
 2 px in `--surface-raised` before it is filled, so an edge and a node of one
-colour never touch). Probed at 1440 against a measured pass — a third
+colour never touch — **absent for the hollow `unscored` quietening**, CI's and
+every fresh store's permanent population, whose own renderer comment is
+explicit that a halo separates a fill from a neighbour and this mark has no
+fill; shape and the edge's own end-clearance carry that case alone). Probed at
+1440 against a measured pass — a third
 Storybook state added at this task's review, because the first two defaulted
 to `never-measured` and therefore could not show it. **Qualified pass**: a
 quietened disc stays readable as a disc and no node disappears into an edge
