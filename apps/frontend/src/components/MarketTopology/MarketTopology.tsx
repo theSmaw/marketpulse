@@ -37,6 +37,7 @@ import {
   topologyCriterion,
   topologyFilterNames,
   topologyFilterWords,
+  topologyHighlightCut,
   topologyHighlightSet,
   topologyHighlightWords,
   topologyPalette,
@@ -745,6 +746,19 @@ export function MarketTopology({
   const highlightNote = useRef<HTMLParagraphElement>(null);
 
   /**
+   * **The highlight line's own `<span>`, since Task 7.4.4** —
+   * {@link filterLine}'s arrangement, and now for the same reason.
+   *
+   * The note's text used to be written straight onto the paragraph above,
+   * which was correct while the paragraph had no children. It has a `Clear`
+   * button now, and `textContent = …` on the parent would **delete it** — so
+   * the text and the control are siblings, and the writer addresses the text.
+   * The paragraph keeps the `data-topology-highlight` attribute, because the
+   * presence question is still about the whole note.
+   */
+  const highlightLine = useRef<HTMLSpanElement>(null);
+
+  /**
    * **Built once, read by both the mount effect and the drawn sentence
    * below** (Task 6.2.4). `topologySource` is a pure, memoised function —
    * the same `securities` array gives back the same `{ graph, layout }` by
@@ -822,8 +836,11 @@ export function MarketTopology({
    */
   const filterWords =
     topology === null
-      ? null
-      : filterAccount(topology.graph, filter, EMPTY_TREATMENTS);
+      ? NO_ACCOUNT
+      : // **`highlight: null`** — see the HIGHLIGHT-BLIND note on
+        // `trailingClauses` below: a render may not read `appliedHighlight`,
+        // and the three imperative writers supply the clause afterwards.
+        filterAccount(topology.graph, filter, EMPTY_TREATMENTS, null);
 
   /**
    * **Every clause the accessible sentence carries beyond its own structure,
@@ -904,7 +921,7 @@ export function MarketTopology({
       renderer.current?.setHighlight(
         highlight === null ? null : topologyHighlightSet(highlight),
       );
-      writeTopologyHighlightNote(highlightNote, highlight);
+      writeTopologyHighlightNote(highlightNote, highlightLine, highlight);
 
       // **The sentence is rebuilt here too, and it is not belt-and-braces.**
       // The structural sentence has three writers (this component's JSX, a
@@ -1249,7 +1266,11 @@ export function MarketTopology({
         // here — React has just committed the highlight-blind sentence and
         // the reader-cadence writer below, which runs in this same commit,
         // rebuilds it with the clause.
-        writeTopologyHighlightNote(highlightNote, appliedHighlight.current);
+        writeTopologyHighlightNote(
+          highlightNote,
+          highlightLine,
+          appliedHighlight.current,
+        );
       }
     } catch (error) {
       // **A throw inside an effect is a render error, and nothing above `App`
@@ -1774,15 +1795,74 @@ export function MarketTopology({
          * plate's own standing arrangement, including the reason for an
          * attribute rather than a class.
          *
-         * It carries no link and no control: the way back from a highlight is
+         * ~~It carries no link and no control: the way back from a highlight is
          * Task 7.4.3's, and it is the reader's own `Escape` or a click on empty
-         * canvas rather than a new affordance.
+         * canvas rather than a new affordance.~~ — **false since Task 7.4.4,
+         * which is the keyboard affordance that task's own brief owes.**
+         *
+         * ## `Clear` is a `<button>` where `Show all` is a `<Link>`
+         *
+         * The difference is the subject rather than a preference: `Show all`
+         * changes the **address**, so it resolves at render and
+         * `one-home-for-imperative-navigation` has nothing to find; clearing a
+         * highlight changes no address at all, and a `<Link>` to the page the
+         * reader is already on would be a navigation that undid their own pan.
+         *
+         * **It calls the SAME path `Escape` calls** — {@link
+         * clearHighlightForReader}, which is {@link applyHighlight} plus the
+         * upward report — so a press here clears the holder in `App.tsx` too.
+         * Clearing only this region's ink would leave the dismissed command in
+         * force one level up, to be put straight back by the next unrelated
+         * render of that route: 7.4.3's own review found and fixed exactly that
+         * bug, and this is the mechanism it left behind rather than a second
+         * one.
+         *
+         * **A real, present tab stop exactly when the state exists, and never a
+         * `disabled` control.** The paragraph carries `hidden` while nothing is
+         * highlighted — not `aria-disabled`, not `tabIndex={-1}`, and not the
+         * natively-`disabled` shape `TextField` was rebuilt to avoid, because a
+         * description on an unfocusable control is a sentence nobody is ever
+         * read.
+         *
+         * **`hidden` rather than the attribute-keyed `display: none` this note
+         * shipped with at Task 7.4.2**, and the difference is the whole reason
+         * the control can live here: a CSS module's rule is unreachable below
+         * `pnpm e2e` (no stylesheet is applied in the test environment), so a
+         * button hidden only by it is a **real** control to every level of this
+         * product's testing and to anything reading the accessibility tree
+         * before paint. `hidden` takes it out of the tab order and out of the
+         * accessibility tree in the DOM itself, which is what makes Story 6.4's
+         * own exhaustive control enumeration still true of this surface rather
+         * than true-except-for-a-stylesheet.
          */}
         <p
           className={styles.highlightNote}
           data-topology-highlight="none"
+          hidden
           ref={highlightNote}
-        />
+        >
+          <span data-topology-highlight-line="" ref={highlightLine} />{" "}
+          <button
+            type="button"
+            className={styles.highlightClear}
+            onClick={() => {
+              clearHighlightForReader.current();
+              /*
+               * **Focus goes where `Escape` already puts it** (Task 7.4.4).
+               * This press removes the element holding focus — the paragraph
+               * goes `display: none` the instant the command clears — and
+               * `Region`'s own dropped-focus backstop does not fire for it, for
+               * the reason Task 6.4.4 measured one element over: the removal is
+               * driven by this component's own imperative write rather than by
+               * a `Region` render. Without this line a keyboard reader who
+               * presses `Clear` lands on `<body>`.
+               */
+              renderer.current?.focus();
+            }}
+          >
+            Clear
+          </button>
+        </p>
       </div>
       <div className={styles.readout} ref={plate} data-topology-readout="idle">
         <p className={styles.readoutIdle} data-readout="idle">
@@ -2483,7 +2563,7 @@ function applyAnomalyBands(
 ): void {
   writers.renderer.current?.setBands(treatments);
 
-  const account = filterAccount(graph, filter, treatments);
+  const account = filterAccount(graph, filter, treatments, highlight);
 
   if (writers.sentence.current !== null) {
     // **The trailing clauses are re-appended here**, because this write
@@ -2533,28 +2613,79 @@ function filterAccount(
   graph: TopologyGraph,
   filter: TopologyFilter | undefined,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment>,
-): { readonly line: string; readonly clause: string } | null {
-  if (filter === undefined) return null;
+  /**
+   * The command in force, or `null` (Task 7.4.4) — so the note can say how many
+   * of what it named this criterion is hiding, and so the highlight's own
+   * clause knows whether any de-emphasis was drawn at all.
+   */
+  highlight: TopologyHighlight | null,
+): TopologyAccount {
+  if (filter === undefined) return NO_ACCOUNT;
 
-  return topologyFilterWords(
-    // **`pinned: null`**, deliberately: the counts this sentence states are
-    // the criterion's own answer, never the criterion plus whichever node the
-    // reader happens to have selected. The renderer draws that one extra node
-    // (`narrowTopology`'s own docblock) and the selection itself is what says
-    // why it is there.
-    narrowTopology(graph, topologyCriterion(filter), treatments, null),
-    filter,
+  // **`pinned: null`**, deliberately: the counts this sentence states are
+  // the criterion's own answer, never the criterion plus whichever node the
+  // reader happens to have selected. The renderer draws that one extra node
+  // (`narrowTopology`'s own docblock) and the selection itself is what says
+  // why it is there.
+  const narrowing = narrowTopology(
+    graph,
+    topologyCriterion(filter),
+    treatments,
+    null,
   );
+
+  /*
+   * **`null` where nothing is cut, which is the renderer's own shape and its
+   * own saving** (Task 7.4.4). `narrowTopology` returns the input graph by
+   * identity where no cut applies, so the unfiltered state — every page until
+   * somebody presses something — allocates nothing here at all, on a path two
+   * writers take at live-batch cadence.
+   */
+  const drawn =
+    narrowing.graph === graph
+      ? null
+      : new Set<string>(narrowing.graph.nodes.map((node) => node.symbol));
+
+  const cut =
+    highlight === null ? null : topologyHighlightCut(highlight, graph, drawn);
+
+  return {
+    words: topologyFilterWords(narrowing, filter, cut),
+    // **`true` where there is no cut to ask about**, which is the picture this
+    // region drew before Task 7.4.4: a highlight over an unnarrowed market
+    // quietens the complement, and the clause says so.
+    quietened: cut === null || cut.drawsAnything,
+  };
 }
+
+/**
+ * **What the criterion did, and whether the highlight's ink actually landed**
+ * (Task 7.4.4).
+ *
+ * Two fields rather than two call sites, because they come out of one
+ * narrowing: `quietened` is a fact about the **filter** (it is false exactly
+ * when the cut hides everything the command named) and the sentence that
+ * depends on it is the **highlight's**, so a caller computing them separately
+ * would be running `narrowTopology` twice and could get two answers from one
+ * state.
+ */
+interface TopologyAccount {
+  readonly words: { readonly line: string; readonly clause: string } | null;
+  /** See `topologyHighlightWords`' own `quietened` parameter. */
+  readonly quietened: boolean;
+}
+
+/** Stable, for a component with no `filter` prop — every story, most tests. */
+const NO_ACCOUNT: TopologyAccount = { words: null, quietened: true };
 
 /** Write the drawn population line, or empty it. One home, two callers. */
 function writeFilterLine(
   filterLine: RefObject<HTMLSpanElement | null>,
-  account: { readonly line: string } | null,
+  account: TopologyAccount,
 ): void {
   if (filterLine.current === null) return;
 
-  filterLine.current.textContent = account?.line ?? "";
+  filterLine.current.textContent = account.words?.line ?? "";
 }
 
 /**
@@ -2580,7 +2711,7 @@ function writeTopologyFilterNote(
   highlight: TopologyHighlight | null,
   correlationClause: string,
 ): void {
-  const account = filterAccount(graph, filter, treatments);
+  const account = filterAccount(graph, filter, treatments, highlight);
 
   writeFilterLine(writers.filterLine, account);
 
@@ -2610,14 +2741,16 @@ function writeTopologyFilterNote(
  * the structural sentence at the head.
  */
 function trailingClausesOf(
-  account: { readonly clause: string } | null,
+  account: TopologyAccount,
   highlight: TopologyHighlight | null,
   correlationClause: string,
 ): string {
   const highlighted =
-    highlight === null ? "" : topologyHighlightWords(highlight).clause;
+    highlight === null
+      ? ""
+      : topologyHighlightWords(highlight, account.quietened).clause;
 
-  return `${account?.clause ?? ""}${highlighted}${correlationClause}`;
+  return `${account.words?.clause ?? ""}${highlighted}${correlationClause}`;
 }
 
 /**
@@ -2633,12 +2766,30 @@ function trailingClausesOf(
  */
 function writeTopologyHighlightNote(
   note: RefObject<HTMLParagraphElement | null>,
+  /** The text's own `<span>` — see `highlightLine`. Task 7.4.4. */
+  line: RefObject<HTMLSpanElement | null>,
   highlight: TopologyHighlight | null,
 ): void {
+  // **The line never claims the de-emphasis**, so it takes no `quietened`: the
+  // drawn note says what is highlighted and the `Clear` control sits beside it,
+  // and whether the complement receded is visible on the canvas rather than
+  // asserted in eight words over it. The accessible clause is the reading that
+  // has to say so, and `trailingClausesOf` is where that is decided.
+  if (line.current !== null) {
+    line.current.textContent =
+      highlight === null ? "" : topologyHighlightWords(highlight, true).line;
+  }
+
   if (note.current === null) return;
 
-  note.current.textContent =
-    highlight === null ? "" : topologyHighlightWords(highlight).line;
+  // **Two attributes, one fact, one writer** (Task 7.4.4). `hidden` is the
+  // mechanism — it takes the `Clear` button out of the tab order and out of the
+  // accessibility tree, in the DOM rather than in a stylesheet no test level
+  // below `pnpm e2e` applies — and `data-topology-highlight` is the published
+  // state a browser spec reads where it cannot read a hashed class name. They
+  // are written together here because two writers of one fact is how they would
+  // come to disagree.
+  note.current.hidden = highlight === null;
   note.current.dataset.topologyHighlight =
     highlight === null ? "none" : "active";
 }

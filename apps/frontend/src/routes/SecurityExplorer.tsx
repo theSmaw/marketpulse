@@ -649,6 +649,28 @@ export function SecurityExplorer({
               checklist={investigation.checklist}
               announcement={investigation.announcement}
               pastCoverThreshold={investigation.pastCoverThreshold}
+              /*
+               * **Whether this product tracks the security being
+               * investigated** (Task 7.4.4) — derived here because this is the
+               * one place that holds both halves, which is `stored`'s own
+               * reasoning four hundred lines up.
+               *
+               * `GET /securities` serves the universe, so a resolved answer
+               * that does not hold this symbol is the whole of *untracked* —
+               * `/securities/ZZZZ` produces one, and so does a security Task
+               * 2.3.9 moved to `untracked` rather than deleting. The backend's
+               * `get_related_securities` refuses exactly this case and sends no
+               * `WORKSPACE_COMMAND` at all, so nothing on `/` reacts; the
+               * component's own prop docblock is why that needs a word.
+               *
+               * **Keyed on `view.state === "loaded"` rather than on `found`
+               * alone**, deliberately: `found` is `undefined` for the 174–277 ms
+               * the universe request takes, and claiming a security is
+               * untracked while we are still asking is the same class of false
+               * impression as drawing its figure before the name arrives
+               * (Story 4.7's own mover-row defect).
+               */
+              subjectUntracked={view.state === "loaded" && found === undefined}
             />
             <AbnormalMove
               symbol={symbol}

@@ -613,31 +613,47 @@
  * highlight's way back is the reader's own `Escape` or a click on empty
  * canvas (Task 7.4.3), never a control in this note.
  *
- * ## `display: none` while nothing is highlighted
+ * ## Off screen while nothing is highlighted — and NOT by a rule here
  *
  * The paragraph is rendered in every state — whether a command is in force is
- * a fact React cannot see, `MarketTopology.tsx`'s own account — so the state
- * is carried on `data-topology-highlight` and this rule is what keeps an empty
- * bordered box off a graph nobody has asked anything of. Switched on an
- * attribute rather than a class for `.readout`'s own two reasons: one
- * imperative write per change, and a value a browser spec can read where it
- * cannot read a hashed class name.
+ * a fact React cannot see, `MarketTopology.tsx`'s own account — so something
+ * has to keep an empty bordered box off a graph nobody has asked anything of.
+ *
+ * **Amended 2026-11-26 (Task 7.4.4): that is the `hidden` attribute now, not
+ * the `[data-topology-highlight="none"] { display: none }` rule this file
+ * carried at Task 7.4.2.** The note gained a `Clear` button, and a control
+ * hidden only by a CSS module is a **real, focusable** control everywhere a
+ * stylesheet is not applied — which is every test level below `pnpm e2e`, and
+ * anything reading the accessibility tree before paint. `hidden` takes it out
+ * of the tab order and out of the accessibility tree in the DOM itself.
+ * `data-topology-highlight` survives as the published state a browser spec
+ * reads, for `.readout`'s own reason: a value a spec can read where it cannot
+ * read a hashed class name. Both are written by one function.
+ *
+ * This rule therefore declares **no `display`**, deliberately: an author
+ * `display` here would beat the UA sheet's `[hidden] { display: none }` and
+ * silently put the box and its button back.
  */
 .highlightNote {
   box-sizing: border-box;
   margin: 0;
   max-inline-size: 100%;
   padding: var(--space-4) var(--space-8);
+  /*
+   * **Restored, because `.notes` disables it for the stack** (Task 7.4.4) —
+   * `.filterNote`'s own reason, arriving one row down the same column now that
+   * this note carries a control: the way back from a highlight is a `Clear`
+   * button in it, and a button nothing can click is not a button. The
+   * paragraph's own `display: none` state is what keeps that from mattering
+   * while no command is in force.
+   */
+  pointer-events: auto;
   color: var(--ink-primary);
   font-size: var(--font-size-micro);
   line-height: var(--line-height-micro);
   /* See `.readout`: 80%, measured, and a mitigation rather than a fix. */
   background: color-mix(in srgb, var(--surface-raised) 80%, transparent);
   border: 1px solid var(--rule-hairline);
-}
-
-.highlightNote[data-topology-highlight="none"] {
-  display: none;
 }
 
 /*
@@ -667,5 +683,44 @@
 
 .filterClear:hover,
 .filterClear:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/*
+ * **The way back from a highlight** (Task 7.4.4) — `.filterClear`'s own
+ * appearance, on a `<button>` rather than an `<a>`.
+ *
+ * The element differs because the subject does: `Show all` changes the address
+ * and resolves at render; `Clear` changes no address at all, and a `<Link>` to
+ * the page the reader is already on would undo their own pan. So this is the
+ * one control on this surface that is a button — and the affordance is still a
+ * link's, because it sits at the end of a line of prose exactly where
+ * `.filterClear` does and two different affordances for two adjacent words in
+ * one note would read as two different kinds of thing.
+ *
+ * **The declarations are SPELLED rather than composed**, which is this
+ * repository's own rule for a value that must differ: `composes` concatenates
+ * class names and the winner is decided by stylesheet order, so a composed
+ * `.filterClear` plus a button reset here would be a rule whose own
+ * declarations might lose — the defect `a-compose-never-carries-an-override`
+ * refuses by name.
+ */
+.highlightClear {
+  appearance: none;
+  margin: 0;
+  margin-inline-start: var(--space-12);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.highlightClear:hover,
+.highlightClear:focus-visible {
   text-decoration-thickness: 2px;
 }

@@ -10,7 +10,10 @@ import { describe, expect, it } from "vitest";
 
 import type { ChecklistState } from "../../investigations/index.js";
 import { CONNECTION_LOST_SENTENCE } from "../../investigations/index.js";
-import { InvestigationChecklist } from "./InvestigationChecklist.js";
+import {
+  InvestigationChecklist,
+  UNTRACKED_SUBJECT_SENTENCE,
+} from "./InvestigationChecklist.js";
 import styles from "./InvestigationChecklist.module.css";
 
 const QUEUED: ChecklistState = {
@@ -89,6 +92,7 @@ describe("InvestigationChecklist", () => {
         checklist={undefined}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -102,6 +106,7 @@ describe("InvestigationChecklist", () => {
         checklist={QUEUED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -127,6 +132,7 @@ describe("InvestigationChecklist", () => {
         checklist={mixed}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -143,6 +149,7 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -164,6 +171,7 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement="Measure move running"
         pastCoverThreshold
+        subjectUntracked={false}
       />,
     );
 
@@ -178,6 +186,7 @@ describe("InvestigationChecklist", () => {
           checklist={checklist}
           announcement=""
           pastCoverThreshold
+          subjectUntracked={false}
         />,
       );
       const row = container.querySelector(`.${String(styles.row)}`);
@@ -192,6 +201,7 @@ describe("InvestigationChecklist", () => {
         checklist={COMPLETED}
         announcement="Measure move complete, 120 ms"
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -206,6 +216,7 @@ describe("InvestigationChecklist", () => {
         checklist={DROPPED}
         announcement={CONNECTION_LOST_SENTENCE}
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -222,6 +233,7 @@ describe("InvestigationChecklist", () => {
         checklist={RUNNING}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -233,6 +245,7 @@ describe("InvestigationChecklist", () => {
         checklist={COMPLETED}
         announcement="Measure move complete, 120 ms"
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -249,6 +262,7 @@ describe("InvestigationChecklist", () => {
         checklist={undefined}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -274,6 +288,7 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
         checklist={COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -294,6 +309,7 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
         checklist={COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -317,6 +333,7 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
         }}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -335,6 +352,7 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
         checklist={QUEUED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -355,6 +373,7 @@ describe("the claim and its confidence mark (Tasks 7.3.1, 7.3.2)", () => {
         checklist={COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -407,6 +426,7 @@ describe("the list structure (Task 7.3.3, AC 12)", () => {
         checklist={mixed}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -423,6 +443,7 @@ describe("the list structure (Task 7.3.3, AC 12)", () => {
         checklist={DROPPED}
         announcement={CONNECTION_LOST_SENTENCE}
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -446,6 +467,7 @@ describe("a second press's stale claim (Task 7.3.3, AC 11)", () => {
         checklist={STALE_COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
     const staleClaim = staleContainer.querySelector(`.${String(styles.claim)}`);
@@ -456,6 +478,7 @@ describe("a second press's stale claim (Task 7.3.3, AC 11)", () => {
         checklist={COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
     const freshClaim = freshContainer.querySelector(`.${String(styles.claim)}`);
@@ -468,6 +491,7 @@ describe("a second press's stale claim (Task 7.3.3, AC 11)", () => {
         checklist={STALE_COMPLETED}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -495,6 +519,7 @@ describe("an inapplicable row (Task 7.3.5, AC 3)", () => {
         checklist={INAPPLICABLE}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />,
     );
 
@@ -505,5 +530,66 @@ describe("an inapplicable row (Task 7.3.5, AC 3)", () => {
     // is a structural fact, never evidence, and AC 3's own refusal to let
     // it collapse onto `UNKNOWN` means there is no level to draw here.
     expect(screen.queryByText("Confidence:")).toBeNull();
+  });
+});
+
+// **An untracked subject — Task 7.4.4, Done-when 4's second half.**
+//
+// `get_related_securities` refuses an untracked security outright
+// (`related-securities.ts`' `untrackedRefusal`, Task 7.4.1), so no
+// `WORKSPACE_COMMAND` is ever sent and `/`'s topology does not react at all.
+// Without this sentence that absence is indistinguishable from the feature
+// being broken — ADR 0029's rule arriving at a refusal rather than at a figure.
+describe("the untracked-subject sentence (Task 7.4.4)", () => {
+  it("states why the related-securities answer is absent", () => {
+    render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+        subjectUntracked
+      />,
+    );
+
+    const said = screen.getByText(UNTRACKED_SUBJECT_SENTENCE);
+    expect(said.tagName).toBe("P");
+    // It is a standing fact about the security on screen, not an event: the
+    // live region above has exactly one subject and this is not it.
+    expect(said.getAttribute("role")).toBeNull();
+    expect(said.closest('[role="status"]')).toBeNull();
+  });
+
+  it("says nothing for a tracked subject — which is 516 of 516 securities", () => {
+    render(
+      <InvestigationChecklist
+        checklist={COMPLETED}
+        announcement=""
+        pastCoverThreshold={false}
+        subjectUntracked={false}
+      />,
+    );
+
+    expect(screen.queryByText(UNTRACKED_SUBJECT_SENTENCE)).toBeNull();
+    expect(
+      document.querySelector('[data-investigation="untracked"]'),
+    ).toBeNull();
+  });
+
+  it("says nothing before any press, however untracked the subject is", () => {
+    // ADR 0029 both ways: a sentence about a step's outcome where no run has
+    // happened is an account of something that did not occur. This component
+    // renders NOTHING at all before a press (Done-when 2, Task 7.1.4) and this
+    // sentence does not break that.
+    const { container } = render(
+      <InvestigationChecklist
+        checklist={undefined}
+        announcement=""
+        pastCoverThreshold={false}
+        subjectUntracked
+      />,
+    );
+
+    expect(screen.queryByText(UNTRACKED_SUBJECT_SENTENCE)).toBeNull();
+    expect(container.querySelectorAll("p")).toHaveLength(1);
   });
 });

@@ -1,6 +1,6 @@
 # Task 7.4.4 — Filter honesty and the edge-case taxonomy
 
-**Status:** In progress — 2026-11-26
+**Status:** Complete — 2026-11-26
 **Story:** [7.4 The Graph Lights Up](STORY.md)
 **Depends on:** 7.4.2 (complete, PR #713), 7.4.3 (complete, PR #715 — read
 its amendment below: `WorkspaceHighlightCommand` now carries
@@ -159,3 +159,153 @@ investigationId` while the withdrawal reads `started.id` — both are correct
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->
+
+## What was done — 2026-11-26
+
+`TOPOLOGY.md` §11.2 is the maintained account and **wins** where this file
+disagrees. What is here is the record of the decisions and the two Done-whens
+that are questions rather than code.
+
+### Done-when 1–3 — the filter interaction
+
+**One pure function with two readers, which is the whole shape.**
+`topologyHighlightCut(highlight, universe, drawn)` in `topology/highlight.ts`
+answers three things about a command against the currently drawn set:
+`peers` (what the command named — `symbols.length`, so the denominator is the
+figure `topologyHighlightWords` already states rather than a second count of
+one set), `hidden` (how many of them are **tracked but not drawn**), and
+`drawsAnything` (whether any highlighted **equity** is drawn).
+`renderer-canvas.ts` reads the third and skips the de-emphasis pass; `filter.ts`'
+`topologyFilterWords` reads all three and says what happened. Neither computes
+it, so the ink and the sentence cannot disagree.
+
+**The `drawsAnything` conjunct is about equities and that is the substance.** A
+Technology command names `XLK`, a landmark is drawn in every narrowed state,
+and landmarks are outside this encoding entirely — so *the sector ETF is still
+on screen* must not license dimming 21 Energy equities for a reader looking at
+nothing the command named.
+
+**It fires with no filter at all, which was not the case this was written
+for, and is a real behaviour change beyond the brief.** `SPY`'s related set is
+the eleven sector ETFs — every one a landmark — so before this task,
+highlighting `SPY` dimmed all 501 equities with nothing marked anywhere. It
+now draws nothing quieter and says nothing. Both halves honest: no ink to
+describe, no filter to blame. Covered by
+`topologyHighlightDrawsAnything`'s own test.
+
+**The clause is a THIRD arm of `topologyFilterWords`, never a fourth writer of
+the sentence** — the collision this region has lost a clause to three times.
+Three absences, ADR 0029's rule as every other clause in that builder applies
+it: no command, no hidden peer, and a command naming nothing this universe
+tracks (a version skew, not a cut — counting it would put a figure beside
+`Show all` that pressing `Show all` cannot change). The whole-set case is a
+**different sentence** rather than a bigger figure, because the note is saying
+why the picture did not change rather than counting.
+
+**One boolean crossed the module boundary and it had to.**
+`topologyHighlightWords(highlight, quietened)` — that builder's tail,
+*Every other equity is drawn quieter.*, is a claim about ink and is false in
+exactly the whole-set-hidden state. Leaving it standing would have put the
+contradiction two sentences apart in one spoken string.
+
+`Show all` is unchanged and no control was added to the `Sector`/`Band`
+triggers. Nothing auto-widens or auto-clears the reader's filter.
+
+### The `Clear` control (the keyboard affordance)
+
+A `<button>` in the highlight note calling `clearHighlightForReader` —
+**the same path `Escape` calls**, so the `App` holder is cleared rather than
+only this region's ink. A `<button>` and not a `<Link>` because clearing
+changes no address.
+
+**`hidden` replaces the attribute-keyed `display: none` the note shipped
+with, and the swap was forced by a check doing its job.** Story 6.4's
+exhaustive control enumeration (`MarketTopology.test.tsx`) went red on the
+first draft: no stylesheet is applied below `pnpm e2e`, so a control hidden
+only by a CSS module is a real, focusable control at every test level and to
+anything reading the accessibility tree before paint. `hidden` takes it out of
+the tab order and the accessibility tree in the DOM itself;
+`data-topology-highlight` survives as the published state specs read, and both
+are written by one function. The stylesheet now declares **no `display`** on
+`.highlightNote`, deliberately — an author `display` would beat the UA sheet's
+`[hidden] { display: none }` and silently put the button back.
+
+**A real defect found while building it**: the press removes the element
+holding focus, and `Region`'s dropped-focus backstop does not fire (the
+removal is this component's imperative write, not a `Region` render — Task
+6.4.4's measured finding one element over). Focus returns to the canvas, where
+`Escape` already leaves a reader. Asserted in a real browser.
+
+### Done-when 4 — the security page states the absence
+
+`InvestigationChecklist` gained one prop (`subjectUntracked`) and one sentence,
+rendered only when **both** a run has been pressed and the universe has
+answered without this symbol. `SecurityExplorer` derives it from
+`view.state === "loaded" && found === undefined` — keyed on the resolved state
+rather than on `found` alone, because claiming a security is untracked during
+the 174–277 ms the universe request takes is Story 4.7's own mover-row defect.
+
+### Done-when 7 — the large-highlight probe, and the honest verdict
+
+**The workshop rather than the route**, because no address drives a highlight
+and `pnpm probe` cannot press `Investigate` on one page and navigate to
+another; `overview-investigation-highlight.spec.ts` drives the real route and
+cannot see ink. The story uses the real recorded 518-security universe, so the
+picture is the real graph at real scale: **73 peers, 74 drawn nodes, ~14%**.
+
+**1440/1024: it reads** — the Technology cluster is visibly solid against ten
+receded ones, nothing changed hue. **768: it still reads**, with less margin.
+**390: it does not read at all** — ~3 px discs inside untouched amber rings,
+labels already suppressed, and a person could not tell which cluster was
+Technology. The note is the only thing that says anything there, and it is
+correct (two wrapped lines, `notes` 372×42).
+
+**And at every width it reads as a CLUSTER rather than as a peer set** — a
+reader cannot find `NVDA`. That is Gate 1's own decision working (the subject
+is an ordinary member of the set); it is recorded because the feature's name
+invites the other reading. Both findings are in `docs/GAPS.md` with the
+Product Owner as owner, and in `TOPOLOGY.md` §11.2 with the figures.
+
+### Done-when 8 — the screen-reader premise is FALSE
+
+**Confirmed against the shipped claim text rather than assumed, and it does
+not hold.** `toCompareSecuritiesFinding` builds
+`−3.10 pts against XLK over 5 min — 92nd of 3,180`: **one** ticker, the sector
+**benchmark**, by Story 7.3's own deliberate decision. No peer is named.
+`get_related_securities` reaches no result surface at all — it is not a
+checklist step, produces no `Finding`, and its answer becomes a
+`WORKSPACE_COMMAND` and nothing else. `Connected securities` is still a
+placeholder. So the complete textual inventory of the peer set is `/`'s
+structural sentence: a subject, a **count** and the kinds — no ticker.
+
+Gate 1's no-announcement decision is left exactly as it is (reopening it is
+not this task's call, and the task brief says so), and the gap is recorded as
+`docs/GAPS.md`' **thirteenth** screen-reader entry with the Product Owner as
+owner and a condition: the first story that touches `Connected securities`.
+The cheap repair is on the security page, where the peers belong beside the
+comparison that produced them — not a 61-ticker announcement on `/`.
+
+### Done-when 5, 6 and the rest of the taxonomy
+
+Verified rather than rebuilt, per this file's own Gate amendment: shipped in
+7.4.1 and unchanged here.
+
+### What was run
+
+- `pnpm verify` — **green**, `102 invariants hold.`, 786 + 1,559 + 2,120 unit
+  tests, 21 script tests, 63 process tests, no `Unhandled Errors` block.
+- `pnpm e2e overview-investigation-highlight.spec.ts` — 6 passed, including
+  the two new tests.
+- `pnpm e2e overview-market-topology-filter.spec.ts overview-market-topology.spec.ts
+  overview-market-topology-keyboard.spec.ts overview-market-topology-degraded.spec.ts
+  security-investigate.spec.ts` — 34 passed.
+- The whole `pnpm e2e` suite once at the end.
+- `pnpm probe --story components-markettopology--highlighted-peers`,
+  `--highlighted-peers-partly-hidden` and `--highlighted-peers-narrowed`.
+- **Two mutations, to prove the new assertions are not vacuous**: forcing
+  `hiddenPeerWords` to return `null` turned 3 `filter.test.ts` tests and 2
+  `MarketTopology.test.tsx` tests red; forcing `quietened: true` turned 2
+  `MarketTopology.test.tsx` tests red. Both restored.
+
+No `pnpm invariants` entry was added, so no `pnpm break` is owed — the count
+is unchanged at 102.

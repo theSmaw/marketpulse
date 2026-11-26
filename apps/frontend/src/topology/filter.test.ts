@@ -29,6 +29,8 @@ import {
   topologyScoredCount,
   topologySectorPath,
 } from "./filter.js";
+import { topologyHighlightCut } from "./highlight.js";
+import type { TopologyHighlight } from "./highlight.js";
 import type { TopologyAnomalyTreatment } from "./renderer.js";
 
 // **The sector filter's three pure halves, over the REAL recorded universe**
@@ -124,10 +126,28 @@ function wordsFor(
   filter: ReturnType<typeof readTopologyFilter>,
   treatments: ReadonlyMap<Ticker, TopologyAnomalyTreatment> = NO_BANDS,
   graph: TopologyGraph = GRAPH,
+  /** The command in force, or none — Task 7.4.4's third clause. */
+  highlight: TopologyHighlight | null = null,
 ): { readonly line: string; readonly clause: string } | null {
+  const narrowing = narrowTopology(
+    graph,
+    topologyCriterion(filter),
+    treatments,
+    null,
+  );
+
+  // The component's own derivation, verbatim (`MarketTopology.tsx`'s
+  // `filterAccount`): `null` where nothing is cut, which is the identity
+  // return `narrowTopology` makes for an unnarrowed criterion.
+  const drawn =
+    narrowing.graph === graph
+      ? null
+      : new Set<string>(narrowing.graph.nodes.map((node) => node.symbol));
+
   return topologyFilterWords(
-    narrowTopology(graph, topologyCriterion(filter), treatments, null),
+    narrowing,
     filter,
+    highlight === null ? null : topologyHighlightCut(highlight, graph, drawn),
   );
 }
 
@@ -795,6 +815,141 @@ describe("topologyFilterWords — the two-clause grammar", () => {
 
     expect(words?.line).toContain("is tracked");
     expect(words?.line).not.toContain("extreme");
+  });
+});
+
+// **The third clause — what a cut is doing to an investigation's highlight**
+// (Task 7.4.4, Done-when 1 and 2).
+describe("topologyFilterWords — the highlighted peers a cut hides", () => {
+  const technologyEquities = GRAPH.nodes
+    .filter((node) => node.kind === "equity" && node.cluster === "technology")
+    .map((node) => String(node.symbol))
+    .filter((symbol) => symbol !== "NVDA");
+
+  /** The real Technology-equity command — `XLK` plus every sector-mate. */
+  const TECHNOLOGY: TopologyHighlight = {
+    subject: "NVDA",
+    symbols: [SECTOR_ETFS.technology, ...technologyEquities],
+    relations: ["sector_membership"],
+  };
+
+  it("says nothing where a highlight is in force and the cut hides none of it", () => {
+    // ADR 0029's rule, which every other clause in this builder follows: *0 of
+    // 61 highlighted peers are hidden* is a figure on screen for the state a
+    // reader is in every time they have narrowed to the sector they are
+    // looking at.
+    const words = wordsFor(
+      readTopologyFilter("?sector=technology"),
+      NO_BANDS,
+      GRAPH,
+      TECHNOLOGY,
+    );
+
+    expect(words?.line).not.toContain("highlighted");
+    expect(words?.clause).not.toContain("highlighted");
+    // And it is byte-identical to the same criterion with no command at all.
+    expect(words).toStrictEqual(
+      wordsFor(readTopologyFilter("?sector=technology")),
+    );
+  });
+
+  it("says nothing at all where no criterion is named, command or no command", () => {
+    expect(wordsFor(readTopologyFilter(""), NO_BANDS, GRAPH, TECHNOLOGY)).toBe(
+      null,
+    );
+  });
+
+  it("counts the hidden peers where SOME of the set is drawn", () => {
+    // One Technology equity kept beside the Energy cut, which is the only
+    // shape that reaches the partial arm with a real criterion: the subject
+    // itself is drawn, so the de-emphasis around it is a true claim and the
+    // note states how much of the set the reader cannot see.
+    const kept = narrowTopologyGraph(GRAPH, "energy");
+    const subject = GRAPH.nodes.find((node) => node.symbol === "NVDA");
+    if (subject === undefined) throw new Error("the fixture has no NVDA");
+    const withSubject: TopologyGraph = {
+      ...kept,
+      nodes: [...kept.nodes, subject],
+    };
+
+    const words = topologyFilterWords(
+      narrowTopology(GRAPH, { sector: "energy", bands: [] }, NO_BANDS, null),
+      readTopologyFilter("?sector=energy"),
+      topologyHighlightCut(
+        TECHNOLOGY,
+        GRAPH,
+        new Set(withSubject.nodes.map((node) => String(node.symbol))),
+      ),
+    );
+
+    const hidden = String(technologyEquities.length);
+    const peers = String(TECHNOLOGY.symbols.length);
+    expect(words?.line).toContain(
+      `${hidden} of ${peers} highlighted peers are outside this filter`,
+    );
+    expect(words?.clause).toContain(
+      `${hidden} of the ${peers} highlighted peers are outside this filter.`,
+    );
+    // The way out is the control this note already carries, never a new one.
+    expect(words?.clause).toContain("Show all returns the whole market.");
+    // The population half is untouched beside it.
+    expect(words?.line).toContain("Energy");
+  });
+
+  it("says why nothing was quietened where the cut hides the WHOLE set — Done-when 2", () => {
+    const words = wordsFor(
+      readTopologyFilter("?sector=energy"),
+      NO_BANDS,
+      GRAPH,
+      TECHNOLOGY,
+    );
+
+    expect(words?.line).toContain(
+      "nothing highlighted is drawn here, so nothing is quietened",
+    );
+    expect(words?.clause).toContain(
+      "None of the highlighted securities are inside this filter, so nothing" +
+        " is drawn quieter.",
+    );
+    // **A different sentence rather than a bigger figure**, because it is a
+    // different fact: the renderer draws no de-emphasis at all here, so the
+    // note is saying why the picture did not change rather than counting.
+    expect(words?.line).not.toContain("outside this filter");
+  });
+
+  it("agrees its verb with a single hidden peer", () => {
+    const one: TopologyHighlight = {
+      subject: "XOM",
+      symbols: ["NVDA"],
+      relations: ["sector_membership"],
+    };
+
+    const words = wordsFor(
+      readTopologyFilter("?sector=energy"),
+      NO_BANDS,
+      GRAPH,
+      one,
+    );
+
+    // `XOM` is Energy and drawn, so the set draws something and this is the
+    // partial arm with exactly one hidden peer.
+    expect(words?.line).toContain("1 of 1 highlighted peers is outside");
+  });
+
+  it("applies no clause to an address this page did not understand", () => {
+    // An unrecognised parameter applies NO cut (`topologyCriterion`), so
+    // nothing is hidden and the sentence is the mistyped-address one alone.
+    for (const search of ["?sector=Energy", "?band=HIGH"]) {
+      const words = wordsFor(
+        readTopologyFilter(search),
+        NO_BANDS,
+        GRAPH,
+        TECHNOLOGY,
+      );
+
+      expect(words?.line, search).toContain("the whole market is drawn");
+      expect(words?.line, search).not.toContain("highlighted");
+    }
   });
 });
 

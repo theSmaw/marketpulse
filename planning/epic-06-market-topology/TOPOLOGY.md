@@ -1448,3 +1448,148 @@ run this reader may not have started, and is withdrawn by a dead channel with
 no gesture at all, so a walk ordered by it would move a keyboard reader
 because a different page finished a step. Both have their own `pnpm break`,
 planted in different functions so neither can land the other's defect.
+
+### 11.2 Where the reader's own filter and an investigation's highlight meet (Task 7.4.4, 2026-11-26)
+
+**The two narrowings on this canvas now answer to each other, and the rule is
+one sentence: the reader's control is never overruled, and the picture never
+claims more than it drew.** Story 6.8's filter is a draw-time mask — an
+excluded equity draws no ink and is not hit-testable — and Story 7.4's
+highlight is a complement de-emphasis. Compose them naively and you get a
+state that is wrong in a way every individual part of it is right: a reader
+filtered to Energy, a command naming 73 Technology securities, **none of them
+on screen**, and all 21 drawn Energy equities quietened. Every conjunct true;
+the picture a lie.
+
+**So the de-emphasis is conditional, and the condition is a pure function
+with two readers.** `topologyHighlightCut` (`topology/highlight.ts`) answers
+three things about a command against the currently drawn set — how many of
+its peers are hidden, how many it named, and whether **any highlighted
+EQUITY** is drawn at all. `renderer-canvas.ts`' `regroupAnomalyTreatments`
+reads the third and passes `null` instead of the set where it is false, so
+the de-emphasis pass does not run; `topologyFilterWords` reads all three and
+says what happened. One policy, two readers, and the ink and the sentence
+cannot disagree because neither computes it.
+
+**An EQUITY, and that conjunct is the whole substance of the rule.** A
+Technology equity's `sector_membership` peers include `XLK`, and a landmark
+is drawn in **every** narrowed state (`keepEquities` keeps every non-equity)
+while being excluded from this encoding entirely (Story 6.3's own exclusion
+set, which this treatment is the fourth to respect). So *the sector ETF is
+still on screen* must not be what licenses dimming the market. The **subject**
+counts where it is drawn, because it is an ordinary member of the highlighted
+set and a reader looking at it is looking at the thing the set is related to.
+
+**And it fires with no filter at all, which was not the case this was written
+for.** `SPY`'s own related set is the eleven sector ETFs — every one a
+landmark — so before this task, highlighting `SPY` dimmed all 501 equities
+with nothing marked. It now draws nothing quieter and says nothing, which is
+correct on both halves: there is no ink to describe, and no filter to blame.
+
+**The count is a THIRD clause on `topologyFilterWords`, not a fourth writer.**
+The accessible sentence on this surface has three writers (React's own commit,
+`applyAnomalyBands` on every live batch, and the reader-cadence effect) and
+this region has lost a clause to that collision three times. A clause riding
+`topologyFilterWords`' own return survives by construction;
+`MarketTopology.test.tsx`'s *the collision, a FIFTH time* is the assertion.
+What **did** cross the module boundary is one **boolean** —
+`topologyHighlightWords(highlight, quietened)` — because that builder's own
+tail sentence (*Every other equity is drawn quieter.*) is a claim about ink
+and stops being true in exactly this state.
+
+**Three absences rather than one**, `ADR 0029` as every clause in that builder
+already applies it: no command, no hidden peer, and a command naming nothing
+this universe tracks (a newer backend reaching an older bundle — not hidden by
+anybody's cut, and counting it would put a figure beside `Show all` that
+pressing `Show all` cannot change). The whole-set case is a **different
+sentence** rather than a bigger figure, because it is a different fact: the
+note is saying why the picture did not change, not counting.
+
+**The way back is the control the note already had.** `Show all` clears both
+cuts in one press, unchanged; no badge was added to the `Sector`/`Band`
+triggers (a header already seven pixels short at 1024, and a fourth thing
+reporting a *different* feature's state is two subjects in one speaker), and
+nothing auto-widens or auto-clears a reader's own filter so peers become
+visible — an investigation does not get to move the reader's controls.
+
+#### The `Clear` control, and why it is a `<button>` where `Show all` is a `<Link>`
+
+Task 7.4.3's gestures — `Escape`, a click on empty canvas — are both
+unreachable to a reader who arrived at the note by `Tab` and has never been
+told a key clears anything. The highlight note now carries `Clear`, beside the
+text, and it **calls the same path** (`clearHighlightForReader` →
+`applyHighlight` plus the upward report), so a press clears the `App` holder
+exactly as `Escape` does rather than only this region's ink.
+
+Three mechanics worth not rediscovering:
+
+- **A `<button>`, because clearing changes no address.** Every other control
+  on this surface resolves a destination at render, which is what keeps
+  `one-home-for-imperative-navigation` satisfied by construction. A `<Link>`
+  to the page the reader is already on would undo their own pan.
+- **`hidden`, not the attribute-keyed `display: none` the note shipped with.**
+  A control hidden only by a CSS module is a **real, focusable** control
+  everywhere a stylesheet is not applied — every test level below `pnpm e2e`,
+  and anything reading the accessibility tree before paint. Story 6.4's
+  exhaustive control enumeration went red on the first draft for exactly that,
+  which is the check behaving correctly. `data-topology-highlight` survives as
+  the published state a browser spec reads; both are written by one function.
+- **The press removes the element holding focus**, and `Region`'s own
+  dropped-focus backstop does not fire for it (the removal is driven by this
+  component's imperative write rather than by a `Region` render — Task 6.4.4
+  measured exactly that one element over). Focus is returned to the canvas,
+  which is where `Escape` already leaves a reader. `overview-investigation-highlight.spec.ts`
+  asserts it in a real browser; nothing below one can.
+
+#### What a person looked at, and the honest verdict (Done-when 7)
+
+Taken 2026-11-26 with `pnpm probe --story components-markettopology--highlighted-peers`
+at 1440/1024/768/390, against the real recorded 518-security universe with
+the real measured band distribution — **the workshop rather than the route**,
+because no address drives a highlight and `pnpm probe` cannot press
+`Investigate` on one page and navigate to another. `overview-investigation-highlight.spec.ts`
+is what drives the real route, and it cannot see ink. The command is the real
+Technology shape: `NVDA` plus `XLK` plus 72 sector-mates — **73 peers, 74
+drawn nodes, ~14% of the graph**.
+
+**1440 and 1024: it reads, and it reads as a CLUSTER rather than as a peer
+set.** The Technology ring is visibly solid where the other ten have receded;
+the separation is unambiguous at a glance and nothing changed hue. What a
+reader cannot do is find `NVDA` — 73 nodes at full strength in one cluster say
+*this sector is the subject*, not *these are this security's peers*, and the
+subject is drawn as an ordinary member of the set by Gate 1's own decision.
+That is the encoding working as designed and is worth knowing before anybody
+reads the picture as pointing at one node.
+
+**768: it still reads**, with less margin — the clusters are smaller and the
+full-strength amber rings on `elevated`/`high` equities (untouched by the
+de-emphasis, correctly) carry more of the visual weight than the quietened
+bodies do.
+
+**390: it does not read at all, and that is the finding.** At the fit scale
+this width resolves to, each node is a ~3 px disc inside an amber ring, sector
+labels are already suppressed (Story 6.6's own threshold), and the whole
+difference between quiet and full is the lightness of ink on a disc smaller
+than the ring around it. A person looking at the 390 screenshot cannot tell
+which cluster is Technology, let alone that a cut has been made. **The note is
+the only thing on screen that says anything**, and it wraps to two lines there
+and says it accurately. Recorded rather than repaired: this is the same
+fit-scale wall Story 6.6 already met for labels and Story 6.5 met for the
+correlation layer (both suppressed below the threshold), and whether the
+de-emphasis should be suppressed there too — leaving the note alone to carry
+it — is a design question this task did not own. `docs/GAPS.md` has no entry
+for it because the honest state is *the note is correct at every width*; what
+is unproven is whether a reader at 390 is better served by a picture that
+changes illegibly or by one that does not change.
+
+**The two filter states were photographed in the same sitting.** The partial
+cut (`?band=high,extreme`, 53 of 73 hidden) draws 20 surviving peers at full
+strength inside an otherwise-quietened market and the note reads
+`127 of the 503 companies we track are high or extreme · 53 of 73 highlighted peers are outside this filter   Show all`
+— one line at 1440/1024/768, two at 390, `notes` box 586×60 and 372×92. The
+whole-set cut (`?sector=energy`) draws the 21 Energy equities at **full
+strength with no de-emphasis anywhere**, which is the behaviour this section
+exists for, under
+`21 of the 503 companies we track — Energy · nothing highlighted is drawn here, so nothing is quietened   Show all`.
+Neither note overlaps the other or the readout plate at any width — the
+stacked `.notes` column Task 7.4.2 built holds.

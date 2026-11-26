@@ -3743,6 +3743,14 @@ describe("the highlight channel — Task 7.4.2", () => {
     return found as HTMLElement;
   };
 
+  /**
+   * **The note's own text, since Task 7.4.4** — the paragraph holds a `Clear`
+   * button beside it now, so `note().textContent` runs the sentence into the
+   * control's own word. `filterLine`'s precedent, one element over.
+   */
+  const noteLine = (): string =>
+    document.querySelector("[data-topology-highlight-line]")?.textContent ?? "";
+
   it("draws nothing and says nothing before any command has arrived", () => {
     renderWithContext(
       <MarketTopology
@@ -3753,7 +3761,7 @@ describe("the highlight channel — Task 7.4.2", () => {
     );
 
     expect(note().dataset.topologyHighlight).toBe("none");
-    expect(note().textContent).toBe("");
+    expect(noteLine()).toBe("");
     expect(sentence().textContent).not.toContain("Highlighting");
     expect(lastSetHighlight).not.toHaveBeenCalled();
   });
@@ -3781,7 +3789,7 @@ describe("the highlight channel — Task 7.4.2", () => {
     expect([...handed].toSorted()).toStrictEqual(["AAPL", "MSFT", "NVDA"]);
 
     expect(note().dataset.topologyHighlight).toBe("active");
-    expect(note().textContent).toBe(
+    expect(noteLine()).toBe(
       "Highlighting NVDA and 2 related securities — sector peers and correlated securities",
     );
     expect(sentence().textContent).toContain(
@@ -3810,7 +3818,7 @@ describe("the highlight channel — Task 7.4.2", () => {
 
     expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
     expect(note().dataset.topologyHighlight).toBe("none");
-    expect(note().textContent).toBe("");
+    expect(noteLine()).toBe("");
     expect(sentence().textContent).not.toContain("Highlighting");
   });
 
@@ -3853,7 +3861,7 @@ describe("the highlight channel — Task 7.4.2", () => {
     expect([...handed].toSorted()).toStrictEqual(["AAPL", "MSFT", "NVDA"]);
     // And the note, which had no paragraph to be written into while loading.
     expect(note().dataset.topologyHighlight).toBe("active");
-    expect(note().textContent).toContain("Highlighting NVDA");
+    expect(noteLine()).toContain("Highlighting NVDA");
   });
 
   it("re-applies the held command to a FRESH renderer, as a retry mounts one", () => {
@@ -3919,7 +3927,7 @@ describe("the highlight channel — Task 7.4.2", () => {
     expect(text).toContain("Highlighting NVDA");
     // The drawn note survives the batch too — it has one writer, and nothing
     // in `applyAnomalyBands` reaches it.
-    expect(note().textContent).toContain("Highlighting NVDA");
+    expect(noteLine()).toContain("Highlighting NVDA");
   });
 
   it("keeps the highlight's clause through a reader's own press", () => {
@@ -4062,7 +4070,7 @@ describe("the highlight channel — Task 7.4.2", () => {
       // the same function — `applyHighlight`, one path, two callers.
       expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
       expect(note().dataset.topologyHighlight).toBe("none");
-      expect(note().textContent).toBe("");
+      expect(noteLine()).toBe("");
       expect(sentence().textContent).not.toContain("Highlighting");
       // And the holder is told, which is what stops `MarketOverview`'s own
       // effect putting the command straight back on its next render.
@@ -4143,5 +4151,316 @@ describe("the highlight channel — Task 7.4.2", () => {
       expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
       expect(lastDestroy).not.toHaveBeenCalled();
     });
+  });
+
+  // **The `Clear` control in the note — Task 7.4.4**, the keyboard affordance
+  // Task 7.4.3's gestures left owed: `Escape` and a click on empty canvas are
+  // both unreachable to a reader who arrived at this note by `Tab`.
+  describe("the note's own `Clear` control — Task 7.4.4", () => {
+    /** The control, as a reader can reach it — never by class name. */
+    const clear = (): HTMLElement | null =>
+      screen.queryByRole("button", { name: "Clear" });
+
+    it("is not a control at all before a command arrives", () => {
+      // The paragraph carries `hidden`, so the button is out of the tab order
+      // and out of the accessibility tree — which is why Story 6.4's own
+      // exhaustive control enumeration is still true of this surface. A
+      // `display: none` in the CSS module would have left it focusable at
+      // every test level in this repository.
+      renderWithContext(
+        <MarketTopology
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      expect(clear()).toBeNull();
+      expect(note().hidden).toBe(true);
+    });
+
+    it("becomes a real tab stop exactly when a highlight is in force", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+
+      const control = clear();
+      expect(control).not.toBeNull();
+      // **Never `disabled`, and never `aria-disabled`** — this product has
+      // shipped the unreachable-description defect once already and
+      // `TextField` was rebuilt around `aria-disabled` + `readOnly` for it.
+      // The answer here is a control that is absent rather than inert.
+      expect(control?.hasAttribute("disabled")).toBe(false);
+      expect(control?.getAttribute("aria-disabled")).toBeNull();
+      expect(control?.getAttribute("tabindex")).toBeNull();
+    });
+
+    it("clears through the SAME path as `Escape`, holder included — Done-when 7", () => {
+      // The point of the assertion: pressing this must behave exactly like the
+      // reader's own gesture, including telling the holder in `App.tsx`.
+      // Clearing only this region's ink would leave the dismissed command in
+      // force one level up, to be put straight back on that route's next
+      // unrelated render — 7.4.3's own review found and fixed exactly that.
+      const ref = createRef<MarketTopologyHandle>();
+      const cleared = vi.fn();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+          onHighlightCleared={cleared}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+
+      act(() => {
+        clear()?.click();
+      });
+
+      expect(cleared).toHaveBeenCalledTimes(1);
+      expect(lastSetHighlight).toHaveBeenLastCalledWith(null);
+      expect(note().dataset.topologyHighlight).toBe("none");
+      expect(note().hidden).toBe(true);
+      expect(noteLine()).toBe("");
+      expect(sentence().textContent).not.toContain("Highlighting");
+      // And the control goes with the state it belongs to.
+      expect(clear()).toBeNull();
+    });
+
+    it("puts the reader back on the canvas, because the press removes the control", () => {
+      // `Region`'s own dropped-focus backstop does not fire for this: the
+      // removal is driven by this component's imperative write rather than by
+      // a `Region` render, which is what Task 6.4.4 measured one element over.
+      // Without the recovery a keyboard reader lands on `<body>`.
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+          onHighlightCleared={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+      act(() => {
+        clear()?.click();
+      });
+
+      // Where focus physically lands is the renderer's and is asserted in
+      // `overview-investigation-highlight.spec.ts`; what this level proves is
+      // that the component asks for it, which is the half that is a decision.
+      expect(lastFocus).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not re-mount the renderer, so a reader's pan and zoom survive the press", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(HIGHLIGHT);
+      });
+      act(() => {
+        clear()?.click();
+      });
+
+      expect(mountCanvasTopology).toHaveBeenCalledTimes(1);
+      expect(lastDestroy).not.toHaveBeenCalled();
+    });
+  });
+
+  // **The filter's own third clause — Task 7.4.4**, Done-when 1 and 2.
+  //
+  // What this level proves is that the clause is composed once and survives
+  // every writer of the sentence. The COUNT itself is `filter.test.ts`', pure
+  // and over the real recorded universe, and whether the de-emphasis ink is
+  // actually withheld is `topology/highlight.test.ts`' and the renderer's.
+  describe("what the filter says about a highlight it is hiding — Task 7.4.4", () => {
+    /** A Technology command, so an Energy cut hides every peer. */
+    const TECHNOLOGY: TopologyHighlight = {
+      subject: "NVDA",
+      symbols: ["AAPL", "MSFT"],
+      relations: ["sector_membership"],
+    };
+
+    it("says nothing where the reader has narrowed nothing", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      expect(sentence().textContent).not.toContain("highlighted");
+      expect(sentence().textContent).toContain("Every other equity is drawn");
+    });
+
+    it("says WHY nothing was quietened where the cut hides the whole set", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      const text = sentence().textContent;
+      expect(text).toContain(
+        "None of the highlighted securities are inside this filter",
+      );
+      expect(text).toContain("Show all returns the whole market.");
+      // **And the highlight's own tail is withheld with it**, because there is
+      // no de-emphasis on screen for it to describe. One boolean crosses that
+      // boundary and this is the state it exists for.
+      expect(text).not.toContain("Every other equity is drawn quieter.");
+      // The drawn line carries it too, beside the population it already states.
+      expect(filterNoteLine()).toContain("nothing is quietened");
+    });
+
+    it("keeps the clause through a live band update — the collision, a FIFTH time", () => {
+      // The named risk, and the one this region has lost a clause to three
+      // times: `applyAnomalyBands` rewrites the whole sentence on every batch,
+      // 6.8–16.1 times a minute, so a clause only one writer knows about is
+      // deleted by the next one. This clause rides `topologyFilterWords`' own
+      // return rather than being a fourth independent writer, which is what
+      // makes it survive by construction.
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+      act(() => {
+        ref.current?.setBands(new Map([[toTicker("XOM"), "high"]]));
+      });
+
+      const text = sentence().textContent;
+      expect(text).toContain(
+        "None of the highlighted securities are inside this filter",
+      );
+      expect(text).not.toContain("Every other equity is drawn quieter.");
+      expect(filterNoteLine()).toContain("nothing is quietened");
+    });
+
+    it("disappears with the highlight, leaving the population half alone", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+      act(() => {
+        ref.current?.setHighlight(null);
+      });
+
+      expect(sentence().textContent).toContain("Narrowed to Energy");
+      expect(sentence().textContent).not.toContain("highlighted");
+      expect(filterNoteLine()).not.toContain("quietened");
+      expect(filterNoteLine()).toContain("Energy");
+    });
+
+    it("disappears with the FILTER, leaving the highlight's own clause whole", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      const { rerender } = renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      // What pressing `Show all` does: one press, both cuts gone.
+      rerender(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      const text = sentence().textContent;
+      expect(text).not.toContain("highlighted");
+      expect(text).not.toContain("Narrowed to Energy");
+      expect(text).toContain("Every other equity is drawn quieter.");
+    });
+
+    /** The filter note's drawn line, by the attribute it publishes. */
+    function filterNoteLine(): string {
+      return (
+        document.querySelector("[data-topology-filter-line]")?.textContent ?? ""
+      );
+    }
   });
 });

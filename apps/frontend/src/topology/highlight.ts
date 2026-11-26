@@ -35,14 +35,32 @@
  * ## The strings are a reading of the COMMAND, never of what is drawn
  *
  * The note names the subject, counts the related securities and names the kinds
- * of relationship present. It deliberately states nothing about how many of
+ * of relationship present. ~~It deliberately states nothing about how many of
  * them a reader's own filter is currently hiding — that count is Task 7.4.4's,
  * and a figure with two authors is the collision this region has already paid
- * for twice.
+ * for twice.~~ — **still true of {@link topologyHighlightWords}, and Task
+ * 7.4.4 is where the count landed: in `topologyFilterWords`' own clause**, so
+ * the figure has exactly one author and rides the composition the filter's
+ * clause already rides. What crossed the boundary is one **boolean** rather
+ * than a figure — see {@link topologyHighlightWords}' `quietened`.
+ *
+ * ## And what the filter hides changes what the de-emphasis MEANS (Task 7.4.4)
+ *
+ * {@link topologyHighlightCut} is the one place that answers *how many of the
+ * highlighted securities is the reader's own cut hiding, and is anything
+ * relevant on screen at all* — read by the renderer (which skips the
+ * de-emphasis pass entirely where the answer is *nothing*) and by
+ * `topologyFilterWords` (which says so). Two readers, one policy, and the
+ * reason it matters is that de-emphasising the whole visible market with
+ * nothing relevant drawn is a **false claim with a true cause**.
  */
 
 import { TOPOLOGY_EDGE_KINDS } from "@marketpulse/shared";
-import type { TopologyEdgeKind, TopologyNode } from "@marketpulse/shared";
+import type {
+  TopologyEdgeKind,
+  TopologyGraph,
+  TopologyNode,
+} from "@marketpulse/shared";
 
 import type { TopologyAnomalyTreatment } from "./renderer.js";
 
@@ -86,6 +104,116 @@ export function topologyHighlightSet(
   highlight: TopologyHighlight,
 ): ReadonlySet<string> {
   return new Set<string>([highlight.subject, ...highlight.symbols]);
+}
+
+/**
+ * **What the reader's own cut is doing to a highlight** (Task 7.4.4) — the one
+ * answer two surfaces need and neither may compute for itself.
+ *
+ * The renderer needs {@link drawsAnything} to decide whether to run the
+ * de-emphasis pass at all; `topologyFilterWords` needs all three to say what
+ * happened. A second copy of this arithmetic in either of them is a picture and
+ * a sentence that disagree about the same cut — this region's own recurring
+ * defect, four times over.
+ */
+export interface TopologyHighlightCut {
+  /**
+   * The related securities the command named — {@link
+   * TopologyHighlight.symbols}' own length, so the denominator a reader reads
+   * here is the figure {@link topologyHighlightWords} states one line up rather
+   * than a second count of the same set.
+   */
+  readonly peers: number;
+
+  /**
+   * How many of the securities the command named are **tracked but not drawn**.
+   *
+   * Tracked, deliberately: a symbol this universe does not hold at all is not
+   * being hidden by anybody's filter — it is a newer backend naming something
+   * an older bundle has never heard of — and counting it here would blame the
+   * reader's own control for a version skew. The fifteen landmarks are never
+   * excluded by a cut (`keepEquities` keeps every non-equity), so they cannot
+   * reach this count either, by construction rather than by a conjunct.
+   */
+  readonly hidden: number;
+
+  /**
+   * **Whether any highlighted EQUITY is currently drawn** — the one conjunct
+   * the de-emphasis pass is conditional on.
+   *
+   * An equity rather than any node, and that is the whole substance of it: a
+   * command for a Technology equity names `XLK` among its `sector_membership`
+   * peers, a landmark is drawn in **every** narrowed state, and landmarks are
+   * excluded from this encoding entirely ({@link
+   * topologyHighlightTreatment}'s second rule). So *the sector ETF is still on
+   * screen* must not be what licenses dimming 69 Energy equities for a reader
+   * who filtered to Energy and is looking at nothing the command named.
+   *
+   * The **subject** counts, where it is drawn: it is an ordinary member of the
+   * highlighted set and a reader looking at it is looking at the thing the set
+   * is related to.
+   */
+  readonly drawsAnything: boolean;
+}
+
+/**
+ * **Is anything the highlight named actually on screen?** (Task 7.4.4) — see
+ * {@link TopologyHighlightCut.drawsAnything} for why this is about equities.
+ *
+ * `drawn === null` means *the whole universe is drawn*, which is the shape
+ * `renderer-canvas.ts` already holds its own answer in (`drawnSymbols`) and the
+ * state every unfiltered page is in. `highlighted === null` is *no command*,
+ * and the answer is `false` rather than `true` for the honest reason: there is
+ * no highlight, so nothing it named is drawn.
+ */
+export function topologyHighlightDrawsAnything(
+  highlighted: ReadonlySet<string> | null,
+  universe: TopologyGraph,
+  drawn: ReadonlySet<string> | null,
+): boolean {
+  if (highlighted === null) return false;
+
+  for (const node of universe.nodes) {
+    if (node.kind !== "equity") continue;
+    if (!highlighted.has(node.symbol)) continue;
+    if (drawn === null || drawn.has(node.symbol)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * **The whole of what a cut is doing to a command** (Task 7.4.4).
+ *
+ * Walks the universe once rather than building a tracked-symbol set, because
+ * both readers call this at reader cadence **and** on every live band batch
+ * (6.8–16.1 a minute), and the cheapest honest shape is the one that allocates
+ * a set bounded by the command (~80 symbols) rather than by the universe (516).
+ */
+export function topologyHighlightCut(
+  highlight: TopologyHighlight,
+  universe: TopologyGraph,
+  drawn: ReadonlySet<string> | null,
+): TopologyHighlightCut {
+  const named = new Set<string>(highlight.symbols);
+
+  let hidden = 0;
+  if (drawn !== null) {
+    for (const node of universe.nodes) {
+      if (!named.has(node.symbol)) continue;
+      if (!drawn.has(node.symbol)) hidden += 1;
+    }
+  }
+
+  return {
+    peers: highlight.symbols.length,
+    hidden,
+    drawsAnything: topologyHighlightDrawsAnything(
+      topologyHighlightSet(highlight),
+      universe,
+      drawn,
+    ),
+  };
 }
 
 /** How loudly one node draws while a highlight is in force. */
@@ -183,8 +311,24 @@ export function topologyRelationWords(relations: readonly string[]): string {
  * The count is the **related** securities, never the drawn set's own size: the
  * subject is not related to itself, and *74* over a command whose `symbols`
  * holds 73 would be a figure a reader could not reconcile with anything.
+ *
+ * ## `quietened` is the one thing the filter has to tell this builder (Task
+ * ## 7.4.4)
+ *
+ * The clause's tail — *Every other equity is drawn quieter.* — is a claim about
+ * what the canvas did, and it stops being true the moment the reader's own cut
+ * hides everything the command named: no de-emphasis is drawn there at all
+ * ({@link TopologyHighlightCut.drawsAnything}), so the sentence would be
+ * describing ink that is not on screen. It is a **boolean** rather than the cut
+ * itself, deliberately: the figures stay in `topologyFilterWords`' own clause
+ * with exactly one author, and what crosses this boundary is the one fact this
+ * builder's own last sentence depends on.
  */
-export function topologyHighlightWords(highlight: TopologyHighlight): {
+export function topologyHighlightWords(
+  highlight: TopologyHighlight,
+  /** Whether the complement de-emphasis is actually drawn. See above. */
+  quietened: boolean,
+): {
   readonly line: string;
   readonly clause: string;
 } {
@@ -201,6 +345,7 @@ export function topologyHighlightWords(highlight: TopologyHighlight): {
     line: `Highlighting ${highlight.subject} and ${String(count)} ${noun}${kinds}`,
     clause:
       ` Highlighting ${highlight.subject} and the ${String(count)} ${noun}` +
-      ` it is joined to${kinds}. Every other equity is drawn quieter.`,
+      ` it is joined to${kinds}.` +
+      (quietened ? " Every other equity is drawn quieter." : ""),
   };
 }
