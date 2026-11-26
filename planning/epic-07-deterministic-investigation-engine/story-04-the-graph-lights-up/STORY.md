@@ -1,9 +1,9 @@
 # Story 7.4 — The Graph Lights Up
 
-**Status:** In progress — 2026-11-26, Tasks 7.4.1 (PR #711), 7.4.2 (PR #713)
-and 7.4.3 (PR #715) complete; Task 7.4.4 started. Four Gate-1 open questions
-resolved by the Product Owner; see "Resolved at Gate 1" for the argument
-behind each change to the acceptance criteria below.
+**Status:** All four tasks complete — 7.4.1 (PR #711), 7.4.2 (PR #713), 7.4.3
+(PR #715), 7.4.4 (PR #716) — Phase 3 story verification not yet started. Four
+Gate-1 open questions resolved by the Product Owner; see "Resolved at Gate 1"
+for the argument behind each change to the acceptance criteria below.
 
 **AC 8 is met in three of its four clauses, and the fourth is an open
 Product-Owner decision rather than unbuilt work — because this file
