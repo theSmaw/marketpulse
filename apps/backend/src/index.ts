@@ -26,6 +26,8 @@ import {
 } from "./feed-diagnostic.js";
 import {
   MARKET_STREAM_PATH,
+  buildTopologyGraph,
+  buildTopologyLayout,
   excessMoveReference,
   isTicker,
   marketDateAt,
@@ -113,6 +115,8 @@ import { createSecuritiesRepository } from "./securities.js";
 import { buildServer } from "./server.js";
 import { createInvestigationStore } from "./investigation-store.js";
 import { createScriptedAgentProvider } from "./scripted-agent-provider.js";
+import { createRelatedSecuritiesAnswerer } from "./related-securities.js";
+import { createHighlightPeersProducer } from "./workspace-command-pipeline.js";
 import { toRunnableTool } from "./analytical-tool.js";
 import {
   createSecuritySnapshotTool,
@@ -401,9 +405,68 @@ app.register(
 // investigation's first (and, today, only) subject symbol, and each tool's
 // own `toWire…` is what a `TOOL_CALL_COMPLETED` event's `outcome` carries.
 const investigationStore = createInvestigationStore();
+
+/**
+ * **The topology layout this process answers about, built once** (Task 7.4.1).
+ *
+ * `buildTopologyGraph`/`buildTopologyLayout` are pure and total over `UNIVERSE`
+ * — typechecked data compiled into this process — so the 516-node layout cannot
+ * change while the process runs and is not work to repeat per investigation.
+ *
+ * It is a **memoised function** rather than a module-level constant so nothing
+ * is computed on a process that never runs an investigation (`pnpm backfill`,
+ * `pnpm baselines` and the migration runner all load this module's siblings),
+ * which is Task 4.8.11's lesson about paying for an answer nobody asked for.
+ *
+ * The membership graph is deliberately NOT shared with
+ * `createRelatedSecuritiesAnswerer`'s own: that one merges the measured edges
+ * per call and this one must stay weight-blind and filter-blind, which is ADR
+ * 0048 Decision 3 and the reason the server's placements and the browser's
+ * agree at all. Two builds of a pure function over one input are byte-identical
+ * — which is the whole guarantee — so this is a second *evaluation*, never a
+ * second home for a fact.
+ */
+const topologyLayout = (() => {
+  let held: ReturnType<typeof buildTopologyLayout> | undefined;
+  return () => {
+    held ??= buildTopologyLayout(buildTopologyGraph(UNIVERSE));
+    return held;
+  };
+})();
+
+/**
+ * **`get_related_securities`, and its own `RelationshipsCache`** (Task 7.4.1).
+ *
+ * A **second, independent** instance beside `/market-data/relationships`' own,
+ * which is `index.ts`'s established convention for ADR 0044's cache family:
+ * one instance per consumer, each over the same pool, none exporting a handle.
+ * Sharing the route's would couple an investigation's answer to whether a
+ * browser had asked for the relationships graph recently — two consumers with
+ * different cadences and different failure obligations (that one answers a
+ * reader with a 503; this one refuses a step).
+ */
+const relatedSecurities = createRelatedSecuritiesAnswerer({
+  securities: UNIVERSE,
+  relationships: createRelationshipsCache({
+    store: createReturnCorrelationStore(database),
+  }),
+});
+
 const investigationProvider = createScriptedAgentProvider({
   store: investigationStore,
   now: () => new Date(),
+  // **Invariant 2's one producer, V1** (Task 7.4.1, ADR 0051): the highlight
+  // that follows the peer-comparison step, matched on that tool's own name
+  // rather than on its position in the pipeline. The permission stage's
+  // capability set is `ORCHESTRATOR_CAPABILITY` by default — read there rather
+  // than spelled here, so Epic 10's producer arrives as a second capability
+  // beside it rather than as a widening of this one.
+  workspaceCommands: [
+    createHighlightPeersProducer({
+      related: relatedSecurities,
+      layout: topologyLayout,
+    }),
+  ],
 });
 
 /**

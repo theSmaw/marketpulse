@@ -15,7 +15,8 @@ import {
 } from "./scripted-agent-provider.js";
 
 import type { AnalyticalTool } from "./analytical-tool.js";
-import type { ToolOutcome } from "@marketpulse/shared";
+import type { ToolOutcome, WorkspaceCommandOutcome } from "@marketpulse/shared";
+import type { WorkspaceCommandProducer } from "./workspace-command-pipeline.js";
 
 const NVDA = toTicker("NVDA");
 
@@ -602,5 +603,266 @@ describe("FINDING_CREATED", () => {
     });
     // And the brand never reaches the wire.
     expect(Object.getOwnPropertySymbols(wire)).toStrictEqual([]);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Task 7.4.1 — invariant 2's pipeline, at the orchestrator
+// --------------------------------------------------------------------------
+
+/** A tool named for the step a workspace command follows. */
+function peerTool(
+  outcome: ToolOutcome<{ readonly answer: number }>,
+): AnalyticalTool<undefined, { readonly answer: number }> {
+  return {
+    name: "compare_securities",
+    description: "Compare against sector benchmark",
+    run: () => Promise.resolve(outcome),
+  };
+}
+
+const HIGHLIGHT: WorkspaceCommandOutcome = {
+  kind: "permitted",
+  command: {
+    type: "highlightNodes",
+    symbols: [toTicker("AMD")],
+    relations: ["sector_membership"],
+    subject: NVDA,
+  },
+};
+
+function recordingProducer(
+  outcome: WorkspaceCommandOutcome | undefined,
+): WorkspaceCommandProducer & { readonly calls: Date[] } {
+  const calls: Date[] = [];
+  return {
+    calls,
+    afterTool: "compare_securities",
+    propose: (_subjectSymbols, asOf) => {
+      calls.push(asOf);
+      return Promise.resolve(outcome);
+    },
+  };
+}
+
+const typesOf = (
+  store: ReturnType<typeof createInvestigationStore>,
+  id: string,
+) => [...store.eventsFrom(toInvestigationId(id), 0)].map((event) => event.type);
+
+describe("the orchestrator's workspace-command stage", () => {
+  it("emits `WORKSPACE_COMMAND` immediately AFTER the peer step's own `STEP_COMPLETED`", async () => {
+    const store = createInvestigationStore();
+    const producer = recordingProducer(HIGHLIGHT);
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [producer],
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-wc-ok"), [
+      toRunnableTool(
+        peerTool({ kind: "ok", value: { answer: 1 } }),
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    const types = typesOf(store, "inv-wc-ok");
+    expect(types.indexOf("WORKSPACE_COMMAND")).toBe(
+      types.indexOf("STEP_COMPLETED") + 1,
+    );
+    // Not before the step finished — a command is what FOLLOWS a step, unlike
+    // a finding, which is what that step measured.
+    expect(types).toEqual([
+      "INVESTIGATION_STARTED",
+      "STEP_STARTED",
+      "TOOL_CALL_STARTED",
+      "TOOL_CALL_COMPLETED",
+      "STEP_COMPLETED",
+      "WORKSPACE_COMMAND",
+      "INVESTIGATION_COMPLETED",
+    ]);
+  });
+
+  // **Story 7.4's AC 3, and the clause that makes this reachable on CI.**
+  it.each([
+    ["inapplicable", { kind: "inapplicable", because: "is-benchmark" }],
+    ["refused", { kind: "refused", reason: "nothing-observed" }],
+  ] as const)(
+    "emits it even where the peer step's own outcome is %s",
+    async (label, outcome) => {
+      const store = createInvestigationStore();
+      const provider = createScriptedAgentProvider({
+        store,
+        now: createTestClock("2026-11-25T14:01:00.000Z"),
+        workspaceCommands: [recordingProducer(HIGHLIGHT)],
+      });
+
+      await provider.runInvestigation(CONTEXT(`inv-wc-${label}`), [
+        toRunnableTool(
+          peerTool(outcome as ToolOutcome<{ readonly answer: number }>),
+          () => undefined,
+          (value) => value,
+          () => undefined,
+        ),
+      ]);
+
+      // The command is derived from the subject's curated sector and the
+      // stored correlation generation, never from the peer tool's measured
+      // result — which is why the feature works on a store with zero bars,
+      // where that step refuses for ever.
+      expect(typesOf(store, `inv-wc-${label}`)).toContain("WORKSPACE_COMMAND");
+    },
+  );
+
+  it("asks only the producer whose named tool this step ran", async () => {
+    const store = createInvestigationStore();
+    const producer = recordingProducer(HIGHLIGHT);
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [producer],
+    });
+
+    // A snapshot step, not the peer step.
+    await provider.runInvestigation(CONTEXT("inv-wc-other"), [
+      toRunnableTool(
+        spyTool({ kind: "ok", value: { answer: 1 } }).tool,
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    expect(producer.calls).toHaveLength(0);
+    expect(typesOf(store, "inv-wc-other")).not.toContain("WORKSPACE_COMMAND");
+  });
+
+  it("emits NO event at all where the producer has nothing to say", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [recordingProducer(undefined)],
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-wc-silent"), [
+      toRunnableTool(
+        peerTool({ kind: "ok", value: { answer: 1 } }),
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    expect(typesOf(store, "inv-wc-silent")).not.toContain("WORKSPACE_COMMAND");
+  });
+
+  // **Stage 4 — record.** The event log IS the investigation's own history:
+  // what `eventsFrom` replays is what `GET /investigations/:id/events` serves
+  // and what a client attaching mid-run receives.
+  it("records a permitted command onto the investigation's own history, readable back", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [recordingProducer(HIGHLIGHT)],
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-wc-record"), [
+      toRunnableTool(
+        peerTool({ kind: "ok", value: { answer: 1 } }),
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    const recorded = [
+      ...store.eventsFrom(toInvestigationId("inv-wc-record"), 0),
+    ].find((event) => event.type === "WORKSPACE_COMMAND");
+    if (recorded === undefined) throw new Error("not recorded");
+
+    expect(recorded.outcome).toEqual(HIGHLIGHT);
+    // The envelope carries `stepId`, unlike `FINDING_CREATED` — a
+    // `WorkspaceCommand` has no such field of its own.
+    expect(recorded.stepId).toBeTypeOf("string");
+
+    const wire = toWireInvestigationEvent(recorded);
+    expect(wire).toMatchObject({
+      type: "WORKSPACE_COMMAND",
+      outcome: {
+        kind: "permitted",
+        command: {
+          type: "highlightNodes",
+          symbols: ["AMD"],
+          relations: ["sector_membership"],
+          subject: "NVDA",
+        },
+      },
+    });
+    // **No coordinates on the wire, in either direction** — both sides
+    // re-derive the closed-form layout from the symbols alone.
+    expect(JSON.stringify(wire)).not.toMatch(/"[xy]":/u);
+  });
+
+  // **A refusal is an observable, countable outcome, never a silent drop**
+  // (ADR 0029's rule, arriving on the permission stage).
+  it("records a REFUSED command on the wire rather than dropping it", async () => {
+    const store = createInvestigationStore();
+    const provider = createScriptedAgentProvider({
+      store,
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [
+        recordingProducer({
+          kind: "refused",
+          because: "symbol-has-no-placement",
+        }),
+      ],
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-wc-refused"), [
+      toRunnableTool(
+        peerTool({ kind: "ok", value: { answer: 1 } }),
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    const recorded = [
+      ...store.eventsFrom(toInvestigationId("inv-wc-refused"), 0),
+    ].find((event) => event.type === "WORKSPACE_COMMAND");
+    if (recorded === undefined) throw new Error("not recorded");
+
+    expect(toWireInvestigationEvent(recorded)).toMatchObject({
+      outcome: { kind: "refused", because: "symbol-has-no-placement" },
+    });
+  });
+
+  it("threads the investigation's own `asOf` to the producer, never a clock", async () => {
+    const store = createInvestigationStore();
+    const producer = recordingProducer(HIGHLIGHT);
+    const provider = createScriptedAgentProvider({
+      store,
+      // A clock that advances on every read, so a producer handed `now()`
+      // rather than `asOf` would be visibly wrong rather than coincidentally
+      // equal.
+      now: createTestClock("2026-11-25T14:01:00.000Z"),
+      workspaceCommands: [producer],
+    });
+
+    await provider.runInvestigation(CONTEXT("inv-wc-asof"), [
+      toRunnableTool(
+        peerTool({ kind: "ok", value: { answer: 1 } }),
+        () => undefined,
+        (value) => value,
+        () => undefined,
+      ),
+    ]);
+
+    expect(producer.calls).toEqual([new Date("2026-11-16T14:01:00.000Z")]);
   });
 });

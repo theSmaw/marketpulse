@@ -803,6 +803,27 @@ export {
   inapplicableClaim,
   refusalClaim,
 } from "./finding-claim.js";
+// Invariant 2's own vocabulary (Task 7.4.1, ADR 0051) — the typed application
+// state an agent manipulates, shipped first by a deterministic producer so the
+// `validate → permission-check → execute → record` pipeline exists before
+// anything that cannot be reasoned about drives it. In this package because
+// both ends read it: the backend mints and permission-checks a command, the
+// browser executes it against the trusted topology component it already has.
+// **No coordinates in it, in either direction** — both sides re-derive the
+// closed-form layout from the symbols alone (ADR 0048 Decision 3).
+export {
+  WORKSPACE_COMMAND_REFUSALS,
+  WORKSPACE_COMMAND_TYPES,
+  toWireWorkspaceCommand,
+  toWireWorkspaceCommandOutcome,
+} from "./workspace-command.js";
+export type {
+  HighlightNodesCommand,
+  WorkspaceCommand,
+  WorkspaceCommandOutcome,
+  WorkspaceCommandRefusal,
+  WorkspaceCommandType,
+} from "./workspace-command.js";
 export type {
   CancelledStep,
   CompletedStep,

@@ -34,6 +34,7 @@ import type {
 } from "@marketpulse/shared";
 import type { RunnableTool, ToolContext } from "./analytical-tool.js";
 import type { InvestigationStore } from "./investigation-store.js";
+import type { WorkspaceCommandProducer } from "./workspace-command-pipeline.js";
 
 export interface RunInvestigationContext {
   readonly id: InvestigationId;
@@ -70,6 +71,21 @@ export interface ScriptedAgentProviderOptions {
    * this file itself calling `Date.now()` or a zero-argument `new
    * Date()`. */
   readonly now: () => Date;
+  /**
+   * **Invariant 2's producers** (Task 7.4.1) — asked after the step whose tool
+   * each one names, and defaulting to none.
+   *
+   * A list rather than one, and a seam rather than a call, because this module
+   * is the orchestrator Epic 10 replaces and it must know nothing about
+   * topology, sectors or correlations. What it knows is *after this tool's
+   * step completes, ask this producer whether there is a command*, which is
+   * the whole of its part in the pipeline.
+   *
+   * Defaulted to `[]` rather than required, so every existing construction of
+   * this provider — including every test — stays correct and a run with no
+   * producers emits no `WORKSPACE_COMMAND` at all rather than an empty one.
+   */
+  readonly workspaceCommands?: readonly WorkspaceCommandProducer[];
 }
 
 function withStep(investigation: Investigation, step: Step): Investigation {
@@ -84,7 +100,7 @@ function withStep(investigation: Investigation, step: Step): Investigation {
 export function createScriptedAgentProvider(
   options: ScriptedAgentProviderOptions,
 ): AgentProvider {
-  const { store, now } = options;
+  const { store, now, workspaceCommands = [] } = options;
 
   async function runInvestigation(
     context: RunInvestigationContext,
@@ -297,6 +313,47 @@ export function createScriptedAgentProvider(
         });
 
         completedSteps += 1;
+
+        // **Invariant 2's own event, after the step it follows** (Task 7.4.1).
+        //
+        // **After `STEP_COMPLETED` rather than before it, which is the
+        // opposite of `FINDING_CREATED`'s placement a few lines up.** A
+        // finding is *what that step measured* and belongs inside the step's
+        // own frame; a command is *what follows from it*, and a reader must
+        // not meet the consequence of a step before the step has finished.
+        //
+        // **Asked regardless of this step's own outcome**, which is Story
+        // 7.4's AC 3 in as many words and the reason this feature is reachable
+        // at all on CI: the peer-comparison step refuses there for ever (zero
+        // bars, no provider), and a highlight derived from the subject's
+        // curated sector is correct anyway. There is deliberately no read of
+        // `run.outcome` here — `a-tool-takes-no-channel-to-another-step`'s own
+        // spirit, one layer out: a producer that branched on a step's measured
+        // result would make the command a function of the market rather than
+        // of the universe.
+        //
+        // `undefined` is *nothing to say* and emits no event: an untracked
+        // subject, or one with no related securities under any kind. An empty
+        // `highlightNodes` payload is never produced — ADR 0029, and
+        // structurally impossible besides, because `symbols` is a non-empty
+        // tuple.
+        for (const producer of workspaceCommands) {
+          if (producer.afterTool !== queuedStep.tool) continue;
+
+          const outcome = await producer.propose(subjectSymbols, asOf);
+          if (outcome === undefined) continue;
+
+          store.appendEvent(id, {
+            type: "WORKSPACE_COMMAND",
+            seq: nextSeq(),
+            investigationId: id,
+            // The envelope carries `stepId`, unlike `FINDING_CREATED` —
+            // a `WorkspaceCommand` has no such field of its own and must not
+            // gain one. See the event's own docblock.
+            stepId: queuedStep.id,
+            outcome,
+          });
+        }
       }
     }
   }
