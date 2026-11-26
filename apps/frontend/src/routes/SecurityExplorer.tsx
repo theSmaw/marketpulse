@@ -26,6 +26,7 @@ import {
 } from "../market/index.js";
 import type { MarketFeedView } from "../use-market-feed.js";
 import { useInvestigation } from "../investigations/index.js";
+import type { WorkspaceHighlightCommand } from "../investigations/index.js";
 import { useSecurities } from "../use-securities.js";
 import { securityPath } from "./paths.js";
 import { useSecuritySymbol } from "./use-security-symbol.js";
@@ -120,6 +121,26 @@ export interface SecurityExplorerProps {
    * route shape.
    */
   readonly onLiveFocus?: (symbol: string | undefined) => void;
+
+  /**
+   * **Report a permitted `highlightNodes` command upward** (Task 7.4.2) —
+   * invariant 2's typed instruction leaving the screen that produced it.
+   *
+   * A third callback beside the two above, and the shape is theirs for their
+   * reason: `App` passes a `useState` setter, stable for the life of the
+   * application, so the effect below runs when the *value* changes rather
+   * than on every render.
+   *
+   * **Two things differ from both of them, and both are the point.** It is
+   * **not withdrawn on unmount** — a command exists to change the OTHER
+   * screen, and a reader reaching that screen is exactly the gesture that
+   * unmounts this one, so a withdrawal here would make the feature
+   * unreachable by construction. And it is never called with *nothing*: what
+   * clears a highlight is a reader's own gesture, a terminal event or a later
+   * command (Story 7.4's AC 8, Task 7.4.3), none of which is this route
+   * going away.
+   */
+  readonly onWorkspaceCommand?: (command: WorkspaceHighlightCommand) => void;
 }
 
 export function SecurityExplorer({
@@ -127,6 +148,7 @@ export function SecurityExplorer({
   liveFeed,
   onLiveSymbols,
   onLiveFocus,
+  onWorkspaceCommand,
 }: SecurityExplorerProps) {
   // The hooks are called here rather than inside the regions, so a component
   // that throws hits `Region`'s own boundary and leaves the request that
@@ -324,6 +346,21 @@ export function SecurityExplorer({
       onLiveFocus?.(undefined);
     };
   }, [symbol, onLiveFocus]);
+
+  // **And what the run has asked another screen to draw** (Task 7.4.2) — the
+  // one declaration on this route with **no cleanup**, which is the whole
+  // reason it is a third effect rather than a line in either of the two
+  // above. See `onWorkspaceCommand`'s own docblock: a command exists to change
+  // `/`, and reaching `/` is what unmounts this route, so withdrawing it here
+  // would make the feature structurally unreachable.
+  //
+  // **Guarded on there being one**, so a fresh mount with no run of its own
+  // does not report an absence over a command still in force from a previous
+  // one. What clears a highlight is Story 7.4's AC 8 and Task 7.4.3's.
+  useEffect(() => {
+    if (investigation.highlight === undefined) return;
+    onWorkspaceCommand?.(investigation.highlight);
+  }, [investigation.highlight, onWorkspaceCommand]);
 
   return (
     <div className={page.page}>

@@ -85,6 +85,91 @@ export interface TopologyPalette {
    * ETF carries no band at all.
    */
   readonly landmarkMuted: string;
+  /**
+   * **An equity a highlight has left out — `--chart-seam`** (Task 7.4.2).
+   *
+   * Gate 1's complement de-emphasis: a `highlightNodes` command dims the
+   * equities outside its set and adds **zero** new ink to the ones inside it,
+   * because both of this canvas's budgets are measurably exhausted (the
+   * 0–13 CSS px radius budget across five existing node treatments, and the
+   * whole palette on chrome, price and the anomaly ramp).
+   *
+   * ## It is NOT {@link landmarkMuted}, and the reason is a measurement
+   *
+   * Reusing that field was the obvious move and it is **backwards**. A
+   * landmark's own ink is `--ink-primary` (#181c23, 17.08:1 against the panel
+   * ground), so `--ink-secondary` (#43474f, **9.32:1**) is a step *quieter*
+   * for it. An equity's ink is `--chart-volume` (#848995, **3.51:1**) — so the
+   * same token on an equity is a step **louder** than an ordinary node, and a
+   * de-emphasised equity would be the most emphatic mark in its own cluster.
+   * The direction of a value step is a property of the base it departs from,
+   * not of the token.
+   *
+   * ## `--chart-seam` rather than `--chart-grid`, also measured
+   *
+   * Exactly two declared achromatic steps are quieter than the equity fill
+   * against `--surface-raised`: `--chart-seam` (#c4c6cf, **1.70:1**) and
+   * `--chart-grid` (#e2e4ed, **1.27:1**). The second is the membership
+   * hairline's own ink — 501 of those lines run *through* these nodes, so a
+   * node drawn in it would be indistinguishable from the web it sits in, and
+   * 1.27:1 is the band this repository's own greyscale rule calls *hue is the
+   * entire difference* at 1.04:1. So this is the one step between the equity
+   * fill and the gridline, which is what a complement wants: present, and no
+   * longer the thing being looked at.
+   *
+   * ## It is the SECOND reader of `--chart-seam`, and that is disclosed
+   * ## rather than discovered
+   *
+   * {@link correlationEdge} already spends this token, so at 1440 — the one
+   * width where the measured-edge layer is not suppressed — a quietened
+   * equity body and the dashed correlation edges running through it are
+   * **literally the same colour**. That is a real co-tenancy and it is
+   * accepted on two channels neither of which is ink:
+   *
+   *   * **shape** — a filled 8 px disc against a 1 px dashed line, which is
+   *     the same distinction `membershipEdge` already relies on against the
+   *     node bodies it joins (and it is louder here: those edges are
+   *     `--chart-grid`, a step *below* this one);
+   *   * **the halo** — every node body is stroked at `lineWidth: 2` in
+   *     `--surface-raised` before it is filled, so a quietened node carries a
+   *     1 px white rim that separates it from any edge crossing it. That rim
+   *     is why the token can be shared at all: the collision an edge and a
+   *     node of one colour would otherwise have is *where they touch*, and
+   *     they never touch.
+   *
+   * **Probed rather than argued, and the result is a qualified pass** (Task
+   * 7.4.2, `pnpm probe --story
+   * components-markettopology--highlighted-peers-measured` at 1440 — the one
+   * story in this workshop that sets both a highlight and a measured pass,
+   * added at this task's own review precisely because the first two could not
+   * show this). A quietened disc stays readable **as a disc**: the halo rim
+   * and solid-against-dashed carry it exactly as claimed above, and no node
+   * disappears into an edge crossing it. What the same picture also shows,
+   * and is recorded rather than smoothed: a de-emphasised cluster's
+   * **interior** reads as pale texture rather than as discrete nodes at 1×,
+   * because the bodies and the mesh between them are now one value. That is
+   * the complement behaving as asked — these are the securities the command
+   * did not name — but it is a real cost of sharing the token and it is a
+   * cost only at 1440, since the layer is suppressed at the other three
+   * widths.
+   *
+   * The reversal trigger is a condition: **the first treatment that removes a
+   * quietened node's halo, or the first correlation edge drawn at a node's
+   * own ink width.**
+   *
+   * **A value step and no alpha**, {@link landmarkMuted}'s own two
+   * constraints: the difference survives `grayscale(1)` intact on luminance
+   * alone, and the mark stays fully opaque so nothing shows through a
+   * quietened node.
+   *
+   * **WCAG 1.4.11's 3:1 floor does not fire**, for `correlationEdge`'s own
+   * recorded reason: that floor is about identifying a **control**, and a node
+   * this command has declared irrelevant is not one. The highlight is not
+   * carried by ink alone either — the region draws a sentence naming the
+   * subject and the kinds of relationship, which is the *word* channel this
+   * product's standing rule asks for.
+   */
+  readonly equityMuted: string;
   /** The 501 equity → sector-ETF edges. `--chart-grid`. */
   readonly membershipEdge: string;
   /** The eleven SPY → sector-ETF edges. `--chart-reference`. */
@@ -396,6 +481,7 @@ export function topologyPalette(): TopologyPalette {
     sectorEtf: tokens["--ink-primary"],
     marketProxy: tokens["--ink-primary"],
     landmarkMuted: tokens["--ink-secondary"],
+    equityMuted: tokens["--chart-seam"],
     membershipEdge: tokens["--chart-grid"],
     hubEdge: tokens["--chart-reference"],
     correlationEdge: tokens["--chart-seam"],

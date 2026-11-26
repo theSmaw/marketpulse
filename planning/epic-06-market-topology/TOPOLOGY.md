@@ -1320,3 +1320,78 @@ strings; the heights above are a machine's; the photographs are behind
 `TOPOLOGY_DEGRADED_PHOTOS=1` and were produced for this task and looked at by
 the developer who wrote it. Whether six absence sentences in one region read as
 careful or as broken is Story 6.9's sitting.
+
+## 11. A SIXTH node treatment, owned by Epic 7 rather than by this one (Task 7.4.2, 2026-11-26)
+
+**This section is written from outside this epic, which is why it is short and
+why it is here at all.** Story 7.4 made a deterministic investigation step's
+own `highlightNodes` command reach this canvas, and the account of _why_ lives
+in Epic 7's own `INVESTIGATIONS.md`. What belongs here is the one thing a
+later reader designing on this surface must not rediscover: **the renderer
+draws a sixth per-node treatment, and both of the region's notes now share one
+column.**
+
+**The treatment is COMPLEMENT de-emphasis**, settled at Story 7.4's Gate 1 on
+this epic's own two exhausted budgets — the 0–13 CSS px radius budget fully
+allocated across five existing treatments (§3, §4, §6), and a palette spent in
+full on chrome, price and the anomaly ramp. So a highlight adds **zero** new
+ink to the securities it names and quietens every other equity instead:
+`TopologyPalette.equityMuted`, `--chart-seam`. Four rules travel with it and
+all four live in one pure function (`topology/highlight.ts`'
+`topologyHighlightTreatment`) rather than in the draw loop — the fifteen
+landmarks never participate (§4's own exclusion set, a fourth reader of it), a
+measured `extreme` is never dimmed, nothing is quiet while no command is in
+force, and a node this region's own filter already hides stays hidden.
+
+**The ink step's direction is the measurement worth keeping.** Reusing
+`landmarkMuted` — the obvious move, and what Story 6.8 spends on a filtered-out
+benchmark — is **backwards for an equity**: a landmark's base ink is
+`--ink-primary` (17.08:1 on the panel ground) so `--ink-secondary` (9.32:1) is
+quieter for it, while an equity's base is `--chart-volume` (**3.51:1**), which
+the same token would make the _loudest_ mark in its own cluster. Exactly two
+declared achromatic steps are quieter than the equity fill: `--chart-seam`
+(**1.70:1**) and `--chart-grid` (**1.27:1**), and the second is the membership
+hairline 501 of these nodes sit on. The direction of a value step is a property
+of the base it departs from, not of the token.
+
+**`--chart-seam` has a SECOND reader on this canvas and it is disclosed here
+rather than discovered later.** `TopologyPalette.correlationEdge` already
+spends it (§5), so at **1440** — the one width where the measured-edge layer
+is not suppressed — a quietened equity body and the dashed edges running
+through it are literally the same colour. Accepted on two channels, neither of
+them ink: **shape** (a filled 8 px disc against a 1 px dashed line, the same
+distinction the membership hairline already relies on, and louder here because
+those edges are a step below this one) and **the halo** (every body is stroked
+2 px in `--surface-raised` before it is filled, so an edge and a node of one
+colour never touch). Probed at 1440 against a measured pass — a third
+Storybook state added at this task's review, because the first two defaulted
+to `never-measured` and therefore could not show it. **Qualified pass**: a
+quietened disc stays readable as a disc and no node disappears into an edge
+crossing it, but a de-emphasised cluster's **interior** reads as pale texture
+rather than as discrete nodes at 1×, since the bodies and the mesh between
+them are now one value. Reversal trigger, a condition: _the first treatment
+that removes a quietened node's halo, or the first correlation edge drawn at a
+node's own ink width._
+
+**The two de-emphases do not collide, probed rather than argued** (`pnpm probe
+--story components-markettopology--highlighted-peers-narrowed`, four widths):
+a filtered landmark is a **small dark square** (0.6× ink, `--ink-secondary`) and
+a non-highlighted equity is a **full-size pale filled circle**, with `unscored`
+the full-size pale **hollow** one — different shape, different fill state, and
+value steps in opposite directions, over populations that are disjoint by
+construction.
+
+**What that probe also found, and what it could not settle.** It found a real
+defect: the highlight's note, drafted at the top-RIGHT corner opposite Story
+6.8's own note, **covered the filter note and its `Show all` link at 390**,
+where the frame's content box is 308 px. The two notes are now one
+absolutely-positioned column in the top-left corner (`.notes`), which cannot
+overlap at any width by construction rather than by measurement — and the
+filter note's position while no command is in force is unchanged. What it could
+**not** settle is salience: on a fully-scored market ~67% of equities carry a
+ring that this treatment deliberately does not dim (Task 6.3.1's own measured
+distribution), so the complement reads clearly at 6× and **subtly at 1× whole-
+graph scale**, and at 390 the graph is small enough that the note is doing most
+of the work. That is recorded as an honest limit of the chosen treatment rather
+than as a defect of it; the word channel is what carries the fact at every
+width.

@@ -124,6 +124,46 @@ interface InvestigationRecord {
   readonly checklist: ChecklistState;
 }
 
+/**
+ * **A permitted `highlightNodes` command, as this browser holds it** (Task
+ * 7.4.2) — invariant 2's typed instruction reaching a surface for the first
+ * time.
+ *
+ * ## It is this module's own type rather than the wire's or the topology's
+ *
+ * `investigation-event.ts`' own duplication rule, applied one layer out. That
+ * module's `WireHighlightNodesCommand` is a fact about **JSON** and stays
+ * private to this module — *a consumer wants a checklist, never a raw frame*
+ * (`index.ts`) — and `topology/highlight.ts`' `TopologyHighlight` is a fact
+ * about **what a canvas draws at full strength**. This is the third thing:
+ * what a run has told this browser. The three agree structurally today, which
+ * is what lets a route hand one to the other with no converter; they are not
+ * one type because they would stop agreeing the moment either end grew a
+ * field the other has no reader for.
+ *
+ * ## The refused arm is not here, and that is the decision rather than a gap
+ *
+ * `WorkspaceCommandOutcome`'s `refused` arm is decoded (it is ADR 0029's
+ * first-class, countable outcome and the permission stage exists to produce
+ * it) and is deliberately **not surfaced**: Story 7.4's Gate 1 settled that a
+ * refusal belongs to the surface that asked, and nothing on `/` may draw an
+ * error about a command a reader never issued. So a refusal reaches this hook,
+ * is counted on the server's own record, and leaves this value exactly as it
+ * was — which is the same picture as *no command yet*.
+ *
+ * **Reversal trigger, as a condition**: the first surface that is supposed to
+ * tell a reader a command was refused. At that point this becomes the outcome
+ * rather than the command, and the refusal word travels with it.
+ */
+export interface WorkspaceHighlightCommand {
+  /** The security the run is about. Never a member of {@link symbols}. */
+  readonly subject: string;
+  /** The securities it is related to. Non-empty — the wire refuses otherwise. */
+  readonly symbols: readonly string[];
+  /** Which kinds of relationship gathered the set, in the model's own order. */
+  readonly relations: readonly string[];
+}
+
 export interface UseInvestigationResult {
   /** `undefined` whenever there is nothing to show for the CURRENT
    * `symbol` — before any press, or after the reader has navigated to a
@@ -141,6 +181,44 @@ export interface UseInvestigationResult {
    * that finishes in a handful of milliseconds from ever breathing at all.
    */
   readonly pastCoverThreshold: boolean;
+  /**
+   * **The latest permitted `highlightNodes` command this hook has seen, or
+   * `undefined`** (Task 7.4.2) — a side channel, not part of the checklist.
+   *
+   * ## It is NOT subject-pinned, unlike {@link checklist}
+   *
+   * The checklist is `undefined` the moment the page's symbol stops matching
+   * the run it belongs to (Story 7.1's own rule: a reader who changes ticker
+   * does not keep the old security's rows). This is the opposite, by Story
+   * 7.4's AC 7: *the highlight arrives when the peer-comparison step completes
+   * and persists on whichever browser session is watching `/` by then*. A
+   * command withdrawn because the reader navigated would be a feature with no
+   * reachable state at all — navigating is how a reader gets to the screen
+   * that draws it.
+   *
+   * ## A returned value rather than a callback prop on the hook
+   *
+   * `onLiveSymbols`/`onLiveFocus`' established shape, which is the route's:
+   * the hook answers a value and `SecurityExplorer` reports it upward from an
+   * effect.
+   *
+   * **A callback parameter here would be captured STALE, which is a different
+   * mechanism from the one this comment first claimed and is worth stating
+   * correctly** (corrected at this task's own review). There is no
+   * subscription effect in this hook to re-run — the stream is started
+   * imperatively from `start()`, through a `runInvestigation` whose
+   * `useCallback` deps are genuinely `[]` — so an unstable callback would not
+   * re-subscribe anything; it would be closed over on the first render and
+   * never updated, and making it correct would mean this hook owning a ref to
+   * keep it fresh. Same conclusion, and a better one: a value needs no ref at
+   * all, and the route already has the effect to report it from.
+   *
+   * **It is never set back to `undefined`.** A command is superseded by a
+   * later one and cleared by a reader's own gesture or a terminal event —
+   * Task 7.4.3's subject, and `App.tsx` is where that will land, because the
+   * holder has to outlive this hook for the clearing to mean anything.
+   */
+  readonly highlight: WorkspaceHighlightCommand | undefined;
   /** Starts an investigation for `symbol`. A no-op if one is already
    * showing for this symbol and has not reached a terminal state — the
    * client-side mirror of the backend's own idempotent `POST`. */
@@ -155,6 +233,25 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
   // `record` alone — whether 160 ms of `running` have elapsed. Reset to
   // `false` by every fresh `start()`.
   const [runningAnnounced, setRunningAnnounced] = useState(false);
+  /**
+   * **The latest permitted command, held beside the checklist rather than in
+   * it** (Task 7.4.2) — see {@link UseInvestigationResult.highlight}.
+   *
+   * Its own `useState` and not a field on `record`, for two reasons that both
+   * matter. It is **not subject-pinned**: `record` is replaced wholesale by
+   * `start()` and read through a `symbol` equality guard, and a command living
+   * there would be withdrawn by the very navigation that makes it visible. And
+   * a `WORKSPACE_COMMAND` changes **nothing about the checklist** — the
+   * reducer has a case for it that returns its input unchanged, deliberately,
+   * because this event is a side channel rather than a step's progress.
+   *
+   * It is deliberately **not** reset by `start()`: a second press supersedes
+   * the command by producing a new one, and blanking it in between would take
+   * a correct highlight off `/` for however long the run takes.
+   */
+  const [highlight, setHighlight] = useState<
+    WorkspaceHighlightCommand | undefined
+  >(undefined);
 
   const controllerRef = useRef<AbortController | undefined>(undefined);
   const runIdRef = useRef(0);
@@ -283,6 +380,26 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
           // reason for existing.
           if (decoded.kind !== "event") continue;
 
+          // **Invariant 2's own event, read beside the reducer rather than
+          // through it** (Task 7.4.2). The checklist is unaffected by a
+          // command — `applyInvestigationEvent` has a case for this type that
+          // returns its input unchanged — so the one thing to do with it is
+          // hold the permitted arm and let the route carry it to the surface
+          // that executes it. **A refused outcome leaves this alone**, which
+          // is the whole of the degraded behaviour Gate 1 settled: no
+          // highlight, and no error anywhere a reader did not ask a question.
+          if (
+            decoded.event.type === "WORKSPACE_COMMAND" &&
+            decoded.event.outcome.kind === "permitted"
+          ) {
+            const { command } = decoded.event.outcome;
+            setHighlight({
+              subject: command.subject,
+              symbols: command.symbols,
+              relations: command.relations,
+            });
+          }
+
           setRecord((previous) =>
             previous?.symbol === forSymbol
               ? {
@@ -362,6 +479,7 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
     checklist,
     announcement,
     pastCoverThreshold: runningAnnounced,
+    highlight,
     start,
   };
 }
