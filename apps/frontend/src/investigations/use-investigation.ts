@@ -25,7 +25,13 @@ import {
   startInvestigation,
   streamInvestigationEvents,
 } from "./investigation-stream.js";
-import { CONFIDENCE_LEVELS, type Confidence } from "@marketpulse/shared";
+import { highlightOutlivesChannelEnd } from "./workspace-highlight.js";
+import type { WorkspaceHighlightState } from "./workspace-highlight.js";
+import {
+  CONFIDENCE_LEVELS,
+  type Confidence,
+  type InvestigationEventType,
+} from "@marketpulse/shared";
 
 /**
  * How long a step must be `running` before the live region says so — the
@@ -124,46 +130,6 @@ interface InvestigationRecord {
   readonly checklist: ChecklistState;
 }
 
-/**
- * **A permitted `highlightNodes` command, as this browser holds it** (Task
- * 7.4.2) — invariant 2's typed instruction reaching a surface for the first
- * time.
- *
- * ## It is this module's own type rather than the wire's or the topology's
- *
- * `investigation-event.ts`' own duplication rule, applied one layer out. That
- * module's `WireHighlightNodesCommand` is a fact about **JSON** and stays
- * private to this module — *a consumer wants a checklist, never a raw frame*
- * (`index.ts`) — and `topology/highlight.ts`' `TopologyHighlight` is a fact
- * about **what a canvas draws at full strength**. This is the third thing:
- * what a run has told this browser. The three agree structurally today, which
- * is what lets a route hand one to the other with no converter; they are not
- * one type because they would stop agreeing the moment either end grew a
- * field the other has no reader for.
- *
- * ## The refused arm is not here, and that is the decision rather than a gap
- *
- * `WorkspaceCommandOutcome`'s `refused` arm is decoded (it is ADR 0029's
- * first-class, countable outcome and the permission stage exists to produce
- * it) and is deliberately **not surfaced**: Story 7.4's Gate 1 settled that a
- * refusal belongs to the surface that asked, and nothing on `/` may draw an
- * error about a command a reader never issued. So a refusal reaches this hook,
- * is counted on the server's own record, and leaves this value exactly as it
- * was — which is the same picture as *no command yet*.
- *
- * **Reversal trigger, as a condition**: the first surface that is supposed to
- * tell a reader a command was refused. At that point this becomes the outcome
- * rather than the command, and the refusal word travels with it.
- */
-export interface WorkspaceHighlightCommand {
-  /** The security the run is about. Never a member of {@link symbols}. */
-  readonly subject: string;
-  /** The securities it is related to. Non-empty — the wire refuses otherwise. */
-  readonly symbols: readonly string[];
-  /** Which kinds of relationship gathered the set, in the model's own order. */
-  readonly relations: readonly string[];
-}
-
 export interface UseInvestigationResult {
   /** `undefined` whenever there is nothing to show for the CURRENT
    * `symbol` — before any press, or after the reader has navigated to a
@@ -213,12 +179,21 @@ export interface UseInvestigationResult {
    * keep it fresh. Same conclusion, and a better one: a value needs no ref at
    * all, and the route already has the effect to report it from.
    *
-   * **It is never set back to `undefined`.** A command is superseded by a
-   * later one and cleared by a reader's own gesture or a terminal event —
-   * Task 7.4.3's subject, and `App.tsx` is where that will land, because the
-   * holder has to outlive this hook for the clearing to mean anything.
+   * ## It is a two-arm STATE since Task 7.4.3, not the command alone
+   *
+   * ~~It is never set back to `undefined`.~~ A run can now also tell this
+   * browser that it can no longer account for the command it placed — the
+   * stream threw, or ended with no terminal event — and that is the
+   * `withdrawn` arm, carrying the investigation id so `App.tsx`'s holder can
+   * clear **only what that run placed** (`applyWorkspaceHighlight`).
+   *
+   * It is still never `undefined` after the first arrival, which is the half
+   * of the original sentence that matters: `undefined` here means *this hook
+   * has nothing to report*, and a route must not read it as *clear whatever
+   * you are holding* — the reader reaching the screen that draws a highlight
+   * is exactly the gesture that unmounts this hook.
    */
-  readonly highlight: WorkspaceHighlightCommand | undefined;
+  readonly highlight: WorkspaceHighlightState | undefined;
   /** Starts an investigation for `symbol`. A no-op if one is already
    * showing for this symbol and has not reached a terminal state — the
    * client-side mirror of the backend's own idempotent `POST`. */
@@ -250,7 +225,7 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
    * a correct highlight off `/` for however long the run takes.
    */
   const [highlight, setHighlight] = useState<
-    WorkspaceHighlightCommand | undefined
+    WorkspaceHighlightState | undefined
   >(undefined);
 
   const controllerRef = useRef<AbortController | undefined>(undefined);
@@ -368,6 +343,16 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
       // press for this symbol. Found exactly this way: a transient failure
       // during this task's own manual verification left the control
       // permanently unresponsive until the next full page reload.
+      /**
+       * **The last word this stream carried, which is what decides whether
+       * the highlight outlives it** (Task 7.4.3) — see
+       * `highlightOutlivesChannelEnd`. A terminal event is always last (the
+       * SSE route ends the response after it), so this one local tells *the
+       * run finished* from *the run is unaccounted for* without a second
+       * flag to keep in step.
+       */
+      let lastEventType: InvestigationEventType | undefined = undefined;
+
       try {
         for await (const decoded of streamInvestigationEvents(
           started.id,
@@ -379,6 +364,8 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
           // when 5's own requirement, and `readInvestigationEvent`'s whole
           // reason for existing.
           if (decoded.kind !== "event") continue;
+
+          lastEventType = decoded.event.type;
 
           // **Invariant 2's own event, read beside the reducer rather than
           // through it** (Task 7.4.2). The checklist is unaffected by a
@@ -393,10 +380,35 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
             decoded.event.outcome.kind === "permitted"
           ) {
             const { command } = decoded.event.outcome;
+            // **The one place in this bundle a `WorkspaceHighlightCommand` is
+            // constructed** (Task 7.4.3) — a field map rather than a spread,
+            // so a field the wire grows cannot ride along into the holder
+            // unnoticed, and held by
+            // `a-highlight-command-is-minted-only-where-the-wire-is-decoded`.
+            // The id is the event's own, never `started.id`: a replayed
+            // stream (`from=0`) legitimately carries another run's frames if
+            // the route is ever asked for one, and the command's author is
+            // whichever run emitted the event.
+            //
+            // **The WITHDRAWAL below reads `started.id` instead, and the
+            // asymmetry is deliberate rather than an oversight.** What ends
+            // there is *this subscription*, which is a fact about the run
+            // this browser asked for — and at that point there may be no
+            // event to read an id off at all (a stream that opened and closed
+            // carrying nothing is one of the two endings it exists for). The
+            // two are equal on every frame any run has ever emitted, and the
+            // direction a divergence would break in is the safe one:
+            // `applyWorkspaceHighlight` clears only on an id MATCH, so a
+            // mismatch leaves a highlight standing rather than clearing
+            // somebody else's.
             setHighlight({
-              subject: command.subject,
-              symbols: command.symbols,
-              relations: command.relations,
+              kind: "commanded",
+              command: {
+                investigationId: decoded.event.investigationId,
+                subject: command.subject,
+                symbols: command.symbols,
+                relations: command.relations,
+              },
             });
           }
 
@@ -420,6 +432,17 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
       }
 
       if (!current(runId)) return;
+
+      // **The channel has ended, so the highlight's own backing is settled
+      // one way or the other** (Task 7.4.3, AC 8's third and fourth clauses).
+      // A finished run's command survives; an unaccounted-for run's is
+      // withdrawn, keyed on the id so it clears only what this run placed.
+      // The interval is **the stream's own end**: no timer, no threshold —
+      // the same instant the checklist starts saying *investigation state
+      // unknown*, which is the earliest moment this browser knows.
+      if (!highlightOutlivesChannelEnd(lastEventType)) {
+        setHighlight({ kind: "withdrawn", investigationId: started.id });
+      }
 
       // The stream ended — cleanly or by the `catch` above. If its own
       // terminal event already arrived this is a no-op; if not, this is the

@@ -11735,6 +11735,102 @@ const INVARIANTS = [
     },
   },
   {
+    id: "the-topology-walk-reads-no-highlight",
+    claim:
+      "`apps/frontend/src/topology/walk.ts` never reads a highlight either — " +
+      "WHICH NODE IS NEXT does not depend on which securities an " +
+      "investigation has asked this region to draw loudly.",
+    check() {
+      // **`the-topology-walk-reads-no-band`'s sibling (Task 7.4.3, Story
+      // 7.4's AC 8), and a sibling rather than a widening because the thing
+      // being kept out is a different KIND of thing.**
+      //
+      // A band is live data, and that check's argument is cadence: the map is
+      // replaced 6.8–16.1 times a minute, so a group ordered by it re-orders
+      // under a reader's stationary hands. A highlight moves at the cadence
+      // of somebody pressing `Investigate` — once in a session, if ever — so
+      // the cadence argument does not reach it, and a check that tried to
+      // cover both from one claim would have to drop the sentence that makes
+      // either of them persuasive.
+      //
+      // The argument here is **whose position it is**. A highlight arrives
+      // from another screen, from a run the reader may not have started
+      // (Story 7.4's AC 7: the command lands on whichever session is watching
+      // `/`), and it can be withdrawn by a terminal state or a dead channel
+      // with no gesture at all. A walk keyed on it would move a reader's
+      // keyboard position when a *different page* finished a step — which is
+      // strictly worse than the band case, because there is nothing on this
+      // screen the reader could have looked at to predict it.
+      //
+      // ## The defect this refuses, which is the sensible-sounding one
+      //
+      // *Walk the highlighted peers first*, or *skip the ones that are
+      // quietened*. Both read as a tidy local repair in `step` or `groupOf`,
+      // and both are wrong for the reason above — and for Story 7.4's own
+      // AC 4, which settled that a highlight changes **how** an equity is
+      // drawn and nothing about which equities are drawn, hit-testable or
+      // walkable. `renderer-canvas.ts`'s own `setHighlight` says so in as
+      // many words (*only the anomaly groups, never `renarrow`*); this is the
+      // same promise, held over the one module that could quietly break it.
+      //
+      // ## What it deliberately does NOT flag
+      //
+      // `renderer-canvas.ts` legitimately holds the drawn set, partitions by
+      // it and dims from it, so a check covering that file would be red on
+      // correct code. Comments are stripped before matching, so a docblock
+      // explaining why the walk is highlight-blind cannot trip the check that
+      // keeps it that way.
+      const FILE = "apps/frontend/src/topology/walk.ts";
+      const path = resolve(REPO_ROOT, FILE);
+      const text = withoutComments(readAnchored(path));
+
+      const SHAPES = [
+        { as: "a highlight", pattern: /\bhighlight(ed|s|Set)?\b/iu },
+        { as: "`TopologyHighlight`", pattern: /\bTopologyHighlight\b/u },
+        { as: "`topologyHighlightSet`", pattern: /\btopologyHighlightSet\b/u },
+        {
+          as: "`WorkspaceHighlightCommand`",
+          pattern: /\bWorkspaceHighlightCommand\b/u,
+        },
+        { as: "a command's own subject", pattern: /\bsubject\b/iu },
+      ];
+
+      const offenders = [];
+
+      for (const [index, line] of text.split("\n").entries()) {
+        const shape = SHAPES.find(({ pattern }) => pattern.test(line));
+        if (shape === undefined) continue;
+
+        offenders.push(
+          `${FILE}:${String(index + 1)}  ${shape.as}\n        ${line.trim()}`,
+        );
+      }
+
+      if (offenders.length > 0) {
+        throw new InvariantFailure(
+          `${String(offenders.length)} line(s) in \`${FILE}\` read a ` +
+            "highlight, or a command's own subject:\n      " +
+            offenders.join("\n      ") +
+            "\n    `walk.ts` answers WHICH NODE IS NEXT, and a highlight must " +
+            "not change it. The command arrives from another screen, from a " +
+            "run this reader may not have started, and it is withdrawn by a " +
+            "dead channel with no gesture at all — so a group ordered or " +
+            "filtered by it moves a keyboard reader's position for a reason " +
+            "nothing on this screen could have told them was coming. Story " +
+            "7.4's AC 4 settled the rule this would break: a highlight " +
+            "changes HOW an equity is drawn and nothing about which equities " +
+            "are drawn, hit-testable or walkable, which is what makes a " +
+            "filtered-out peer honestly invisible rather than a second cut " +
+            "fighting the reader's own. If a highlight ever has to change " +
+            "what a reader can walk to, narrow the GRAPH this function is " +
+            "handed (`topology/filter.ts`'s `narrowTopology`) — the " +
+            "membership then changes exactly when the caller says so and " +
+            "this function stays pure.",
+        );
+      }
+    },
+  },
+  {
     id: "one-home-for-the-investigation-stream",
     claim:
       "One module in the frontend opens the investigation SSE stream and " +
@@ -12891,6 +12987,116 @@ const INVARIANTS = [
             "if your producer needs a capability set of its own, declare a " +
             "second one beside `ORCHESTRATOR_CAPABILITY` rather than widening " +
             "it.",
+        );
+      }
+    },
+  },
+  {
+    id: "a-highlight-command-is-minted-only-where-the-wire-is-decoded",
+    claim:
+      "Two shipped files under `apps/frontend/src` construct the three " +
+      "fields of a `highlightNodes` command — `investigation-event.ts`, " +
+      "which validates it off a frame, and `use-investigation.ts`, which " +
+      "holds it — so nothing a reader's browser draws was invented by a " +
+      "surface rather than decoded from the permission stage's own answer.",
+    check() {
+      // **Task 7.4.3, and it is the frontend sibling of
+      // `a-permitted-command-is-minted-only-by-the-permission-stage`** (Task
+      // 7.4.1), which is backend-only (`apps/backend/src`) and therefore says
+      // nothing about this side of the wire.
+      //
+      // The gap it closes is real and was flagged at Task 7.4.2's own review:
+      // `WorkspaceHighlightCommand` is a plain structural interface with no
+      // brand — correctly, because a command has no explanation to protect
+      // (ADR 0051 Decision 1, and `CLAUDE.md`'s note that the mint-site
+      // convention is for a constructed value with an explanation) — so
+      // `{ investigationId: "", subject: "NVDA", symbols: [...],
+      // relations: [...] }` compiles anywhere in this bundle with zero error
+      // and can be handed straight to `MarketTopologyHandle.setHighlight`.
+      // A surface that did that would be drawing ~70 dimmed nodes off a peer
+      // set **nobody measured and no permission stage ever saw**, with every
+      // test green and nothing on screen different from the honest case.
+      //
+      // ## Why not a count of `setHighlight` call sites
+      //
+      // Because Task 7.4.3 legitimately ADDS call sites — the reader's own
+      // clearing gesture, and the component's own re-apply at mount — so a
+      // call-site count would be a check this product has to fight rather
+      // than one that helps it. What matters is not how many callers there
+      // are; it is that the VALUE they pass came from the wire.
+      //
+      // ## The clause a re-implementer cannot avoid writing
+      //
+      // **All three of the command's own fields, assigned.** A highlight that
+      // cannot name its subject draws a set related to nothing; one with no
+      // symbols is a fully-formed claim about zero nodes (ADR 0029, and the
+      // decoder refuses it); one with no relations has a note it cannot
+      // explain. So a hand-built command has to spell all three, in either
+      // the assignment or the shorthand form, and both are matched.
+      //
+      // Lines carrying `readonly` are skipped, which is what keeps the three
+      // interfaces that DECLARE this shape (`topology/highlight.ts`,
+      // `investigation-event.ts`'s wire type, `workspace-highlight.ts`'s own)
+      // out of it. Tests and stories are excluded for the backend sibling's
+      // stated reason: they legitimately furnish a command, and a check that
+      // forbade it would forbid testing the feature at all. The guarantee is
+      // about shipped code.
+      const MINTS = [
+        "apps/frontend/src/investigations/investigation-event.ts",
+        "apps/frontend/src/investigations/use-investigation.ts",
+      ];
+      const directory = resolve(REPO_ROOT, "apps/frontend/src");
+
+      const FIELDS = [
+        /(?:\bsubject:\s*\S|^\s*subject,\s*$)/u,
+        /(?:\bsymbols:\s*\S|^\s*symbols,\s*$)/u,
+        /(?:\brelations:\s*\S|^\s*relations,\s*$)/u,
+      ];
+
+      const constructs = (text) => {
+        const lines = withoutComments(text)
+          .split("\n")
+          .filter((line) => !/\breadonly\b/u.test(line));
+
+        return FIELDS.every((field) => lines.some((line) => field.test(line)));
+      };
+
+      const minting = sourceFilesUnder(directory)
+        .filter(({ path }) => !/\.(?:test|stories)\.tsx?$/u.test(path))
+        .map(({ path, text }) => ({ path: relative(REPO_ROOT, path), text }))
+        .filter(({ text }) => constructs(text));
+
+      for (const mint of MINTS) {
+        if (minting.some(({ path }) => path === mint)) continue;
+
+        throw new InvariantFailure(
+          `\`${mint}\` no longer constructs a \`highlightNodes\` command, so ` +
+            "this check has nothing to anchor on and would pass vacuously " +
+            "over a tree where any surface could invent one. If the decode " +
+            "or the holder moved, repoint this in the same change: a grep " +
+            "that matches nothing looks exactly like a grep that passes.",
+        );
+      }
+
+      const elsewhere = minting.filter(({ path }) => !MINTS.includes(path));
+
+      if (elsewhere.length > 0) {
+        throw new InvariantFailure(
+          `${String(elsewhere.length)} shipped frontend file(s) besides the ` +
+            "decode-and-hold path construct a `highlightNodes` " +
+            "command:\n      " +
+            elsewhere.map(({ path }) => path).join("\n      ") +
+            "\n    Invariant 2's pipeline is validate → permission-check → " +
+            "execute → record, and a browser that builds its own command has " +
+            "skipped all four: the peer set it draws was measured by nobody " +
+            "and permitted by nothing, and the picture is indistinguishable " +
+            "from the honest one. `WorkspaceHighlightCommand` carries no " +
+            "brand (deliberately — ADR 0051 Decision 1), so `tsc -b` cannot " +
+            "see this and this check is the only thing that can. Take the " +
+            "value `useInvestigation` already answers with and pass it on; " +
+            "if a surface needs a highlight that no investigation asked for, " +
+            "that is a new WorkspaceCommand producer and it belongs on the " +
+            "server behind the permission stage.",
         );
       }
     },

@@ -16,10 +16,20 @@ export {
   useInvestigation,
   CONNECTION_LOST_SENTENCE,
 } from "./use-investigation.js";
+export type { UseInvestigationResult } from "./use-investigation.js";
+
+// **The highlight's own lifetime, Task 7.4.3.** The holder lives in `App.tsx`
+// — outside every route, because it is the one element that outlives the
+// navigation from the page that produces a command to the page that draws it
+// — so the reducer that decides what the holder becomes is part of this
+// module's API rather than its business. `highlightOutlivesChannelEnd` is
+// NOT: it is read only by the hook, which is the one thing here that watches
+// a stream end.
+export { applyWorkspaceHighlight } from "./workspace-highlight.js";
 export type {
-  UseInvestigationResult,
   WorkspaceHighlightCommand,
-} from "./use-investigation.js";
+  WorkspaceHighlightState,
+} from "./workspace-highlight.js";
 
 export type {
   ChecklistState,

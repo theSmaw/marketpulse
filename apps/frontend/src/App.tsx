@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { AppFooter } from "./components/AppFooter/AppFooter.js";
@@ -11,7 +11,11 @@ import { NotFound } from "./routes/NotFound.js";
 import { PATHS, ROUTE_PATTERNS } from "./routes/paths.js";
 import { SecurityExplorer } from "./routes/SecurityExplorer.js";
 import { useBackendHealth } from "./use-backend-health.js";
-import type { WorkspaceHighlightCommand } from "./investigations/index.js";
+import { applyWorkspaceHighlight } from "./investigations/index.js";
+import type {
+  WorkspaceHighlightCommand,
+  WorkspaceHighlightState,
+} from "./investigations/index.js";
 import { useLiveFeed } from "./market/index.js";
 import { useMarketFeed } from "./use-market-feed.js";
 import styles from "./App.module.css";
@@ -205,19 +209,80 @@ export function App() {
   // whose measured p95 duration exceeds the time a reader takes to reach `/`
   // from a security page.
   //
-  // ## `undefined` is *nothing has been commanded*, and nothing clears it yet
+  // ## `undefined` is *nothing has been commanded*, and three things clear it
   //
-  // A refused command never reaches here at all (`use-investigation.ts`'
-  // `WorkspaceHighlightCommand` carries the permitted arm alone, which is
-  // Gate 1's degraded-state decision: the refusal belongs to the surface that
-  // asked). What CLEARS a highlight — a reader's own gesture, a terminal
-  // investigation event, the channel dying, or a later command superseding it
-  // — is Story 7.4's AC 8 and Task 7.4.3's; this holder is where all four will
-  // land, which is why it is a `useState` here rather than a value derived
-  // inside either route.
+  // A refused command never reaches here at all (`WorkspaceHighlightCommand`
+  // carries the permitted arm alone, which is Gate 1's degraded-state
+  // decision: the refusal belongs to the surface that asked). What CLEARS a
+  // highlight is Story 7.4's AC 8, and all of it lands on this one holder —
+  // which is why it is a `useState` here rather than a value derived inside
+  // either route (Task 7.4.3):
+  //
+  //   - **A later command supersedes an earlier one**, wholesale, in
+  //     `applyWorkspaceHighlight` — never a union of two investigations' peer
+  //     sets, because the note can only name one subject.
+  //   - **The run that placed it can no longer be accounted for** — its
+  //     stream threw or ended with no terminal event — which arrives as the
+  //     `withdrawn` arm from the same callback and clears only what that run
+  //     placed, keyed on its id.
+  //   - **The reader clears it on the graph itself**, `Escape` or a click on
+  //     empty canvas, which arrives up the other side of the tree through
+  //     `MarketOverview`'s `onHighlightCleared`.
+  //
+  // **A reload clears it with nothing written for the purpose**: this is
+  // ordinary React state in a module nothing persists, so a fresh document is
+  // `undefined` by construction — Story 7.4's out-of-scope line (*persisting
+  // a highlight past the investigation's own session*) holding structurally
+  // rather than by a rule anybody has to keep.
   const [workspaceCommand, setWorkspaceCommand] = useState<
     WorkspaceHighlightCommand | undefined
   >(undefined);
+
+  /**
+   * **The producer's own report, reduced rather than assigned** (Task 7.4.3).
+   *
+   * It was `setWorkspaceCommand` itself until this task, which was correct
+   * while the only thing a run could say was *here is a command*. A
+   * withdrawal is the second thing, and it is not an assignment: it clears
+   * **only if** the id it carries is the id of the command being held. The
+   * decision is `applyWorkspaceHighlight`'s, in `investigations/`, so it can
+   * be proved without a route.
+   *
+   * `useCallback` with an empty dependency list, and the updater form is what
+   * makes that honest — it closes over `setWorkspaceCommand` alone, whose
+   * identity `useState` guarantees. A fresh closure here would land in
+   * `SecurityExplorer`'s own reporting effect's dependency list, which is the
+   * defect that route's `onLiveFocus` docblock records (516 symbols
+   * re-subscribed on every render, one callback over).
+   */
+  const reportWorkspaceCommand = useCallback(
+    (state: WorkspaceHighlightState) => {
+      setWorkspaceCommand((held) => applyWorkspaceHighlight(held, state));
+    },
+    [],
+  );
+
+  /**
+   * **The reader cleared it on the graph** (Task 7.4.3) — `Escape`, or a
+   * click on empty canvas, reported up from the region that draws it.
+   *
+   * It takes no id, deliberately: a reader clearing the picture in front of
+   * them is clearing *whatever is in front of them*, and there is only ever
+   * one highlight. Asking which investigation it belonged to would be this
+   * holder second-guessing a gesture it can see the result of.
+   *
+   * **The holder has to learn about it, not just the canvas.** The region
+   * clears its own ink immediately, so the gesture needs no round trip to
+   * take effect — but `MarketOverview`'s effect re-applies this value
+   * whenever it changes, and a holder still holding a withdrawn command would
+   * put the highlight back on the next unrelated re-render of that route.
+   * That is this product's own named trap (*a claim about a mechanism reads
+   * identically whether the mechanism is there or not*) and it is why the
+   * report travels all the way up here rather than stopping at the canvas.
+   */
+  const clearWorkspaceCommand = useCallback(() => {
+    setWorkspaceCommand(undefined);
+  }, []);
   const liveFeed = useLiveFeed({
     symbols: liveSymbols,
     // `exactOptionalPropertyTypes` is on, so *absent* and *present as
@@ -332,6 +397,11 @@ export function App() {
                        either, unlike `liveFocus` above, whose hook
                        distinguishes them. */
                     workspaceCommand={workspaceCommand}
+                    /* And the way back out of one (Task 7.4.3): the reader's
+                       own `Escape` or click on empty canvas, reported up from
+                       the region that drew it so this holder stops holding
+                       what the reader has just dismissed. */
+                    onHighlightCleared={clearWorkspaceCommand}
                   />
                 }
               />
@@ -354,7 +424,7 @@ export function App() {
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
                     onLiveFocus={setLiveFocus}
-                    onWorkspaceCommand={setWorkspaceCommand}
+                    onWorkspaceCommand={reportWorkspaceCommand}
                   />
                 }
               />
@@ -374,7 +444,7 @@ export function App() {
                     liveFeed={liveFeed}
                     onLiveSymbols={setLiveSymbols}
                     onLiveFocus={setLiveFocus}
-                    onWorkspaceCommand={setWorkspaceCommand}
+                    onWorkspaceCommand={reportWorkspaceCommand}
                   />
                 }
               />
