@@ -13,7 +13,7 @@ investigation-scoped and the highlight persists _"never until the
 investigation's own completion, which would close the window before any reader
 could navigate to see it"_. Task 7.4.3 found that the measurement settles
 which of those is reachable rather than taste: at Story 7.2's p50 of 32.0 ms,
-with the command emitted after step 3 of 6, clearing on a terminal event makes
+with the command emitted after step 4 of 6, clearing on a terminal event makes
 the highlight **unobservable on every machine** and turns this story's own
 merged headline e2e journey red. Gate 1's reading shipped, in one named
 one-expression home whose reversal is a `true` becoming `false`

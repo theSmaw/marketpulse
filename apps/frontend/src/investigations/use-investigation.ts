@@ -384,11 +384,23 @@ export function useInvestigation(symbol: string): UseInvestigationResult {
             // constructed** (Task 7.4.3) — a field map rather than a spread,
             // so a field the wire grows cannot ride along into the holder
             // unnoticed, and held by
-            // `a-highlight-command-is-minted-where-the-wire-is-decoded`. The
-            // id is the event's own, never `started.id`: a replayed stream
-            // (`from=0`) legitimately carries another run's frames if the
-            // route is ever asked for one, and the command's author is
+            // `a-highlight-command-is-minted-only-where-the-wire-is-decoded`.
+            // The id is the event's own, never `started.id`: a replayed
+            // stream (`from=0`) legitimately carries another run's frames if
+            // the route is ever asked for one, and the command's author is
             // whichever run emitted the event.
+            //
+            // **The WITHDRAWAL below reads `started.id` instead, and the
+            // asymmetry is deliberate rather than an oversight.** What ends
+            // there is *this subscription*, which is a fact about the run
+            // this browser asked for — and at that point there may be no
+            // event to read an id off at all (a stream that opened and closed
+            // carrying nothing is one of the two endings it exists for). The
+            // two are equal on every frame any run has ever emitted, and the
+            // direction a divergence would break in is the safe one:
+            // `applyWorkspaceHighlight` clears only on an id MATCH, so a
+            // mismatch leaves a highlight standing rather than clearing
+            // somebody else's.
             setHighlight({
               kind: "commanded",
               command: {

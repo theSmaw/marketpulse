@@ -918,7 +918,7 @@ the SSE route ends the response after it:
 **`STORY.md`'s AC 8 asks for the opposite of the first of those, and its own
 Gate 1 record asks for exactly what shipped.** The measurement decides which
 is reachable: at Story 7.2's p50 of 32.0 ms, with the command emitted after
-step 3 of 6, clearing on a terminal event makes the highlight unobservable
+step 4 of 6, clearing on a terminal event makes the highlight unobservable
 everywhere and turns this story's own merged headline journey red.
 `docs/GAPS.md` carries it with the figures and an owner — the Product Owner, at
 Story 7.4's close, as a one-line decision.

@@ -7435,7 +7435,7 @@ sentences were in the file before this task started.
 
 **They cannot both hold, and the arithmetic decides which is reachable rather
 than taste.** Story 7.2 measured the whole six-step pipeline at **p50
-32.0 ms**; the command is emitted after step 3 of 6
+32.0 ms**; the command is emitted after step 4 of 6
 (`scripted-agent-provider.ts`), so `INVESTIGATION_COMPLETED` lands tens of
 milliseconds after the command, before a reader's hand has left the
 `Investigate` control and always before they can reach `/`. A highlight

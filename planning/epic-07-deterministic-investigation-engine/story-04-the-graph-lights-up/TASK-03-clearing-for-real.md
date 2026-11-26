@@ -207,14 +207,17 @@ document is `undefined`. Done-when 6 is met with no code written for it, and
 
 ### What was found
 
-**Three defects in the plan, and one in a spec I wrote.**
+**Three defects in the plan, one in a spec I wrote, and two in my own prose —
+found by an independent review of the merged diff and corrected in a follow-up
+commit, which is where the step ordinal and the two docblock facts below come
+from.**
 
 1. **Done-when 3 is self-defeating, and `STORY.md` disagrees with itself about
    it.** AC 8 says a terminal event clears the highlight; Gate 1's own record,
    four lines below it, says the lifetime is investigation-scoped and the
    highlight persists _"never until the investigation's own completion, which
    would close the window before any reader could navigate to see it"_. At
-   Story 7.2's measured **p50 32.0 ms**, with the command emitted after step 3
+   Story 7.2's measured **p50 32.0 ms**, with the command emitted after step 4
    of 6, a terminal event lands tens of milliseconds after the command — so
    clearing there makes the highlight **unobservable on every machine** and
    turns `overview-investigation-highlight.spec.ts`'s merged headline journey
@@ -242,6 +245,35 @@ document is `undefined`. Done-when 6 is met with no code written for it, and
    now discovered by a sweep that asks the readout plate what it found —
    `overview-market-topology-hover.spec.ts`' own technique. _The one thing a
    drawn canvas cannot tell a spec is where it drew._
+5. **The peer-comparison step is the FOURTH of six, not the third**, and this
+   task stated the wrong ordinal in **five** places (four documents plus
+   `workspace-highlight.ts`' own docblock) — found by the review, confirmed
+   against `index.ts`' `investigationTools` array (snapshot, return
+   percentile, volume ratio, **compare securities**, breadth, correlation) and
+   against `scripted-agent-provider.ts`' own comment, which had said _step 4
+   of 6_ all along. **The conclusion is unaffected**: the two steps after it
+   are a breadth read and a correlation read that refuses with no database, so
+   a terminal event still lands within a few milliseconds of the command and
+   the highlight is still unobservable if it clears there. A figure stated
+   five times and wrong five times is worth recording anyway, which is
+   `CLAUDE.md`'s own rule arriving on this task's own prose.
+6. **Neither navigation this epic has described as unmounting the
+   investigation hook actually unmounts it, which was measured rather than
+   reasoned.** `workspace-highlight.ts`' first draft said a symbol change
+   unmounts the hook; the review said the unmount is `/securities` ↔
+   `/securities/:symbol` instead. **A throwaway probe says neither**: with two
+   sibling `<Route>`s rendering the same component — which is exactly what
+   `App.tsx` has — React reconciles the same element type at the same position
+   and React Router keys nothing, so a parameter change (`NVDA` → `AAPL`)
+   **and** a move between the two routes both gave **one mount and the same
+   component instance**. The hook unmounts only on leaving the Explorer for a
+   different route element (`/`), which is Story 7.4's Gate 1 record's own
+   case and the one that genuinely aborts the stream. Nothing shipped depends
+   on it — the id-keyed withdrawal is reached with the hook mounted throughout
+   and is, if anything, more necessary than the draft implied — and no other
+   claim in this epic was falsified by it (checked: `use-investigation.ts`'
+   subject-pinning is a symbol equality guard rather than an unmount, and both
+   surviving _unmounts on reaching `/`_ claims are true).
 
 ### What was run
 

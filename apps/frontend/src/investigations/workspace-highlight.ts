@@ -18,12 +18,32 @@
  * withdrawal has to answer *is the thing I am withdrawing the thing you are
  * holding?* — and position alone cannot answer that once a reader has run
  * two investigations in one session. The concrete case this guards, which is
- * reachable today: a run on `NVDA` places a command; the reader navigates to
- * another security (the hook unmounts, the command deliberately survives —
- * `SecurityExplorer`'s own prop docblock); the reader starts a second run,
- * whose stream drops before it ever produces a command. That second run's
- * withdrawal must leave `NVDA`'s highlight exactly where it is, and the id is
- * the only thing that can say so.
+ * reachable today: a run on `NVDA` places a command; the reader moves to
+ * another security and starts a second run; that second stream drops before
+ * it ever produces a command of its own. Its withdrawal must leave `NVDA`'s
+ * highlight exactly where it is, and the id is the only thing that can say
+ * so.
+ *
+ * **It needs no unmount, which is a correction to this docblock's own first
+ * draft and makes the case MORE reachable rather than less.** The draft said
+ * *the hook unmounts* at that navigation. **Measured instead of argued**, and
+ * neither half of the obvious story survived: with two sibling `<Route>`s
+ * rendering the same component (which is what `App.tsx` has for
+ * `/securities` and `/securities/:symbol`), a throwaway probe counted **one
+ * mount and the same component instance** across a parameter change
+ * (`NVDA` → `AAPL`) **and** across the two routes (`/securities/:symbol` →
+ * `/securities`). React reconciles the same element type at the same position
+ * and React Router keys nothing, so this hook unmounts only on leaving the
+ * Security Explorer for a different route element — `/`, which is Story 7.4's
+ * Gate 1 record's own case and the one that genuinely aborts the stream.
+ *
+ * So the case above is reached with the hook mounted throughout, by a second
+ * `start()` alone: the first run's events stop being applied (the `runIdRef`
+ * guard) and the second run's stream dies on its own. What carries the first
+ * command through it is the holder's position — `App.tsx`, outside `<Routes>`
+ * — and the fact that nothing in this module ever blanks it
+ * (`SecurityExplorer`'s own prop docblock for why a withdrawal on unmount
+ * would make the feature unreachable).
  *
  * The id is a plain `string` rather than `InvestigationId`, which is this
  * directory's standing rule for a fact that arrived over a wire
@@ -163,7 +183,7 @@ export function applyWorkspaceHighlight(
  * reader could navigate to see it"*. Those two cannot both hold, and the
  * measurement settles which one is reachable rather than leaving it to taste:
  * Story 7.2 measured the whole six-step pipeline at **p50 32.0 ms**, the
- * command is emitted at step 3 of 6, and a terminal event therefore lands
+ * command is emitted at step 4 of 6, and a terminal event therefore lands
  * tens of milliseconds after it — before a reader's hand has left the
  * `Investigate` control, and always before they can reach `/`. Clearing there
  * would make the highlight **unobservable on every machine**, which is the
