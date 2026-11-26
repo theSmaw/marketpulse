@@ -1,4 +1,11 @@
-import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { Ref, RefObject } from "react";
 import { Link } from "react-router";
 
@@ -271,6 +278,34 @@ export interface MarketTopologyProps {
   readonly onRetry: () => void;
 
   /**
+   * **The reader has cleared the highlight on the graph** — `Escape`, or a
+   * click on empty canvas (Task 7.4.3).
+   *
+   * ## The one prop here that reports a fact OUTWARD
+   *
+   * Every other channel into this region is a parent telling it something
+   * (`universe`, `filter`, and the four methods on
+   * {@link MarketTopologyHandle}). This one goes the other way, and it is not
+   * a second mechanism for a want: the gestures are Story 6.4's own, already
+   * shipped, already the way a selection is dismissed, and this is the same
+   * press reaching the one fact that does not live in this component.
+   *
+   * **Called after this region has already cleared itself.** A gesture whose
+   * effect depended on a prop being wired is exactly the shape this
+   * repository's own record calls *a claim about a mechanism that reads
+   * identically whether the mechanism is there or not* — so `Escape` dims
+   * nothing and un-says the note here, in this component, whether or not
+   * anybody is listening. What the call buys is that the **holder** stops
+   * holding it: a command still in a parent's state is re-applied on that
+   * parent's next unrelated render, which would put the highlight back under
+   * a reader who dismissed it.
+   *
+   * Absent is the ordinary Storybook case and three of the five routes:
+   * nothing above is holding a command, so there is nothing to withdraw.
+   */
+  readonly onHighlightCleared?: (() => void) | undefined;
+
+  /**
    * Imperative access to the mounted renderer — `resetView`, and since
    * Task 6.3.3, `setBands`.
    *
@@ -402,6 +437,7 @@ export function MarketTopology({
   bands,
   filter,
   onRetry,
+  onHighlightCleared,
   ref,
 }: MarketTopologyProps) {
   const frame = useRef<HTMLDivElement>(null);
@@ -839,6 +875,90 @@ export function MarketTopology({
    * `topology.current` on the CALLER's side is reassigned by
    * `useImperativeHandle` itself and the identity change is invisible to it.
    */
+  /**
+   * **Draw a command, or clear one — the ONE path, and since Task 7.4.3 it
+   * has two callers rather than one.**
+   *
+   * `MarketTopologyHandle.setHighlight` is a parent assigning *what is
+   * highlighted*; the reader's own `Escape` or click on empty canvas is the
+   * reader withdrawing it. Both are the same four writes in the same order —
+   * the ref, the renderer, the note, the accessible sentence — and the one
+   * that gets forgotten when there are two copies is always the clearing,
+   * which is this task's whole subject. So there is one function and the
+   * handle method is a call to it.
+   *
+   * **`useCallback` with the handle's own dependency list**, exactly, so the
+   * handle object below is still recreated when `topology`, `filter` or
+   * `correlationClause` move (a retry, a press, the measurement settling) and
+   * never on a quiet render — the property that method's own deps comment
+   * argues for, unchanged.
+   */
+  const applyHighlight = useCallback(
+    (highlight: TopologyHighlight | null) => {
+      appliedHighlight.current = highlight;
+      // **The renderer first, then the words.** The call is a no-op while
+      // nothing is mounted (`renderer.current` is `null` in every state but
+      // `loaded`) and the mount effect applies what is held here when one
+      // starts, so a command that arrives before this screen exists is
+      // drawn on the canvas's first frame rather than dropped.
+      renderer.current?.setHighlight(
+        highlight === null ? null : topologyHighlightSet(highlight),
+      );
+      writeTopologyHighlightNote(highlightNote, highlight);
+
+      // **The sentence is rebuilt here too, and it is not belt-and-braces.**
+      // The structural sentence has three writers (this component's JSX, a
+      // live batch's `applyAnomalyBands`, and the reader-cadence writer
+      // below) and React's committed string is highlight-blind for the
+      // reason {@link appliedHighlight} gives. Without this, the clause
+      // would appear only on the next live batch — which on CI, on any
+      // laptop with no feed, and out of hours is **never**.
+      if (topology !== null) {
+        writeTopologyFilterNote(
+          { sentence, filterLine },
+          topology.graph,
+          appliedBands.current,
+          filter,
+          highlight,
+          correlationClause,
+        );
+      }
+    },
+    [topology, filter, correlationClause],
+  );
+
+  /**
+   * **What a reader's own clearing gesture does, held where the mount effect
+   * can reach it without naming it** (Task 7.4.3).
+   *
+   * {@link filterCriterion}'s idiom and its reason: the renderer's callbacks
+   * are created inside the mount effect, whose dependency list is exactly
+   * `[topology, probe, sentenceId]` — three documents reason about that list,
+   * and adding either {@link applyHighlight} or the prop to it would re-mount
+   * the canvas on a filter press and destroy the reader's pan. A ref adds no
+   * dependency, and an effect keyed on the two values keeps the closure
+   * fresh.
+   *
+   * **Declared above the mount effect**, so on the first commit it has
+   * already been written by the time the renderer exists — effects run in
+   * declaration order. A gesture cannot arrive before the canvas does, so the
+   * initial no-op is unreachable rather than merely unlikely.
+   *
+   * **Guarded on a highlight being in force at all.** `Escape` over a graph
+   * with nothing highlighted must not report a clearance upward: the holder
+   * may be holding a command this screen has not drawn yet (the universe
+   * still loading), and withdrawing it would delete a highlight the reader
+   * never saw.
+   */
+  const clearHighlightForReader = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    clearHighlightForReader.current = () => {
+      if (appliedHighlight.current === null) return;
+      applyHighlight(null);
+      onHighlightCleared?.();
+    };
+  }, [applyHighlight, onHighlightCleared]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -870,36 +990,9 @@ export function MarketTopology({
           );
         }
       },
-      setHighlight: (highlight) => {
-        appliedHighlight.current = highlight;
-        // **The renderer first, then the words.** The call is a no-op while
-        // nothing is mounted (`renderer.current` is `null` in every state but
-        // `loaded`) and the mount effect applies what is held here when one
-        // starts, so a command that arrives before this screen exists is
-        // drawn on the canvas's first frame rather than dropped.
-        renderer.current?.setHighlight(
-          highlight === null ? null : topologyHighlightSet(highlight),
-        );
-        writeTopologyHighlightNote(highlightNote, highlight);
-
-        // **The sentence is rebuilt here too, and it is not belt-and-braces.**
-        // The structural sentence has three writers (this component's JSX, a
-        // live batch's `applyAnomalyBands`, and the reader-cadence writer
-        // below) and React's committed string is highlight-blind for the
-        // reason {@link appliedHighlight} gives. Without this, the clause
-        // would appear only on the next live batch — which on CI, on any
-        // laptop with no feed, and out of hours is **never**.
-        if (topology !== null) {
-          writeTopologyFilterNote(
-            { sentence, filterLine },
-            topology.graph,
-            appliedBands.current,
-            filter,
-            highlight,
-            correlationClause,
-          );
-        }
-      },
+      // **One line, since Task 7.4.3** — see {@link applyHighlight}, which
+      // the reader's own clearing gesture calls too.
+      setHighlight: applyHighlight,
     }),
     // **`correlationClause` joins `topology` here** (Task 6.5.2): the band
     // write composes the sentence and would otherwise close over the clause
@@ -919,7 +1012,11 @@ export function MarketTopology({
     // what the closure needs is the criterion itself. `useTopologyFilter`
     // memoises on the query string, so this identity moves on a press and
     // never on a batch — the same property `trailingClauses` had.
-    [topology, filter, correlationClause],
+    // **`applyHighlight` joins them at Task 7.4.3**, and it changes nothing
+    // about how often this object is rebuilt: its own `useCallback` carries
+    // exactly these three dependencies, so its identity moves when theirs do
+    // and never on a quiet render.
+    [topology, filter, correlationClause, applyHighlight],
   );
 
   /**
@@ -1036,6 +1133,21 @@ export function MarketTopology({
          */
         onCorrelationLayer: (drawn) => {
           setCorrelationLayerDrawn(drawn);
+        },
+        /*
+         * **The reader's own way out of a highlight** (Task 7.4.3) — the same
+         * two gestures Story 6.4 shipped for a selection, reaching the one
+         * fact that does not live in this component.
+         *
+         * Adds no dependency for `onHover`'s own reason, through
+         * {@link clearHighlightForReader}: the renderer reports the gesture,
+         * this component clears its own ink and words, and the holder above
+         * is told so it stops holding what the reader dismissed. The renderer
+         * itself changes nothing — there is one path that moves this ink and
+         * it is {@link applyHighlight}.
+         */
+        onClearHighlight: () => {
+          clearHighlightForReader.current();
         },
         /*
          * **The selection channel, and the one place a pointer event on this

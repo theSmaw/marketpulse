@@ -118,6 +118,23 @@ export interface MarketOverviewProps {
    * session is in until a reader runs something.
    */
   readonly workspaceCommand?: WorkspaceHighlightCommand | undefined;
+  /**
+   * **The reader cleared the highlight on the graph** — `Escape`, or a click
+   * on empty canvas (Task 7.4.3, Story 7.4's AC 8).
+   *
+   * The command's one home is `App`'s own holder, so a gesture on this screen
+   * has to reach it: the region clears its own ink immediately (so the
+   * gesture needs no round trip to take effect) and this is how the holder
+   * learns to stop holding it. Reported rather than decided here — this route
+   * owns no part of the command's lifetime, exactly as it owns no part of the
+   * live feed's.
+   *
+   * Optional for `workspaceCommand`'s reason: three routes render this
+   * component without it and a story renders it with nothing at all. Absent
+   * means *nobody is holding a command*, in which case there is nothing above
+   * this screen for a reader's gesture to correct.
+   */
+  readonly onHighlightCleared?: (() => void) | undefined;
 }
 
 export function MarketOverview({
@@ -125,6 +142,7 @@ export function MarketOverview({
   onLiveSymbols,
   marketFeed,
   workspaceCommand,
+  onHighlightCleared,
 }: MarketOverviewProps = {}) {
   const overview = liveFeed?.overview;
   const observations = liveFeed?.observations ?? EMPTY_OBSERVATIONS;
@@ -1139,6 +1157,22 @@ export function MarketOverview({
              * provide, now reaching something real.
              */
             onRetry={retryUniverse}
+            /*
+             * **The reader's own way out of a highlight, reported upward**
+             * (Task 7.4.3) — the one prop on this region that carries a fact
+             * from the canvas to the host rather than the other way, and it
+             * exists because the host is where the command lives. Without it
+             * the region's own `Escape` would clear the ink and the next
+             * unrelated re-render of this route would put it straight back,
+             * out of a holder still holding what the reader dismissed.
+             *
+             * `App` passes a `useCallback`-stable function, so the module
+             * docblock's declined `React.memo` boundary is untouched: this
+             * prop's identity changes never, let alone at feed cadence.
+             */
+            {...(onHighlightCleared === undefined
+              ? {}
+              : { onHighlightCleared })}
           />
         </Region>
 

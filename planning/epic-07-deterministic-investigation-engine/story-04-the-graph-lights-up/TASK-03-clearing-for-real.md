@@ -1,6 +1,10 @@
 # Task 7.4.3 — Clearing, for real
 
-**Status:** In progress — 2026-11-26
+**Status:** Complete — 2026-11-26. Six of the seven Done-whens are met and
+asserted; **Done-when 3 is not met and is open as a Product-Owner decision**,
+because implementing it literally makes the feature unobservable on every
+machine and turns this story's own merged headline e2e journey red — see "What
+was found" below, and `docs/GAPS.md`' entry for it.
 **Story:** [7.4 The Graph Lights Up](STORY.md)
 **Depends on:** 7.4.2 (complete, PR #713 — read its amendment below before
 starting; the shipped design has no investigation id to key supersession on,
@@ -121,6 +125,147 @@ Neither of these changes what this task visually does — they change what the
 supersession and clearing logic can safely key on, and close a real,
 previously-unflagged gap on the frontend's side of the same class of defect
 Task 7.4.1's review already found once on the backend's.
+
+## What was done — 2026-11-26
+
+**The id was added first, as the amendment above required**, and it is
+load-bearing rather than decorative. `WorkspaceHighlightCommand` moved out of
+`use-investigation.ts` into its own module —
+`apps/frontend/src/investigations/workspace-highlight.ts` — beside the two
+functions that decide a highlight's fate, and gained
+`investigationId: string`. **A plain `string`, not `InvestigationId`**, which
+is a deliberate departure from this task's own brief: `WireEventBase.
+investigationId` and `ChecklistState.investigationId` are both `string` by
+this directory's standing rule for a fact that arrived over a wire, and
+`CLAUDE.md` records that `InvestigationId`'s brand is deliberately forgeable —
+so importing it here would buy a claim this layer cannot make.
+
+**The id never reaches the canvas, and the type is what stops it.**
+`WorkspaceHighlightCommand` is now a **superset of `TopologyHighlight` by
+exactly one field**, so `MarketOverview` still hands one straight to
+`setHighlight` with no converter, and the region cannot read the id because
+its own type does not declare one. `no-second-affordance-on-a-topology-node`
+is untouched and green: nothing under `topology/` or
+`components/MarketTopology/` names what produced a command.
+
+**The hook answers a two-arm state** —
+`{ kind: "commanded", command }` / `{ kind: "withdrawn", investigationId }` —
+through the one callback `SecurityExplorer` already had, and `App` reduces it
+with `applyWorkspaceHighlight`: `commanded` replaces wholesale (supersession,
+never a union), `withdrawn` clears **only what that run placed**. Two fields
+on the hook's result was the alternative and the clearing is always the one
+that gets forgotten.
+
+**The reader's gesture reaches the holder through a new outward prop**, which
+is the one genuinely new pattern here and is documented at three levels:
+`TopologyRendererOptions.onClearHighlight` (a **request** — the renderer
+changes nothing, which is the asymmetry with `onSelect` beside it),
+`MarketTopologyProps.onHighlightCleared`, and
+`MarketOverviewProps.onHighlightCleared` reaching `App.clearWorkspaceCommand`.
+`Escape`'s _not ours to swallow_ guard widened rather than moved (the key is
+ours while **either** a selection or a highlight is in force); a click clears
+only on **empty** canvas, never on a node. The component clears its own ink,
+note and accessible clause through **one path** — `applyHighlight`, which the
+handle method is now also a call to — whether or not anybody above is
+listening, and then reports, because a command still in `App`'s state is
+re-applied on that route's next re-render.
+
+**Channel death is detected from the stream's own last word**, not a timer:
+`highlightOutlivesChannelEnd(lastEventType)`, one expression reading
+`isTerminalEventType`. The interval in Done-when 4 is therefore _the instant
+the stream ends_ — the same instant the checklist starts saying _investigation
+state unknown_, which is the earliest moment this browser knows anything, and
+needs no threshold to justify.
+
+**A reload clears it by construction**, which was checked rather than assumed:
+the holder is ordinary React state in a module nothing persists, so a fresh
+document is `undefined`. Done-when 6 is met with no code written for it, and
+`App.tsx` now says so where the holder is declared.
+
+### The two invariants, both proved to pass WRONGLY first
+
+`pnpm invariants` holds **102**.
+
+- **`the-topology-walk-reads-no-highlight`**, with break
+  `the-topology-walk-sorted-by-highlight`. A sibling of
+  `the-topology-walk-reads-no-band` rather than a widening: that one's
+  argument is cadence, this one's is _whose position it is_. Planted by hand
+  first — a highlighted-peers-first sort inside `step` — and with the plant
+  applied **`tsc -b` was clean and all 24 `walk.test.ts` assertions were
+  green**, while the check named the file and the lines. Then red, then
+  restored byte-identical by `pnpm break`.
+- **`a-highlight-command-is-minted-only-where-the-wire-is-decoded`**, with
+  break `a-surface-mints-its-own-highlight-command` — the frontend sibling of
+  Task 7.4.1's backend mint check, anchored on the **construction** of the
+  command's three fields (assignment or shorthand, `readonly` lines skipped so
+  the three interfaces that declare the shape are not flagged) rather than on
+  a count of `setHighlight` call sites, which this task legitimately added
+  to. Two minting files, both on the decode-and-hold path. Planted by hand in
+  `MarketOverview.tsx` first: **`pnpm typecheck` completely clean** on the
+  plant, which is the point — `WorkspaceHighlightCommand` has no brand, so
+  nothing but this check can see a surface inventing a peer set.
+
+### What was found
+
+**Three defects in the plan, and one in a spec I wrote.**
+
+1. **Done-when 3 is self-defeating, and `STORY.md` disagrees with itself about
+   it.** AC 8 says a terminal event clears the highlight; Gate 1's own record,
+   four lines below it, says the lifetime is investigation-scoped and the
+   highlight persists _"never until the investigation's own completion, which
+   would close the window before any reader could navigate to see it"_. At
+   Story 7.2's measured **p50 32.0 ms**, with the command emitted after step 3
+   of 6, a terminal event lands tens of milliseconds after the command — so
+   clearing there makes the highlight **unobservable on every machine** and
+   turns `overview-investigation-highlight.spec.ts`'s merged headline journey
+   red. Gate 1's reading shipped, in one named one-expression home with the
+   reversal being `true` → `false`; `docs/GAPS.md` carries it with the figures
+   and the Product Owner as owner. **Done-when 3's test exists either way**:
+   `workspace-highlight.test.ts` iterates `TERMINAL_EVENT_TYPES` rather than
+   spelling an event name, so Story 7.5's cancellation is covered with no
+   change, and the assertion is of the decided answer.
+2. **"Clear on channel death" cannot mean "the stream was aborted"**, for the
+   same reason — `SecurityExplorer`'s own prop docblock had already worked this
+   out for the unmount case: navigating to `/` is what aborts the stream, so a
+   withdrawal there would make the feature unreachable by construction. It
+   means _the stream ended with the run in an unknown state_, which is
+   `CONNECTION_LOST_SENTENCE`'s own condition and is what shipped.
+3. **`Escape` with a highlight and no selection was unreachable.** The
+   existing handler returned early on `selected === null` — correct before
+   this task, and it would have silently made the keyboard half of AC 8 a
+   no-op in the common case (a reader who has navigated to `/` to look at a
+   highlight has selected nothing). The guard is now a disjunction.
+4. **The first draft of the e2e node-click assertion guessed a coordinate and
+   was wrong**: the centre of the canvas box is not the hub's screen position
+   (`fitView` fits an elliptical layout to the box), so the click hit nothing,
+   cleared the highlight, and read as a defect in the feature. Both points are
+   now discovered by a sweep that asks the readout plate what it found —
+   `overview-market-topology-hover.spec.ts`' own technique. _The one thing a
+   drawn canvas cannot tell a spec is where it drew._
+
+### What was run
+
+- `pnpm verify` — green (see the PR body for the step list).
+- `pnpm e2e overview-investigation-highlight.spec.ts` — **4 passed**, the two
+  new clearing journeys included.
+- `pnpm e2e overview-market-topology-keyboard.spec.ts` — 7 passed (the
+  `Escape` guard change's own blast radius).
+- `pnpm e2e overview-market-topology-hover.spec.ts` — 12 passed (the
+  empty-canvas click's).
+- `pnpm e2e security-investigate.spec.ts` — 4 passed (the hook's).
+- `pnpm break the-topology-walk-sorted-by-highlight` and
+  `pnpm break a-surface-mints-its-own-highlight-command` — both red on the
+  plant, restored byte-identical.
+
+### What a reader can see
+
+Exactly what the task file promised, minus the terminal-event clause: press
+`Escape` or click empty canvas on `/`'s topology and the highlight goes,
+instantly, with the note and the spoken clause going with it — and it stays
+gone across a navigation away and back, which is the holder having been
+withdrawn rather than only the canvas. Let a run's connection die and the
+highlight goes on its own. Start a second investigation and its peers wholly
+replace the first's. Reload and there is no highlight.
 
 <!-- Amendments from later tasks are appended here as:
 ## Amended by Task N.M.K — YYYY-MM-DD: <what changed> -->

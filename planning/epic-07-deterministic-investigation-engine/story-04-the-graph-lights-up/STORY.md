@@ -1,9 +1,25 @@
 # Story 7.4 — The Graph Lights Up
 
 **Status:** In progress — 2026-11-26, Task 7.4.1 complete (PR #711), Task
-7.4.2 complete (PR #713) and Task 7.4.3 started. Four Gate-1 open questions
+7.4.2 complete (PR #713) and Task 7.4.3 complete. Four Gate-1 open questions
 resolved by the Product Owner; see "Resolved at Gate 1" for the argument
 behind each change to the acceptance criteria below.
+
+**AC 8 is met in three of its four clauses, and the fourth is an open
+Product-Owner decision rather than unbuilt work — because this file
+contradicts itself about it.** AC 8 says a terminal investigation event clears
+the highlight; the Gate-1 record below says the lifetime is
+investigation-scoped and the highlight persists _"never until the
+investigation's own completion, which would close the window before any reader
+could navigate to see it"_. Task 7.4.3 found that the measurement settles
+which of those is reachable rather than taste: at Story 7.2's p50 of 32.0 ms,
+with the command emitted after step 3 of 6, clearing on a terminal event makes
+the highlight **unobservable on every machine** and turns this story's own
+merged headline e2e journey red. Gate 1's reading shipped, in one named
+one-expression home whose reversal is a `true` becoming `false`
+(`highlightOutlivesChannelEnd`), and `docs/GAPS.md` carries the decision with
+its figures and the Product Owner as its owner. Nothing else in this story
+depends on which way it goes.
 **Epic:** [Epic 7 — Deterministic Investigation Engine](../EPIC.md)
 **Depends on:** 7.2
 **Epic scope covered:** `get_related_securities`, `highlight_graph_nodes`

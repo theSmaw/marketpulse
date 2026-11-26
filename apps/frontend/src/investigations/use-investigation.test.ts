@@ -7,6 +7,18 @@ import {
   CONNECTION_LOST_SENTENCE,
   useInvestigation,
 } from "./use-investigation.js";
+import type { WorkspaceHighlightState } from "./workspace-highlight.js";
+
+/**
+ * **The command, out of the two-arm state the hook now answers with** (Task
+ * 7.4.3) — `undefined` for *no command in force*, which is both the
+ * `withdrawn` arm and the before-anything state. A test asserting on the
+ * command alone goes through this; a test about the LIFETIME asserts on
+ * `.kind` directly, because that is the fact it is about.
+ */
+function commanded(state: WorkspaceHighlightState | undefined) {
+  return state?.kind === "commanded" ? state.command : undefined;
+}
 
 // The hook drives the real transport against a stubbed `fetch` — the POST
 // and the SSE stream both — because the property under test is the
@@ -598,7 +610,11 @@ describe("useInvestigation", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.highlight).toStrictEqual({
+      // **The id is the event's own** (Task 7.4.3), which is what lets
+      // `App`'s holder answer *is the thing being withdrawn the thing I am
+      // holding?* — see `workspace-highlight.ts`' own header.
+      expect(commanded(result.current.highlight)).toStrictEqual({
+        investigationId: "inv-1",
         subject: "NVDA",
         symbols: ["AAPL", "MSFT"],
         relations: ["sector_membership", "return_correlation"],
@@ -611,7 +627,7 @@ describe("useInvestigation", () => {
     rerender({ symbol: "AAPL" });
 
     expect(result.current.checklist).toBeUndefined();
-    expect(result.current.highlight?.subject).toBe("NVDA");
+    expect(commanded(result.current.highlight)?.subject).toBe("NVDA");
   });
 
   it("surfaces NOTHING for a REFUSED workspace command, and raises no error — Task 7.4.2", async () => {
@@ -697,8 +713,98 @@ describe("useInvestigation", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.highlight?.subject).toBe("CVX");
+      expect(commanded(result.current.highlight)?.subject).toBe("CVX");
     });
-    expect(result.current.highlight?.symbols).toStrictEqual(["XOM"]);
+    expect(commanded(result.current.highlight)?.symbols).toStrictEqual(["XOM"]);
+  });
+
+  it("WITHDRAWS the highlight when the channel dies with no terminal event — Task 7.4.3", async () => {
+    // AC 8's channel-death clause, and the interval is the stream's own end:
+    // no timer and no threshold, the same instant the checklist starts saying
+    // *investigation state unknown*. ~70 dimmed nodes with nothing standing
+    // behind them is ADR 0029's false impression, one surface over.
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(STEP_STARTED);
+      stream.push(workspaceCommand(PERMITTED));
+    });
+
+    await waitFor(() => {
+      expect(commanded(result.current.highlight)?.subject).toBe("NVDA");
+    });
+
+    // The stream simply stops, with no `INVESTIGATION_COMPLETED` and no
+    // `INVESTIGATION_FAILED` — a dropped connection, or a browser put to
+    // sleep. The run may still be going on the server; this browser cannot
+    // say, and that is exactly the state the withdrawal is for.
+    act(() => {
+      stream.end();
+    });
+
+    await waitFor(() => {
+      expect(result.current.highlight).toStrictEqual({
+        kind: "withdrawn",
+        investigationId: "inv-1",
+      });
+    });
+    // And the checklist says the same thing in its own words, which is how a
+    // reader on THIS screen learns what the other screen's highlight going
+    // away was about.
+    expect(result.current.checklist?.connectionLost).toBe(true);
+  });
+
+  it("KEEPS the highlight when the run reaches a terminal state — Task 7.4.3", async () => {
+    // The other side of the same decision, and the one place in this task
+    // where `STORY.md`'s AC 8 and its own Gate 1 record disagree —
+    // `highlightOutlivesChannelEnd` carries the argument and the measurement,
+    // and `workspace-highlight.test.ts` holds it over every member of
+    // `TERMINAL_EVENT_TYPES` rather than over the one this test pushes.
+    const stream = controllableSseStream();
+    stubFetch((call) => {
+      if (call.url.endsWith("/investigations"))
+        return jsonResponse(201, STARTED);
+      return Promise.resolve(stream.response);
+    });
+
+    const { result } = renderHook(() => useInvestigation("NVDA"));
+    act(() => {
+      result.current.start();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.investigationId).toBe("inv-1");
+    });
+
+    act(() => {
+      stream.push(INVESTIGATION_STARTED);
+      stream.push(STEP_STARTED);
+      stream.push(workspaceCommand(PERMITTED));
+      stream.push(stepCompleted(4));
+      stream.push(INVESTIGATION_COMPLETED);
+      stream.end();
+    });
+
+    await waitFor(() => {
+      expect(result.current.checklist?.terminal).toBe(true);
+    });
+
+    expect(result.current.highlight?.kind).toBe("commanded");
+    expect(commanded(result.current.highlight)?.subject).toBe("NVDA");
   });
 });

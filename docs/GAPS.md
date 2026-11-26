@@ -7419,3 +7419,50 @@ name, per invariant 2's own example list) — the repair is a discriminated
 switch over the validated `type` rather than a single return statement, and
 should land in the same change that adds the second member, not before it is
 needed.
+
+## Story 7.4's AC 8 says a terminal investigation event clears the highlight, Gate 1's own record says it must not, and the measurement says the AC's reading is unreachable — so the shipped behaviour is Gate 1's, and the AC is open
+
+Found 2026-11-26 while implementing Task 7.4.3, which was commissioned to
+build exactly the clause that turns out to be self-defeating.
+
+`STORY.md`'s AC 8 lists four ways a highlight ends, one of which is **"on any
+terminal investigation event"**. Four lines further down the same file, Gate
+1's own recorded decision says the lifetime is investigation-scoped and the
+highlight persists until a reader clears it, a later command supersedes it, or
+its channel dies — **"never until the investigation's own _completion_, which
+would close the window before any reader could navigate to see it"**. Both
+sentences were in the file before this task started.
+
+**They cannot both hold, and the arithmetic decides which is reachable rather
+than taste.** Story 7.2 measured the whole six-step pipeline at **p50
+32.0 ms**; the command is emitted after step 3 of 6
+(`scripted-agent-provider.ts`), so `INVESTIGATION_COMPLETED` lands tens of
+milliseconds after the command, before a reader's hand has left the
+`Investigate` control and always before they can reach `/`. A highlight
+cleared on a terminal event is therefore **unobservable on every machine this
+product runs on** — the same defect Gate 1 caught in AC 7's original
+step-scoped wording and fixed, arriving a second time through the clause
+beside it. It would also turn `overview-investigation-highlight.spec.ts`'s
+merged headline journey red, because that spec navigates to `/` **after**
+waiting for a step's own duration to paint.
+
+**What shipped** is Gate 1's reading, in one named, one-expression home:
+`highlightOutlivesChannelEnd` (`apps/frontend/src/investigations/workspace-highlight.ts`)
+answers `true` for a terminal last event and `false` for an unaccounted-for
+one, reading `isTerminalEventType` rather than any list of names — so Story
+7.5's cancellation is covered with no change there — and
+`workspace-highlight.test.ts` iterates `TERMINAL_EVENT_TYPES` over it. AC 8's
+other three clauses (the reader's gesture, the dead channel, supersession) are
+built and asserted.
+
+**Re-measure:** read `STORY.md`'s AC 8 against its own "Resolved at Gate 1"
+section; if the AC's wording still stands, flip
+`highlightOutlivesChannelEnd`'s return and run
+`pnpm e2e overview-investigation-highlight.spec.ts` — the headline journey
+failing is the measurement, not a flake.
+
+**Owner: the Product Owner**, at Story 7.4's close, as a one-line decision
+between the AC and the Gate-1 record: either AC 8's terminal clause is struck
+(the shipped behaviour, and the only one with a reachable state), or it stands
+and the story's own headline journey is deleted along with the feature's
+visibility. Nothing else in this story depends on which.

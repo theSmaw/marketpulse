@@ -6881,6 +6881,59 @@ export const BREAKS = [
   },
 
   {
+    name: "the-topology-walk-sorted-by-highlight",
+    proves:
+      "`apps/frontend/src/topology/walk.ts` reads no HIGHLIGHT either (Task " +
+      "7.4.3, Story 7.4's AC 8) — a sibling of the entry above rather than " +
+      "the same plant, because the two defects are reached by different " +
+      "authors for different reasons. That one is somebody ordering a " +
+      "cluster by live score; this is somebody walking an investigation's " +
+      "own peers first, which is the obvious courtesy the moment a " +
+      "highlight exists on this canvas at all.\n\n" +
+      "**The plant is inside `step`** — the function `ArrowLeft` and " +
+      "`ArrowRight` go through — rather than inside `groupOf`, so the two " +
+      "breaks do not share an anchor and neither can quietly land the " +
+      "other's defect.\n\n" +
+      "**It is the next author's own temptation.** Task 7.4.2 put a drawn " +
+      "set in the renderer and Task 7.4.3 put a command in the host, so the " +
+      "material is in hand; and once ~70 nodes are drawn loudly and the rest " +
+      "are dimmed, stepping through the loud ones first reads like help. " +
+      "What it would actually do is move a keyboard reader's position " +
+      "because a DIFFERENT PAGE finished a step — and a highlight is " +
+      "withdrawn by a dead channel with no gesture at all, so the reader's " +
+      "group would re-order under stationary hands with nothing on this " +
+      "screen that could have warned them.\n\n" +
+      "**Nothing else would catch it, and that was produced rather than " +
+      "argued.** With this plant applied by hand, `tsc -b` is clean and " +
+      "`pnpm --filter @marketpulse/frontend test walk.test` is green on all " +
+      "24 tests — every one of them passes a graph and a layout and asserts " +
+      "over the graph's own `members`, so a sort keyed on a set that file " +
+      "never builds is invisible to the lot. Story 7.4's AC 4 is the rule " +
+      "it breaks: a highlight changes HOW an equity is drawn and nothing " +
+      "about which equities are drawn, hit-testable or walkable.\n\n" +
+      "**The substitution APPENDS and keeps the found line**, per " +
+      "`CLAUDE.md`'s 2026-10-16 rule, and the planted set is declared inline " +
+      "so the defect COMPILES AND RUNS rather than going red at a " +
+      "`ReferenceError`, which would read like proof and be none.",
+    file: "apps/frontend/src/topology/walk.ts",
+    find:
+      "  const at = group.members.indexOf(from);\n" +
+      "  if (at < 0) return null;",
+    replace:
+      "  const at = group.members.indexOf(from);\n" +
+      "  if (at < 0) return null;\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const highlighted = new Set<string>();\n" +
+      "  const peersFirst = [...group.members].sort(\n" +
+      "    (left, right) =>\n" +
+      "      (highlighted.has(right) ? 1 : 0) - (highlighted.has(left) ? 1 : 0),\n" +
+      "  );\n" +
+      "  void peersFirst;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "the-topology-walk-reads-no-highlight",
+  },
+
+  {
     name: "a-second-reader-for-the-investigation-stream",
     proves:
       "A second place in the frontend that opens the investigation SSE " +
@@ -7362,6 +7415,54 @@ export const BREAKS = [
       "export function createHighlightPeersProducer(",
     command: ["node", "scripts/check-invariants.mjs"],
     expect: "a-permitted-command-is-minted-only-by-the-permission-stage",
+  },
+  {
+    name: "a-surface-mints-its-own-highlight-command",
+    proves:
+      "`a-highlight-command-is-minted-only-where-the-wire-is-decoded` goes " +
+      "red on a frontend surface that builds its own `highlightNodes` " +
+      "command and could hand it straight to " +
+      "`MarketTopologyHandle.setHighlight` — the entry above's own defect, " +
+      "on the other side of the wire, which that check cannot see at all " +
+      "because its corpus is `apps/backend/src` (Task 7.4.3).\n\n" +
+      "**The plant is where the next author would write it**: the landing " +
+      "route, beside the effect that already applies the one real command, " +
+      "which is the file somebody reaches for to answer *draw these peers* " +
+      "without an investigation — a demo state, a Storybook arg lifted into " +
+      "the route, a `?highlight=` parameter.\n\n" +
+      "**Nothing else sees it, and that was produced rather than argued.** " +
+      "With this plant applied by hand, `pnpm typecheck` is **completely " +
+      "clean**: `WorkspaceHighlightCommand` is a plain structural interface " +
+      "with no brand — correctly, since a command has no explanation to " +
+      "protect (ADR 0051 Decision 1) — so the literal compiles anywhere in " +
+      "the bundle. Every test stays green too, for `CLAUDE.md`'s own " +
+      "pass-through reason: a highlight drawn from an invented peer set is " +
+      "indistinguishable on screen and in the DOM from one the permission " +
+      "stage answered, so *the note names the subject and counts the set* " +
+      "holds either way. What is lost is that anybody measured or permitted " +
+      "the set at all.\n\n" +
+      "**The substitution APPENDS and keeps the found line** (2026-10-16's " +
+      "rule), and the planted object is a plain literal needing no import, " +
+      "so the defect compiles and runs rather than going red at a type " +
+      "error — which would read like proof and be none.",
+    file: "apps/frontend/src/routes/MarketOverview.tsx",
+    find:
+      "  useEffect(() => {\n" +
+      "    topology.current?.setHighlight(workspaceCommand ?? null);\n" +
+      "  }, [workspaceCommand]);",
+    replace:
+      "  useEffect(() => {\n" +
+      "    topology.current?.setHighlight(workspaceCommand ?? null);\n" +
+      "  }, [workspaceCommand]);\n" +
+      "  // pnpm break: reverted automatically\n" +
+      "  const relatedToHere = {\n" +
+      '    subject: "NVDA",\n' +
+      '    symbols: ["AAPL", "MSFT"],\n' +
+      '    relations: ["sector_membership"],\n' +
+      "  };\n" +
+      "  void relatedToHere;",
+    command: ["node", "scripts/check-invariants.mjs"],
+    expect: "a-highlight-command-is-minted-only-where-the-wire-is-decoded",
   },
   {
     name: "an-analytical-tool-reached-outside-the-pipeline",
