@@ -69,6 +69,7 @@ import type {
 
 import { countInWords } from "../market/index.js";
 import { PATHS } from "../routes/paths.js";
+import type { TopologyHighlightCut } from "./highlight.js";
 import type {
   TopologyAnomalyTreatment,
   TopologyFilterCriterion,
@@ -605,6 +606,13 @@ const LANDMARKS_REMAIN =
  * market is drawn* on the state this screen is in 100% of the time until
  * somebody presses something is a sentence nobody needs.
  *
+ * **A THIRD clause since Task 7.4.4, and it is about a different subject's
+ * collision with this one**: where an investigation's highlight is in force and
+ * this cut is hiding some of what it named, the note says so and points at the
+ * `Show all` link it already carries. See {@link hiddenPeerWords} for the three
+ * absences and for why the whole-set case is a different sentence rather than a
+ * larger figure.
+ *
  * **It is a criterion rather than a measurement, so it does not borrow
  * `measured-set.ts`' grammar.** That module's sentences date an observation
  * window and name a tape, because what they qualify is a figure somebody
@@ -613,6 +621,121 @@ const LANDMARKS_REMAIN =
  * sector they are, and which band.
  */
 export function topologyFilterWords(
+  narrowing: TopologyNarrowing,
+  filter: TopologyFilter,
+  /**
+   * **What this cut is doing to a highlight in force, or `null` for none**
+   * (Task 7.4.4) — `topologyHighlightCut`'s answer, computed by the one caller
+   * that holds both the command and the narrowed graph.
+   *
+   * It lands here rather than in `topologyHighlightWords` because the fact is
+   * about the **criterion**: *your filter is hiding some of what an
+   * investigation pointed at*, with `Show all` — this note's own existing
+   * control — as the way out. A clause of its own on the accessible sentence
+   * would have been a fourth independent writer of a string three writers
+   * already clobber each other over, which is the collision
+   * `MarketTopology.tsx` has paid for three times.
+   */
+  cut: TopologyHighlightCut | null,
+): { readonly line: string; readonly clause: string } | null {
+  const base = narrowedWords(narrowing, filter);
+  if (base === null) {
+    // **Nothing is narrowed, so nothing can be outside the filter.** Proved
+    // rather than asserted: this arm is reached only where no cut applies, and
+    // `narrowTopology` returns the input graph by identity there, so the
+    // caller's `drawn` is `null` and `hidden` is `0` by construction. Returning
+    // the suffix alone would be a sentence about a criterion with no criterion.
+    return null;
+  }
+
+  const extra = hiddenPeerWords(cut);
+  if (extra === null) return base;
+
+  return {
+    line: `${base.line} · ${extra.line}`,
+    clause: `${base.clause}${extra.clause}`,
+  };
+}
+
+/**
+ * **What the reader's own cut is hiding of a highlight — one builder, two
+ * renderings, and `null` three ways** (Task 7.4.4).
+ *
+ * `null` for *no command*, for *the command named nothing this cut hides*, and
+ * for *the command named nothing this universe tracks* — ADR 0029's rule, which
+ * every other clause in this module already follows: a clause renders only when
+ * its own data is present, and *0 of 61 highlighted peers are hidden* is a
+ * figure on screen for the state a reader is in every time they have not
+ * narrowed anything.
+ *
+ * **The whole-set case is a different sentence rather than a bigger figure**,
+ * because it is a different fact: the renderer draws **no de-emphasis at all**
+ * there ({@link TopologyHighlightCut.drawsAnything}), so the note is not
+ * reporting a count — it is saying why the picture did not change.
+ */
+function hiddenPeerWords(
+  cut: TopologyHighlightCut | null,
+): { readonly line: string; readonly clause: string } | null {
+  if (cut === null || cut.hidden === 0) return null;
+
+  if (!cut.drawsAnything) {
+    const line = "nothing highlighted is drawn here, so nothing is quietened";
+    return {
+      line,
+      clause:
+        ` None of the highlighted securities are inside this filter, so` +
+        ` nothing is drawn quieter. Show all returns the whole market.`,
+    };
+  }
+
+  const hidden = String(cut.hidden);
+  const peers = String(cut.peers);
+  /*
+   * **The noun and the verb agree with DIFFERENT counts, and that is the
+   * whole of this — `N of M highlighted peers are outside this filter`.**
+   *
+   * The noun belongs to `M`: it names the **population** being drawn from
+   * (*of the four highlighted peers*), never the part of it being described.
+   * The verb belongs to `N`: the subject of the sentence is *N of M*, and one
+   * of four `is` outside while three of four `are`. Four combinations, all
+   * four reachable, and only a rule that separates the two counts gets them
+   * all right:
+   *
+   *   | hidden | peers | reads |
+   *   | ------ | ----- | ----- |
+   *   | 1      | 1     | `1 of 1 highlighted peer is` |
+   *   | 1      | 4     | `1 of 4 highlighted peers is` |
+   *   | 3      | 4     | `3 of 4 highlighted peers are` |
+   *   | 4      | 4     | `4 of 4 highlighted peers are` |
+   *
+   * **This is the THIRD time this defect class has landed on this surface,
+   * and the second time on this one sentence.** Story 6.8 paid for `1 are
+   * high` in two separate builders; this task's own first draft agreed the
+   * verb and left the noun (`1 of 1 highlighted peers is`); its repair then
+   * keyed **both** on `hidden` and broke the commoner case the other way
+   * (`1 of 4 highlighted peer is`). Each fix was green on the case in front
+   * of it and wrong on the one beside it, which is why the test below
+   * asserts the **grammar at every combination** rather than one output
+   * string — a test written around the sentence somebody happened to be
+   * looking at is what let all three through.
+   */
+  const noun = cut.peers === 1 ? "highlighted peer" : "highlighted peers";
+  const verb = cut.hidden === 1 ? "is" : "are";
+  // **`the` goes where there is a population to point at.** `1 of the 1
+  // highlighted peer` is grammatical and reads as a typo; with one peer the
+  // clause is simply the line's own sentence.
+  const of = cut.peers === 1 ? "of" : "of the";
+
+  return {
+    line: `${hidden} of ${peers} ${noun} ${verb} outside this filter`,
+    clause:
+      ` ${hidden} ${of} ${peers} ${noun} ${verb} outside this` +
+      ` filter. Show all returns the whole market.`,
+  };
+}
+
+/** The population half, unchanged since Task 6.8.2 — see above. */
+function narrowedWords(
   narrowing: TopologyNarrowing,
   filter: TopologyFilter,
 ): { readonly line: string; readonly clause: string } | null {

@@ -938,3 +938,107 @@ describe("the 5-minute return and the security it is about", () => {
     expect(unresolved.container.textContent).not.toContain("0.42");
   });
 });
+
+// **Why `Investigate`'s related-securities answer is absent, and the ONE
+// condition that nearly went missing** (Task 7.4.4, Done-when 4).
+//
+// `get_related_securities` refuses a security that has no node in
+// `buildTopologyGraph(UNIVERSE)` — the **curated file** — and sends no
+// `WORKSPACE_COMMAND`, so `/`'s topology does not react at all. This route
+// derives the same fact from the universe **response**, and the two do not
+// line up the obvious way: `GET /securities` deliberately does not filter on
+// `status`, so the deployed store's real untracked rows are **served and
+// found**, while the curated file no longer holds them.
+//
+// So the test that matters is the one with a found row rather than an absent
+// one. A presence-only check — this task's own first draft — is green on
+// `/securities/ZZZZ` and silent on `PSKY`, which is every untracked security
+// that actually exists.
+describe("the untracked-subject sentence (Task 7.4.4)", () => {
+  const UNTRACKED_SENTENCE = /not in the tracked universe/u;
+
+  const drawAt = (path: string) =>
+    renderWithContext(
+      <Routes>
+        <Route
+          element={
+            <SecurityExplorer
+              marketFeed={MARKET_FEED}
+              liveFeed={NO_LIVE_FEED}
+            />
+          }
+          path={ROUTE_PATTERNS.security}
+        />
+      </Routes>,
+      { at: path },
+    );
+
+  /** Press it, which seeds the checklist client-optimistically in one frame. */
+  const investigate = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Investigate" }));
+
+  it("says why for a row the universe SERVES with status `untracked` — PSKY's own shape", async () => {
+    stubFetch(() =>
+      json(200, { securities: [GILD, NVDA], coverage: [], lastCloses: [] }),
+    );
+    drawAt("/securities/GILD");
+
+    // Waited on the universe answer rather than on the sentence: *the answer
+    // has not arrived* draws no sentence either, and a bare assertion would
+    // pass before the request settled.
+    await waitFor(() => {
+      expect(screen.getByRole("rowheader", { name: "GILD" })).toBeTruthy();
+    });
+
+    investigate();
+
+    expect(screen.getByText(UNTRACKED_SENTENCE)).toBeTruthy();
+  });
+
+  it("says why for a symbol the universe holds no row for at all", async () => {
+    stubFetch(() =>
+      json(200, { securities: [NVDA, SPY], coverage: [], lastCloses: [] }),
+    );
+    drawAt("/securities/ZZZZ");
+
+    await waitFor(() => {
+      expect(screen.getByText("securities tracked")).toBeTruthy();
+    });
+
+    investigate();
+
+    expect(screen.getByText(UNTRACKED_SENTENCE)).toBeTruthy();
+  });
+
+  it("says nothing for an active security — 516 of 516 of them", async () => {
+    stubFetch(() =>
+      json(200, { securities: [GILD, NVDA], coverage: [], lastCloses: [] }),
+    );
+    drawAt("/securities/NVDA");
+
+    await waitFor(() => {
+      expect(screen.getByRole("rowheader", { name: "NVDA" })).toBeTruthy();
+    });
+
+    investigate();
+
+    expect(screen.queryByText(UNTRACKED_SENTENCE)).toBeNull();
+  });
+
+  it("says nothing while the universe answer is still in flight", () => {
+    // Claiming a security is untracked during the 174–277 ms the request takes
+    // is Story 4.7's own mover-row defect: a true-looking statement about data
+    // nobody has yet.
+    stubFetch(
+      () =>
+        new Promise<Response>(() => {
+          // never settles
+        }),
+    );
+    drawAt("/securities/GILD");
+
+    investigate();
+
+    expect(screen.queryByText(UNTRACKED_SENTENCE)).toBeNull();
+  });
+});

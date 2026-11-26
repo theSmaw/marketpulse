@@ -17,6 +17,12 @@ const meta = {
   title: "Investigations/InvestigationChecklist",
   component: InvestigationChecklist,
   parameters: { layout: "padded" },
+  /**
+   * **The ordinary case, stated once** (Task 7.4.4): every security in the
+   * tracked universe. `UntrackedSubject` below is the one story that overrides
+   * it, which is also the one state the sentence it draws is reachable in.
+   */
+  args: { subjectUntracked: false },
 } satisfies Meta<typeof InvestigationChecklist>;
 
 export default meta;
@@ -383,6 +389,29 @@ export const Dropped: Story = {
   },
 };
 
+/**
+ * **An untracked subject — Task 7.4.4, Done-when 4's second half.**
+ *
+ * `/securities/PSKY` or `/securities/ZZZZ`: `get_related_securities` refuses
+ * outright, so **no `WORKSPACE_COMMAND` is ever sent** and `/`'s topology does
+ * not react at all. Without the sentence beneath the rows, that absence is
+ * indistinguishable from the feature being broken.
+ *
+ * What to look at: whether a quiet, uncoloured, markerless sentence under six
+ * completed rows reads as *this question does not arise for this security*
+ * rather than as a failure. It deliberately carries no `Marker` and spends no
+ * ink from the status palette, and it is drawn only once a run has been pressed
+ * — compare {@link Invisible}, where nothing has.
+ */
+export const UntrackedSubject: Story = {
+  args: {
+    checklist: { ...wholePipeline, symbol: "ZZZZ" },
+    announcement: "",
+    pastCoverThreshold: false,
+    subjectUntracked: true,
+  },
+};
+
 // Nothing pressed yet — Done-when 2. This component renders nothing at all
 // here; the `Investigate` button lives in `Region`'s own `meta` slot
 // (`SecurityExplorer.tsx`) and is never hidden regardless of this state.
@@ -408,30 +437,35 @@ export const AllPermutations: Story = {
         checklist={queued}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>running, under 160ms</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>running, breathing</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>completed</span>
       <InvestigationChecklist
         checklist={completed}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>connection lost</span>
       <InvestigationChecklist
         checklist={dropped}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
     </div>
   ),
@@ -457,18 +491,21 @@ export const InGreyscale: Story = {
         checklist={queued}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>running, breathing</span>
       <InvestigationChecklist
         checklist={running}
         announcement=""
         pastCoverThreshold
+        subjectUntracked={false}
       />
       <span className={gridStyles.label}>completed</span>
       <InvestigationChecklist
         checklist={completed}
         announcement=""
         pastCoverThreshold={false}
+        subjectUntracked={false}
       />
     </div>
   ),

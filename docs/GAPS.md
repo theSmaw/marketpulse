@@ -2268,6 +2268,33 @@ duration over 12 s. Read the sets for **disjointness** rather than the counts
 for a total: three disjoint singletons and one triple is the signature of a
 ceiling family, and three identical sets would be a regression.
 
+**Fired on a required CI check, 2026-11-26, on Story 7.4's own Task 7.4.4 PR
+(#716) — recorded as a new occurrence rather than fixed in passing, per this
+file's own route-rather-than-repair-in-passing rule.** Verbatim:
+
+```
+Error: expect(received).toEqual(expected) // deep equality
+- Array [ "XLK", "XLC", "XLY", "XLI", "XLF", "XLV", "XLB", "XLP", "XLE" ]
++ Array []
+  > 581 |   expect(await tickersIn(ranked)).toEqual([
+  at e2e/specs/overview-nothing-to-open.spec.ts:581:35
+```
+
+Identical shape to this entry's own founding sighting — eleven expected
+tickers, `Array []` received, same assertion, same line. `verify` and
+`database` were both green on this head; only `e2e` failed, with `1 failed,
+20 skipped, 332 passed (11.9m)`. Confirmed structurally unrelated before
+re-running: the PR's diff touches only
+`apps/frontend/src/{topology,components/MarketTopology,routes/SecurityExplorer*}`
+and a new, unrelated e2e spec
+(`overview-investigation-highlight.spec.ts`) — nothing under
+`e2e/support/universe.ts`'s importers, and this spec "furnishes its own frame
+and routes its own socket" exactly as the entry above already states. Owner
+and repair are unchanged from Task 4.7.6's own diagnosis above
+(`expect.poll`/`await expect` on the first row rather than a non-retrying
+`expect` over `evaluateAll`) — still not taken, for the same reason: it is
+this spec's own assertion, not this task's or this story's to fix in passing.
+
 ## The search surface's axe passes judge whichever ten rows ONE hard-coded query happens to match — and typing a different letter finds a real contrast violation today
 
 **Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
@@ -7466,3 +7493,198 @@ between the AC and the Gate-1 record: either AC 8's terminal clause is struck
 (the shipped behaviour, and the only one with a reachable state), or it stands
 and the story's own headline journey is deleted along with the feature's
 visibility. Nothing else in this story depends on which.
+
+## A THIRTEENTH entry for the standing screen-reader item — the highlight's Gate-1 premise is FALSE: no surface in this product names the peers in text
+
+**Added 2026-11-26 by Task 7.4.4, and it is a falsification rather than a
+deferral.** Story 7.4's Gate 1 decided that the graph highlight is **announced
+to nobody** — no new live region, no extension of the existing
+selection-announcement region — and recorded one explicit condition on that
+decision: _"This is only honest if the peer-comparison step's own result
+already names its peers in text on the security page — confirm this is true of
+Story 7.2's shipped result surface before relying on it."_ Task 7.4.4's own
+`Done when 8` required the confirmation to be taken rather than assumed.
+
+**It was taken, against the shipped claim text, and the premise does not
+hold.** `compare_securities`' own `Finding.claim` —
+`toCompareSecuritiesFinding` in `apps/backend/src/tool-compare-securities.ts` —
+is built as:
+
+```
+`${formatSignedPoints(reading.excessPoints)} against ` +
+  `${reading.referenceSymbol} over ` +
+  `${String(reading.spanMinutes)} min — ` +
+  `${percentileOrdinal(reading)} of ` +
+  formatCount(reading.sampleCount)
+```
+
+which renders, verbatim from this epic's own workshop fixture,
+`−3.10 pts against XLK over 5 min — 92nd of 3,180`. That names **one** ticker
+and it is the **sector benchmark ETF**, by a deliberate Gate-1 decision of
+Story 7.3's own (_"The benchmark is NAMED, and it is the one ticker a claim
+carries"_, that function's docblock, which also records that the investigated
+ticker is omitted because the route and the identity block already carry it).
+It names **no peer security at all** — and it cannot, because the comparison it
+describes is subject-against-benchmark rather than subject-against-peers.
+
+**And `get_related_securities` reaches no result surface whatever.** It is not
+a checklist step: the orchestrator calls it after `compare_securities`'
+`STEP_COMPLETED` (`workspace-command-pipeline.ts`' `afterTool`), and its answer
+becomes a `WORKSPACE_COMMAND` and nothing else — no `TOOL_CALL_COMPLETED`, no
+`Finding`, no row, no claim. The security page's own `Connected securities`
+region is still a `RegionPlaceholder`, owned by _"the first story that reads
+one security's own strongest relationships"_. So the complete inventory of what
+any surface says in text about the peer set is `/`'s topology structural
+sentence, read on demand through the canvas's `aria-labelledby`:
+
+```
+ Highlighting NVDA and the 61 related securities it is joined to — sector
+ peers and correlated securities. Every other equity is drawn quieter.
+```
+
+A **subject**, a **count** and the **kinds**. No ticker.
+
+**What that means, stated without softening.** The capability _which securities
+are the peers_ is reachable **by eye only**, from the drawn canvas, on one
+route. A listener can learn that 61 securities were pointed at and cannot learn
+which. Gate 1's no-announcement decision is still the right one for the reasons
+it gives — the existing `role="status"` region has exactly one subject, and a
+61-ticker sentence spoken unprompted would be a wall — but the **fallback it
+rested on does not exist**, so the net position today is a visual encoding with
+no textual equivalent anywhere.
+
+**Deliberately not repaired here, and the reason is the task brief's own.** The
+cheap repair is on the **security page**, where the peers belong beside the
+comparison that produced them — either `Connected securities`' own region or a
+clause on the peer-comparison claim — and that is a surface this task does not
+own and a decision this task may not take (Gate 1 settled the announcement
+question and reopening it is the Product Owner's call, not a developer's).
+Inventing an announcement on `/` instead would put 61 tickers in a region whose
+whole design is one subject, which is the alternative Gate 1 already weighed and
+refused.
+
+**Not mechanisable as a check.** What a listener can learn from a surface is the
+standing item's own condition, and the specific gap here is an **absence of a
+string** rather than a property of one — nothing can grep for a fact no file
+states. What _is_ mechanical and is already green: that the structural sentence
+carries the subject, the count and the kinds, and that nothing speaks
+unprompted (`MarketTopology.test.tsx`, _"speaks nothing — the fact is in the
+structural sentence, read on demand"_).
+
+**Re-measure:** read `toCompareSecuritiesFinding`'s claim construction and ask
+whether any peer ticker appears in it; then grep the frontend for a surface that
+renders `RelatedSecuritiesAnswer`'s `related` rows as text. Both answers are
+`no` on this date.
+
+**Owner: the Product Owner**, as a one-line scope decision for the first story
+that touches `Connected securities` — whether the peer set gets a textual home
+on the security page, which would also discharge this entry. The listening pass
+itself remains **a person with a screen reader, before Epic 11 hands this
+surface to an agent**, the same owner and condition every entry in this section
+carries.
+
+## The highlight's de-emphasis is illegible at 390, and the note is the only thing that says anything there
+
+**Added 2026-11-26 by Task 7.4.4**, from the large-highlight probe that task's
+own `Done when 7` required — and it is a finding a person made by looking,
+which nothing mechanical in this repository can see.
+
+**What was looked at.** `pnpm probe --story components-markettopology--highlighted-peers`
+at 1440/1024/768/390, against the real recorded 518-security universe with the
+real measured band distribution, driving the real Technology-equity command:
+`NVDA` plus `XLK` plus 72 sector-mates — **73 peers, 74 drawn nodes, ~14% of
+the graph**, which is the upper half of the 10–18% band Story 7.4's Gate 1
+predicted for this case.
+
+**The verdict, by width.** At **1440 and 1024** the Technology cluster is
+visibly solid against ten receded ones; the separation is unambiguous and
+nothing changed hue. At **768** it still reads, with less margin. At **390 it
+does not read at all**: at that fit scale each node is a ~3 px disc inside an
+amber `elevated`/`high` ring that the de-emphasis correctly does not touch,
+sector labels are already suppressed (Story 6.6's threshold), and the whole
+difference between quiet and full is the lightness of ink on a disc smaller
+than the ring around it. A person could not tell which cluster was Technology
+from the 390 screenshot, nor that any cut had been made.
+
+**A second, smaller finding from the same sitting, true at every width.** 73
+nodes at full strength in one cluster read as _this sector is the subject_
+rather than as _these are this security's peers_ — a reader cannot find
+`NVDA`, which is drawn as an ordinary member of its own highlighted set by
+Gate 1's own decision (a selection disc or a sixth mark would both lie about
+what the reader did). That is the encoding working as designed; it is recorded
+because the feature's name invites the other reading.
+
+**Not repaired, and the reason is scope rather than cost.** The obvious move
+is the one this surface has made twice — suppress the layer below the
+fit-scale threshold, as Story 6.6 does for sector labels and Story 6.5 for the
+correlation mesh — which at 390 would leave the note alone to carry the fact.
+It is a **design** decision about whether a reader is better served by a
+picture that changes illegibly or by one that does not change, and Task 7.4.4
+did not own it. What is certain either way is that the note is correct and
+legible at 390 (two wrapped lines, measured: `notes` 372×42, and 372×92 with
+a filter clause beside it).
+
+**Not mechanisable as a check.** _Does a reader see the peers_ is the fourth
+design test, and the one instrument is a person in front of the screen —
+`TOPOLOGY.md` §11.2 carries the full account and the screenshots' own figures.
+Nothing below `pnpm e2e` can reach the canvas at all, and a browser spec can
+read the note and not the ink.
+
+**Re-measure:** `pnpm probe --story components-markettopology--highlighted-peers`
+with a Storybook running, and look at `.probe/390x780.png`. If a later story
+suppresses the de-emphasis below `TOPOLOGY_SECTOR_LABEL_MIN_SCALE`, this entry
+is discharged by that change.
+
+**Owner: the Product Owner**, as a design decision at Story 7.4's close or the
+first story that revisits this canvas's small-viewport behaviour — the same
+owner the two earlier fit-scale suppressions were settled by.
+
+## `overview-market-topology-live-mark.spec.ts` fails about one run in five, on `main`, and the `e2e` required check is where that lands
+
+**Measured 2026-11-26 by Task 7.4.4**, which met it twice in two full-suite
+runs and then took the control this repository's own rule asks for rather
+than attributing it to the branch.
+
+**The figures, interleaved on one settled machine.** The spec was run
+`--repeat-each=12` on the task's branch and then, with `apps/frontend/src`
+checked out from `main` and nothing else changed, twelve more times:
+
+| Tree       | Failures | Rate |
+| ---------- | -------- | ---- |
+| the branch | 3 / 12   | 25%  |
+| `main`     | 2 / 12   | 17%  |
+
+Those are one distribution — the Wilson 95% intervals (8.9–53% and 4.7–41%)
+overlap almost entirely — so **the flake is pre-existing and nothing on the
+branch caused it**. The first reading that prompted this was 2 failures of 8
+on the branch at a load average of 21 against 0 of 8 on `main` at 17, which is
+exactly the misleading pair `CLAUDE.md`'s own _before attributing a flake to a
+branch_ passage warns about: two draws from one distribution, read as a
+regression, at an n that cannot separate them.
+
+**Which assertion, and why it is load-shaped.** The failing expectation is the
+last one — `expect(await settledCanvasImage(page)).toBe(atRest)`, _the loop
+stops on its own and the canvas returns to exactly the pre-burst picture_.
+`settledCanvasImage` polls for two consecutive identical reads, so a decay
+loop that stalls can settle on a **partially faded** frame and compare it
+against a baseline it will never equal. The 600 ms wait before it is measured
+against a 900 ms `--motion-duration-decay` plus however long the frame loop
+actually took, which is the quantity under contention.
+
+**Not repaired here, deliberately.** This task changed nothing the spec
+exercises — it sets no highlight, and `topologyHighlightDrawsAnything(null, …)`
+returns on its first line so the drawn partition is byte-identical — and
+repairing a flaky assertion in somebody else's spec on the way past is the
+kind of unreviewed change this repository's own rules are against. What it
+needs is the wait replaced by a poll with a real deadline, or the comparison
+tolerant of the last frame of a decay.
+
+**Re-measure:** `pnpm e2e overview-market-topology-live-mark.spec.ts -g "a live burst produces one decaying" --repeat-each=12`,
+with the load average read **before** the run. Count failures per execution
+and state the worker count — the rate is a property of both.
+
+**Owner: the next story that touches this spec or the live-mark loop**, and
+until then every full `pnpm e2e` run has roughly a one-in-five chance of a red
+`e2e` check that is nobody's defect. That is work owed under this project's
+own _pipeline jobs never go red_ rule, which is why it is written down rather
+than left as a thing people re-run.

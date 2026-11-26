@@ -253,6 +253,106 @@ test("a click on empty canvas clears it, and a click on a node does not", async 
   await expectNothingFailedToRender(page);
 });
 
+// **The keyboard's own way out — Task 7.4.4**, the affordance `Escape` and a
+// click on empty canvas both leave owed: neither is reachable to a reader who
+// arrived at the note by `Tab` and has never been told a key clears anything.
+//
+// This is the only level that can prove two of the three things about it: that
+// the control is a real tab stop rather than an inert one, and that pressing it
+// does not drop the reader on `<body>`.
+test("the note's own Clear control is a tab stop, and returns the reader to the canvas", async ({
+  page,
+}) => {
+  await highlightOnTheOverview(page);
+
+  const topology = page.getByRole("region", { name: "Market topology" });
+  const clear = topology.getByRole("button", { name: "Clear" });
+
+  // **A real, present control exactly when the state exists.** The paragraph
+  // carries `hidden` while nothing is highlighted, so this locator finds
+  // nothing at all before a command — never a `disabled` control, which is
+  // the defect this product shipped once and rebuilt `TextField` around.
+  await expect(clear).toBeVisible();
+  await expect(clear).toBeEnabled();
+
+  await clear.focus();
+  await expect(clear).toBeFocused();
+  await clear.press("Enter");
+
+  await expect(highlightNote(page)).toHaveCount(0);
+  await expect(structuralSentence(page)).not.toContainText("Highlighting");
+
+  // **Focus, which is the half nothing below a browser can see.** The press
+  // removes the element holding it, and `Region`'s own dropped-focus backstop
+  // does not fire for a removal driven by this component's imperative write
+  // (Task 6.4.4 measured exactly that one element over). Where `Escape`
+  // already leaves a reader is the canvas, and so does this.
+  await expect(topology.locator("canvas")).toBeFocused();
+
+  // And the holder stopped holding it, which is the same assertion the
+  // `Escape` test makes and for the same reason: one clearing path, two
+  // callers.
+  await page.getByRole("link", { name: "Security Explorer" }).click();
+  await expect(page).toHaveURL(/\/securities$/u);
+  await page.getByRole("link", { name: "Market Overview" }).click();
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(highlightNote(page)).toHaveCount(0);
+
+  await expectNothingFailedToRender(page);
+});
+
+// **The filter's own third clause — Task 7.4.4, Done-when 1–3.**
+//
+// Runnable on a gated machine for this spec's own stated reason: the command is
+// produced on a zero-bar store and the topology is a function of the universe
+// request alone. What a gated machine still cannot see is that the ink actually
+// stayed put — `pnpm probe` and a person own that.
+test("a filter that hides the whole highlighted set says so, and Show all is the way back", async ({
+  page,
+}) => {
+  await highlightOnTheOverview(page);
+
+  const topology = page.getByRole("region", { name: "Market topology" });
+
+  // `NVDA` is Technology; `?sector=energy` draws no equity the command named.
+  // The `Sector` control's own destination, reached as a reader reaches it.
+  await topology.getByRole("button", { name: /^Sector/u }).click();
+  await topology.getByRole("link", { name: "Energy", exact: true }).click();
+  await expect(page).toHaveURL(/[?&]sector=energy/u);
+
+  const filterNote = topology.locator("[data-topology-filter-line]");
+  await expect(filterNote).toContainText("Energy");
+  await expect(filterNote).toContainText("nothing is quietened");
+
+  // The spoken twin, from the same builder — what could silently become two
+  // sentences, which this region has lost three times.
+  await expect(structuralSentence(page)).toContainText(
+    "None of the highlighted securities are inside this filter",
+  );
+  // **And the de-emphasis claim is withheld with it**, because there is no
+  // de-emphasis drawn for it to describe.
+  await expect(structuralSentence(page)).not.toContainText(
+    "Every other equity is drawn quieter.",
+  );
+
+  // The highlight itself is untouched — the filter never clears a command, and
+  // the note still names what was pointed at.
+  await expect(highlightNote(page)).toBeVisible();
+
+  // **`Show all`, one press, both cuts** — the existing control, never a
+  // second one added for this feature.
+  await topology.getByRole("link", { name: "Show all" }).click();
+  await expect(page).not.toHaveURL(/[?&]sector=/u);
+  await expect(structuralSentence(page)).not.toContainText(
+    "None of the highlighted securities",
+  );
+  await expect(structuralSentence(page)).toContainText(
+    "Every other equity is drawn quieter.",
+  );
+
+  await expectNothingFailedToRender(page);
+});
+
 test("no coordinate crosses the wire in either direction", async ({ page }) => {
   // **The real backend, driven directly rather than through the page**, which
   // is what makes this deterministic: the SSE route terminates its HTTP

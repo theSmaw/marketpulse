@@ -3,12 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   SECTOR_ETFS,
   TOPOLOGY_EDGE_KINDS,
+  buildTopologyGraph,
   toTicker,
 } from "@marketpulse/shared";
-import type { TopologyNode } from "@marketpulse/shared";
+import type { Sector, TopologyNode } from "@marketpulse/shared";
 
+import { securitiesFixtureBody } from "../fixtures/securities.js";
+import { narrowTopologyGraph } from "./filter.js";
 import {
   TOPOLOGY_RELATION_WORDS,
+  topologyHighlightCut,
+  topologyHighlightDrawsAnything,
   topologyHighlightSet,
   topologyHighlightTreatment,
   topologyHighlightWords,
@@ -179,7 +184,7 @@ describe("topologyRelationWords — Task 7.4.2", () => {
 
 describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", () => {
   it("names the subject and counts the RELATED securities, never the drawn set", () => {
-    const { line, clause } = topologyHighlightWords(HIGHLIGHT);
+    const { line, clause } = topologyHighlightWords(HIGHLIGHT, true);
 
     // Three symbols, four drawn nodes. The figure is the three.
     expect(line).toBe(
@@ -190,11 +195,14 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
   });
 
   it("agrees its noun with its count", () => {
-    const { line } = topologyHighlightWords({
-      ...HIGHLIGHT,
-      symbols: ["AAPL"],
-      relations: ["sector_membership"],
-    });
+    const { line } = topologyHighlightWords(
+      {
+        ...HIGHLIGHT,
+        symbols: ["AAPL"],
+        relations: ["sector_membership"],
+      },
+      true,
+    );
 
     expect(line).toBe(
       "Highlighting NVDA and 1 related security — sector peers",
@@ -202,10 +210,13 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
   });
 
   it("draws no dash and no empty tail where no kind is recognised", () => {
-    const { line, clause } = topologyHighlightWords({
-      ...HIGHLIGHT,
-      relations: ["common_industry"],
-    });
+    const { line, clause } = topologyHighlightWords(
+      {
+        ...HIGHLIGHT,
+        relations: ["common_industry"],
+      },
+      true,
+    );
 
     expect(line).toBe("Highlighting NVDA and 3 related securities");
     expect(line).not.toContain("—");
@@ -213,11 +224,128 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
   });
 
   it("states the figure identically in both renderings — the thing that could drift", () => {
-    const { line, clause } = topologyHighlightWords(HIGHLIGHT);
+    const { line, clause } = topologyHighlightWords(HIGHLIGHT, true);
     const figures = line.match(/\d[\d,]*/gu) ?? [];
 
     expect(figures).toHaveLength(1);
     for (const figure of figures) expect(clause).toContain(figure);
     expect(clause).toContain("NVDA");
+  });
+
+  // **Task 7.4.4.** The tail is a claim about ink, and it stops being true the
+  // moment the reader's own cut hides everything the command named — there is
+  // no de-emphasis drawn there at all, so a sentence saying there is would be
+  // describing something that is not on screen.
+  it("withholds the de-emphasis claim where no de-emphasis is drawn", () => {
+    const { line, clause } = topologyHighlightWords(HIGHLIGHT, false);
+
+    expect(clause).not.toContain("drawn quieter");
+    expect(clause).toContain("Highlighting NVDA and the 3 related securities");
+    // The drawn line never carried the claim, so it is byte-identical.
+    expect(line).toBe(topologyHighlightWords(HIGHLIGHT, true).line);
+  });
+});
+
+// **What the reader's own cut is doing to a command — Task 7.4.4.**
+//
+// Over the real recorded universe, for `filter.test.ts`' own stated reason: a
+// toy graph cannot tell *the landmarks survived* from *everything survived*,
+// and the whole substance of `drawsAnything` is that a landmark must not be
+// what licenses a dimmed market.
+describe("topologyHighlightCut — Task 7.4.4", () => {
+  const GRAPH = buildTopologyGraph(securitiesFixtureBody("full").securities);
+
+  /** What a sector cut draws, in the shape `MarketTopology.tsx` holds it. */
+  const drawnFor = (sector: Sector): ReadonlySet<string> =>
+    new Set<string>(
+      narrowTopologyGraph(GRAPH, sector).nodes.map((node) => node.symbol),
+    );
+
+  const technologyEquities = GRAPH.nodes
+    .filter((node) => node.kind === "equity" && node.cluster === "technology")
+    .map((node) => String(node.symbol))
+    .filter((symbol) => symbol !== "NVDA");
+
+  /** The real Technology-equity command this story's own probe is taken on. */
+  const TECHNOLOGY: TopologyHighlight = {
+    subject: "NVDA",
+    symbols: [SECTOR_ETFS.technology, ...technologyEquities],
+    relations: ["sector_membership"],
+  };
+
+  it("hides nothing and draws everything where no cut applies", () => {
+    const cut = topologyHighlightCut(TECHNOLOGY, GRAPH, null);
+
+    expect(cut.peers).toBe(TECHNOLOGY.symbols.length);
+    expect(cut.hidden).toBe(0);
+    expect(cut.drawsAnything).toBe(true);
+  });
+
+  it("counts the peers a cut hides, and never the landmarks it keeps", () => {
+    // `?band=…`-shaped: one sector drawn, so every Technology peer survives
+    // and nothing is hidden — the direction that proves the count is a count
+    // of the DRAWN set rather than of the criterion.
+    const cut = topologyHighlightCut(TECHNOLOGY, GRAPH, drawnFor("technology"));
+
+    expect(cut.hidden).toBe(0);
+    expect(cut.drawsAnything).toBe(true);
+  });
+
+  it("hides every peer, and nothing relevant is drawn, for a cut to another sector", () => {
+    const cut = topologyHighlightCut(TECHNOLOGY, GRAPH, drawnFor("energy"));
+
+    // The eleven benchmark ETFs and the four proxies are drawn in every
+    // narrowed state, so `XLK` is NOT in the hidden count — the equities are.
+    expect(cut.hidden).toBe(technologyEquities.length);
+    expect(cut.peers).toBe(technologyEquities.length + 1);
+    // And the thing the de-emphasis is conditional on: `XLK` being on screen
+    // must not license dimming 21 Energy equities for a reader looking at
+    // nothing this command named.
+    expect(cut.drawsAnything).toBe(false);
+  });
+
+  it("draws something where the SUBJECT alone survives the cut", () => {
+    // `NVDA` is an ordinary member of the highlighted set, so a reader looking
+    // at it is looking at the thing the set is related to — the de-emphasis
+    // around it is a true claim.
+    const drawn = new Set<string>(["NVDA", ...drawnFor("energy")]);
+    const cut = topologyHighlightCut(TECHNOLOGY, GRAPH, drawn);
+
+    expect(cut.drawsAnything).toBe(true);
+    expect(cut.hidden).toBe(technologyEquities.length);
+  });
+
+  it("blames no filter for a symbol this universe does not track at all", () => {
+    // A newer backend's command reaching an older bundle. The symbol is not
+    // hidden by anybody's cut — it is a version skew — and counting it would
+    // put a figure beside `Show all` that pressing `Show all` cannot change.
+    const cut = topologyHighlightCut(
+      { subject: "NVDA", symbols: ["ZZZZ"], relations: ["sector_membership"] },
+      GRAPH,
+      drawnFor("energy"),
+    );
+
+    expect(cut.peers).toBe(1);
+    expect(cut.hidden).toBe(0);
+  });
+});
+
+describe("topologyHighlightDrawsAnything — Task 7.4.4", () => {
+  const GRAPH = buildTopologyGraph(securitiesFixtureBody("full").securities);
+
+  it("is false for no command, because nothing named is drawn", () => {
+    expect(topologyHighlightDrawsAnything(null, GRAPH, null)).toBe(false);
+  });
+
+  it("is false where the set holds only landmarks, filter or no filter", () => {
+    // Reachable without any filter at all: `SPY`'s own related set is the
+    // eleven sector ETFs, every one of them a landmark. Dimming all 501
+    // equities there would be the same false claim with a different cause.
+    const landmarks = new Set<string>([
+      "SPY",
+      ...Object.values(SECTOR_ETFS).map(String),
+    ]);
+
+    expect(topologyHighlightDrawsAnything(landmarks, GRAPH, null)).toBe(false);
   });
 });

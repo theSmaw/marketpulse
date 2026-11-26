@@ -233,3 +233,24 @@
 .claimStale {
   color: var(--ink-disabled);
 }
+
+/*
+ * **Why the related-securities answer is absent for an untracked subject**
+ * (Task 7.4.4) — one sentence, drawn in exactly one state.
+ *
+ * `.claim`'s own register rather than a new one: micro type, the row rhythm
+ * this panel already keeps, and `--ink-secondary` because it qualifies the
+ * checklist above it rather than stating a figure of its own. It spends no
+ * colour and carries no marker — there is nothing wrong here, and a status
+ * treatment would read as a failure where the correct reading is *this
+ * question does not arise for this security*.
+ *
+ * The margin matches `.checklist`'s own trailing one, so the panel's height in
+ * this state is the checklist's plus one wrapped line rather than a new rhythm.
+ */
+.untracked {
+  margin: 0 0 var(--space-12);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-micro);
+  line-height: var(--line-height-micro);
+}
