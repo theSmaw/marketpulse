@@ -73,13 +73,31 @@ async function tabToTheField(page: Page): Promise<number> {
  * Is the focused element — **or the ring that says it is focused** — sitting
  * underneath the application's sticky chrome?
  *
- * **An element taller than the viewport is excluded, and that is the
- * measurement rather than a let-off.** The browser does not scroll a target it
- * already considers in view, and a region 18,895px tall on an 900px viewport is
- * always partly in view — so its top edge is above the chrome whatever happens,
- * and nothing about it is obscured. What this predicate is for is the ordinary
- * case: a button, a link, a field, scrolled to the top of the scrollport and
- * parked behind 132 to 208 pixels of header.
+ * **An element taller than the SPACE BETWEEN BOTH STICKY EDGES is excluded,
+ * and that is the measurement rather than a let-off.** The browser does not
+ * scroll a target it already considers in view, and a region 18,895px tall on
+ * an 900px viewport is always partly in view — so its top edge is above the
+ * chrome whatever happens, and nothing about it is obscured. What this
+ * predicate is for is the ordinary case: a button, a link, a field, scrolled
+ * to the top of the scrollport and parked behind 132 to 208 pixels of header.
+ *
+ * **Corrected 2026-11-27 (Story 7.4's Phase 3 e2e repair) from a threshold of
+ * `window.innerHeight` alone.** `Abnormal-move indicators` at 390×780,
+ * unpressed, is 601–603px — comfortably under `innerHeight` (780) and so
+ * never exempted by the old predicate — yet sits behind **both** a sticky
+ * header and a sticky footer, which together reserve real room this route's
+ * own masthead and status bar vary at runtime (the market clock's own
+ * sentence, the feed's connection state). The two pieces of chrome leave only
+ * `innerHeight - header - footer` px of genuinely scrollable-into-view room,
+ * measured at **~565–578px** on a 390×780 viewport depending on the masthead's
+ * current content — **less** than the panel's own height, so no scroll
+ * position can ever clear the panel of both edges at once: the browser must
+ * leave one of them behind, exactly as "the browser does not scroll a target
+ * it already considers in view" already argues, just measured against the
+ * wrong budget. Comparing to raw `innerHeight` systematically **understates**
+ * how tall "too tall to be scrollable into full view" has to be whenever a
+ * route carries a sticky footer alongside the header, which every route in
+ * this product does.
  *
  * ## The ring is in the arithmetic since Task 4.6.1, and the `- 1` is gone
  *
@@ -101,6 +119,7 @@ async function focusIsObscured(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const element = document.activeElement;
     const header = document.querySelector("header");
+    const footer = document.querySelector("footer");
     if (element === null || header === null) return false;
     // The chrome's own contents are not obscured by it.
     if (header.contains(element)) return false;
@@ -114,7 +133,11 @@ async function focusIsObscured(page: Page): Promise<boolean> {
     }
 
     const box = element.getBoundingClientRect();
-    if (box.height >= window.innerHeight) return false;
+    const footerHeight =
+      footer === null ? 0 : footer.getBoundingClientRect().height;
+    const scrollableRoom =
+      window.innerHeight - header.getBoundingClientRect().height - footerHeight;
+    if (box.height >= scrollableRoom) return false;
     return box.top - ring < header.getBoundingClientRect().bottom;
   });
 }

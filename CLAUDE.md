@@ -631,6 +631,71 @@ greyscale) could not be measured at all: no database on any machine this
 story was built on, and no screen yet puts the two in one row — Epic 8's
 evidence panel is the first that will.
 
+**Story 7.4 (The Graph Lights Up): all four tasks shipped 2026-11-27 — the
+first moment in this product where starting an investigation on one page
+visibly changes another.** Press `Investigate` on `/securities/:symbol`,
+let the peer-comparison step complete, navigate to `/`: the subject's real
+sector peers and correlated securities light up on the topology graph,
+every other equity visibly receded, with a note stating what is highlighted
+and why. `get_related_securities` (Epic 6's own reversal trigger — "the
+first consumer of the graph model that is not a browser" — firing exactly
+as worded) and the whole `validate → permission-check → execute → record`
+pipeline invariant 2 names are real for the first time anywhere in this
+product, driven by deterministic backend code rather than a model.
+`pnpm invariants` holds **102**. The highlight clears on the reader's own
+gesture (`Escape`, or a click on empty canvas — Story 6.4's existing
+vocabulary, no new affordance), on channel death with no terminal event,
+or when a later investigation's command supersedes it — and **deliberately
+does not clear on the investigation's own terminal event**, because at
+Story 7.2's measured p50 of 32.0 ms over five of its six steps, with the
+command emitted after step 4 of 6, a terminal event lands before any
+reader's hand could leave the control that started it. AC 8's own literal
+wording still says otherwise; `docs/GAPS.md` carries the contradiction with
+an owner, and Story 7.4's own close recommended striking the clause rather
+than the feature.
+
+**Two Gate-1 premises were tested against the shipped product and found
+false, both before this story closed rather than discovered later.**
+The screen-reader-silence decision rested on "the peer-comparison claim
+already names the peers" — it names only the sector benchmark, never a
+peer, and `get_related_securities` reaches no text result surface at
+all, so nothing in this product has ever spoken a peer's ticker
+(`docs/GAPS.md`'s thirteenth screen-reader entry). And the complement
+de-emphasis — dim the non-peers, add no ink to the peers — reads as **a
+cluster**, not as **a peer set**: a reader cannot pick the investigated
+subject out of its own highlighted group at any width, and at 390 the
+picture is illegible, dominated by undimmable anomaly rings on ~3 px
+discs. Both are named, Product-Owner-owned, and unresolved by design
+rather than by oversight — Gate 1's own node-size and node-ink refusals
+are the precedent for leaving a measured limitation standing rather than
+spending a budget this canvas does not have.
+
+**A real, cheap defect was found and fixed by Phase 3's own end-to-end
+check, the same shape twice already paid for on this surface**: the
+accessible sentence self-contradicted when a filter and a highlight were
+both in force (two disjoint de-emphasis treatments sharing one verb
+phrase — "drawn quieter" for Story 6.8's landmarks, now "set back" for
+this story's complement, so the two never collide again), a pronoun
+arrived before its antecedent in both the spoken sentence and the drawn
+note stack (reordered), and a landmark-only highlight (investigating
+`SPY`) visibly changed nothing and explained nothing (now a three-way
+`TopologyHighlightInk` union closes it, a fourth outcome a compile
+error). A fourth finding — a zero-peers subject (`QQQ`/`DIA`/`IWM`) gets
+no sentence anywhere — was judged not safely fixable without new wire
+shape and is owned by Story 7.5, which already owns telling a thrown
+producer from a subject with nothing to highlight.
+
+**What no gated machine and no person has ever seen**: the ink itself —
+CI has zero bars and no composite generation, so every equity draws
+`unscored` for ever, and nobody has watched this feature against a
+deployed backend; `LIVE-REHEARSAL.md` carries an unwatched row for Story
+7.4, and Epic 7 is not yet registered in the mechanical gate that would
+refuse its close over it (Story 7.7's own named job). And no performance
+figure exists anywhere in this story for the new per-live-batch costs its
+highlight and filter paths add to the one region with a published 60 FPS
+figure — zero cost while no highlight is in force, unmeasured while one
+is.
+
 ### What a user can see today
 
 Five routes, a **one-row masthead** carrying the navigation and the market
@@ -2352,7 +2417,7 @@ Files not listed are either obvious or documented where they live.
 - **`exactOptionalPropertyTypes` is on**, so "absent" and "present as `undefined`" are different types. A constructor with an optional parameter has to branch and build the object two ways. This is the setting behaving correctly, not friction to route around.
 - **A domain object that cannot be constructed without its explanation is a NAMED convention, now at eight sites in three variants** — written down 2026-11-23 (Task 7.3.1) because the next author copying it was repeatedly copying the shape without the two parts that make it work. Four rules, and `packages/shared/src/composite-score.ts`' header carries the full argument for all of them: a **real `Symbol`**, never a `declare const` (a branded _object_ has to be constructed, a declared symbol has no runtime value, so the only mint would be an `as unknown as` that checks none of the fields beside it — produced rather than reasoned about, in that module's first draft); a **non-empty tuple** `[T, ...T[]]` for the explanation, so an unexplained value is **untypeable** rather than merely untested; the absent arm is a **different type with no member at all**, never an empty array or a nullable field, because a constant and a branch are one step from the defect the type exists to forbid; and **exactly two mint sites**, each held by a `pnpm invariants` entry with a break (`two-mint-sites-for-an-anomaly-score`, `two-mint-sites-for-a-finding`), because the brand closes every route in except a **cast** and the check is what closes that one.
 - **And say what the brand does NOT prove, every time, in the type's own docblock.** It is a compile error about **which module minted the value** — never that the value is right. That the contribution is `round(w × u / 100)`, or that a `claim` states the figure its evidence was read from, is a **test**. Two halves, and they are not the same half; `composite-score.test.ts` and `finding.test.ts` each hold a named test for the negative. One further asymmetry worth knowing before copying: the brand **dies at `JSON.parse`** and whether it is restored is a decision, not a default — `readAnomalyScore` re-mints after re-adding the published contributions (a claim about the **value**, stronger than the brand), and `finding.ts` deliberately has **no reader at all**, because the browser declares its own wire shape and never reconstitutes the domain object. The second case means the guarantee is a **backend** guarantee, which that module says in as many words.
-- **One variant in this tree is NOT this convention, and copying it would copy a weaker guarantee believing it the same one** (noted 2026-11-24, Task 7.3.4). `packages/shared/src/investigation.ts`'s `InvestigationId`/`StepId` are `string & { readonly __brand: "InvestigationId" }` — a string-literal tag, not a real `Symbol`, and every one of the four rules above fails it: `"anything" as InvestigationId` is a legal assertion anywhere in the codebase, there is no non-empty-tuple or absent-arm shape to speak of, and there is no mint site to count because there is nothing a `pnpm invariants` entry could anchor on. It is **forgeable**, deliberately accepted for an id that only ever needs to round-trip through a URL and a wire frame and is never computed from anything a caller could get wrong — the four rules exist to stop a **constructed value** reaching a reader unchecked, which an opaque identifier was never at risk of. Reach for the real-`Symbol` shape for a value with an explanation to protect; reach for this one only for an id with none.
+- **One variant in this tree is NOT this convention, and copying it would copy a weaker guarantee believing it the same one** (noted 2026-11-24, Task 7.3.4). `packages/shared/src/investigation.ts`'s `InvestigationId`/`StepId` are `string & { readonly __brand: "InvestigationId" }` — a string-literal tag, not a real `Symbol`, and every one of the four rules above fails it: `"anything" as InvestigationId` is a legal assertion anywhere in the codebase, there is no non-empty-tuple or absent-arm shape to speak of, and there is no mint site to count because there is nothing a `pnpm invariants` entry could anchor on. It is **forgeable**, deliberately accepted for an id that only ever needs to round-trip through a URL and a wire frame and is never computed from anything a caller could get wrong — the four rules exist to stop a **constructed value** reaching a reader unchecked, which an opaque identifier was never at risk of. Reach for the real-`Symbol` shape for a value with an explanation to protect; reach for this one only for an id with none. **And a fact that arrived over the wire stays a plain `string` once it reaches `apps/frontend/src/investigations/`** (noted 2026-11-27, Story 7.4's Phase 3 close) — `WireEventBase.investigationId`, `ChecklistState.investigationId` and `WorkspaceHighlightCommand.investigationId` are all deliberately `string` rather than the branded type, because importing `InvestigationId` there would claim a guarantee that layer cannot make about a value it only ever compares, never constructs.
 
 ### Lint and format
 

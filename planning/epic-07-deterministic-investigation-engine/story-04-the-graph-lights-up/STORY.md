@@ -102,8 +102,10 @@ page by the time it happens.
 
 ## Acceptance criteria
 
-**Four of these are rewritten from their original Gate-1 draft wording;
-see "Resolved at Gate 1" for the argument behind each change.**
+**Four of these were rewritten from their original Gate-1 draft wording; see
+"Resolved at Gate 1" for the argument behind each change. Three more are
+corrected or verdicted below, per Phase 3's own end-to-end check against the
+shipped code; see "Resolved at Phase 3."**
 
 1. `get_related_securities` answers from `TopologyGraph` and the stored
    correlation generation, with no new graph computation, for the three
@@ -112,9 +114,14 @@ see "Resolved at Gate 1" for the argument behind each change.**
    typed relation. A security with no node in the graph (untracked) or
    no related securities under any kind (the three non-sector-ETF market
    proxies, today) is a named, honest outcome — never an empty payload.
-2. `highlight_graph_nodes` reads `TopologyLayout`'s own placements and
-   respects `TOPOLOGY_NODE_FOOTPRINT`; it invents no second coordinate
-   system, and no coordinate ever crosses the wire in either direction.
+2. `highlight_graph_nodes` reads `TopologyLayout`'s own placements; it
+   invents no second coordinate system, and no coordinate ever crosses
+   the wire in either direction. **The `TOPOLOGY_NODE_FOOTPRINT` clause
+   is vacuous by correct design** — Gate 1's complement de-emphasis asks
+   no proximity question, and `the-server-places-a-node-only-through-the-
+shared-layout` makes a server-side distance test structurally
+   unbuildable on purpose (Story 6.9's node-size precedent: refused
+   rather than shipped, verdicted rather than ticked).
 3. The investigation **orchestrator** — not the peer-comparison tool
    itself — calls `get_related_securities` after that step's own
    `STEP_COMPLETED`, including when the step's own outcome is
@@ -131,22 +138,35 @@ see "Resolved at Gate 1" for the argument behind each change.**
    with the population note stating how many of the highlighted peers are
    hidden and a `Show all` link to clear the cut. The highlight is drawn
    regardless of any node's live anomaly band.
-5. `set_graph_encoding` ships as a narrow, explicitly-scoped tool whose
-   schema admits exactly the one highlight encoding this story builds —
-   an unsupported encoding is a validation failure at the schema
-   boundary, not a runtime branch. Reversal trigger, as a condition: _the
-   first caller that needs an encoding this story did not ship_.
+5. **The command vocabulary admits exactly one encoding** — a
+   `highlightNodes` command is the only member of `WORKSPACE_COMMAND_TYPES`,
+   and an unsupported type is refused at the schema boundary
+   (`readWorkspaceCommand`) and at the permission stage
+   (`type-not-permitted`), never a runtime branch. **No `set_graph_encoding`
+   tool is built**, by the same Gate-1 scope decision this clause always
+   described — four independent shaping passes converged on it and Phase
+   3 confirmed no such tool exists anywhere in the codebase. Reversal
+   trigger, as a condition: _the first caller that needs an encoding this
+   story did not ship_.
 6. No code or markup is generated anywhere in this path — the command is
    a typed object the topology component already knows how to execute,
-   and `pnpm invariants` confirms no new call site bypasses the full
-   validate → permission-check → execute → **record** pipeline (a
-   permitted command is recorded onto the `Investigation`'s own history;
-   a refused command is an observable, countable outcome, never a silent
-   drop).
+   and `pnpm invariants` confirms no new call site bypasses the validate
+   → permission-check → execute stages. **The record stage is real and
+   tested but not yet invariant-held** — a permitted command is recorded
+   onto the investigation's own append-only event log
+   (`store.appendEvent`), proven by a test reading it back out of
+   `eventsFrom`, and a refused command is an observable, countable
+   outcome rather than a silent drop — but no `pnpm invariants` entry
+   yet asserts that every `WORKSPACE_COMMAND` outcome reaches a reader
+   only through that log. Named rather than closed; see "Resolved at
+   Phase 3."
 7. The highlight arrives when the peer-comparison step completes and
-   persists — on whichever browser session is watching `/` by then, not
-   necessarily the one that started the investigation — until it is
-   cleared or superseded (AC 8).
+   persists on the browser session that started the investigation, for
+   as long as that session is on `/` — until it is cleared or superseded
+   (AC 8). **A second tab or a second browser receives nothing**, and a
+   command arriving after the reader has already navigated away is lost
+   — both are Gate 1's own accepted, currently-vacuous bound at today's
+   measured latency, not a built cross-session capability.
 8. The highlight clears on the reader's own gesture (`Escape`, or
    clicking empty canvas — reusing Story 6.4's existing gestures, no new
    affordance), on any terminal investigation event, if the investigation's
@@ -174,10 +194,16 @@ decisions. Nothing below is open; this is the record.
 
 AC 7 ("visible while the peer-comparison step is running") and AC 8
 ("completion clears it") specify a highlight with a visible lifetime
-under one rendered frame — Story 7.2's own measured figures put the
-whole six-step pipeline at **p50 32.0 ms**, with every step's completion
-landing in one `requestAnimationFrame` tick. No reader, on one tab or
-two, would ever see the literal reading. Separately, `use-investigation.ts`'s
+under one rendered frame — Story 7.2's own measured figures put
+**five of its six steps** completed at **p50 32.0 ms** (the sixth,
+the only one reading `market_bars`, has never completed on any
+machine with a database reachable — corrected 2026-11-27 at Phase 3's
+close, which found three live sites calling this "the whole six-step
+pipeline"), with every one of those five steps' completions landing
+in one `requestAnimationFrame` tick. No reader, on one tab or two,
+would ever see the literal reading, and the sixth step's own duration
+against a populated store is unmeasured rather than covered by this
+figure. Separately, `use-investigation.ts`'s
 SSE subscription and all its state live inside a hook mounted by
 `/securities/:symbol`; navigating to `/` unmounts it and aborts the
 fetch — the investigation keeps running server-side, but the browser
@@ -291,3 +317,110 @@ Task 7.4.1 owes `EPIC.md` a dated amendment there, and a **new** invariant
 — the server's answer about where a node is comes from
 `buildTopologyLayout` and nowhere else — to cover what the existing one
 was mistakenly credited with covering.
+
+## Resolved at Phase 3 — 2026-11-27
+
+All four tasks complete and merged (PRs #711, #713, #715, #716), plus a
+Phase 3 fix round (PR #718) for three defects Phase 3's own verification
+found by actually driving the integrated route. Five specialist reports
+(tester, business-analyst, ux-architect, technical-analyst,
+technical-architect) checked the combination end to end against every
+acceptance criterion above. This is the record of what changed and why.
+
+### What Phase 3 found and fixed before this record was written
+
+Three real, cheap defects — found only by looking, as this repository's
+own working-loop rule predicts — were fixed in PR #718, reviewed and
+independently re-verified before merging: the accessible sentence
+self-contradicted when a filter and a highlight were both in force (two
+adjacent claims shared one verb phrase for two different populations —
+now `drawn quieter` for Story 6.8's landmark de-emphasis and `set back`
+for this story's complement de-emphasis, asserted as distinctness rather
+than as two expected strings); a pronoun arrived before its antecedent
+(the filter's clause referring to "the highlighted securities" was
+composed and drawn before the clause naming what was highlighted — now
+reordered, in both the spoken composition and the drawn `.notes` stack);
+and a landmark-only highlight (investigating a market proxy like `SPY`)
+visibly changed nothing and explained nothing, unlike the same state
+under a filter — now a three-way `TopologyHighlightInk` union closes it,
+with a fourth outcome a compile error rather than silence. A fourth
+finding — a zero-peers subject (`QQQ`/`DIA`/`IWM`) gets no sentence
+anywhere — was judged not safely fixable without new wire shape and is
+recorded in `docs/GAPS.md`, owned by Story 7.5.
+
+### The acceptance criteria, corrected above rather than left to mislead
+
+**AC 2**'s `TOPOLOGY_NODE_FOOTPRINT` clause is verdicted vacuous by
+correct design, not struck: nothing in this story's shipped treatment
+asks a proximity question, and a server-side one is now mechanically
+forbidden (`the-server-places-a-node-only-through-the-shared-layout`).
+**AC 5** is corrected to describe what shipped (a one-member vocabulary
+refused at two boundaries) rather than promising a named
+`set_graph_encoding` tool that does not exist anywhere in the
+codebase — the underlying scope decision is sound and unanimous across
+every shaping pass that touched it; only the AC's own wording overclaimed.
+**AC 6** is corrected to name the real state of its own bolded clause:
+three of the pipeline's four stages are invariant-held, the **record**
+stage is real and tested but not yet asserted by `pnpm invariants`.
+**AC 7** is corrected to drop the implication that a command reaches
+"whichever browser session is watching `/`" — it reaches only the
+session that started the investigation, and a second tab or a stale
+navigation losing the command are both Gate 1's own named, accepted
+bounds, not built capabilities.
+
+### What is left for the Product Owner, named rather than inherited
+
+**AC 8's terminal-event clause is the one thing this record does not
+settle, because it is not a documentation correction — it is a product
+decision Gate 1 never actually took, worded as though it had.** All five
+Phase 3 reports independently reached the same reading: AC 8's literal
+"clears on any terminal investigation event" and Gate 1's own recorded
+reasoning for an investigation-scoped lifetime cannot both hold, the
+measurement (Story 7.2's p50 32.0 ms over five of its six steps, with the
+command emitted after step 4 of 6) says a terminal event lands before any
+reader could navigate to see the highlight, and what shipped —
+`highlightOutlivesChannelEnd` always returning `true` for a terminal
+event — is the only reading with an observable state. `docs/GAPS.md`
+carries the full account with figures. **Recommendation, unanimous across
+every report: strike the clause, dated rather than rewritten.** This is
+the one open item Gate 2 should resolve explicitly rather than inherit.
+
+### What shipped open, named with owners (not blocking Gate 2, carried forward honestly)
+
+- **The screen-reader premise Gate 1's no-announcement decision rested
+  on is confirmed false** — the peer-comparison claim names only the
+  sector benchmark, never a peer, and `get_related_securities` reaches no
+  text result surface at all. `docs/GAPS.md`'s thirteenth screen-reader
+  entry, owned by the Product Owner, with `Connected securities` (an
+  existing unowned placeholder) as the natural textual home.
+- **The complement de-emphasis does not read as "these are the peers" at
+  any width, and is illegible at 390** — on a real scored store it reads
+  more clearly than the workshop sitting first suggested (Phase 3's own
+  tester re-measured this positively), but a reader still cannot pick the
+  investigated subject out of its own highlighted set, and the 390
+  picture is dominated by undimmable anomaly rings on ~3 px discs.
+  `docs/GAPS.md`, owned by the Product Owner, discharged if a later story
+  suppresses the de-emphasis below the existing label fit-scale threshold.
+- **No performance figure exists anywhere in this story** for the new
+  per-live-batch costs the highlight and filter paths add to `/`'s
+  topology region — the one region with a published 60 FPS / 16.7 ms
+  median figure (Story 6.7). Both new walks are gated on a command being
+  in force and cost exactly zero otherwise, which is why this is a gap
+  rather than a defect; `docs/GAPS.md` carries it with a re-measure
+  (`scripts/topology-instrument.mjs`'s `--live` arm, with a command
+  applied) and no owner yet named.
+- **Nobody has watched this feature against a deployed backend.** A
+  `LIVE-REHEARSAL.md` row is added for Story 7.4 (empty, naming what a
+  sitting would check) rather than left for Story 7.7 to invent after the
+  fact — Epic 7 itself is not yet registered in `REHEARSAL_LEDGER_EPICS`,
+  which is explicitly Story 7.7's own job per its task file, not this
+  story's to take.
+
+### What Phase 3 confirmed was NOT a gap, worth stating so it is not re-litigated
+
+The frontend mint-site invariant Task 7.4.2's own review recommended —
+guarding against a hand-constructed `WorkspaceHighlightCommand` bypassing
+the decoder — was already built in Task 7.4.3
+(`a-highlight-command-is-minted-only-where-the-wire-is-decoded`) and is
+break-verified on current `main`. Three independent Phase 3 reports were
+asked to check for this gap; all three confirmed it is closed.

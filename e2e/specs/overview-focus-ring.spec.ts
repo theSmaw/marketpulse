@@ -84,15 +84,24 @@ async function readStop(page: Page, ring: number): Promise<Stop> {
     }`;
 
     const insideChrome = header.contains(element) || footer.contains(element);
-    const tallerThanViewport = box.height >= window.innerHeight;
+    // **Corrected 2026-11-27 (Story 7.4's Phase 3 e2e repair) from a
+    // threshold of `window.innerHeight` alone** — see `search-keyboard.spec.ts`'s
+    // `focusIsObscured`, which carries the full account. A box taller than the
+    // room actually left between BOTH sticky edges can never clear both at any
+    // scroll position, whatever the raw viewport height is.
+    const scrollableRoom =
+      window.innerHeight -
+      header.getBoundingClientRect().height -
+      footer.getBoundingClientRect().height;
+    const tallerThanAvailableRoom = box.height >= scrollableRoom;
 
     return {
       label,
       height: box.height,
       exempt: insideChrome
         ? "inside the chrome"
-        : tallerThanViewport
-          ? "taller than the viewport"
+        : tallerThanAvailableRoom
+          ? "taller than the available room"
           : null,
       topClearance: box.top - ring - header.getBoundingClientRect().bottom,
       bottomClearance: footer.getBoundingClientRect().top - (box.bottom + ring),

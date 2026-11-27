@@ -2295,7 +2295,55 @@ and repair are unchanged from Task 4.7.6's own diagnosis above
 `expect` over `evaluateAll`) — still not taken, for the same reason: it is
 this spec's own assertion, not this task's or this story's to fix in passing.
 
-## The search surface's axe passes judge whichever ten rows ONE hard-coded query happens to match — and typing a different letter finds a real contrast violation today
+## Two consecutive `pnpm e2e` runs on the same documentation-only PR failed the SAME two 390px sticky-chrome specs — corrected below from an initial "contention" read that does not survive the second run
+
+**Added 2026-11-27, on PR #719 (Story 7.4's Phase 3 documentation sweep), and
+corrected the same day after a second run.** `verify` and `database` were
+green on both runs; `e2e` failed twice.
+
+**Run 1** (17.5 min, 329 passed, 4 failed): `overview-market-topology-live-
+mark.spec.ts:70` (the **already documented** flake two paragraphs above —
+branch 3/12 vs `main` 2/12, overlapping Wilson intervals); `overview-focus-
+ring.spec.ts:130` at 390px, **both directions** (`a focus ring landed behind a
+sticky edge`); `search-keyboard.spec.ts:358` (`focus landed behind the sticky
+chrome`).
+
+**Run 2**, after re-pushing with no code change (docs only — the GAPS.md entry
+recording run 1), 15.7 min, 330 passed, 3 failed: `overview-focus-
+ring.spec.ts:130` **both directions again**, `search-keyboard.spec.ts:358`
+**again**. The live-mark flake did **not** recur.
+
+**This is not the shape the first entry called it.** A single run failing
+four unrelated specs together is consistent with whole-machine contention; the
+**same two** specs failing **both times**, while a third (the one flake this
+file already had a measured rate for) failed only once, is consistent instead
+with something specific to those two checks — and this file's own record
+already names why they are fragile rather than merely slow: both assert a
+**zero-margin** quantity (_"its `0.00` worst case at every width is a
+Chromium-at-`dpr: 1` measurement rather than a law"_, line ~1136), so any
+sub-pixel rendering difference between runs — a font metric, a scrollbar, a
+GPU-vs-software rasterizer path on the runner — reads as a real occlusion to
+a check with no tolerance to spend.
+
+**Confirmed structurally unrelated on both runs.** PR #719's own diff touches
+`CLAUDE.md`, `docs/`, `planning/`, and three comment-only/test-name edits
+inside `MarketTopology.{tsx,module.css}` and `filter.test.ts` — nothing under
+`base.css`, `AppHeader`, `AppFooter`, `search-keyboard.spec.ts`'s own support
+files, or anything `overview-focus-ring.spec.ts` reads. `git diff --name-only`
+against the PR confirms it on both occasions.
+
+**Re-measure:** `--repeat-each=12` at `--workers=1` and `--workers=4` on a
+settled machine for each of the two specs, per this file's own established
+protocol — not yet taken, because a third re-run on CI alone would not
+distinguish a real new flake from a runner-image change from pure chance at
+this n.
+
+**Owner: not assigned — recorded as two occurrences with the conclusion
+corrected rather than repeated**, because the second run falsified the first
+run's "contention" verdict, and this file's own rule (_falsification is swept
+the same day, not at a close_) applies to an entry nine lines old as much as
+to one nine months old. Escalated to the Product Owner rather than re-run a
+third time unattended, per this session's own standing instruction.
 
 **Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
 something else, and it is a product defect rather than a suite one.**
@@ -3173,6 +3221,19 @@ the spec is Task 4.6.1's and a gate going red is the owner's call.
 to four decimals, skipping anything inside `header`/`footer`. The forward walk
 is clean at every pair; **the reverse walk is the one that finds it**, which is
 what `STORY.md` already says about this defect class.
+
+**Amended 2026-11-27: `--scroll-overshoot` was touched, and the trigger that
+fired was the one above's own owner line — a pair this spec actually asserts,
+not these two.** Raised `1px` → `2px` after the SAME 1/64-px LayoutUnit
+mechanism reached `Market breadth`/`Movers`/`Current investigations` at
+390×780, one of the four pairs `overview-focus-ring.spec.ts` runs, measured
+at exactly `-0.390625` (`-25/64`) of bottom clearance on both CI and a local
+machine. This entry's own two pairs (1024×800, 1440×680) remain unasserted and
+therefore remain exactly as measured above — raising the term did not need
+re-deriving the 1024/1440 figures, since more reserved padding only ever
+helps, never hurts, a clearance reading. See `tokens.css`'s own token
+docblock for the full re-measurement and the GAPS entry on the 390×780
+occurrence for the fix it travelled with.
 
 ## The landing page's tab-stop count is 11 reserved and 19 filled, and AC 1's reworded second half asks for one figure
 
@@ -6951,6 +7012,35 @@ taken now. **Owner: the first story that adds anything else to this region**
 — Story 7.3 by intent, which inherits the adopted rule rather than re-opening
 the three-way choice.
 
+**Amended 2026-11-27 (Story 7.4's Phase 3 e2e repair): the adopted RULE was
+right and its IMPLEMENTATION was wrong, and `search-keyboard.spec.ts` went red
+on `/securities/NVDA` at 390×780 for exactly the gap this fixes — not a new
+design question, the one already decided above finally being honoured
+correctly.** `focusIsObscured`'s exemption compared `box.height` to raw
+`window.innerHeight`, never to the room actually left between the sticky
+header **and** the sticky footer — so the **unpressed** panel (601–603 px,
+this entry's own baseline row, never over 613 px in the table above) was
+**never exempted at all**, on any day where the two pieces of chrome together
+reserve more than `780 − 603 = 177 px`. That held on 2026-11-20 and stopped
+holding on 2026-11-27, because the masthead's own clock sentence is
+content-dependent (`"Opens at 09:30, closing early at 13:00"`, the day-after-
+Thanksgiving half session) and measured **131 px** that day against whatever
+shorter sentence this entry's own 613 px figure was taken against — the same
+kind of runtime chrome variability `TASK-07`'s own text names for the footer
+("the feed's connection state") without naming it for the header. The decided
+rule's own stated reasoning — "the browser will not scroll a target it already
+considers in view" — was always about the room between **both** sticky edges,
+not about raw viewport height; comparing to raw `innerHeight` was the
+predicate failing to implement the rule it was already supposed to be.
+Corrected in both `search-keyboard.spec.ts`'s `focusIsObscured` and
+`overview-focus-ring.spec.ts`'s `readStop` to `window.innerHeight − header −
+footer`, re-verified clean on `/securities/NVDA` at 390×780 (601–603 px panel
+against **~565–578 px** of actual room, correctly excluded) and on `/` at all
+four pairs. **Nothing about the three-way product decision has reopened** —
+no height ceiling exists on this region today and the gap's own "why it is
+not mechanisable" paragraph is unchanged; what closed is the predicate's own
+accuracy, not the design question.
+
 ## `overview-market-topology-burst-absorption.spec.ts` has failed on FOUR separate, documentation-only PRs, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the four
 
 **Added 2026-11-21, found while shipping Story 7.2's close and Story 7.3's
@@ -7461,11 +7551,18 @@ would close the window before any reader could navigate to see it"**. Both
 sentences were in the file before this task started.
 
 **They cannot both hold, and the arithmetic decides which is reachable rather
-than taste.** Story 7.2 measured the whole six-step pipeline at **p50
-32.0 ms**; the command is emitted after step 4 of 6
+than taste.** Story 7.2 measured **five of its six steps** completed at **p50
+32.0 ms** — **corrected 2026-11-27 at Phase 3's own review**, which found this
+entry (and two sibling sites) calling it "the whole six-step pipeline": the
+sixth step is the only one reading `market_bars`, and it has never completed
+on any machine with a database reachable, so its own duration against a
+populated store is **unmeasured** rather than covered by this figure. The
+conclusion is unaffected — the command is emitted after step 4 of 6
 (`scripted-agent-provider.ts`), so `INVESTIGATION_COMPLETED` lands tens of
-milliseconds after the command, before a reader's hand has left the
-`Investigate` control and always before they can reach `/`. A highlight
+milliseconds after the command on CI/loopback and almost certainly on a
+populated store too, before a reader's hand has left the `Investigate`
+control and always before they can reach `/` — but the reasoning should name
+the condition rather than imply a figure that covers it. A highlight
 cleared on a terminal event is therefore **unobservable on every machine this
 product runs on** — the same defect Gate 1 caught in AC 7's original
 step-scoped wording and fixed, arriving a second time through the clause
@@ -7639,6 +7736,23 @@ is discharged by that change.
 first story that revisits this canvas's small-viewport behaviour — the same
 owner the two earlier fit-scale suppressions were settled by.
 
+**Updated 2026-11-27, at Phase 3's own tester verification — the 1440/1024/768
+verdict is confirmed, and on a real scored store it reads MORE clearly than
+the Storybook sitting above, not less.** Driven against a real local pair (a
+populated store with 106 `high`/16 `extreme` bands and 1,860 retained
+correlation edges) rather than the recorded Storybook fixture: every
+non-Technology body visibly steps from mid-grey to pale while the Technology
+cluster keeps its ink, and the undimmed amber anomaly rings sit on top of the
+now-pale bodies rather than muddying them against a background that was
+already closer to full strength — comparison screenshots taken and described
+in that task's own report. The **390 verdict is unaffected and, if anything,
+sharper on the real route**: with the correlation mesh drawn (suppressed in
+the Storybook story this entry's own probe used) and the idle readout plate
+occupying the bottom of the frame, the real picture at 390 with both a filter
+and a highlight active is a legible band of roughly 85 px between two fixed
+overlays, narrower than either sitting alone suggested. The fourth-design-test
+verdict above is unchanged by either reading.
+
 ## `overview-market-topology-live-mark.spec.ts` fails about one run in five, on `main`, and the `e2e` required check is where that lands
 
 **Measured 2026-11-26 by Task 7.4.4**, which met it twice in two full-suite
@@ -7728,14 +7842,24 @@ nothing for a `WORKSPACE_COMMAND` by decision, and adding a _no command arrived_
 flag there would be a claim about a cause the wire never stated.
 
 **And the one browser-side alternative is a second home for the tool's own
-answer.** The security page does hold the universe (`use-securities.ts`), so
-`buildTopologyGraph` plus a re-implementation of `neighboursOf` would answer the
-**curated** half. It would be wrong about the **measured** half: a related
-security can be a `return_correlation` neighbour alone, that generation lives in
-a nightly table the security page never fetches, and a browser asserting _this
-security has no related securities_ from the curated graph alone would be making
-a confident claim over data it has not read — ADR 0029's own rule, and the
-reason this is recorded rather than shipped.
+answer — which is the real reason this is recorded rather than shipped, not
+the one this entry first gave.** The security page does hold the universe
+(`use-securities.ts`), so `buildTopologyGraph` plus a re-implementation of
+`neighboursOf` would answer the **curated** half directly. **Corrected
+2026-11-27, at Phase 3's own review: for `QQQ`/`DIA`/`IWM` specifically, a
+browser-side curated-graph check would NOT be wrong about the measured half**
+— the nightly correlation pass's population is `equityTickers()`
+(`return-correlation-store.ts`'s own documented population, confirmed by a
+database test asserting no sector ETF or proxy is in it), so a market proxy
+can never carry a `return_correlation` edge, and "this security has no
+related securities" would be sound for these three symbols without reading
+the nightly table at all. The objection that holds is a different one:
+re-implementing `neighboursOf` in the browser is a second home for a fact the
+tool already answers, it buys one sentence for exactly three symbols, and it
+leaves the real three-cause taxonomy (untracked / zero-peers / a thrown
+producer) untouched — a reader of `PSKY` or a reader whose investigation's
+producer threw still gets silence either way. That is the reason to defer,
+not a false claim about data the browser has not read.
 
 **The clean repair is a wire change, and it belongs to a story rather than a
 sweep.** Either the `WORKSPACE_COMMAND` event gains a **refused/absent arm**
@@ -7756,3 +7880,44 @@ produced.
 run and the per-step degradation around it — the same taxonomy question with the
 same two candidate homes, and the first story that will have to tell a thrown
 producer from a subject with nothing to highlight.
+
+## No performance figure exists anywhere in Story 7.4, and two of its tasks added a per-live-batch cost to the one region with a published 60 FPS figure
+
+**Added 2026-11-27, at Phase 3's own technical-analyst review.** Checked every
+task completion record in the story: the only `ms` figures any of them cite are
+_quotations_ of Story 7.2's own p50 32.0 ms (used to argue the AC 8 lifetime
+decision), never a measurement of anything Story 7.4 itself built. No
+`docs/GAPS.md` entry and no task record states a frame-time or render-count
+figure for this story's own work.
+
+**What is unmeasured, specifically, rather than hypothetically.** Task 7.4.2's
+`setBands` → `renarrow` → `regroupAnomalyTreatments` path now calls
+`topologyHighlightDrawsAnything`, a 516-node walk; Task 7.4.4's
+`applyAnomalyBands` → `writeTopologyFilterNote` → `filterAccount` →
+`topologyHighlightCut` path walks the universe a second time on the same
+path. Both run at the live feed's own measured cadence (6.8–16.1 batches a
+minute), on the one region whose 60 FPS / 16.7 ms median figure (Story 6.7)
+was taken before either of them existed.
+
+**Why this is a gap rather than a defect, stated so the next reader does not
+over-react to it.** Both new walks are gated on a highlight being in force:
+`topologyHighlightDrawsAnything` returns on its first line for
+`highlighted === null`, and `filterAccount` short-circuits at the same
+condition — so the added cost is **exactly zero** in the state every gated
+machine and every reader-before-pressing-Investigate is permanently in. The
+unmeasured case is specifically _a highlight in force while the live feed is
+also running_, which needs a real backend, a real investigation, and a live
+market socket all at once — nothing in this story's own test infrastructure
+combines all three.
+
+**Re-measure:** `scripts/topology-instrument.mjs`'s `--live` route-level arm
+(Story 6.7's own instrument, built for exactly this kind of claim), with a
+`WorkspaceCommand` applied via a real or scripted investigation press before
+the measurement window starts, against both the software-rendered regression
+floor and a real GPU, read against the 16.7 ms median this region's own
+exit criterion was verdicted on.
+
+**Owner: not yet named.** This is Epic 7's own addition to Epic 14's standing
+performance-validation backlog, not a defect any shipped task owns; the next
+story that touches this region's render path, or Epic 14 itself, is the
+natural fixer.
