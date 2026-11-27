@@ -3222,6 +3222,19 @@ to four decimals, skipping anything inside `header`/`footer`. The forward walk
 is clean at every pair; **the reverse walk is the one that finds it**, which is
 what `STORY.md` already says about this defect class.
 
+**Amended 2026-11-27: `--scroll-overshoot` was touched, and the trigger that
+fired was the one above's own owner line — a pair this spec actually asserts,
+not these two.** Raised `1px` → `2px` after the SAME 1/64-px LayoutUnit
+mechanism reached `Market breadth`/`Movers`/`Current investigations` at
+390×780, one of the four pairs `overview-focus-ring.spec.ts` runs, measured
+at exactly `-0.390625` (`-25/64`) of bottom clearance on both CI and a local
+machine. This entry's own two pairs (1024×800, 1440×680) remain unasserted and
+therefore remain exactly as measured above — raising the term did not need
+re-deriving the 1024/1440 figures, since more reserved padding only ever
+helps, never hurts, a clearance reading. See `tokens.css`'s own token
+docblock for the full re-measurement and the GAPS entry on the 390×780
+occurrence for the fix it travelled with.
+
 ## The landing page's tab-stop count is 11 reserved and 19 filled, and AC 1's reworded second half asks for one figure
 
 **Added 2026-10-09 by Task 4.6.7.**
@@ -6998,6 +7011,35 @@ Epic 7's foundational-engine story rather than a polish pass and that Story
 taken now. **Owner: the first story that adds anything else to this region**
 — Story 7.3 by intent, which inherits the adopted rule rather than re-opening
 the three-way choice.
+
+**Amended 2026-11-27 (Story 7.4's Phase 3 e2e repair): the adopted RULE was
+right and its IMPLEMENTATION was wrong, and `search-keyboard.spec.ts` went red
+on `/securities/NVDA` at 390×780 for exactly the gap this fixes — not a new
+design question, the one already decided above finally being honoured
+correctly.** `focusIsObscured`'s exemption compared `box.height` to raw
+`window.innerHeight`, never to the room actually left between the sticky
+header **and** the sticky footer — so the **unpressed** panel (601–603 px,
+this entry's own baseline row, never over 613 px in the table above) was
+**never exempted at all**, on any day where the two pieces of chrome together
+reserve more than `780 − 603 = 177 px`. That held on 2026-11-20 and stopped
+holding on 2026-11-27, because the masthead's own clock sentence is
+content-dependent (`"Opens at 09:30, closing early at 13:00"`, the day-after-
+Thanksgiving half session) and measured **131 px** that day against whatever
+shorter sentence this entry's own 613 px figure was taken against — the same
+kind of runtime chrome variability `TASK-07`'s own text names for the footer
+("the feed's connection state") without naming it for the header. The decided
+rule's own stated reasoning — "the browser will not scroll a target it already
+considers in view" — was always about the room between **both** sticky edges,
+not about raw viewport height; comparing to raw `innerHeight` was the
+predicate failing to implement the rule it was already supposed to be.
+Corrected in both `search-keyboard.spec.ts`'s `focusIsObscured` and
+`overview-focus-ring.spec.ts`'s `readStop` to `window.innerHeight − header −
+footer`, re-verified clean on `/securities/NVDA` at 390×780 (601–603 px panel
+against **~565–578 px** of actual room, correctly excluded) and on `/` at all
+four pairs. **Nothing about the three-way product decision has reopened** —
+no height ceiling exists on this region today and the gap's own "why it is
+not mechanisable" paragraph is unchanged; what closed is the predicate's own
+accuracy, not the design question.
 
 ## `overview-market-topology-burst-absorption.spec.ts` has failed on FOUR separate, documentation-only PRs, with `overview-market-topology-live-mark.spec.ts` co-failing on two of the four
 
