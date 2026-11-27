@@ -4329,10 +4329,12 @@ describe("the highlight channel — Task 7.4.2", () => {
       });
 
       expect(sentence().textContent).not.toContain("highlighted");
-      expect(sentence().textContent).toContain("Every other equity is drawn");
+      expect(sentence().textContent).toContain(
+        "Every other equity is set back",
+      );
     });
 
-    it("says WHY nothing was quietened where the cut hides the whole set", () => {
+    it("says WHY nothing was set back where the cut hides the whole set", () => {
       const ref = createRef<MarketTopologyHandle>();
 
       renderWithContext(
@@ -4357,9 +4359,9 @@ describe("the highlight channel — Task 7.4.2", () => {
       // **And the highlight's own tail is withheld with it**, because there is
       // no de-emphasis on screen for it to describe. One boolean crosses that
       // boundary and this is the state it exists for.
-      expect(text).not.toContain("Every other equity is drawn quieter.");
+      expect(text).not.toContain("Every other equity is set back.");
       // The drawn line carries it too, beside the population it already states.
-      expect(filterNoteLine()).toContain("nothing is quietened");
+      expect(filterNoteLine()).toContain("nothing is set back");
     });
 
     it("keeps the clause through a live band update — the collision, a FIFTH time", () => {
@@ -4392,8 +4394,8 @@ describe("the highlight channel — Task 7.4.2", () => {
       expect(text).toContain(
         "None of the highlighted securities are inside this filter",
       );
-      expect(text).not.toContain("Every other equity is drawn quieter.");
-      expect(filterNoteLine()).toContain("nothing is quietened");
+      expect(text).not.toContain("Every other equity is set back.");
+      expect(filterNoteLine()).toContain("nothing is set back");
     });
 
     it("disappears with the highlight, leaving the population half alone", () => {
@@ -4418,7 +4420,7 @@ describe("the highlight channel — Task 7.4.2", () => {
 
       expect(sentence().textContent).toContain("Narrowed to Energy");
       expect(sentence().textContent).not.toContain("highlighted");
-      expect(filterNoteLine()).not.toContain("quietened");
+      expect(filterNoteLine()).not.toContain("set back");
       expect(filterNoteLine()).toContain("Energy");
     });
 
@@ -4453,7 +4455,7 @@ describe("the highlight channel — Task 7.4.2", () => {
       const text = sentence().textContent;
       expect(text).not.toContain("highlighted");
       expect(text).not.toContain("Narrowed to Energy");
-      expect(text).toContain("Every other equity is drawn quieter.");
+      expect(text).toContain("Every other equity is set back.");
     });
 
     // **The reader's own selection is pinned through a band batch, and the
@@ -4518,8 +4520,125 @@ describe("the highlight channel — Task 7.4.2", () => {
       expect(text).not.toContain(
         "None of the highlighted securities are inside this filter",
       );
-      expect(text).toContain("Every other equity is drawn quieter.");
-      expect(filterNoteLine()).not.toContain("nothing is quietened");
+      expect(text).toContain("Every other equity is set back.");
+      expect(filterNoteLine()).not.toContain("nothing is set back");
+    });
+
+    /*
+     * **Story 7.4's Phase 3, fix 2 — the pronoun before its antecedent.**
+     *
+     * The filter's own third clause says *None of the **highlighted**
+     * securities…*, so with both in force the Task 7.4.2 order spoke the
+     * reference before anything had said what was highlighted. A listener met
+     * it on the real route at `/?sector=energy` with `NVDA` highlighted.
+     *
+     * Asserted as two **indices into one string**, never as an expected
+     * sentence: the strings themselves are `filter.test.ts`' and
+     * `highlight.test.ts`', and what this level owns is which of them comes
+     * first after a real `setHighlight` through the real composition.
+     */
+    it("speaks the highlight BEFORE the clause that refers to it — Phase 3, fix 2", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      const text = sentence().textContent;
+      const highlightAt = text.indexOf("Highlighting NVDA");
+      const referenceAt = text.indexOf("None of the highlighted securities");
+
+      expect(highlightAt).toBeGreaterThanOrEqual(0);
+      expect(referenceAt).toBeGreaterThanOrEqual(0);
+      expect(highlightAt).toBeLessThan(referenceAt);
+      // The narrowing's own population clause follows too, so the whole
+      // highlight half precedes the whole filter half.
+      expect(highlightAt).toBeLessThan(text.indexOf("Narrowed to Energy"));
+    });
+
+    /*
+     * **And the two notes on screen read in the same order as the sentence**
+     * (Phase 3, fix 2) — the `.notes` column is a grid whose rows are its DOM
+     * order, so this is the one assertion that keeps the drawn stack and the
+     * spoken composition from drifting apart. A stylesheet is not applied at
+     * this level, which is exactly why the DOM order is what is asserted.
+     */
+    it("stacks the highlight note above the filter note", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("?sector=energy")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight(TECHNOLOGY);
+      });
+
+      const notes = [
+        ...document.querySelectorAll(
+          "[data-topology-highlight], [data-topology-filter]",
+        ),
+      ].map((node) => node.getAttribute("data-topology-highlight") ?? "filter");
+
+      expect(notes).toStrictEqual(["active", "filter"]);
+    });
+
+    /*
+     * **Story 7.4's Phase 3, fix 3 — a landmark-only highlight with no filter
+     * to blame.**
+     *
+     * Investigating `SPY` highlights the eleven sector ETFs, every one of them
+     * a landmark and excluded from this encoding by Story 6.3's own exclusion
+     * set — so the canvas is byte-identical to the unhighlighted picture, and
+     * there is no cut to explain it. The reader was told something was
+     * highlighted, saw nothing change, and was told nothing about why.
+     */
+    it("says why nothing changed for a landmark-only highlight with no filter — Phase 3, fix 3", () => {
+      const ref = createRef<MarketTopologyHandle>();
+
+      renderWithContext(
+        <MarketTopology
+          ref={ref}
+          universe={universe()}
+          relationships={NO_MEASUREMENT}
+          filter={readTopologyFilter("")}
+          onRetry={() => undefined}
+        />,
+      );
+
+      act(() => {
+        ref.current?.setHighlight({
+          subject: "SPY",
+          symbols: ["XLK", "XLE", "XLF"],
+          relations: ["index_membership"],
+        });
+      });
+
+      const text = sentence().textContent;
+      expect(text).toContain("Highlighting SPY and the 3 related securities");
+      expect(text).toContain(
+        "Nothing is set back; none of these is an equity this graph draws.",
+      );
+      // Never the claim about ink, which is the defect this replaces.
+      expect(text).not.toContain("Every other equity is set back.");
+      // And no filter is blamed, because there is none.
+      expect(text).not.toContain("this filter");
     });
 
     /** Drive the renderer's own selection channel. */

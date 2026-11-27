@@ -41,8 +41,9 @@
  * for twice.~~ — **still true of {@link topologyHighlightWords}, and Task
  * 7.4.4 is where the count landed: in `topologyFilterWords`' own clause**, so
  * the figure has exactly one author and rides the composition the filter's
- * clause already rides. What crossed the boundary is one **boolean** rather
- * than a figure — see {@link topologyHighlightWords}' `quietened`.
+ * clause already rides. What crossed the boundary is one **enumerated outcome**
+ * rather than a figure — see {@link topologyHighlightWords}' `ink`, a boolean
+ * until Story 7.4's Phase 3 widened it to {@link TopologyHighlightInk}.
  *
  * ## And what the filter hides changes what the de-emphasis MEANS (Task 7.4.4)
  *
@@ -220,6 +221,33 @@ export function topologyHighlightCut(
 export type TopologyHighlightTreatment = "full" | "quiet";
 
 /**
+ * **What this highlight's own de-emphasis ink actually did — three values, not
+ * a boolean** (Story 7.4's Phase 3, fix 3).
+ *
+ * It replaces the `quietened: boolean` Task 7.4.4 shipped, because that
+ * boolean collapsed two different absences into one and the second of them had
+ * no sentence anywhere:
+ *
+ *   * `"set-back"` — the complement really did recede, and
+ *     {@link topologyHighlightWords} says so;
+ *   * `"hidden-by-filter"` — nothing receded **because the reader's own cut
+ *     hides everything the command named**, which `topologyFilterWords`' own
+ *     clause explains in full (it is the clause that owns the figures), so this
+ *     builder says nothing and leaves the explanation to the one author of it;
+ *   * `"nothing-to-set-back"` — nothing receded and **no filter is to blame**:
+ *     the command named nothing this graph draws as an equity, which is
+ *     `SPY`'s own related set (eleven sector ETFs, every one a landmark and
+ *     excluded from this encoding by Story 6.3's own exclusion set) and any
+ *     command from a newer backend naming symbols this bundle does not track.
+ *     Before this value existed a reader was told something was highlighted,
+ *     saw the picture not change, and was told nothing about why — ADR 0029's
+ *     *an absence is a stated fact, never silence*, which the filtered arm
+ *     beside it already followed.
+ */
+export type TopologyHighlightInk =
+  "set-back" | "hidden-by-filter" | "nothing-to-set-back";
+
+/**
  * **Whether this node recedes** — the whole of Gate 1's complement
  * de-emphasis, as one decision in one place.
  *
@@ -312,22 +340,33 @@ export function topologyRelationWords(relations: readonly string[]): string {
  * subject is not related to itself, and *74* over a command whose `symbols`
  * holds 73 would be a figure a reader could not reconcile with anything.
  *
- * ## `quietened` is the one thing the filter has to tell this builder (Task
- * ## 7.4.4)
+ * ## `ink` is the one thing the filter has to tell this builder (Task 7.4.4,
+ * ## widened from a boolean at Story 7.4's Phase 3)
  *
- * The clause's tail — *Every other equity is drawn quieter.* — is a claim about
- * what the canvas did, and it stops being true the moment the reader's own cut
- * hides everything the command named: no de-emphasis is drawn there at all
- * ({@link TopologyHighlightCut.drawsAnything}), so the sentence would be
- * describing ink that is not on screen. It is a **boolean** rather than the cut
- * itself, deliberately: the figures stay in `topologyFilterWords`' own clause
- * with exactly one author, and what crosses this boundary is the one fact this
- * builder's own last sentence depends on.
+ * The clause's tail — *Every other equity is set back.* — is a claim about what
+ * the canvas did, and it stops being true the moment nothing the command named
+ * is drawn ({@link TopologyHighlightCut.drawsAnything}), so the sentence would
+ * be describing ink that is not on screen. {@link TopologyHighlightInk} is
+ * **three** values rather than the cut itself, deliberately: the figures stay in
+ * `topologyFilterWords`' own clause with exactly one author, and what crosses
+ * this boundary is only what this builder's own last sentence depends on.
+ *
+ * ## The verb phrase is this story's own, and that is fix 1 of Phase 3
+ *
+ * **_set back_ here, _drawn quieter_ there, and never the same words for the
+ * two.** Story 6.8's filter already de-emphasises a filtered-out landmark and
+ * says so (`filter.ts`' `LANDMARKS_REMAIN`: *their benchmark ETFs and the broad
+ * market remain, drawn quieter*), and with a filter and a highlight both in
+ * force the two clauses are adjacent in one spoken sentence. Sharing one verb
+ * phrase made them read as a flat self-contradiction to a listener who cannot
+ * see the picture — *…drawn quieter. … nothing is drawn quieter.* — two true
+ * claims about two disjoint populations, verified on the real route at
+ * `/?sector=energy` with `NVDA` highlighted. Two subjects, two verb phrases.
  */
 export function topologyHighlightWords(
   highlight: TopologyHighlight,
-  /** Whether the complement de-emphasis is actually drawn. See above. */
-  quietened: boolean,
+  /** What the complement de-emphasis actually did. See above. */
+  ink: TopologyHighlightInk,
 ): {
   readonly line: string;
   readonly clause: string;
@@ -346,6 +385,28 @@ export function topologyHighlightWords(
     clause:
       ` Highlighting ${highlight.subject} and the ${String(count)} ${noun}` +
       ` it is joined to${kinds}.` +
-      (quietened ? " Every other equity is drawn quieter." : ""),
+      TOPOLOGY_HIGHLIGHT_INK_WORDS[ink],
   };
 }
+
+/**
+ * **What each ink outcome says, as one total record over the union** (Phase 3,
+ * fixes 1 and 3).
+ *
+ * Total rather than a conditional expression, so a fourth outcome is a compile
+ * error naming this file rather than a state that silently says nothing —
+ * `TOPOLOGY_RELATION_WORDS`' own reason, one function up.
+ *
+ * `"hidden-by-filter"` is the empty string and that is the ADR 0029 arm rather
+ * than an omission: `topologyFilterWords`' own clause is the single author of
+ * that explanation, with the figures, and a second sentence here would be the
+ * two-authors collision this region has paid for four times.
+ */
+const TOPOLOGY_HIGHLIGHT_INK_WORDS: Readonly<
+  Record<TopologyHighlightInk, string>
+> = {
+  "set-back": " Every other equity is set back.",
+  "hidden-by-filter": "",
+  "nothing-to-set-back":
+    " Nothing is set back; none of these is an equity this graph draws.",
+};

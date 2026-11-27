@@ -322,7 +322,7 @@ test("a filter that hides the whole highlighted set says so, and Show all is the
 
   const filterNote = topology.locator("[data-topology-filter-line]");
   await expect(filterNote).toContainText("Energy");
-  await expect(filterNote).toContainText("nothing is quietened");
+  await expect(filterNote).toContainText("nothing is set back");
 
   // The spoken twin, from the same builder — what could silently become two
   // sentences, which this region has lost three times.
@@ -332,8 +332,31 @@ test("a filter that hides the whole highlighted set says so, and Show all is the
   // **And the de-emphasis claim is withheld with it**, because there is no
   // de-emphasis drawn for it to describe.
   await expect(structuralSentence(page)).not.toContainText(
-    "Every other equity is drawn quieter.",
+    "Every other equity is set back.",
   );
+
+  // **The pronoun never arrives before its antecedent** (Story 7.4's Phase 3,
+  // fix 2) — the clause above says *the **highlighted** securities*, so the
+  // clause naming what is highlighted has to precede it. Read as two indices
+  // into the one real sentence rather than as an expected string, which is the
+  // same shape `MarketTopology.test.tsx` asserts one level down.
+  const spoken = (await structuralSentence(page).textContent()) ?? "";
+  expect(spoken.indexOf("Highlighting NVDA")).toBeGreaterThanOrEqual(0);
+  expect(spoken.indexOf("Highlighting NVDA")).toBeLessThan(
+    spoken.indexOf("None of the highlighted securities"),
+  );
+
+  // And the two drawn notes stack in that same order, which is the DOM's.
+  const notes = topology.locator(
+    "[data-topology-highlight], [data-topology-filter]",
+  );
+  expect(
+    await notes.evaluateAll((nodes) =>
+      nodes.map(
+        (node) => node.getAttribute("data-topology-highlight") ?? "filter",
+      ),
+    ),
+  ).toStrictEqual(["active", "filter"]);
 
   // The highlight itself is untouched — the filter never clears a command, and
   // the note still names what was pointed at.
@@ -347,7 +370,7 @@ test("a filter that hides the whole highlighted set says so, and Show all is the
     "None of the highlighted securities",
   );
   await expect(structuralSentence(page)).toContainText(
-    "Every other equity is drawn quieter.",
+    "Every other equity is set back.",
   );
 
   await expectNothingFailedToRender(page);

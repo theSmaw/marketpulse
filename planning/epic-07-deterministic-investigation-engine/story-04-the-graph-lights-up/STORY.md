@@ -1,7 +1,19 @@
 # Story 7.4 — The Graph Lights Up
 
 **Status:** All four tasks complete — 7.4.1 (PR #711), 7.4.2 (PR #713), 7.4.3
-(PR #715), 7.4.4 (PR #716) — Phase 3 story verification not yet started. Four
+(PR #715), 7.4.4 (PR #716) — and **Phase 3 story verification done, 2026-11-27,
+which found four defects in shipped behaviour: three fixed in one round and one
+recorded as a gap.** The three fixed are all in what this surface _says_ (two
+de-emphases sharing one verb phrase and reading as a contradiction; the filter's
+clause about the highlight spoken before the highlight's own clause; a
+landmark-only highlight explaining nothing at all) and were found by reading the
+real route rather than by anything mechanical. The fourth — a tracked subject
+with no related securities (`QQQ`, `DIA`, `IWM`) getting no sentence on either
+surface — is **not cleanly fixable today**: the wire's own silence has three
+indistinguishable causes, and the one browser-side alternative would be a second
+home for the tool's answer missing its measured half. `docs/GAPS.md` carries it
+with Story 7.5 as owner; `TOPOLOGY.md` §11.3 and `INVESTIGATIONS.md` §14 carry
+the full account of all four. Four
 Gate-1 open questions resolved by the Product Owner; see "Resolved at Gate 1"
 for the argument behind each change to the acceptance criteria below.
 

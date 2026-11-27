@@ -184,7 +184,7 @@ describe("topologyRelationWords — Task 7.4.2", () => {
 
 describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", () => {
   it("names the subject and counts the RELATED securities, never the drawn set", () => {
-    const { line, clause } = topologyHighlightWords(HIGHLIGHT, true);
+    const { line, clause } = topologyHighlightWords(HIGHLIGHT, "set-back");
 
     // Three symbols, four drawn nodes. The figure is the three.
     expect(line).toBe(
@@ -201,7 +201,7 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
         symbols: ["AAPL"],
         relations: ["sector_membership"],
       },
-      true,
+      "set-back",
     );
 
     expect(line).toBe(
@@ -215,16 +215,16 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
         ...HIGHLIGHT,
         relations: ["common_industry"],
       },
-      true,
+      "set-back",
     );
 
     expect(line).toBe("Highlighting NVDA and 3 related securities");
     expect(line).not.toContain("—");
-    expect(clause).toContain("Every other equity is drawn quieter.");
+    expect(clause).toContain("Every other equity is set back.");
   });
 
   it("states the figure identically in both renderings — the thing that could drift", () => {
-    const { line, clause } = topologyHighlightWords(HIGHLIGHT, true);
+    const { line, clause } = topologyHighlightWords(HIGHLIGHT, "set-back");
     const figures = line.match(/\d[\d,]*/gu) ?? [];
 
     expect(figures).toHaveLength(1);
@@ -236,13 +236,66 @@ describe("topologyHighlightWords — one builder, two renderings, Task 7.4.2", (
   // moment the reader's own cut hides everything the command named — there is
   // no de-emphasis drawn there at all, so a sentence saying there is would be
   // describing something that is not on screen.
-  it("withholds the de-emphasis claim where no de-emphasis is drawn", () => {
-    const { line, clause } = topologyHighlightWords(HIGHLIGHT, false);
+  it("withholds the de-emphasis claim where the reader's own cut hides the set", () => {
+    const { line, clause } = topologyHighlightWords(
+      HIGHLIGHT,
+      "hidden-by-filter",
+    );
 
-    expect(clause).not.toContain("drawn quieter");
+    expect(clause).not.toContain("set back");
     expect(clause).toContain("Highlighting NVDA and the 3 related securities");
+    // **Nothing is appended at all**, because `topologyFilterWords`' own
+    // clause is the single author of that explanation and carries the figures.
+    expect(clause.trimEnd()).toMatch(
+      /related securities it is joined to[^.]*\.$/u,
+    );
     // The drawn line never carried the claim, so it is byte-identical.
-    expect(line).toBe(topologyHighlightWords(HIGHLIGHT, true).line);
+    expect(line).toBe(topologyHighlightWords(HIGHLIGHT, "set-back").line);
+  });
+
+  /*
+   * **Story 7.4's Phase 3, fix 3 — the state that had no sentence anywhere.**
+   *
+   * Investigating `SPY` highlights the eleven sector ETFs, every one a
+   * landmark and excluded from this encoding by Story 6.3's own exclusion set,
+   * so `drawsAnything` is `false` and the canvas is byte-identical to the
+   * unhighlighted picture — with **no filter to blame**, which is what made
+   * this different from the arm above. The reader was told something was
+   * highlighted, saw nothing change, and was told nothing about why.
+   */
+  it("says why the picture did not change where nothing is to blame but the set", () => {
+    const { line, clause } = topologyHighlightWords(
+      {
+        subject: "SPY",
+        symbols: ["XLK", "XLE"],
+        relations: ["index_membership"],
+      },
+      "nothing-to-set-back",
+    );
+
+    expect(clause).toContain(
+      "Nothing is set back; none of these is an equity this graph draws.",
+    );
+    // It is an ABSENCE stated, never the claim about ink the drawn arm makes.
+    expect(clause).not.toContain("Every other equity");
+    // And the drawn line is untouched — it never claimed the de-emphasis.
+    expect(line).toBe(
+      "Highlighting SPY and 2 related securities — index members",
+    );
+  });
+
+  /*
+   * **The three ink outcomes are three DIFFERENT tails** (Phase 3, fixes 1 and
+   * 3) — the grammar rather than the strings, which is this surface's own
+   * recurring lesson: a table of expected sentences stays green when two of
+   * them silently become one.
+   */
+  it("says something different in each of the three ink states, and the same claim never twice", () => {
+    const tails = (
+      ["set-back", "hidden-by-filter", "nothing-to-set-back"] as const
+    ).map((ink) => topologyHighlightWords(HIGHLIGHT, ink).clause);
+
+    expect(new Set(tails).size).toBe(3);
   });
 });
 

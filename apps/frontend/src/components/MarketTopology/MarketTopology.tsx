@@ -48,6 +48,8 @@ import type {
   TopologyFilter,
   TopologyFilterCriterion,
   TopologyHighlight,
+  TopologyHighlightCut,
+  TopologyHighlightInk,
   TopologyHoverTarget,
   TopologyRenderer,
 } from "../../topology/index.js";
@@ -1764,32 +1766,24 @@ export function MarketTopology({
        * `Show all` link.
        */}
       <div className={styles.notes}>
-        {narrowedAtAll && (
-          <p className={styles.filterNote} data-topology-filter="narrowed">
-            <span data-topology-filter-line="" ref={filterLine} />{" "}
-            <Link
-              className={styles.filterClear}
-              to={topologyClearPath(filter.search)}
-            >
-              Show all
-            </Link>
-          </p>
-        )}
         {/*
          * **What a deterministic step has asked this graph to point at** (Task
-         * 7.4.2) — the second row of the `.notes` column above, written
-         * imperatively, and off screen entirely until a command arrives.
+         * 7.4.2) — the **first** row of the `.notes` column above since Story
+         * 7.4's Phase 3 (it was the second from Task 7.4.2 until then; see the
+         * filter note below for why it moved), written imperatively, and off
+         * screen entirely until a command arrives.
          *
-         * ## Under the filter note, which is where the probe put it
+         * ## In the same column as the filter note, which is where the probe
+         * ## put it
          *
          * It was drafted at the top-RIGHT corner — the one corner `.readout`
          * (bottom-left) and `.filterNote` (top-left) leave free, capped at
          * half the frame so the two could not meet. That is true at 1440,
          * 1024 and 768 and **false at 390**, where the frame's content box is
          * 308 px: the note wrapped to three lines and covered the filter
-         * note's text and its `Show all` link. Beneath it, in one column, the
-         * two cannot overlap at any width by construction rather than by
-         * measurement — and the measurement was the thing that was wrong.
+         * note's text and its `Show all` link. In one column, the two cannot
+         * overlap at any width by construction rather than by measurement —
+         * and the measurement was the thing that was wrong.
          *
          * The column is absolutely positioned, so neither note takes room in
          * `.frame`'s box and `MARKET-OVERVIEW.md` §1.4's displacement trigger
@@ -1875,6 +1869,35 @@ export function MarketTopology({
             Clear
           </button>
         </p>
+        {/*
+         * **Second in the column since Story 7.4's Phase 3 (fix 2), where it
+         * was first from Task 6.8.1 until Task 7.4.4.**
+         *
+         * The filter note's own third clause is *about* the highlight — *None
+         * of the highlighted securities are inside this filter* — so it has to
+         * follow the note that says what is highlighted, or a reader meets the
+         * reference before its referent. The spoken sentence was reordered in
+         * the same change (`trailingClausesOf`), and the two orders agreeing is
+         * the point: this stack reads top-to-bottom in the order a listener
+         * hears.
+         *
+         * Nothing else moved — `.notes` is a grid column with a gap, so the row
+         * order is the DOM order and no stylesheet rule keys on either note's
+         * position. The filter note's own position while no command is in force
+         * is unchanged, because a `hidden` highlight note takes no row and no
+         * gap.
+         */}
+        {narrowedAtAll && (
+          <p className={styles.filterNote} data-topology-filter="narrowed">
+            <span data-topology-filter-line="" ref={filterLine} />{" "}
+            <Link
+              className={styles.filterClear}
+              to={topologyClearPath(filter.search)}
+            >
+              Show all
+            </Link>
+          </p>
+        )}
       </div>
       <div className={styles.readout} ref={plate} data-topology-readout="idle">
         <p className={styles.readoutIdle} data-readout="idle">
@@ -2691,11 +2714,33 @@ function filterAccount(
 
   return {
     words: topologyFilterWords(narrowing, filter, cut),
-    // **`true` where there is no cut to ask about**, which is the picture this
-    // region drew before Task 7.4.4: a highlight over an unnarrowed market
-    // quietens the complement, and the clause says so.
-    quietened: cut === null || cut.drawsAnything,
+    ink: highlightInk(cut),
   };
+}
+
+/**
+ * **Which of the three ink outcomes this cut produced** (Story 7.4's Phase 3,
+ * fix 3) — the widening of what Task 7.4.4 shipped as a boolean.
+ *
+ * Three arms, in the order they are decided:
+ *
+ *   * **the complement really receded** — `null` is *no highlight at all*
+ *     (the value is then unread, and `"set-back"` is the picture this region
+ *     drew before Task 7.4.4), and `drawsAnything` is the renderer's own
+ *     condition for running the pass;
+ *   * **the reader's own cut hides what was named** — `hidden > 0` is the one
+ *     conjunct that makes `topologyFilterWords`' clause render, and that clause
+ *     is the single author of the explanation, so this one stays quiet;
+ *   * **nothing was named that this graph draws as an equity** — no filter is
+ *     to blame and nothing else will say so. `SPY`'s own related set is eleven
+ *     landmarks, so investigating it reaches here with no filter in force at
+ *     all, which is the state that had no sentence anywhere until this arm
+ *     existed.
+ */
+function highlightInk(cut: TopologyHighlightCut | null): TopologyHighlightInk {
+  if (cut === null || cut.drawsAnything) return "set-back";
+
+  return cut.hidden > 0 ? "hidden-by-filter" : "nothing-to-set-back";
 }
 
 /**
@@ -2711,16 +2756,18 @@ function filterAccount(
  */
 interface TopologyAccount {
   readonly words: { readonly line: string; readonly clause: string } | null;
-  /** See `topologyHighlightWords`' own `quietened` parameter. */
-  readonly quietened: boolean;
+  /** See `topologyHighlightWords`' own `ink` parameter and {@link
+   * highlightInk}. A boolean until Story 7.4's Phase 3, which found the state
+   * the two values collapsed. */
+  readonly ink: TopologyHighlightInk;
 }
 
 /**
  * **Stable, for a component with no `filter` prop — every story, most tests.**
  *
- * `quietened: true` is the picture that component draws: with no criterion
+ * `ink: "set-back"` is the picture that component draws: with no criterion
  * there is nothing to hide a highlighted peer, so the complement really is
- * drawn quieter and the clause saying so is correct. **It is not a reading of
+ * set back and the clause saying so is correct. **It is not a reading of
  * the renderer's own answer**, though, and that is the one place these two can
  * still differ: a command naming nothing this universe tracks — or nothing but
  * landmarks, which `SPY`'s own related set is — makes the renderer skip the
@@ -2729,7 +2776,7 @@ interface TopologyAccount {
  * where the `Highlighted` wrapper omits it. Recorded rather than guarded,
  * because the guard is the prop and every real caller already passes it.
  */
-const NO_ACCOUNT: TopologyAccount = { words: null, quietened: true };
+const NO_ACCOUNT: TopologyAccount = { words: null, ink: "set-back" };
 
 /**
  * **The symbol the renderer would pin, read off the one ref that holds it**
@@ -2809,9 +2856,23 @@ function writeTopologyFilterNote(
  * and with three clauses and three writers there are nine. One function is one
  * place.
  *
- * **The order is the reading order** — what is drawn, what is highlighted,
- * what was measured — so each clause qualifies the one before it rather than
- * the structural sentence at the head.
+ * **The order is the reading order — and since Story 7.4's Phase 3 that puts
+ * the HIGHLIGHT before the narrowing** (fix 2), which is the reverse of what
+ * Task 7.4.2 shipped.
+ *
+ * The filter's own third clause (Task 7.4.4) talks about the highlight —
+ * *None of the **highlighted** securities are inside this filter* — so with
+ * both in force the old order spoke a pronoun before its antecedent, and a
+ * listener met *the highlighted securities* before being told anything was
+ * highlighted. Verified on the real route at `/?sector=energy` with `NVDA`
+ * highlighted.
+ *
+ * **One unconditional order rather than a conditional swap**, because a
+ * composition whose order depends on which clauses are present is four
+ * orderings to keep straight and the pair that forced this is the only one
+ * with a dependency between them. It also agrees with the drawn `.notes`
+ * stack, whose own DOM order was swapped in the same change — the spoken
+ * sentence and the two notes on screen now read top-to-bottom in one order.
  */
 function trailingClausesOf(
   account: TopologyAccount,
@@ -2821,9 +2882,9 @@ function trailingClausesOf(
   const highlighted =
     highlight === null
       ? ""
-      : topologyHighlightWords(highlight, account.quietened).clause;
+      : topologyHighlightWords(highlight, account.ink).clause;
 
-  return `${account.words?.clause ?? ""}${highlighted}${correlationClause}`;
+  return `${highlighted}${account.words?.clause ?? ""}${correlationClause}`;
 }
 
 /**
@@ -2843,14 +2904,18 @@ function writeTopologyHighlightNote(
   line: RefObject<HTMLSpanElement | null>,
   highlight: TopologyHighlight | null,
 ): void {
-  // **The line never claims the de-emphasis**, so it takes no `quietened`: the
+  // **The line never claims the de-emphasis**, so the `ink` it passes is
+  // unread — any value draws the same line, and `"set-back"` is named rather
+  // than invented because this write has no cut to ask. The
   // drawn note says what is highlighted and the `Clear` control sits beside it,
   // and whether the complement receded is visible on the canvas rather than
   // asserted in eight words over it. The accessible clause is the reading that
   // has to say so, and `trailingClausesOf` is where that is decided.
   if (line.current !== null) {
     line.current.textContent =
-      highlight === null ? "" : topologyHighlightWords(highlight, true).line;
+      highlight === null
+        ? ""
+        : topologyHighlightWords(highlight, "set-back").line;
   }
 
   if (note.current === null) return;
