@@ -443,8 +443,27 @@
    * tolerance in `overview-focus-ring.spec.ts` would weaken the check that
    * found the original 5 px defect — at a fifth of its size it would pass.
    * `docs/GAPS.md` carries the entry and its re-measure.
+   *
+   * **Raised to `2px` on 2026-11-27 (Story 7.4's Phase 3 e2e repair), and this
+   * is a DIFFERENT decision from the one declined above, not a reversal of
+   * it.** Task 4.6.7's two sub-pixel pairs — 1024×800 and 1440×680 — are
+   * **not** among the four pairs `overview-focus-ring.spec.ts` runs, so the
+   * gate stayed green while that defect sat recorded and unrepaired. This one
+   * is: `Market breadth`, `Movers` and `Current investigations` at **390×780**
+   * — one of the four asserted pairs — measured landing at **-0.390625** of
+   * bottom clearance, reproducibly, on both a CI run and a local machine. The
+   * same mechanism (Chromium's internal LayoutUnit quantises to 1/64 px —
+   * `-0.390625 = -25/64` exactly, matching the `*.8594`/`*.9063` fractions
+   * Task 4.6.7 already found at the other two pairs), now reaching a pair this
+   * spec actually gates on, which is the circumstance that entry's own
+   * "Owner: whoever next touches `--scroll-overshoot`" line anticipated.
+   * Re-measured after raising the term: **+0.609375** worst-case bottom
+   * clearance at 390×780, with every other pair unaffected in direction
+   * (more reserved padding never produces LESS clearance) and re-verified
+   * clean by `overview-focus-ring.spec.ts`'s own 8 cases. `docs/GAPS.md` entry
+   * updated with both occurrences and this repair.
    */
-  --scroll-overshoot: 1px;
+  --scroll-overshoot: 2px;
 
   /*
    * A 4px grid. These are the steps the design actually uses, named by their

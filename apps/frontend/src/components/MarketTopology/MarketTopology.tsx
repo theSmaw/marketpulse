@@ -1871,7 +1871,9 @@ export function MarketTopology({
         </p>
         {/*
          * **Second in the column since Story 7.4's Phase 3 (fix 2), where it
-         * was first from Task 6.8.1 until Task 7.4.4.**
+         * was first from Task 6.8.1 until Phase 3's own reordering** — Task
+         * 7.4.4 left it first; Phase 3 found the pronoun arriving before its
+         * antecedent and swapped both the stack and the spoken order.
          *
          * The filter note's own third clause is *about* the highlight — *None
          * of the highlighted securities are inside this filter* — so it has to
@@ -2748,11 +2750,14 @@ function highlightInk(cut: TopologyHighlightCut | null): TopologyHighlightInk {
  * (Task 7.4.4).
  *
  * Two fields rather than two call sites, because they come out of one
- * narrowing: `quietened` is a fact about the **filter** (it is false exactly
- * when the cut hides everything the command named) and the sentence that
- * depends on it is the **highlight's**, so a caller computing them separately
- * would be running `narrowTopology` twice and could get two answers from one
- * state.
+ * narrowing: `words` is the filter's own clause (`null` when nothing is
+ * narrowed) and `ink` is the highlight's three-way outcome — {@link
+ * highlightInk}'s `"set-back" | "hidden-by-filter" | "nothing-to-set-back"},
+ * **corrected at Story 7.4's Phase 3 close from a `quietened: boolean`** that
+ * could not distinguish "a filter hid every named peer" from "nothing was
+ * ever going to be set back regardless of any filter" (a landmark-only
+ * command). A caller computing the two separately would be running
+ * `narrowTopology` twice and could get two answers from one state.
  */
 interface TopologyAccount {
   readonly words: { readonly line: string; readonly clause: string } | null;

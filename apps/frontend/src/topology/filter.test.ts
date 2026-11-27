@@ -908,7 +908,7 @@ describe("topologyFilterWords — the highlighted peers a cut hides", () => {
     expect(words?.line).toContain("Energy");
   });
 
-  it("says why nothing was quietened where the cut hides the WHOLE set — Done-when 2", () => {
+  it("says why nothing was set back where the cut hides the WHOLE set — Done-when 2", () => {
     const words = wordsFor(
       readTopologyFilter("?sector=energy"),
       NO_BANDS,
