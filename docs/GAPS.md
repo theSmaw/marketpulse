@@ -2295,7 +2295,41 @@ and repair are unchanged from Task 4.7.6's own diagnosis above
 `expect` over `evaluateAll`) — still not taken, for the same reason: it is
 this spec's own assertion, not this task's or this story's to fix in passing.
 
-## The search surface's axe passes judge whichever ten rows ONE hard-coded query happens to match — and typing a different letter finds a real contrast violation today
+## A full `pnpm e2e` run failed four unrelated specs together on a documentation-only PR, and the shape is contention rather than four new defects
+
+**Added 2026-11-27, on PR #719 (Story 7.4's Phase 3 documentation sweep).**
+`verify` and `database` were green; `e2e` failed **4 of 333** at **17.5
+minutes** — against this workflow's own documented 69–73 s baseline for the
+`Browser journeys` step alone, and well past the 12–18 min range this
+session's own prior runs on this story settled into.
+
+The four: `overview-market-topology-live-mark.spec.ts:70` (the **already
+documented** flake two paragraphs above — branch 3/12 vs `main` 2/12,
+overlapping Wilson intervals); `overview-focus-ring.spec.ts:130` at 390px,
+**both directions** (`a focus ring landed behind a sticky edge`); and
+`search-keyboard.spec.ts:358` (`focus landed behind the sticky chrome`). The
+three new ones share a shape — a sticky-chrome-occlusion assertion at 390px,
+timing-sensitive by this file's own earlier entries on the same surface
+(_"the predicate this entry was written around … was therefore green at
+−4.00 px of ring clearance"_).
+
+**Confirmed structurally unrelated before treating it as contention.** PR
+#719's own diff touches `CLAUDE.md`, `docs/`, `planning/`, and three
+comment-only/test-name edits inside `MarketTopology.{tsx,module.css}` and
+`filter.test.ts` — nothing under `base.css`, `AppHeader`, `AppFooter`,
+`search-keyboard.spec.ts`'s own support files, or anything `overview-focus-
+ring.spec.ts` reads. `git diff --name-only` against the PR confirms it.
+
+**Re-measure:** re-run the three new specs alone and, if any repeats, take
+`--repeat-each=12` at `--workers=1` and `--workers=4` on a settled machine
+for each, per this file's own established protocol, before calling any one
+of them a new standing entry rather than this one documentation-only PR's
+own occurrence.
+
+**Owner: not assigned — recorded as an occurrence rather than repaired or
+re-attributed**, because a single run on a documentation-only PR with zero
+touched dependencies is evidence of contention, not of three new defects on
+top of one already-known one.
 
 **Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
 something else, and it is a product defect rather than a suite one.**
