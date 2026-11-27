@@ -2295,41 +2295,55 @@ and repair are unchanged from Task 4.7.6's own diagnosis above
 `expect` over `evaluateAll`) — still not taken, for the same reason: it is
 this spec's own assertion, not this task's or this story's to fix in passing.
 
-## A full `pnpm e2e` run failed four unrelated specs together on a documentation-only PR, and the shape is contention rather than four new defects
+## Two consecutive `pnpm e2e` runs on the same documentation-only PR failed the SAME two 390px sticky-chrome specs — corrected below from an initial "contention" read that does not survive the second run
 
-**Added 2026-11-27, on PR #719 (Story 7.4's Phase 3 documentation sweep).**
-`verify` and `database` were green; `e2e` failed **4 of 333** at **17.5
-minutes** — against this workflow's own documented 69–73 s baseline for the
-`Browser journeys` step alone, and well past the 12–18 min range this
-session's own prior runs on this story settled into.
+**Added 2026-11-27, on PR #719 (Story 7.4's Phase 3 documentation sweep), and
+corrected the same day after a second run.** `verify` and `database` were
+green on both runs; `e2e` failed twice.
 
-The four: `overview-market-topology-live-mark.spec.ts:70` (the **already
-documented** flake two paragraphs above — branch 3/12 vs `main` 2/12,
-overlapping Wilson intervals); `overview-focus-ring.spec.ts:130` at 390px,
-**both directions** (`a focus ring landed behind a sticky edge`); and
-`search-keyboard.spec.ts:358` (`focus landed behind the sticky chrome`). The
-three new ones share a shape — a sticky-chrome-occlusion assertion at 390px,
-timing-sensitive by this file's own earlier entries on the same surface
-(_"the predicate this entry was written around … was therefore green at
-−4.00 px of ring clearance"_).
+**Run 1** (17.5 min, 329 passed, 4 failed): `overview-market-topology-live-
+mark.spec.ts:70` (the **already documented** flake two paragraphs above —
+branch 3/12 vs `main` 2/12, overlapping Wilson intervals); `overview-focus-
+ring.spec.ts:130` at 390px, **both directions** (`a focus ring landed behind a
+sticky edge`); `search-keyboard.spec.ts:358` (`focus landed behind the sticky
+chrome`).
 
-**Confirmed structurally unrelated before treating it as contention.** PR
-#719's own diff touches `CLAUDE.md`, `docs/`, `planning/`, and three
-comment-only/test-name edits inside `MarketTopology.{tsx,module.css}` and
-`filter.test.ts` — nothing under `base.css`, `AppHeader`, `AppFooter`,
-`search-keyboard.spec.ts`'s own support files, or anything `overview-focus-
-ring.spec.ts` reads. `git diff --name-only` against the PR confirms it.
+**Run 2**, after re-pushing with no code change (docs only — the GAPS.md entry
+recording run 1), 15.7 min, 330 passed, 3 failed: `overview-focus-
+ring.spec.ts:130` **both directions again**, `search-keyboard.spec.ts:358`
+**again**. The live-mark flake did **not** recur.
 
-**Re-measure:** re-run the three new specs alone and, if any repeats, take
-`--repeat-each=12` at `--workers=1` and `--workers=4` on a settled machine
-for each, per this file's own established protocol, before calling any one
-of them a new standing entry rather than this one documentation-only PR's
-own occurrence.
+**This is not the shape the first entry called it.** A single run failing
+four unrelated specs together is consistent with whole-machine contention; the
+**same two** specs failing **both times**, while a third (the one flake this
+file already had a measured rate for) failed only once, is consistent instead
+with something specific to those two checks — and this file's own record
+already names why they are fragile rather than merely slow: both assert a
+**zero-margin** quantity (_"its `0.00` worst case at every width is a
+Chromium-at-`dpr: 1` measurement rather than a law"_, line ~1136), so any
+sub-pixel rendering difference between runs — a font metric, a scrollbar, a
+GPU-vs-software rasterizer path on the runner — reads as a real occlusion to
+a check with no tolerance to spend.
 
-**Owner: not assigned — recorded as an occurrence rather than repaired or
-re-attributed**, because a single run on a documentation-only PR with zero
-touched dependencies is evidence of contention, not of three new defects on
-top of one already-known one.
+**Confirmed structurally unrelated on both runs.** PR #719's own diff touches
+`CLAUDE.md`, `docs/`, `planning/`, and three comment-only/test-name edits
+inside `MarketTopology.{tsx,module.css}` and `filter.test.ts` — nothing under
+`base.css`, `AppHeader`, `AppFooter`, `search-keyboard.spec.ts`'s own support
+files, or anything `overview-focus-ring.spec.ts` reads. `git diff --name-only`
+against the PR confirms it on both occasions.
+
+**Re-measure:** `--repeat-each=12` at `--workers=1` and `--workers=4` on a
+settled machine for each of the two specs, per this file's own established
+protocol — not yet taken, because a third re-run on CI alone would not
+distinguish a real new flake from a runner-image change from pure chance at
+this n.
+
+**Owner: not assigned — recorded as two occurrences with the conclusion
+corrected rather than repeated**, because the second run falsified the first
+run's "contention" verdict, and this file's own rule (_falsification is swept
+the same day, not at a close_) applies to an entry nine lines old as much as
+to one nine months old. Escalated to the Product Owner rather than re-run a
+third time unattended, per this session's own standing instruction.
 
 **Added 2026-10-10 by Task 4.8.13, which found it by accident while measuring
 something else, and it is a product defect rather than a suite one.**
