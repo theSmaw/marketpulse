@@ -601,19 +601,27 @@
 
 /*
  * **What a deterministic step has asked this graph to point at** (Task 7.4.2)
- * — the second row of `.notes`, drawn only while a command is in force.
+ * — a row of `.notes`, drawn only while a command is in force.
  *
- * ## Under the filter note rather than opposite it
+ * ## Above the filter note, not opposite it — and since Phase 3, the FIRST row
  *
  * See `.notes`: the first draft put this at the other end of the top edge and
  * `pnpm probe` found it covering the filter note and its `Show all` link at
  * 390. Beneath it, in one column, the two cannot overlap at any width.
  *
- * It inherits the column's own translucency argument — it covers canvas, and
- * `.readout`'s own measured table is why 80% — and it takes no pointer
- * events, unlike `.filterNote`: there is nothing in it but words. A
- * highlight's way back is the reader's own `Escape` or a click on empty
- * canvas (Task 7.4.3), never a control in this note.
+ * **Corrected 2026-11-27, at Story 7.4's Phase 3 close: this is now row ONE,
+ * not row two.** Phase 3's own review found the spoken sentence naming the
+ * highlight's peers *after* the filter clause that refers to them — a
+ * pronoun before its antecedent — and reordered both the spoken composition
+ * (`trailingClausesOf`) and this stack to agree: highlight note first, filter
+ * note second. This paragraph is left standing with the date rather than
+ * silently rewritten, per this repository's own rule for a present-tense
+ * claim that becomes false.
+ *
+ * **And it is no longer true that "there is nothing in it but words."** Task
+ * 7.4.4 gave it a `Clear` button — see this rule's own 2026-11-26 amendment
+ * below — so `pointer-events` had to come back for this note specifically,
+ * the way `.filterNote` already needed it for `Show all`.
  *
  * ## Off screen while nothing is highlighted — and NOT by a rule here
  *

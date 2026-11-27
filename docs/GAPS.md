@@ -7461,11 +7461,18 @@ would close the window before any reader could navigate to see it"**. Both
 sentences were in the file before this task started.
 
 **They cannot both hold, and the arithmetic decides which is reachable rather
-than taste.** Story 7.2 measured the whole six-step pipeline at **p50
-32.0 ms**; the command is emitted after step 4 of 6
+than taste.** Story 7.2 measured **five of its six steps** completed at **p50
+32.0 ms** — **corrected 2026-11-27 at Phase 3's own review**, which found this
+entry (and two sibling sites) calling it "the whole six-step pipeline": the
+sixth step is the only one reading `market_bars`, and it has never completed
+on any machine with a database reachable, so its own duration against a
+populated store is **unmeasured** rather than covered by this figure. The
+conclusion is unaffected — the command is emitted after step 4 of 6
 (`scripted-agent-provider.ts`), so `INVESTIGATION_COMPLETED` lands tens of
-milliseconds after the command, before a reader's hand has left the
-`Investigate` control and always before they can reach `/`. A highlight
+milliseconds after the command on CI/loopback and almost certainly on a
+populated store too, before a reader's hand has left the `Investigate`
+control and always before they can reach `/` — but the reasoning should name
+the condition rather than imply a figure that covers it. A highlight
 cleared on a terminal event is therefore **unobservable on every machine this
 product runs on** — the same defect Gate 1 caught in AC 7's original
 step-scoped wording and fixed, arriving a second time through the clause
@@ -7639,6 +7646,23 @@ is discharged by that change.
 first story that revisits this canvas's small-viewport behaviour — the same
 owner the two earlier fit-scale suppressions were settled by.
 
+**Updated 2026-11-27, at Phase 3's own tester verification — the 1440/1024/768
+verdict is confirmed, and on a real scored store it reads MORE clearly than
+the Storybook sitting above, not less.** Driven against a real local pair (a
+populated store with 106 `high`/16 `extreme` bands and 1,860 retained
+correlation edges) rather than the recorded Storybook fixture: every
+non-Technology body visibly steps from mid-grey to pale while the Technology
+cluster keeps its ink, and the undimmed amber anomaly rings sit on top of the
+now-pale bodies rather than muddying them against a background that was
+already closer to full strength — comparison screenshots taken and described
+in that task's own report. The **390 verdict is unaffected and, if anything,
+sharper on the real route**: with the correlation mesh drawn (suppressed in
+the Storybook story this entry's own probe used) and the idle readout plate
+occupying the bottom of the frame, the real picture at 390 with both a filter
+and a highlight active is a legible band of roughly 85 px between two fixed
+overlays, narrower than either sitting alone suggested. The fourth-design-test
+verdict above is unchanged by either reading.
+
 ## `overview-market-topology-live-mark.spec.ts` fails about one run in five, on `main`, and the `e2e` required check is where that lands
 
 **Measured 2026-11-26 by Task 7.4.4**, which met it twice in two full-suite
@@ -7728,14 +7752,24 @@ nothing for a `WORKSPACE_COMMAND` by decision, and adding a _no command arrived_
 flag there would be a claim about a cause the wire never stated.
 
 **And the one browser-side alternative is a second home for the tool's own
-answer.** The security page does hold the universe (`use-securities.ts`), so
-`buildTopologyGraph` plus a re-implementation of `neighboursOf` would answer the
-**curated** half. It would be wrong about the **measured** half: a related
-security can be a `return_correlation` neighbour alone, that generation lives in
-a nightly table the security page never fetches, and a browser asserting _this
-security has no related securities_ from the curated graph alone would be making
-a confident claim over data it has not read — ADR 0029's own rule, and the
-reason this is recorded rather than shipped.
+answer — which is the real reason this is recorded rather than shipped, not
+the one this entry first gave.** The security page does hold the universe
+(`use-securities.ts`), so `buildTopologyGraph` plus a re-implementation of
+`neighboursOf` would answer the **curated** half directly. **Corrected
+2026-11-27, at Phase 3's own review: for `QQQ`/`DIA`/`IWM` specifically, a
+browser-side curated-graph check would NOT be wrong about the measured half**
+— the nightly correlation pass's population is `equityTickers()`
+(`return-correlation-store.ts`'s own documented population, confirmed by a
+database test asserting no sector ETF or proxy is in it), so a market proxy
+can never carry a `return_correlation` edge, and "this security has no
+related securities" would be sound for these three symbols without reading
+the nightly table at all. The objection that holds is a different one:
+re-implementing `neighboursOf` in the browser is a second home for a fact the
+tool already answers, it buys one sentence for exactly three symbols, and it
+leaves the real three-cause taxonomy (untracked / zero-peers / a thrown
+producer) untouched — a reader of `PSKY` or a reader whose investigation's
+producer threw still gets silence either way. That is the reason to defer,
+not a false claim about data the browser has not read.
 
 **The clean repair is a wire change, and it belongs to a story rather than a
 sweep.** Either the `WORKSPACE_COMMAND` event gains a **refused/absent arm**
@@ -7756,3 +7790,44 @@ produced.
 run and the per-step degradation around it — the same taxonomy question with the
 same two candidate homes, and the first story that will have to tell a thrown
 producer from a subject with nothing to highlight.
+
+## No performance figure exists anywhere in Story 7.4, and two of its tasks added a per-live-batch cost to the one region with a published 60 FPS figure
+
+**Added 2026-11-27, at Phase 3's own technical-analyst review.** Checked every
+task completion record in the story: the only `ms` figures any of them cite are
+_quotations_ of Story 7.2's own p50 32.0 ms (used to argue the AC 8 lifetime
+decision), never a measurement of anything Story 7.4 itself built. No
+`docs/GAPS.md` entry and no task record states a frame-time or render-count
+figure for this story's own work.
+
+**What is unmeasured, specifically, rather than hypothetically.** Task 7.4.2's
+`setBands` → `renarrow` → `regroupAnomalyTreatments` path now calls
+`topologyHighlightDrawsAnything`, a 516-node walk; Task 7.4.4's
+`applyAnomalyBands` → `writeTopologyFilterNote` → `filterAccount` →
+`topologyHighlightCut` path walks the universe a second time on the same
+path. Both run at the live feed's own measured cadence (6.8–16.1 batches a
+minute), on the one region whose 60 FPS / 16.7 ms median figure (Story 6.7)
+was taken before either of them existed.
+
+**Why this is a gap rather than a defect, stated so the next reader does not
+over-react to it.** Both new walks are gated on a highlight being in force:
+`topologyHighlightDrawsAnything` returns on its first line for
+`highlighted === null`, and `filterAccount` short-circuits at the same
+condition — so the added cost is **exactly zero** in the state every gated
+machine and every reader-before-pressing-Investigate is permanently in. The
+unmeasured case is specifically _a highlight in force while the live feed is
+also running_, which needs a real backend, a real investigation, and a live
+market socket all at once — nothing in this story's own test infrastructure
+combines all three.
+
+**Re-measure:** `scripts/topology-instrument.mjs`'s `--live` route-level arm
+(Story 6.7's own instrument, built for exactly this kind of claim), with a
+`WorkspaceCommand` applied via a real or scripted investigation press before
+the measurement window starts, against both the software-rendered regression
+floor and a real GPU, read against the 16.7 ms median this region's own
+exit criterion was verdicted on.
+
+**Owner: not yet named.** This is Epic 7's own addition to Epic 14's standing
+performance-validation backlog, not a defect any shipped task owns; the next
+story that touches this region's render path, or Epic 14 itself, is the
+natural fixer.

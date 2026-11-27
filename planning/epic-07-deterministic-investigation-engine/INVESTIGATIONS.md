@@ -999,9 +999,15 @@ There is **no signal in the decoded stream** to condition a sentence on: an
 untracked subject, a zero-peers subject and a producer that threw are one
 observable (silence), and _no command yet_ is a fourth. The one browser-side
 alternative — recompute the answer from the universe the security page already
-holds — is a second home for the tool's own answer and would be wrong about the
-**measured** half, which lives in a nightly table that page never fetches. The
-clean repair is a wire arm stating the reason, which is new wire shape with a
+holds — is a second home for the tool's own answer; **it is not, as this
+section first said, wrong about the measured half for these three subjects
+specifically** — `QQQ`/`DIA`/`IWM` are market proxies, the nightly correlation
+pass's population is equities only, so a proxy can never carry a
+`return_correlation` edge and a curated-graph-only check would be sound for
+them without reading the nightly table (corrected in `docs/GAPS.md` at Phase
+3's own review). The real objection is the second-home one: it buys a sentence
+for three symbols and leaves the three-cause taxonomy untouched. The clean
+repair is a wire arm stating the reason, which is new wire shape with a
 decoder and a permission question behind it. `docs/GAPS.md` carries it with
 **Story 7.5** as owner, which already owns the same taxonomy question for a
 failed run.

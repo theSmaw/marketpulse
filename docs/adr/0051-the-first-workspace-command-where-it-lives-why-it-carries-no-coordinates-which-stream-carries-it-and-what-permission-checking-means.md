@@ -107,6 +107,46 @@ module's import closure, so it cannot reach the backend at all.
 `planning/epic-07-deterministic-investigation-engine/EPIC.md` carries the dated
 amendment correcting the instruction that rested on that misreading.
 
+> **Amended 2026-11-27, at Story 7.4's Phase 3 close: "the same compiled-in
+> universe" overstates what the two sides actually read, and the sentence it
+> is in claims more than the decision needs.** The server's permission stage
+> reads the compiled-in `UNIVERSE` constant (`apps/backend/src/index.ts`,
+> memoised for the process). The browser does **not** call the same function
+> over the same input — it fetches `GET /securities`, which serves **database
+> rows** (`apps/backend/src/routes/securities.ts`). The two agree today only
+> because `pnpm universe` has converged the store on the curated file that is
+> also compiled into the running image, which is a **deploy-ordering
+> property**, not a property of one pure function over one shared input.
+> `CLAUDE.md` already documents a live instance of exactly this asymmetry — CI
+> builds into an empty store (516 active rows) while a populated store that
+> has not re-run `pnpm universe` can disagree with the file compiled into a
+> newer image.
+>
+> **The decision is still safe, and the real reason is narrower than the
+> original text claims.** Because Decision 2 puts no coordinate on the wire,
+> an input disagreement cannot mislocate a highlight — the browser draws at
+> its own self-consistent coordinates for the symbols it was given by name.
+> The only consequence of a divergent universe is a **membership** mismatch
+> (the server places a symbol the browser's fetched universe does not hold,
+> or the reverse), which the permission stage's placement check turns into a
+> visible refusal, not a wrong picture. So the paragraph above should read:
+> _no coordinate crosses the wire, so coordinate agreement between the two
+> sides is not load-bearing today_ — the benefit does not depend on the two
+> universes being the same object, only on neither side needing the other's
+> coordinates.
+>
+> **A second reversal trigger follows from this, worth naming beside Decision
+> 2's own one:** _the first `WorkspaceCommand` whose correct execution
+> requires the server's placements and the browser's to be the same
+> placements_ — i.e. the first command validated against a **relative**
+> geometric fact (a proximity test, "the nearest N", a cluster-local claim)
+> rather than membership alone. Today's permission stage uses `placements`
+> only to ask "does this symbol have one at all", which input divergence
+> cannot corrupt into a wrong picture; the day a command's correctness
+> depends on _where_ two symbols sit relative to each other, the compiled-
+> universe-versus-database-rows asymmetry above becomes load-bearing and this
+> decision needs revisiting.
+
 ---
 
 ## Decision 3 — The SSE investigation stream carries it; the market-stream WebSocket is refused
@@ -240,21 +280,75 @@ not a new one.
 
 ---
 
+## Decision 5 — A command's lifetime is investigation-scoped, not step-scoped, and clearing on the investigation's own terminal event is deliberately not built
+
+**Added 2026-11-27, at Story 7.4's Phase 3 close.** This decision was taken
+during Task 7.4.3 and recorded there and in `docs/GAPS.md`, but not at ADR
+altitude — Phase 3's own technical-architect review found that lifetime is at
+least as inheritable as the other four decisions here, because every later
+`WorkspaceCommand` producer has to answer the same question: _does this
+command outlive the thing that caused it?_
+
+A permitted `highlightNodes` command persists from the moment it is applied
+until one of three things happens: the reader clears it (the same gesture
+that already clears a selection — `Escape`, or a click on empty canvas), a
+later investigation's command supersedes it (keyed on investigation id,
+replacing wholesale, never a union), or the investigation's own channel ends
+with **no** terminal event having arrived (a dropped connection, a stream
+that closes carrying nothing). It deliberately does **not** clear on the
+investigation reaching a terminal state (`INVESTIGATION_COMPLETED` or
+`INVESTIGATION_FAILED`) while its channel is still open — the one-expression
+home for this is `highlightOutlivesChannelEnd(lastEventType)` in
+`apps/frontend/src/investigations/workspace-highlight.ts`, which returns
+`true` for every terminal event type.
+
+**The reason is measured, not argued.** Story 7.2's own figure is a
+**five-of-six-rows** p50 of 32.0 ms (the sixth step, the only one reading
+`market_bars`, has never completed on any machine with a database reachable),
+with the `WORKSPACE_COMMAND` emitted after step 4 of 6. A terminal event
+therefore lands tens of milliseconds after the command, before a reader's
+hand could leave the control that started the investigation, let alone
+navigate to `/` to see it drawn. Clearing on the terminal event — AC 8's own
+literal wording — would make the highlight **unobservable on every
+machine**, including the one this story's own merged e2e journey runs
+against.
+
+**Rejected alternative: clear on the terminal event, as AC 8 literally
+says.** This is the reading that makes the feature invisible, named above.
+`docs/GAPS.md` carries it as an open, owner-named Product-Owner decision —
+strike the clause, or keep it and accept that the headline capability this
+story exists to ship is never seen.
+
+**Reversal trigger, as a condition:** _the first `WorkspaceCommand` whose
+correct execution requires it to end when the investigation that produced it
+ends_ — i.e. the first command for which "outlives the step, survives
+navigation, persists until cleared" is the wrong default rather than the
+right one. Epic 8's `pinEvidence` and Epic 11's generative workspace commands
+are each likely to meet this question; whichever does first should record
+its own answer rather than assume this decision's default.
+
+---
+
 ## Consequences
 
 - **Invariant 2 has a shipped implementation**, and every later producer —
   including the first model-driven one — composes the same four stages against
   the same types rather than inventing a pipeline under pressure.
-- **`pnpm invariants` holds 100**, three more than before this task:
-  `the-server-places-a-node-only-through-the-shared-layout` (Decision 2's
-  mechanical half),
+- **`pnpm invariants` held 100 at this task's own close, three more than
+  before it**: `the-server-places-a-node-only-through-the-shared-layout`
+  (Decision 2's mechanical half),
   `a-permitted-command-is-minted-only-by-the-permission-stage` (Decision 4's —
   `kind: "permitted"` appears in exactly one shipped backend file, which is
   Story 7.4's **AC 6** in as many words), and
   `the-analytical-tool-registry-is-one-class`, which asserts that every
   `): AnalyticalTool<` factory under `apps/backend/src` is wired into
   `investigationTools` through `toRunnableTool(` and that the two counts are
-  equal. Four `pnpm break` entries behind them.
+  equal. Four `pnpm break` entries behind them. **This count is a dated
+  figure, left standing rather than re-stated, per this repository's own
+  re-measure-rather-than-cite rule** — Task 7.4.3 added two more
+  (`the-topology-walk-reads-no-highlight`,
+  `a-highlight-command-is-minted-only-where-the-wire-is-decoded`), and the
+  figure Story 7.4's close actually verdicts against is **102**.
 - **`get_related_securities` is deliberately not an `AnalyticalTool`**, which
   is what let the second check collapse the "two undeclared classes of registry
   member" concern rather than declare a second class. The reason is structural
