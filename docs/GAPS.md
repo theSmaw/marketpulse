@@ -7688,3 +7688,71 @@ until then every full `pnpm e2e` run has roughly a one-in-five chance of a red
 `e2e` check that is nobody's defect. That is work owed under this project's
 own _pipeline jobs never go red_ rule, which is why it is written down rather
 than left as a thing people re-run.
+
+## A zero-peers subject (`QQQ`, `DIA`, `IWM`) gets no sentence anywhere, and the wire gives the browser nothing to write one from
+
+**Added 2026-11-27 by Story 7.4's Phase 3**, which found it on the tester's own
+exploratory pass and then decided **not** to repair it, because every repair
+available in the browser today is a guess dressed as an answer.
+
+**What a reader meets.** Press `Investigate` on `/securities/QQQ` and the
+investigation runs correctly, all six steps, and **no `WORKSPACE_COMMAND` is
+emitted** — verified on the wire. That is right: `QQQ`, `DIA` and `IWM` carry no
+membership edge of any kind (`buildTopologyGraph` refuses to invent one — there
+is no stored constituent list for the first two, and `IWM` is disjoint from the
+S&P 500 by construction), so `get_related_securities` answers an empty `related`
+list and `scripted-agent-provider.ts` turns that into no command rather than an
+empty highlight. What is **not** right is that nothing says so: `/`'s topology
+shows no note (correctly — there is no command), and the security page says
+nothing either, because `subjectUntracked` is `false` for all three. They are
+genuinely tracked; they simply have no _related securities_ answer under this
+tool's definition. Task 7.4.4 gave the **untracked** subject a real sentence
+(`UNTRACKED_SUBJECT_SENTENCE`) for exactly this reason, and this is the sibling
+state it did not cover.
+
+**Why it was not fixed, which is the part worth keeping.** The absence is
+**silence on the wire**, and three distinct causes produce the identical
+observable:
+
+- an untracked subject (`related-securities.ts`' `untrackedRefusal`);
+- a tracked subject with no related securities (this entry);
+- a **producer that threw** — `propose` reaches a real database read, and Story
+  7.4's own review made that failure local and silent on purpose, so the rest of
+  the investigation survives it.
+
+On top of that, _no command yet_ and _no command ever_ are also one observable
+until the run reaches a terminal event, and even then the throw case is
+indistinguishable from this one. So there is no signal in the decoded stream a
+sentence could be conditioned on. `investigation-checklist-state.ts` holds
+nothing for a `WORKSPACE_COMMAND` by decision, and adding a _no command arrived_
+flag there would be a claim about a cause the wire never stated.
+
+**And the one browser-side alternative is a second home for the tool's own
+answer.** The security page does hold the universe (`use-securities.ts`), so
+`buildTopologyGraph` plus a re-implementation of `neighboursOf` would answer the
+**curated** half. It would be wrong about the **measured** half: a related
+security can be a `return_correlation` neighbour alone, that generation lives in
+a nightly table the security page never fetches, and a browser asserting _this
+security has no related securities_ from the curated graph alone would be making
+a confident claim over data it has not read — ADR 0029's own rule, and the
+reason this is recorded rather than shipped.
+
+**The clean repair is a wire change, and it belongs to a story rather than a
+sweep.** Either the `WORKSPACE_COMMAND` event gains a **refused/absent arm**
+carrying the reason (`untracked`, `no-relations`, `unavailable`) — which is also
+what would let the three causes above be told apart at last — or
+`compare_securities`' own step gains a published field for it. Both are new wire
+shape with a decoder, a permission question and an `invariants` entry behind
+them, which is more than a Phase 3 fix.
+
+**Re-measure:** `POST /investigations {"symbol":"QQQ"}` then
+`GET /investigations/<id>/events?from=0` and read the body — no
+`WORKSPACE_COMMAND` frame, and nothing in any other frame naming the reason.
+Then open `/securities/QQQ`, press `Investigate`, and read the panel: no
+sentence. Discharged by the first event arm that states why no command was
+produced.
+
+**Owner: Story 7.5**, which already owns what a reader is told about a failed
+run and the per-step degradation around it — the same taxonomy question with the
+same two candidate homes, and the first story that will have to tell a thrown
+producer from a subject with nothing to highlight.

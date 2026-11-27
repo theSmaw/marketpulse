@@ -1512,8 +1512,13 @@ set and a reader looking at it is looking at the thing the set is related to.
 **And it fires with no filter at all, which was not the case this was written
 for.** `SPY`'s own related set is the eleven sector ETFs — every one a
 landmark — so before this task, highlighting `SPY` dimmed all 501 equities
-with nothing marked. It now draws nothing quieter and says nothing, which is
-correct on both halves: there is no ink to describe, and no filter to blame.
+with nothing marked. ~~It now draws nothing quieter and says nothing, which is
+correct on both halves: there is no ink to describe, and no filter to blame.~~
+— **the first half stands and the second was WRONG, corrected 2026-11-27 by
+Story 7.4's Phase 3 (§11.3)**: there is no ink to describe, and _no filter to
+blame_ is precisely why this state needed a sentence of its own rather than
+silence. It now says _Nothing is set back; none of these is an equity this
+graph draws._
 
 **The count is a THIRD clause on `topologyFilterWords`, not a fourth writer.**
 The accessible sentence on this surface has three writers (React's own commit,
@@ -1633,3 +1638,69 @@ exists for, under
 `21 of the 503 companies we track — Energy · nothing highlighted is drawn here, so nothing is quietened   Show all`.
 Neither note overlaps the other or the readout plate at any width — the
 stacked `.notes` column Task 7.4.2 built holds.
+
+### 11.3 Three word-level defects in what this surface SAYS, found by reading it (Story 7.4's Phase 3, 2026-11-27)
+
+**All three are about the one sentence a listener is handed, and nothing
+mechanical in this repository could see any of them.** They were found by
+opening the real route, pressing `Investigate`, narrowing with the `Sector`
+control and reading the result — this epic's own recurring lesson arriving on a
+surface three stories had already measured and asserted.
+
+**One verb phrase was doing two jobs, and the pair read as a flat
+contradiction.** At `/?sector=energy` with `NVDA` highlighted the sentence
+carried _…their benchmark ETFs and the broad market remain, **drawn
+quieter**._ (§8.2's landmark treatment) immediately followed by _…so **nothing
+is drawn quieter**._ (§11.2's complement de-emphasis). Both true, about
+**disjoint** populations — the fifteen landmarks a filter keeps, and the
+equities a highlight did not name — and indistinguishable to a reader who
+cannot check them against the picture. **The two treatments now have two verb
+phrases**: a filtered landmark is _drawn quieter_, unchanged since Story 6.8,
+and a highlight's complement is _set back_. `filter.ts`' `LANDMARKS_REMAIN` and
+`highlight.ts`' `TOPOLOGY_HIGHLIGHT_INK_WORDS` each carry the rule beside the
+string, and the test asserts the **distinctness** rather than two expected
+sentences — a table of strings stays green the day somebody re-words one back
+into the other, which is how this landed.
+
+**The filter's clause talks about the highlight, and it was spoken first.**
+_None of the **highlighted** securities are inside this filter_ arrived before
+anything had said what was highlighted. The spoken composition is now
+structure → highlight → narrowing → measured edges, **unconditionally** rather
+than swapped when both are present, and **the drawn `.notes` stack was swapped
+in the same change**: the highlight note is the first row of that column and
+the filter note the second, so the picture and the sentence read in one order.
+Nothing else moved — `.notes` is a grid column whose rows are its DOM order and
+no rule keys on either note's position, and a `hidden` highlight note takes no
+row and no gap, so the filter note's position while no command is in force is
+unchanged.
+
+**And a highlight that draws nothing with no filter to blame said nothing at
+all.** §11.2 recorded that highlighting `SPY` — eleven sector ETFs, every one
+a landmark, every one excluded from this encoding — _"draws nothing quieter and
+says nothing, which is correct on both halves: there is no ink to describe, and
+no filter to blame"_. **The second half of that was wrong**: there is no ink to
+describe, but _nothing to say_ is not the same as _nothing worth saying_, and
+the reader is left having been told something was highlighted, having seen the
+canvas not change, with no account of why — while the **same** state with a
+filter in force got a full sentence from `hiddenPeerWords`. The boolean that
+crossed the module boundary is now three values (`TopologyHighlightInk`):
+_set back_, _hidden by the filter_ (silent, because `topologyFilterWords` is the
+single author of that explanation and carries the figures), and _nothing to set
+back_, which says **_Nothing is set back; none of these is an equity this graph
+draws._** A total record over the union, so a fourth outcome is a compile error
+rather than a state that quietly says nothing.
+
+**A fifth highlight story draws it** (`HighlightedLandmarksOnly`), and it passes
+`filter` where the four beside it omit the prop — §11.2's own recorded limit,
+`NO_ACCOUNT`'s `set-back`, is right for a component with no criterion at all and
+wrong for exactly this command, so a story without the prop would draw the
+sentence this change replaced.
+
+**What is still unseen.** No person has watched any of this on a deployed
+backend or at 390 on a real phone, and the ink half of §11.2 is unchanged — the
+de-emphasis is still illegible at 390 (`docs/GAPS.md`), where these words are
+the whole of what the surface says. A fourth defect from the same pass is
+outside this canvas entirely and is recorded rather than fixed: a tracked
+subject with **no** related securities (`QQQ`, `DIA`, `IWM`) produces no command
+and no sentence on either surface, because the wire's own silence has three
+causes it cannot tell apart. `docs/GAPS.md` carries it with Story 7.5 as owner.

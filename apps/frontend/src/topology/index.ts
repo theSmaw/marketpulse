@@ -91,6 +91,7 @@ export {
 export type {
   TopologyHighlight,
   TopologyHighlightCut,
+  TopologyHighlightInk,
   TopologyHighlightTreatment,
 } from "./highlight.js";
 

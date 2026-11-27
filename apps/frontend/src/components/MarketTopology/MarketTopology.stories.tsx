@@ -698,6 +698,49 @@ export const HighlightedPeersPartlyHidden: Story = {
 };
 
 /**
+ * **A highlight that draws NOTHING, with no filter to blame** (Story 7.4's
+ * Phase 3, fix 3) — investigating `SPY`, whose own related set is the eleven
+ * sector ETFs and nothing else.
+ *
+ * Every one of them is a landmark, and landmarks are excluded from this
+ * encoding entirely (Story 6.3's own exclusion set, which this treatment is
+ * the fourth to respect) — so the canvas here is **byte-identical** to
+ * {@link AnomalyBandsMeasuredDistribution}'s, with a note on it saying
+ * something is highlighted. That was the defect: a reader was told something
+ * had been pointed at, saw nothing change, and was told nothing about why,
+ * because the arm that explains it is the filter's and there is no filter in
+ * force. The accessible sentence now carries *Nothing is set back; none of
+ * these is an equity this graph draws.*
+ *
+ * **It passes `filter` deliberately**, where the four stories above omit it:
+ * `MarketTopology.tsx`' `NO_ACCOUNT` takes `ink: "set-back"` for a component
+ * with no criterion at all, which is right for every real case and wrong for
+ * exactly this one — the guard is the prop, and `MarketOverview` always passes
+ * it. A story without it would draw the sentence this change replaced.
+ *
+ * What to look at: that the note is the *only* difference from an
+ * unhighlighted graph, and that it reads as deliberate rather than as a
+ * feature that failed.
+ */
+export const HighlightedLandmarksOnly: Story = {
+  args: {
+    universe: WHOLE_UNIVERSE,
+    bands: measuredDistributionWithUnscoredBands(),
+    filter: readTopologyFilter(""),
+  },
+  render: (args) => (
+    <Highlighted
+      {...args}
+      highlight={{
+        subject: "SPY",
+        symbols: Object.values(SECTOR_ETFS),
+        relations: ["index_membership"],
+      }}
+    />
+  ),
+};
+
+/**
  * **The highlight over a MEASURED correlation pass** (Task 7.4.2, added at
  * this task's own review) — the one state where the de-emphasis ink's
  * co-tenancy is real.

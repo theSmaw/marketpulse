@@ -574,7 +574,13 @@ export function topologyBandWords(bands: readonly AnomalyBand[]): string {
 const capitalised = (words: string): string =>
   `${words.slice(0, 1).toUpperCase()}${words.slice(1)}`;
 
-/** What the landmark nodes do in every narrowed state. One home, two users. */
+/**
+ * What the landmark nodes do in every narrowed state. One home, two users.
+ *
+ * **_drawn quieter_ is this clause's own verb phrase and a highlight's
+ * de-emphasis must never borrow it** — see `hiddenPeerWords` below, and
+ * `highlight.ts`' `TOPOLOGY_HIGHLIGHT_INK_WORDS`, for the defect that was.
+ */
 const LANDMARKS_REMAIN =
   " their benchmark ETFs and the broad market remain, drawn quieter.";
 
@@ -679,12 +685,30 @@ function hiddenPeerWords(
   if (cut === null || cut.hidden === 0) return null;
 
   if (!cut.drawsAnything) {
-    const line = "nothing highlighted is drawn here, so nothing is quietened";
+    /*
+     * **This clause's verb phrase is NOT {@link LANDMARKS_REMAIN}', and the
+     * two being one phrase was a real defect** (Story 7.4's Phase 3, fix 1),
+     * found by a person reading the live sentence at `/?sector=energy` with
+     * `NVDA` highlighted.
+     *
+     * Both clauses are true and they describe **disjoint** populations: Story
+     * 6.8's filter draws the fifteen landmarks *quieter* than the equities it
+     * kept, and Story 7.4's highlight *sets back* the equities its command did
+     * not name. With both in force they are adjacent in one spoken sentence,
+     * and with one verb phrase doing both jobs the pair reads as a flat
+     * contradiction — *…remain, drawn quieter. … nothing is drawn quieter.* —
+     * to the one reader who cannot check it against the picture. So the
+     * highlight's de-emphasis is *set back* everywhere (`highlight.ts`'
+     * `TOPOLOGY_HIGHLIGHT_INK_WORDS` is the other half of this), and the
+     * filter's stays *drawn quieter*.
+     */
+    const line = "nothing highlighted is drawn here, so nothing is set back";
     return {
       line,
       clause:
-        ` None of the highlighted securities are inside this filter, so` +
-        ` nothing is drawn quieter. Show all returns the whole market.`,
+        ` None of the highlighted securities are inside this filter, so no` +
+        ` security is set back for the highlight. Show all returns the whole` +
+        ` market.`,
     };
   }
 

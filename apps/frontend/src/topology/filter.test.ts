@@ -917,16 +917,53 @@ describe("topologyFilterWords — the highlighted peers a cut hides", () => {
     );
 
     expect(words?.line).toContain(
-      "nothing highlighted is drawn here, so nothing is quietened",
+      "nothing highlighted is drawn here, so nothing is set back",
     );
     expect(words?.clause).toContain(
-      "None of the highlighted securities are inside this filter, so nothing" +
-        " is drawn quieter.",
+      "None of the highlighted securities are inside this filter, so no" +
+        " security is set back for the highlight.",
     );
     // **A different sentence rather than a bigger figure**, because it is a
     // different fact: the renderer draws no de-emphasis at all here, so the
     // note is saying why the picture did not change rather than counting.
     expect(words?.line).not.toContain("outside this filter");
+  });
+
+  /*
+   * **Story 7.4's Phase 3, fix 1 — the two de-emphases must not share a verb
+   * phrase.**
+   *
+   * One call reaches BOTH claims, which is the state a person read on the real
+   * route (`/?sector=energy`, `NVDA` highlighted): the sector arm's own
+   * `LANDMARKS_REMAIN` says the fifteen landmarks *remain, drawn quieter*
+   * (Story 6.8, true), and the hidden-peer arm says nothing is set back for
+   * the highlight (Story 7.4, also true). They describe disjoint populations.
+   * With one verb phrase doing both jobs the pair read as a flat
+   * self-contradiction — *…drawn quieter. … nothing is drawn quieter.* — to
+   * the one reader who cannot check it against the picture.
+   *
+   * It asserts the **distinctness** rather than two expected strings, because
+   * a table of sentences stays green on the day somebody re-words one of them
+   * back into the other's phrase, which is exactly how this landed.
+   */
+  it("never spends the filter's own verb phrase on the highlight's de-emphasis — Phase 3, fix 1", () => {
+    const words = wordsFor(
+      readTopologyFilter("?sector=energy"),
+      NO_BANDS,
+      GRAPH,
+      TECHNOLOGY,
+    );
+    const clause = words?.clause ?? "";
+
+    // Both claims are present, each about its own population.
+    expect(clause).toContain(
+      "their benchmark ETFs and the broad market remain, drawn quieter.",
+    );
+    expect(clause).toContain("so no security is set back for the highlight.");
+
+    // And the filter's phrase appears **once**, on the landmark claim alone.
+    expect(clause.match(/drawn quieter/gu)).toHaveLength(1);
+    expect(clause).not.toContain("nothing is drawn quieter");
   });
 
   // **The noun and the verb agree with DIFFERENT counts, at all four
