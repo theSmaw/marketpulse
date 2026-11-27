@@ -940,3 +940,73 @@ sorted-by-highlight plant, `pnpm typecheck` clean on the hand-minted command.
 **What no person has seen**: nobody has watched a highlight clear on a
 deployed backend, or at 390 on a real phone. `LIVE-REHEARSAL.md` still carries
 no row for this epic, owed by Story 7.7.
+
+## 14. Story 7.4, Phase 3 — four defects a person found by looking, three fixed and one recorded
+
+**Written 2026-11-27**, after all four tasks had merged. Every one of these was
+found by reading the real route or pressing a real control, and **nothing
+mechanical could see any of them**: three were about words in one sentence and
+the fourth is about a silence.
+
+**Fix 1 — two de-emphases shared one verb phrase, and the pair read as a
+contradiction.** At `/?sector=energy` with `NVDA` highlighted, the accessible
+sentence said _…their benchmark ETFs and the broad market remain, **drawn
+quieter**._ (Story 6.8's landmark treatment, true) and then _…so **nothing is
+drawn quieter**._ (Story 7.4's complement de-emphasis, also true) — two claims
+about disjoint populations, one verb phrase, and a flat self-contradiction to
+the one reader who cannot check it against the picture. The highlight's
+de-emphasis is now **_set back_** everywhere and the filter's stays _drawn
+quieter_; `topology/filter.ts` and `topology/highlight.ts` each carry the rule
+beside the string, and `filter.test.ts` asserts the **distinctness** rather than
+two expected sentences, because a table of strings stays green the day somebody
+re-words one back into the other.
+
+**Fix 2 — the pronoun arrived before its antecedent.** The filter's own third
+clause (Task 7.4.4) is _about_ the highlight — _None of the **highlighted**
+securities are inside this filter_ — and `trailingClausesOf` composed it
+**before** the clause that says anything is highlighted. The spoken order is now
+structure → highlight → narrowing → measured edges, unconditionally (a
+composition whose order depends on which clauses are present is four orderings
+to keep straight), and the drawn `.notes` stack was swapped in the same change
+so the two agree: the highlight note is the first row of that column and the
+filter note the second. Asserted as two **indices into one real string** at the
+component level and in `overview-investigation-highlight.spec.ts`, never as an
+expected sentence.
+
+**Fix 3 — a landmark-only highlight explained nothing.** Investigating `SPY`
+highlights its eleven sector ETFs, every one a landmark and excluded from this
+encoding by Story 6.3's own exclusion set, so `drawsAnything` is `false` and the
+canvas is **byte-identical** to the unhighlighted picture — with no filter to
+blame for it. A reader was told something was highlighted, saw nothing change,
+and was told nothing about why; the same state **with** a filter in force got a
+full explanation from `hiddenPeerWords`. Task 7.4.4's `quietened: boolean` is now
+a three-value `TopologyHighlightInk` — `set-back`, `hidden-by-filter` (silent,
+because `topologyFilterWords` is the single author of that explanation and
+carries the figures) and `nothing-to-set-back`, which says _Nothing is set back;
+none of these is an equity this graph draws._ One total record over the union, so
+a fourth outcome is a compile error rather than a state that silently says
+nothing. A fifth Storybook story (`HighlightedLandmarksOnly`) draws it, and it
+passes `filter` deliberately — `NO_ACCOUNT`'s own `set-back` is right for a
+component with no criterion and wrong for exactly this command, which is the
+recorded limit Task 7.4.4 left and the reason the story needs the prop.
+
+**Fix 4 — a zero-peers subject gets no sentence anywhere, and this one is
+RECORDED rather than fixed.** `QQQ`, `DIA` and `IWM` are tracked and carry no
+membership edge of any kind, so the tool answers an empty list and no command is
+emitted — correct, and silent on both surfaces, because `subjectUntracked` is
+`false` for all three and Task 7.4.4's sentence is keyed on the other state.
+There is **no signal in the decoded stream** to condition a sentence on: an
+untracked subject, a zero-peers subject and a producer that threw are one
+observable (silence), and _no command yet_ is a fourth. The one browser-side
+alternative — recompute the answer from the universe the security page already
+holds — is a second home for the tool's own answer and would be wrong about the
+**measured** half, which lives in a nightly table that page never fetches. The
+clean repair is a wire arm stating the reason, which is new wire shape with a
+decoder and a permission question behind it. `docs/GAPS.md` carries it with
+**Story 7.5** as owner, which already owns the same taxonomy question for a
+failed run.
+
+**What no person has checked about the three fixes**: they were verified by unit
+and component tests over the real recorded universe and by the browser spec's own
+two new assertions, not by a sitting on a deployed backend — `LIVE-REHEARSAL.md`
+still carries no row for this epic, owed by Story 7.7.

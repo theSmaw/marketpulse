@@ -547,7 +547,9 @@
  * ## Absolute, for the same reason the plate is
  *
  * **Amended 2026-11-26 (Task 7.4.2): the absolute positioning moved up to
- * `.notes`**, which is the column this paragraph is now the first row of. The
+ * `.notes`**, which is the column this paragraph is a row of (the first until
+ * Story 7.4's Phase 3, the second after it — the order is the DOM's and the
+ * reason is in `MarketTopology.tsx` beside the markup). The
  * argument below is unchanged and is now the column's — nothing in this
  * region's own box grew, so `MARKET-OVERVIEW.md` §1.4's displacement trigger
  * still does not fire — and the position this note draws at while no
@@ -641,7 +643,7 @@
   padding: var(--space-4) var(--space-8);
   /*
    * **Restored, because `.notes` disables it for the stack** (Task 7.4.4) —
-   * `.filterNote`'s own reason, arriving one row down the same column now that
+   * `.filterNote`'s own reason, arriving in the same column now that
    * this note carries a control: the way back from a highlight is a `Clear`
    * button in it, and a button nothing can click is not a button. The
    * paragraph's own `hidden` attribute is what keeps that from mattering
