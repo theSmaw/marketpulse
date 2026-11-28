@@ -7585,11 +7585,11 @@ section; if the AC's wording still stands, flip
 `pnpm e2e overview-investigation-highlight.spec.ts` — the headline journey
 failing is the measurement, not a flake.
 
-**Owner: the Product Owner**, at Story 7.4's close, as a one-line decision
-between the AC and the Gate-1 record: either AC 8's terminal clause is struck
-(the shipped behaviour, and the only one with a reachable state), or it stands
-and the story's own headline journey is deleted along with the feature's
-visibility. Nothing else in this story depends on which.
+**Decided 2026-11-28 at Story 7.4's Gate 2: the clause is struck.** The
+Product Owner took the one-line decision between the AC and the Gate-1 record
+in favour of the shipped behaviour — `STORY.md`'s AC 8 carries the dated
+strike in place, matching `highlightOutlivesChannelEnd`'s own unchanged code.
+No further re-measure is owed; this entry is closed.
 
 ## A THIRTEENTH entry for the standing screen-reader item — the highlight's Gate-1 premise is FALSE: no surface in this product names the peers in text
 

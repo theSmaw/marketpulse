@@ -1,7 +1,10 @@
 # Story 7.4 — The Graph Lights Up
 
-**Status:** All four tasks complete — 7.4.1 (PR #711), 7.4.2 (PR #713), 7.4.3
-(PR #715), 7.4.4 (PR #716) — and **Phase 3 story verification done, 2026-11-27,
+**Status:** Complete — 2026-11-28, accepted by the Product Owner at Gate 2,
+AC 8's terminal-event clause struck. All four tasks — 7.4.1 (PR #711), 7.4.2
+(PR #713), 7.4.3 (PR #715), 7.4.4 (PR #716) — plus a Phase 3 fix round (PR
+#718) and a documentation sweep with a real e2e root-cause fix (PR #719).
+**Phase 3 story verification done, 2026-11-27,
 which found four defects in shipped behaviour: three fixed in one round and one
 recorded as a gap.** The three fixed are all in what this surface _says_ (two
 de-emphases sharing one verb phrase and reading as a contradiction; the filter's
@@ -17,21 +20,22 @@ the full account of all four. Four
 Gate-1 open questions resolved by the Product Owner; see "Resolved at Gate 1"
 for the argument behind each change to the acceptance criteria below.
 
-**AC 8 is met in three of its four clauses, and the fourth is an open
-Product-Owner decision rather than unbuilt work — because this file
-contradicts itself about it.** AC 8 says a terminal investigation event clears
-the highlight; the Gate-1 record below says the lifetime is
+**AC 8's terminal-event clause is struck, decided by the Product Owner at
+Gate 2 on 2026-11-28.** AC 8 had said a terminal investigation event clears
+the highlight; the Gate-1 record below said the lifetime is
 investigation-scoped and the highlight persists _"never until the
 investigation's own completion, which would close the window before any reader
-could navigate to see it"_. Task 7.4.3 found that the measurement settles
-which of those is reachable rather than taste: at Story 7.2's p50 of 32.0 ms,
-with the command emitted after step 4 of 6, clearing on a terminal event makes
-the highlight **unobservable on every machine** and turns this story's own
-merged headline e2e journey red. Gate 1's reading shipped, in one named
-one-expression home whose reversal is a `true` becoming `false`
-(`highlightOutlivesChannelEnd`), and `docs/GAPS.md` carries the decision with
-its figures and the Product Owner as its owner. Nothing else in this story
-depends on which way it goes.
+could navigate to see it"_ — the file contradicted itself. Task 7.4.3 found
+that the measurement settles which of those is reachable rather than taste: at
+Story 7.2's p50 of 32.0 ms, with the command emitted after step 4 of 6,
+clearing on a terminal event makes the highlight **unobservable on every
+machine** and turns this story's own merged headline e2e journey red. Gate 1's
+reading is what shipped, in one named one-expression home
+(`highlightOutlivesChannelEnd`), and the Product Owner's decision — unanimous
+across all five Phase 3 reports' own recommendation — ratifies the shipped
+behaviour rather than the literal AC text: the clause below is struck, dated
+rather than rewritten, and `docs/GAPS.md` carries the closed decision with its
+figures.
 **Epic:** [Epic 7 — Deterministic Investigation Engine](../EPIC.md)
 **Depends on:** 7.2
 **Epic scope covered:** `get_related_securities`, `highlight_graph_nodes`
@@ -169,10 +173,16 @@ shared-layout` makes a server-side distance test structurally
    measured latency, not a built cross-session capability.
 8. The highlight clears on the reader's own gesture (`Escape`, or
    clicking empty canvas — reusing Story 6.4's existing gestures, no new
-   affordance), on any terminal investigation event, if the investigation's
-   own channel dies, or when a later investigation's command supersedes
-   it — leaving the topology exactly as a reader would have left it
-   themselves in every case.
+   affordance), ~~on any terminal investigation event,~~ if the
+   investigation's own channel dies, or when a later investigation's
+   command supersedes it — leaving the topology exactly as a reader
+   would have left it themselves in every case. **Struck at Gate 2,
+   2026-11-28, by the Product Owner**: the clause was unreachable by
+   construction (Story 7.2's p50 32.0 ms lands a terminal event before
+   any reader could navigate to see the highlight clear), and the
+   shipped behaviour — `highlightOutlivesChannelEnd` returning `true`
+   for every terminal event, so the highlight survives one — is what
+   this criterion now describes.
 
 ## Out of scope
 
@@ -368,10 +378,10 @@ session that started the investigation, and a second tab or a stale
 navigation losing the command are both Gate 1's own named, accepted
 bounds, not built capabilities.
 
-### What is left for the Product Owner, named rather than inherited
+### What was left for the Product Owner, and the decision taken at Gate 2
 
-**AC 8's terminal-event clause is the one thing this record does not
-settle, because it is not a documentation correction — it is a product
+**AC 8's terminal-event clause was the one thing this record did not
+settle, because it was not a documentation correction — it was a product
 decision Gate 1 never actually took, worded as though it had.** All five
 Phase 3 reports independently reached the same reading: AC 8's literal
 "clears on any terminal investigation event" and Gate 1's own recorded
@@ -381,9 +391,12 @@ command emitted after step 4 of 6) says a terminal event lands before any
 reader could navigate to see the highlight, and what shipped —
 `highlightOutlivesChannelEnd` always returning `true` for a terminal
 event — is the only reading with an observable state. `docs/GAPS.md`
-carries the full account with figures. **Recommendation, unanimous across
-every report: strike the clause, dated rather than rewritten.** This is
-the one open item Gate 2 should resolve explicitly rather than inherit.
+carries the full account with figures.
+
+**Decided 2026-11-28 at Gate 2: the clause is struck**, exactly as every
+report recommended. AC 8 above is amended in place with a dated strike
+rather than a silent rewrite, and `docs/GAPS.md`'s own entry is closed
+with the same date.
 
 ### What shipped open, named with owners (not blocking Gate 2, carried forward honestly)
 
