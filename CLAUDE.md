@@ -649,10 +649,10 @@ or when a later investigation's command supersedes it — and **deliberately
 does not clear on the investigation's own terminal event**, because at
 Story 7.2's measured p50 of 32.0 ms over five of its six steps, with the
 command emitted after step 4 of 6, a terminal event lands before any
-reader's hand could leave the control that started it. AC 8's own literal
-wording still says otherwise; `docs/GAPS.md` carries the contradiction with
-an owner, and Story 7.4's own close recommended striking the clause rather
-than the feature.
+reader's hand could leave the control that started it. **AC 8's own literal
+wording said otherwise, and the Product Owner struck the clause at Gate 2
+on 2026-11-28** — the shipped behaviour above is now what AC 8 describes,
+not a deviation from it.
 
 **Two Gate-1 premises were tested against the shipped product and found
 false, both before this story closed rather than discovered later.**
